@@ -1,0 +1,58 @@
+package perfectpair.adapter.driven
+
+import com.augustnagro.magnum.{Transactor, transact}
+import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, DbDataSource}
+import com.eweise.perfectpair.domain.model
+import com.typesafe.config.ConfigFactory
+import perfectpair.domain.DataSetup
+import com.eweise.perfectpair.domain.model.{Account, AccountType}
+import com.eweise.perfectpair.domain.port.driven.AccountRepo
+import perfectpair.testing.rollBackOnly
+
+import java.util.UUID
+import javax.sql.DataSource
+
+class AccountRepoLiveSuite extends munit.FunSuite:
+  var transactor: Transactor   = null
+  var dataSource: DataSource   = null
+  var accountRepo: AccountRepo = null
+  override def beforeAll(): Unit =
+    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+    transactor = Transactor(dataSource)
+    accountRepo = AccountRepoLive()
+
+  test("findWithNonZeroBalance"):
+    val accountRepo = AccountRepoLive()
+
+    transact(transactor):
+      rollBackOnly:
+        accountRepo.findNominalWithNonZeroBalance(UUID.randomUUID())
+
+  test("findByFundFlowAndAccountName"):
+    val accountRepo = AccountRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        val reconAccounts = accountRepo
+          .findByFundFlowAndAccountName(data.fundFlowConfig.id, data.reconAccountName)
+        assertEquals(reconAccounts.size, 1)
+
+  test("auditable attributes are created on insert"):
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+
+        val account = Account(
+          name = UUID.randomUUID().toString,
+          accountType = AccountType.Real,
+          fundFlowId = data.fundFlowConfig.id
+        )
+        assertEquals(account.createdAt, None)
+        assertEquals(account.updatedAt, None)
+        accountRepo.insert(account)
+        assertEquals(account.createdAt.isEmpty, false)
+        assertEquals(account.updatedAt.isEmpty, false)
+        assertEquals(account.createdAt, account.updatedAt)
+
+        accountRepo.update(account)
+        assert(account.updatedAt.get.isAfter(account.createdAt.get))

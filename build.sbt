@@ -1,0 +1,158 @@
+import sbt.io.Path.relativeTo
+import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
+import sbt.Keys.libraryDependencies
+
+lazy val scala3Version = "3.7.3"
+ThisBuild / organization := "com.eweise"
+ThisBuild / scalaVersion := scala3Version
+
+lazy val root = (project in file("."))
+
+/**
+ * Frontend subproject
+ */
+lazy val devServer   = taskKey[Unit]("Start both ~fastOptJS and vite dev server concurrently")
+lazy val publishDist = taskKey[Unit]("Build a static web artifact")
+lazy val frontend = (project in file("frontend"))
+  .enablePlugins(ScalaJSPlugin, DockerPlugin)
+  .settings(
+    name    := "frontend",
+    version := "0.1.0",
+    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
+    scalaJSUseMainModuleInitializer := true,
+    // Source maps seem to be broken with bundler
+    Compile / fastOptJS / scalaJSLinkerConfig ~= { _.withSourceMap(false) },
+    Compile / fullOptJS / scalaJSLinkerConfig ~= { _.withSourceMap(false) },
+    libraryDependencies ++= Seq(
+      "io.indigoengine"            %%% "tyrian-zio"                % Dependencies.Tyrian,
+      "dev.zio"                    %%% "zio-interop-cats"          % Dependencies.ZioInteropCats,
+      "com.softwaremill.quicklens" %%% "quicklens"                 % Dependencies.Quicklens,
+      ("org.scala-js"              %%% "scalajs-java-securerandom" % Dependencies.JavaSecureRandom).cross(CrossVersion.for3Use2_13)
+    )
+  )
+  .settings(
+    dockerBaseImage       := "nginx:stable-perl",
+    Docker / publish      := (Docker / publish).dependsOn(Compile / fullLinkJS).value,
+    Docker / publishLocal := (Docker / publishLocal).dependsOn(Compile / fullLinkJS).value,
+    dockerExposedPorts    := Seq(80),
+    dockerRepository      := Some(DockerSettings.repository),
+    dockerAlias           := DockerAlias.apply(dockerRepository.value, None, "perfectpair", dockerAlias.value.tag.map(t => "frontend-" + t)),
+    DockerSettings.x86ArchSetting,
+    Docker / defaultLinuxInstallLocation := "/usr/share/nginx/html",
+    dockerCommands := dockerCommands.value.filter {
+      case ExecCmd(cmd, _) => cmd != "ENTRYPOINT" && cmd != "CMD" && cmd != "USER"
+      case Cmd(cmd, _)     => cmd != "USER" && cmd != "RUN"
+      case _               => true
+
+    } ++ Seq(Cmd("COPY", "nginx.conf", "/etc/nginx/nginx.conf"), Cmd("CMD", """["nginx", "-g", "daemon off;"]""")),
+    Docker / mappings ++= {
+      publishDist.value
+      val frontendDist    = baseDirectory.value / "dist"
+      val nginxConfigFile = baseDirectory.value / "nginx.conf"
+
+      (frontendDist ** "*").get.map { file =>
+        file -> s"/usr/share/nginx/html/${frontendDist.relativize(file).get.getPath}"
+      } :+ (nginxConfigFile -> "/nginx.conf")
+
+    }
+  )
+  .settings(
+    devServer := {
+      val sourceDirs = (Compile / sourceDirectories).value
+      val watchSrcs  = (Compile / watchSources).value
+      val scalaVer   = scalaVersion.value
+      val backendUrl = Environtments.backendBaseUrl
+      val projectRef = thisProjectRef.value
+      val taskKey    = projectRef / Compile / fastOptJS
+      val sbtState   = state.value
+
+      val compilationRunner = () =>
+        try
+          Project.runTask(taskKey, sbtState) match {
+            case Some((_, Value(_))) => true  // Success
+            case Some((_, Inc(_)))   => false // Compilation failed
+            case None =>
+              println(s"[Scala.js ERROR] Task $taskKey not found")
+              false
+          }
+        catch {
+          case e: Exception =>
+            println(s"[Scala.js ERROR] Compilation error: ${e.getMessage}")
+            false
+        }
+
+      CLIHelper.startDevEnvironment(
+        scalaVer,
+        sourceDirs,
+        compilationRunner,
+        prefix = "frontend",
+        backendUrl = Some(backendUrl)
+      )
+    },
+    publishDist := {
+      (Compile / fullLinkJS).value
+      CLIHelper.buildFrontend(prefix = "frontend", backendUrl = Some(Environtments.backendBaseUrl))
+    }
+  )
+  .dependsOn(common.js)
+
+/**
+ * Backend subproject
+ */
+lazy val backend = (project in file("backend"))
+  .enablePlugins(JavaAppPackaging, DockerPlugin)
+  .settings(
+    name    := "backend",
+    version := "0.1.0",
+    libraryDependencies ++= Seq(
+      "ch.qos.logback"       % "logback-classic"    % Dependencies.LogbackClassic,
+      "org.fusesource.jansi" % "jansi"              % Dependencies.Jansi,
+      "dev.zio"             %% "zio-logging"        % Dependencies.ZioLogging,
+      "dev.zio"             %% "zio-logging-slf4j2" % Dependencies.ZioLogging,
+      "org.scalatest"       %% "scalatest"          % Dependencies.Scalatest % Test,
+      "com.augustnagro"     %% "magnum"             % "2.0.0-M1",
+      "com.recon"           %% "recon-proto"        % "0.1-SNAPSHOT",
+      "org.postgresql"       % "postgresql"         % "42.7.4",
+      "org.scalamock"       %% "scalamock"          % "6.0.0"                % Test,
+      "org.flywaydb"         % "flyway-core"        % "10.20.0",
+      "com.augustnagro"     %% "magnumpg"           % "2.0.0-M1",
+      "com.typesafe"         % "config"             % "1.4.3",
+      "com.lihaoyi"         %% "cask"               % "0.10.2",
+      "com.lihaoyi"         %% "upickle"            % "4.0.2",
+      "org.scalameta"       %% "munit"              % "1.0.2"                % Test,
+      "io.circe"            %% "circe-core"         % "0.14.10",
+      "io.circe"            %% "circe-parser"       % "0.14.10"
+    ),
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+  )
+  .settings(
+    dockerBaseImage    := "openjdk:17-slim",
+    dockerExposedPorts := Seq(8080),
+    dockerRepository   := Some(DockerSettings.repository),
+    dockerAlias        := DockerAlias.apply(dockerRepository.value, None, "perfectpair", dockerAlias.value.tag.map(t => "backend-" + t)),
+    DockerSettings.x86ArchSetting
+  )
+  .dependsOn(common.jvm)
+
+/**
+ * Shared project between frontend and backend
+ */
+lazy val common = (crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure) in file("common"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    scalaVersion := scala3Version,
+    scalacOptions ++= Seq("-Xmax-inlines", "64"), // see [[https://docs.scala-lang.org/scala3/guides/migration/options-new.html]]
+    libraryDependencies ++= Seq(
+      "dev.zio"              %%% "zio-json"        % Dependencies.ZioJson,
+      "dev.zio"              %%% "zio-http"        % Dependencies.ZioHttp,
+      "com.github.jwt-scala" %%% "jwt-json-common" % Dependencies.JwtScala,
+      "org.scalatest"         %% "scalatest"       % Dependencies.Scalatest % Test
+    ),
+    buildInfoKeys := Seq[BuildInfoKey](
+      BuildInfoKey.action("backendBaseUrl") {
+        Environtments.backendBaseUrl()
+      }
+    ),
+    buildInfoPackage := "com.eweise.perfectpair.common"
+  )

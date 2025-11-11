@@ -1,0 +1,39 @@
+{
+  "accountSpecs": [
+    {
+      "$type": "ReconciliationAccountSpec",
+      "name": "recon",
+      "matcher": {
+        "$type": "EqualityMatcher",
+        "inKeys": [
+          "id"
+        ],
+        "outKeys": [
+          "id"
+        ]
+      }
+    },
+    {
+      "$type": "RealAccountSpec",
+      "name": "journal"
+    },
+    {
+      "$type": "RealAccountSpec",
+      "name": "report"
+    }
+  ],
+  "movementSpecs": [
+    {
+      "name": "post_journal",
+      "inAccountName": "journal",
+      "outAccountName": "recon",
+      "attributes": []
+    },
+    {
+      "name": "bank_report",
+      "inAccountName": "recon",
+      "outAccountName": "bank_report",
+      "attributes": []
+    }
+  ]
+}
