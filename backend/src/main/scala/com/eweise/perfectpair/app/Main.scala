@@ -7,8 +7,9 @@ import com.eweise.perfectpair.config.AppConfig
 import com.eweise.perfectpair.domain.model.{AccountType, EqualityMatcher, FundFlowConfig, FundFlowSpec, ID, MovementSpec, RealAccountSpec, ReconciliationAccountSpec}
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache, Reconciler}
 import com.eweise.perfectpair.http.DefaultRoutes.*
-import com.eweise.perfectpair.service.JWTIssuer
-import com.eweise.perfectpair.service.JWTVerifier
+import com.eweise.perfectpair.model.RandomMessage
+import com.eweise.perfectpair.service.JWTIssuer.User
+import com.eweise.perfectpair.service.{JWTIssuer, JWTVerifier, NoZioJWTIssuer, NoZioJWTVerifier}
 import com.eweise.perfectpair.services.RandomQuotes
 import com.typesafe.config.ConfigFactory
 import upickle.default.write
@@ -38,7 +39,6 @@ object Main extends ZIOAppDefault {
     Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 
 }
-
 
 @main
 def magnum(): Unit =
@@ -77,9 +77,9 @@ object Example extends cask.MainRoutes:
 
   transact(transactor):
     val testFundFlowConfig = createTestData().copy(name = "testconfig")
-    try {
+    try
       accountOperations.createConfig(testFundFlowConfig)
-    } catch {
+    catch {
       case e: SqlException =>
         println("config already exists")
     }
@@ -97,6 +97,31 @@ object Example extends cask.MainRoutes:
       .foreach: account =>
         if account.accountType == AccountType.Recon then reconciler.reconcileAccount(account)
 
+//    val prefix: PathCodec[Unit]                 = Root / "api" / "v1"
+  //  val login: PathCodec[Unit]                  = prefix / "login"
+  //  val randomMessage: PathCodec[Unit]          = prefix / "random-message"
+  //  val randomMessage2: PathCodec[Unit]         = prefix / "random-message2"
+  //  val ping: PathCodec[Unit]                   = prefix / "scala"
+  //  val subscribeServerMessage: PathCodec[Unit] = prefix / "subscribe"
+  val prefixPath                 = "/api/v1"
+  val loginPath                  = s"$prefixPath / login"
+  val randomMessagePath          = s"$prefixPath / random-message"
+  val randomMessage2Path         = s"$prefixPath / random-message2"
+  val pingPath                   = s"$prefixPath / scala"
+  val subscribeServerMessagePath = s"$prefixPath / subscribe"
+
+//  @cask.get(loginPath)
+//  def login(loginpath: String): String = {
+//    val loginSuccess = LoginSuccess(NoZioJWTIssuer.issueToken(User("eric")), "not-implemented")
+//    upickle.default.write(loginSuccess)
+//  }
+
+//        Method.GET / PathDef.randomMessage -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson))),
+  //      Method.GET / PathDef.randomMessage2 -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson)))
+
+  @cask.get(randomMessagePath)
+  def getRandomMessage():String = write(RandomMessage("random message"))
+  
   @cask.get("/fundflow/:fundFlowName")
   def fundFlow(fundFlowName: String): String =
     val fundFlow = fundFlowCache
@@ -119,7 +144,7 @@ object Example extends cask.MainRoutes:
 
       write(AdapterModel.Account.fromDomainModel(account))
 
-  //todo this should just pass in an account ID
+  // todo this should just pass in an account ID
   @cask.get("/fundflow/:fundFlowName/account/:accountName/movements")
   def movements(fundFlowName: String, accountName: String): String =
     val fundFlow = fundFlowCache

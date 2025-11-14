@@ -1,16 +1,10 @@
-package com.eweise.perfectpair.common.util
+package com.eweise.perfectpair.util
 
-import com.eweise.perfectpair.common.util.JwtHelper.UserClaim
-import pdi.jwt.Jwt
-import pdi.jwt.JwtAlgorithm
-import pdi.jwt.JwtBase64
-import pdi.jwt.JwtClaim
+import pdi.jwt.{Jwt, JwtAlgorithm, JwtBase64, JwtClaim}
 import zio.json.*
-import zio.json.DecoderOps
 import zio.json.ast.Json
 
 import java.time.Instant
-import scala.util.Try
 
 /**
  *   - Centralized JWT protocol setup for both Backend and Frontend.

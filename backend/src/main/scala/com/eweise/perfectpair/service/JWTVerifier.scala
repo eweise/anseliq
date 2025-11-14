@@ -1,11 +1,10 @@
 package com.eweise.perfectpair.service
 
-import com.eweise.perfectpair.common.util.JwtHelper
-import com.eweise.perfectpair.common.util.JwtHelper.UserClaim
 import com.eweise.perfectpair.config.AppConfig
 import zio.*
-
 import JWTVerifier.*
+import com.eweise.perfectpair.util.JwtHelper
+import com.eweise.perfectpair.util.JwtHelper.UserClaim
 
 trait JWTVerifier {
   def isValid(token: String): UIO[Boolean] = decode(token).fold(_ => false, _ => true)

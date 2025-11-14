@@ -147,6 +147,7 @@ lazy val common = (crossProject(JVMPlatform, JSPlatform)
       "dev.zio"              %%% "zio-json"        % Dependencies.ZioJson,
       "dev.zio"              %%% "zio-http"        % Dependencies.ZioHttp,
       "com.github.jwt-scala" %%% "jwt-json-common" % Dependencies.JwtScala,
+      "com.lihaoyi"           %% "upickle"         % "4.0.2",
       "org.scalatest"         %% "scalatest"       % Dependencies.Scalatest % Test
     ),
     buildInfoKeys := Seq[BuildInfoKey](

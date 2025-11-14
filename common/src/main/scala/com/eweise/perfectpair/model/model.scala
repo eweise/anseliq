@@ -1,4 +1,4 @@
-package com.eweise.perfectpair.common.model
+package com.eweise.perfectpair.model
 
 import zio.Schedule
 import zio.json.*
@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import scala.util.Random
 import scala.util.Try
+import upickle.default.*
 
 /**
  * Shared models between Backend and Frontend
@@ -19,7 +20,7 @@ import scala.util.Try
 case class LoginRequest(username: String, password: String)
 case class LoginSuccess(accessToken: String, refreshToken: String)
 case class LoginFailure(reason: String)
-case class RandomMessage(text: String)
+case class RandomMessage(text: String) derives ReadWriter
 
 object LoginRequest {
   given JsonCodec[LoginRequest] = DeriveJsonCodec.gen[LoginRequest]
