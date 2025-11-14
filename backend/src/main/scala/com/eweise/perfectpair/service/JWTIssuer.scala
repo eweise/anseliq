@@ -1,7 +1,5 @@
 package com.eweise.perfectpair.service
 
-import com.eweise.perfectpair.common.util.JwtHelper
-import com.eweise.perfectpair.common.util.JwtHelper.UserClaim
 import com.eweise.perfectpair.config.AppConfig
 import com.eweise.perfectpair.service.JWTIssuer.User
 import pdi.jwt.Jwt
@@ -13,8 +11,9 @@ import zio.json.DeriveJsonCodec
 import zio.json.JsonCodec
 
 import java.time.Instant
-
 import JWTVerifier.*
+import com.eweise.perfectpair.util.JwtHelper
+import com.eweise.perfectpair.util.JwtHelper.UserClaim
 
 trait JWTIssuer {
   def issueToken(user: User): UIO[String]
