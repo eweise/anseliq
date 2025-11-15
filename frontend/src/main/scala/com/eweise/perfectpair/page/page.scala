@@ -17,7 +17,7 @@ enum Page(
   val path: String,
   val render: Model => Html[Msg],
   beforeEnter: Model => Cmd[Task, Msg] = _ => Cmd.None, // e.g: side effect for loading data
-  val isSecured: Boolean = true
+  val isSecured: Boolean = false
 ){
   def doNavigate(model: Model): Cmd[Task, Msg] = beforeEnter(model) |+| Cmd.emit(Msg.DoNavigate(this))
 
