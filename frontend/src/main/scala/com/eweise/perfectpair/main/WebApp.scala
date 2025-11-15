@@ -65,7 +65,8 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
       (model.modify(_.loginForm.isLoading).setTo(true), loginCmd)
 
     case Msg.NavigateTo(page) =>
-      val isLoginRequired = page.isSecured && !model.isLoggedIn
+//todo implement      val isLoginRequired = page.isSecured && !model.isLoggedIn
+      val isLoginRequired = false
       if (!isLoginRequired) {
         (model.navigateTo(page), page.doNavigate(model))
       } else (Model.init, Cmd.Emit(Msg.NavigateTo(Page.Login)))
@@ -96,13 +97,13 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
       (model, HttpHelper.fetchServerMessage2)
 
     case Msg.SendHttpRequestWithAccessToken(f) =>
-      val cmd = model.user match
-        case None =>
-          Cmd.Emit(Msg.DoNavigate(Page.Login))
-        case Some(User(_, accessToken, _)) =>
-          f(accessToken)
+//      val cmd = model.user match
+//        case None =>
+//          Cmd.Emit(Msg.DoNavigate(Page.Login))
+//        case Some(User(_, accessToken, _)) =>
 
-      (model, cmd)
+
+      (model, Cmd.emit(Msg.NoOp))
 
   def view(model: Model): Html[Msg] =
     val pageContent = model.currentPage.render(model)

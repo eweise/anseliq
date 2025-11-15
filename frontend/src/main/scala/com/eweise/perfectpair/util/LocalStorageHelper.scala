@@ -36,7 +36,8 @@ object LocalStorageHelper:
       if (accessToken != null && refreshToken != null)
         Msg.RestoredSession(accessToken, refreshToken)
       else
-        Msg.NavigateTo(Page.Login)
+        Msg.NoOp
+//        Msg.NavigateTo(Page.Login)
     }
 
     Cmd.Run(tryLoginFromLocalStorage)
