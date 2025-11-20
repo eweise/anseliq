@@ -76,3 +76,48 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         val foundByAccount = movementRepo.findUnReconciledByAccount(data.reconAccount.id)
 
         assertEquals(foundByAccount.size, 2)
+
+  test("findByAccount returns all movements for an account"):
+    val movementRepo = MovementRepoLive()
+
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+
+        val movement1 = Movement(
+          inAccountId = data.journalAccount.id,
+          outAccountId = data.reconAccount.id,
+          amount = 100
+        )
+        val movement2 = Movement(
+          inAccountId = data.reconAccount.id,
+          outAccountId = data.reportAccount.id,
+          amount = 200
+        )
+        val movement3 = Movement(
+          inAccountId = data.journalAccount.id,
+          outAccountId = data.reportAccount.id,
+          amount = 300
+        )
+
+        movementRepo.insert(movement1)
+        movementRepo.insert(movement2)
+        movementRepo.insert(movement3)
+
+        val reconMovements = movementRepo.findByAccount(data.reconAccount.id)
+        assertEquals(reconMovements.size, 2)
+
+        val journalMovements = movementRepo.findByAccount(data.journalAccount.id)
+        assertEquals(journalMovements.size, 2)
+
+        val reportMovements = movementRepo.findByAccount(data.reportAccount.id)
+        assertEquals(reportMovements.size, 2)
+
+  test("findByAccount returns empty for account with no movements"):
+    val movementRepo = MovementRepoLive()
+
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        val movements = movementRepo.findByAccount(data.reconAccount.id)
+        assertEquals(movements.size, 0)
