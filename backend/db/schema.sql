@@ -27,7 +27,9 @@ create table recon.account (
 
 create table recon.reconciliation (
     id uuid primary key,
-    description text
+    description text,
+    created_at timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at timestamptz default CURRENT_TIMESTAMP not null
 );
 
 create table recon.movement (

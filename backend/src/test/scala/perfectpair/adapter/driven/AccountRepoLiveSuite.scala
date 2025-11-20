@@ -56,3 +56,19 @@ class AccountRepoLiveSuite extends munit.FunSuite:
 
         accountRepo.update(account)
         assert(account.updatedAt.get.isAfter(account.createdAt.get))
+
+  test("findByFundFlow returns all accounts for a fund flow"):
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        val accounts = accountRepo.findByFundFlow(data.fundFlowConfig.id)
+        assertEquals(accounts.size, 3)
+        assert(accounts.exists(_.name == data.reconAccountName))
+        assert(accounts.exists(_.name == data.journalAccountName))
+        assert(accounts.exists(_.name == data.reportAccountName))
+
+  test("findByFundFlow returns empty for non-existent fund flow"):
+    transact(transactor):
+      rollBackOnly:
+        val accounts = accountRepo.findByFundFlow(java.util.UUID.randomUUID())
+        assertEquals(accounts.size, 0)
