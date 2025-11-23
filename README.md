@@ -55,8 +55,3 @@ To connect to your database from outside the cluster execute the following comma
 sbt assembly
 
 
-#Generate OPEN API code
-docker run --rm -v "${PWD}:/local" openapitools/openapi-generator-cli generate \
--i ./src/main/resources/openapi.yaml \
--g scala-cask \
--o /local/out/scala
