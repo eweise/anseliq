@@ -94,16 +94,15 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
       (model.modify(_.homeState.serverMessage).setTo(Some(text)), PrettyLogger.info(text))
 
     case Msg.NextBackendMessage =>
-      (model, HttpHelper.fetchServerMessage2)
+      (model, HttpHelper.fetchServerMessage2 |+| PrettyLogger.info("fetchserverMessage2"))
 
     case Msg.SendHttpRequestWithAccessToken(f) =>
 //      val cmd = model.user match
 //        case None =>
 //          Cmd.Emit(Msg.DoNavigate(Page.Login))
 //        case Some(User(_, accessToken, _)) =>
-
-
-      (model, Cmd.emit(Msg.NoOp))
+      val cmd = f("")
+      (model, cmd)
 
   def view(model: Model): Html[Msg] =
     val pageContent = model.currentPage.render(model)
