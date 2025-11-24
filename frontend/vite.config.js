@@ -13,7 +13,8 @@ export default defineConfig(({ command }) => {
     },
     server: {
       port: 9876,
-      historyApiFallback: true
+      historyApiFallback: true,
+      cors: true,
     },
   };
 });

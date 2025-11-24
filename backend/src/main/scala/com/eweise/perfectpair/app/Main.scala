@@ -1,58 +1,41 @@
 package com.eweise.perfectpair.app
 
+import cask.RawDecorator
+import cask.model.Request
+import cask.model.Response.Raw
+import cask.router.Result
 import com.augustnagro.magnum.*
-import com.eweise.perfectpair.adapter.{AdapterModel, driven}
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
-import com.eweise.perfectpair.config.AppConfig
-import com.eweise.perfectpair.domain.model.{AccountType, EqualityMatcher, FundFlowConfig, FundFlowSpec, ID, MovementSpec, RealAccountSpec, ReconciliationAccountSpec}
+import com.eweise.perfectpair.adapter.{AdapterModel, driven}
+import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache, Reconciler}
-import com.eweise.perfectpair.http.DefaultRoutes.*
 import com.eweise.perfectpair.model.RandomMessage
-import com.eweise.perfectpair.service.JWTIssuer.User
-import com.eweise.perfectpair.service.{JWTIssuer, JWTVerifier, NoZioJWTIssuer, NoZioJWTVerifier}
-import com.eweise.perfectpair.services.RandomQuotes
 import com.typesafe.config.ConfigFactory
-import upickle.default.write
-import zio.*
-import zio.Console.*
-import zio.http.*
 import upickle.default.*
 //import zio.http.codec.HttpCodec.connect
-import zio.logging.backend.SLF4J
-
 import java.util.UUID
-
-object Main extends ZIOAppDefault {
-
-  override def run =
-    Server
-      .serve(public ++ authenticated)
-      .provide(
-        Server.defaultWithPort(8080),
-        JWTVerifier.live,
-        JWTIssuer.live,
-        AppConfig.live,
-        RandomQuotes.live
-      )
-
-  override val bootstrap: ZLayer[ZIOAppArgs, Any, Any] =
-    Runtime.removeDefaultLoggers >>> SLF4J.slf4j
-
-}
-
-@main
-def magnum(): Unit =
-  val dataSource = driven.DbDataSource.create(ConfigFactory.load())
-  val transactor = Transactor(dataSource)
-
-  val users: Vector[ID] = connect(transactor):
-    sql"SELECT a.id from recon.account a join recon.account b on a.id = b.id".query[ID].run()
-
-  users.foreach(println)
 
 object Example extends cask.MainRoutes:
   val dataSource = driven.DbDataSource.create(ConfigFactory.load("application.conf"))
   val transactor = Transactor(dataSource)
+
+  class CORSDecorator extends RawDecorator:
+    def wrapFunction(ctx: Request, delegate: Delegate): Result[Raw] =
+      delegate(ctx, Map.empty).map(response =>
+        response.copy(headers =
+          response.headers ++ Seq(
+            "access-control-allow-origin" -> "*",
+            "Access-Control-Allow-Methods" -> "GET, DELETE, POST, OPTIONS, HEAD",
+            "Access-Control-Allow-Headers" -> "*",
+            "Access-Control-Allow-Credentials" -> "true",
+            "Access-Control-Max-Age" -> "86400"
+          )
+        )
+      )
+
+  override def decorators = {
+    super.decorators ++ Seq(CORSDecorator())
+  }
 
   val fundFlowConfigRepo = FundFlowConfigRepoLive()
   val fundFlowCache      = FundFlowCache(fundFlowConfigRepo)
@@ -97,12 +80,6 @@ object Example extends cask.MainRoutes:
       .foreach: account =>
         if account.accountType == AccountType.Recon then reconciler.reconcileAccount(account)
 
-//    val prefix: PathCodec[Unit]                 = Root / "api" / "v1"
-  //  val login: PathCodec[Unit]                  = prefix / "login"
-  //  val randomMessage: PathCodec[Unit]          = prefix / "random-message"
-  //  val randomMessage2: PathCodec[Unit]         = prefix / "random-message2"
-  //  val ping: PathCodec[Unit]                   = prefix / "scala"
-  //  val subscribeServerMessage: PathCodec[Unit] = prefix / "subscribe"
   val prefixPath                 = "/api/v1"
   val loginPath                  = s"$prefixPath / login"
   val randomMessagePath          = s"$prefixPath / random-message"
@@ -110,18 +87,25 @@ object Example extends cask.MainRoutes:
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
 
-//  @cask.get(loginPath)
-//  def login(loginpath: String): String = {
-//    val loginSuccess = LoginSuccess(NoZioJWTIssuer.issueToken(User("eric")), "not-implemented")
-//    upickle.default.write(loginSuccess)
-//  }
 
-//        Method.GET / PathDef.randomMessage -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson))),
-  //      Method.GET / PathDef.randomMessage2 -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson)))
+  @cask.options("api/v1/random-message")
+  def getRandomMessageOptions() = ""
 
-  @cask.get(randomMessagePath)
-  def getRandomMessage():String = write(RandomMessage("random message"))
-  
+  @cask.get("api/v1/random-message")
+  def getRandomMessage() =
+    cask.Response(
+      data = write(RandomMessage("random message")),
+    )
+
+  @cask.options("api/v1/random-message2")
+  def getRandomMessageOptions2() = ""
+
+  @cask.get("api/v1/random-message2")
+  def getNextRandomMessage() =
+    cask.Response(
+      data = write(RandomMessage("next random message")),
+      )
+
   @cask.get("/fundflow/:fundFlowName")
   def fundFlow(fundFlowName: String): String =
     val fundFlow = fundFlowCache

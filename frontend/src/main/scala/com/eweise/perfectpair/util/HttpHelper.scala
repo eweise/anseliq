@@ -1,5 +1,6 @@
 package com.eweise.perfectpair.until
 
+import cats.implicits.catsSyntaxSemigroup
 import com.eweise.perfectpair.common.BuildInfo
 import com.eweise.perfectpair.http.BackendApiUrl
 import com.eweise.perfectpair.http.PathDef
@@ -10,6 +11,7 @@ import com.eweise.perfectpair.model.LoginSuccess
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.model.Msg.*
 import com.eweise.perfectpair.until.HttpHelper.ResponseDecoders.*
+import com.eweise.perfectpair.util.PrettyLogger
 import tyrian.Cmd
 import tyrian.http.*
 import zio.Task
@@ -19,9 +21,9 @@ import zio.json.*
 object HttpHelper:
 
   private def sendWithAuthToken[A, R <: Msg](request: Request[A], resultToMessage: Decoder[R]): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    Cmd.Emit(
+      PrettyLogger.info("Cnd.Emit") |+| Cmd.Emit(
       Msg.SendHttpRequestWithAccessToken(accessToken =>
-        Http.send(request.withHeaders(Header("Authorization", s"Bearer $accessToken")), resultToMessage)
+        Http.send(request.withHeaders(Header("Authorization", s"Bearer $accessToken")), resultToMessage )
       )
     )
 
@@ -39,7 +41,7 @@ object HttpHelper:
 
   private def fetchServerMessage(apiUrl: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] = {
     val request = Request.get(apiUrl)
-    sendWithAuthToken(request, greetDecoder)
+    sendWithAuthToken(request, greetDecoder)  |+|  PrettyLogger.info("http.send")
   }
 
   object ResponseDecoders {
