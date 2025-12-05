@@ -9,5 +9,5 @@ case class FundFlowConfig(
   name: String,
   fundFlowJson: String
 ) extends Auditable
-    derives DbCodec:
+    derives DbCodec, ReadWriter:
   def fundFlow: FundFlowSpec = read[FundFlowSpec](fundFlowJson)

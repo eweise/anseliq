@@ -1,18 +1,7 @@
 package com.eweise.perfectpair.model
 
-import zio.Schedule
-import zio.json.*
-import zio.json.ast.Json
-import zio.schema.annotation.description
-
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
-import scala.util.Random
-import scala.util.Try
 import upickle.default.*
+import zio.json.*
 
 /**
  * Shared models between Backend and Frontend

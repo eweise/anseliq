@@ -16,3 +16,5 @@ class FundFlowCache(fundFlowConfigRepo: FundFlowConfigRepo):
   def getConfigByName(name: String): Option[FundFlowConfig] = configsByName.get(name)
 
   def getConfigByID(id: ID): Option[FundFlowConfig] = configsByID.get(id)
+
+  def getAll: Iterable[FundFlowConfig] = configsByName.values
