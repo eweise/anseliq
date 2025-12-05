@@ -13,7 +13,10 @@ object MainContainer:
     nav(cls := "bg-purple-600 dark:bg-purple-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-700")(
       div(cls := "flex flex-wrap items-center justify-between p-4")(
         a(href := "/", cls := "flex items-center")(
-          text("hello")
+          img(
+            src := "assets/images/perfectpair.png",
+            width := "100px"
+          )
         ),
         div(cls := "flex")(
           darkModeSwitchButton(isDark),
