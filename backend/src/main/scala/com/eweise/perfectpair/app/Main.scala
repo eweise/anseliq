@@ -104,6 +104,14 @@ object Example extends cask.MainRoutes:
       data = write(RandomMessage("next random message"))
     )
 
+  @cask.get("api/v1/fund-flows")
+  def getFundFlows() = {
+    cask.Response(
+      data = write(fundFlowCache.getAll)
+    )
+  }
+
+
   @cask.get("/fundflow/:fundFlowName")
   def fundFlow(fundFlowName: String): String =
     val fundFlow = fundFlowCache
