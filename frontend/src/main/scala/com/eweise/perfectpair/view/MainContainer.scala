@@ -1,11 +1,13 @@
 package com.eweise.perfectpair.view
 
-import tyrian.Html.*
+import tyrian.Html.{text, *}
 import tyrian.syntax.*
 import tyrian.Html
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.view.components.Icons
+import com.eweise.perfectpair.page.Page
 import tyrian.Elem
+
 import javax.swing.Icon
 
 object MainContainer:
@@ -14,7 +16,7 @@ object MainContainer:
     nav(cls := "bg-purple-600 dark:bg-purple-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-700")(
       div(cls := "flex flex-wrap items-center justify-between p-4")(
         a(href := "/", cls := "flex items-center")(
-          img(src := "/assets/images/tyrian-horizontal.svg", cls := "h-12")
+          text("hello")
         ),
         div(cls := "flex")(
           darkModeSwitchButton(isDark),
@@ -49,9 +51,56 @@ object MainContainer:
     val icon = if isDark then Icons.sun else Icons.moon
     controlButton(Msg.ToggleDarkMode, icon)
 
+  private def leftNav(): Html[Msg] =
+    aside(cls := "fixed left-0 top-20 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto")(
+      nav(cls := "p-4")(
+        ul(cls := "space-y-2")(
+          navItem("Home", Page.Home, Icons.home),
+          navItem("Components", Page.Toggle, Icons.component),
+          navSeparator(),
+          navItemExternal("Dashboard", "#", Icons.dashboard),
+          navItemExternal("Profile", "#", Icons.user),
+          navItemExternal("Settings", "#", Icons.settings),
+          navSeparator(),
+          navItemExternal("Analytics", "#", Icons.chart),
+          navItemExternal("Reports", "#", Icons.document)
+        )
+      )
+    )
+
+  private def navItem(label: String, page: Page, icon: Elem[Msg]): Html[Msg] =
+    li()(
+      a(
+        href := page.path,
+        onClick(Msg.NavigateTo(page)),
+        cls := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200"
+      )(
+        span(cls := "w-5 h-5")(icon),
+        span()(text(label))
+      )
+    )
+
+  private def navItemExternal(label: String, linkHref: String, icon: Elem[Msg]): Html[Msg] =
+    li()(
+      a(
+        href := linkHref,
+        cls := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200"
+      )(
+        span(cls := "w-5 h-5")(icon),
+        span()(text(label))
+      )
+    )
+
+  private def navSeparator(): Html[Msg] =
+    li(cls := "py-2")(
+      hr(cls := "border-gray-300 dark:border-gray-600")
+    )
+
   def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
+    val mainMargin = if isLoggedIn then "ml-64" else ""
     div(cls := (if isDark then "dark" else "not-dark-mode"))(
       navbar(isDark, isLoggedIn),
-      main(cls := "flex flex-col min-h-screen mt-20 bg-gray-200 dark:bg-gray-900")(content),
+      leftNav(),
+      main(cls := s"flex flex-col min-h-screen mt-20 bg-gray-200 dark:bg-gray-900 $mainMargin")(content),
       theFooter
     )
