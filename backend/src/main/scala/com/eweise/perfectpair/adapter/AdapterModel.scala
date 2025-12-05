@@ -8,11 +8,11 @@ import upickle.default.*
 
 object AdapterModel:
   case class Account(
-      id: String,
-      name: String,
-      fundFlowId: ID,
-      accountType: String,
-      balance: Money
+    id: String,
+    name: String,
+    fundFlowId: ID,
+    accountType: String,
+    balance: Money
   ) derives ReadWriter
 
   object Account:
@@ -26,14 +26,14 @@ object AdapterModel:
       )
 
   case class Movement(
-      id: String,
-      referenceId: String,
-      outAccountId: String,
-      inAccountId: String,
-      amount: Money,
-      properties: Properties,
-      reconciliationId: String,
-      status: String
+    id: String,
+    referenceId: String,
+    outAccountId: String,
+    inAccountId: String,
+    amount: Money,
+    properties: Properties,
+    reconciliationId: String,
+    status: String
   ) derives ReadWriter
 
   object Movement:

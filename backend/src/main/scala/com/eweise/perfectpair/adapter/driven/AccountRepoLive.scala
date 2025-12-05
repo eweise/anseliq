@@ -18,21 +18,19 @@ class AccountRepoLive extends AuditableRepo[model.Account, model.Account, UUID] 
        """.query[Account].run()
 
   def findByFundFlowAndAccountName(
-      fundFlowID: ID,
-      accountName: String
-  ): Txn[Option[model.Account]] = {
+    fundFlowID: ID,
+    accountName: String
+  ): Txn[Option[model.Account]] =
     sql"""
         SELECT ${a.all} FROM $a as a
         where fund_flow_id = $fundFlowID
         and name = $accountName
        """.query[Account].run().headOption
-  }
 
   def findByFundFlow(
-      fundFlowID: ID
-  ): Txn[Vector[model.Account]] = {
+    fundFlowID: ID
+  ): Txn[Vector[model.Account]] =
     sql"""
         SELECT ${a.all} FROM $a as a
         where fund_flow_id = $fundFlowID
        """.query[Account].run()
-  }

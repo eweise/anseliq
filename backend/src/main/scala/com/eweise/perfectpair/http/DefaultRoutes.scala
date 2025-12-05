@@ -91,7 +91,7 @@ object DefaultRoutes {
 
   val authenticated = withAuthMiddleware {
     Routes(
-      Method.GET / PathDef.randomMessage -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson))),
+      Method.GET / PathDef.randomMessage  -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson))),
       Method.GET / PathDef.randomMessage2 -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson)))
     )
   } @@ corsMiddleWare

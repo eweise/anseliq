@@ -5,25 +5,24 @@ import model.*
 import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, ReconciliationRepo, Txn}
 
-def mapKeyToMovement(keys: Array[String], outMovements: Vector[Movement]) = {
+def mapKeyToMovement(keys: Array[String], outMovements: Vector[Movement]) =
   outMovements
     .map: movement =>
       val outKey = keys.foldLeft("")((accum, key) => accum + movement.properties.props(key))
       outKey -> movement
     .toMap
-}
 
 class Reconciler(
-    val fundFlowCache: FundFlowCache,
-    val accountRepo: AccountRepo,
-    val movementRepo: MovementRepo,
-    val reconRepo: ReconciliationRepo,
-    val fundFlowConfigRepo: FundFlowConfigRepo
+  val fundFlowCache: FundFlowCache,
+  val accountRepo: AccountRepo,
+  val movementRepo: MovementRepo,
+  val reconRepo: ReconciliationRepo,
+  val fundFlowConfigRepo: FundFlowConfigRepo
 ):
 
   // todo this needs to pass in a reconciliation Account ID, not a fund flow
   def reconcileAccount(
-      reconAccount: Account
+    reconAccount: Account
   ): Txn[Unit] =
 
     val fundFlow = fundFlowCache

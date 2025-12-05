@@ -6,9 +6,9 @@ import java.time.OffsetDateTime
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class User(
-    @Id id: Long,
-    firstName: Option[String],
-    lastName: String,
-    created: OffsetDateTime
+  @Id id: Long,
+  firstName: Option[String],
+  lastName: String,
+  created: OffsetDateTime
 ) extends Auditable
     derives DbCodec

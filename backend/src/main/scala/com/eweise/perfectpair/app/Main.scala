@@ -24,18 +24,17 @@ object Example extends cask.MainRoutes:
       delegate(ctx, Map.empty).map(response =>
         response.copy(headers =
           response.headers ++ Seq(
-            "access-control-allow-origin" -> "*",
-            "Access-Control-Allow-Methods" -> "GET, DELETE, POST, OPTIONS, HEAD",
-            "Access-Control-Allow-Headers" -> "*",
+            "access-control-allow-origin"      -> "*",
+            "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
+            "Access-Control-Allow-Headers"     -> "*",
             "Access-Control-Allow-Credentials" -> "true",
-            "Access-Control-Max-Age" -> "86400"
+            "Access-Control-Max-Age"           -> "86400"
           )
         )
       )
 
-  override def decorators = {
+  override def decorators =
     super.decorators ++ Seq(CORSDecorator())
-  }
 
   val fundFlowConfigRepo = FundFlowConfigRepoLive()
   val fundFlowCache      = FundFlowCache(fundFlowConfigRepo)
@@ -87,14 +86,13 @@ object Example extends cask.MainRoutes:
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
 
-
   @cask.options("api/v1/random-message")
   def getRandomMessageOptions() = ""
 
   @cask.get("api/v1/random-message")
   def getRandomMessage() =
     cask.Response(
-      data = write(RandomMessage("random message")),
+      data = write(RandomMessage("random message"))
     )
 
   @cask.options("api/v1/random-message2")
@@ -103,8 +101,8 @@ object Example extends cask.MainRoutes:
   @cask.get("api/v1/random-message2")
   def getNextRandomMessage() =
     cask.Response(
-      data = write(RandomMessage("next random message")),
-      )
+      data = write(RandomMessage("next random message"))
+    )
 
   @cask.get("/fundflow/:fundFlowName")
   def fundFlow(fundFlowName: String): String =
