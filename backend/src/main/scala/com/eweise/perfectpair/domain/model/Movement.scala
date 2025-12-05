@@ -12,19 +12,18 @@ enum MovementStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Movement(
-    @Id id: ID = createID(),
-    referenceId: ID = createID(), // serves as the idempotency id //todo remove default
-    outAccountId: ID,
-    inAccountId: ID,
-    amount: Money,
-    properties: JSONBProps = JSONBProps(Map()),
-    reconciliationId: Option[ID] = None,
-    status: MovementStatus = WithinSLA
+  @Id id: ID = createID(),
+  referenceId: ID = createID(), // serves as the idempotency id //todo remove default
+  outAccountId: ID,
+  inAccountId: ID,
+  amount: Money,
+  properties: JSONBProps = JSONBProps(Map()),
+  reconciliationId: Option[ID] = None,
+  status: MovementStatus = WithinSLA
 ) extends Auditable
     derives DbCodec
 
 object Movement:
   val Table = TableInfo[Movement, Movement, UUID]
 
-extension (vc: Vector[Movement])
-  def isReconciled = vc.foldLeft(true)((isReconciled, m) => if !isReconciled then false else m.status == Reconciled)
+extension (vc: Vector[Movement]) def isReconciled = vc.foldLeft(true)((isReconciled, m) => if !isReconciled then false else m.status == Reconciled)

@@ -11,14 +11,13 @@ enum AccountType derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Account(
-    @Id id: ID = createID(),
-    name: String,
-    fundFlowId: ID,
-    accountType: AccountType,
-    var balance: Money = 0
+  @Id id: ID = createID(),
+  name: String,
+  fundFlowId: ID,
+  accountType: AccountType,
+  var balance: Money = 0
 ) extends Auditable
     derives DbCodec
-
 
 object Account:
   val Table = TableInfo[Account, Account, UUID]

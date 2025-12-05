@@ -14,7 +14,7 @@ trait NoZioJWTVerifier {
 
 object NoZioJWTVerifier {
   val secretKey = "123"
-  def apply():NoZioJWTVerifier = 
+  def apply(): NoZioJWTVerifier =
     new NoZioJWTVerifier {
       override def decode(token: String): Either[String, UserClaim] =
         JwtHelper.decode(token, secretKey)

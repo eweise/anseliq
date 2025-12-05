@@ -6,10 +6,10 @@ import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRep
 import model.*
 
 class AccountOperations(
-    val fundFlowCache: FundFlowCache,
-    val accountRepo: AccountRepo,
-    val movementRepo: MovementRepo,
-    val configRepo: FundFlowConfigRepo
+  val fundFlowCache: FundFlowCache,
+  val accountRepo: AccountRepo,
+  val movementRepo: MovementRepo,
+  val configRepo: FundFlowConfigRepo
 ):
 
   def createConfig(fundFlowConfig: FundFlowConfig): Txn[FundFlowConfig] =
@@ -17,10 +17,10 @@ class AccountOperations(
     fundFlowConfig
 
   def postAmount(
-      fundFlowName: String,
-      movementName: String,
-      amount: Money,
-      properties: Properties = Map[String, String]()
+    fundFlowName: String,
+    movementName: String,
+    amount: Money,
+    properties: Properties = Map[String, String]()
   ): Txn[Unit] =
     // find the fund flow
     val fundFlowConfig = fundFlowCache
@@ -48,7 +48,7 @@ class AccountOperations(
         throw NotFoundException(s"no account found for account name ${movementSpec.outAccountName}")
       )
     val outAccountType = if outAccountSpec.isReconSpec then model.AccountType.Recon else model.AccountType.Real
-    val outAccount = upsertAccount(movementSpec.outAccountName, amount * -1, outAccountType, fundFlowConfig)
+    val outAccount     = upsertAccount(movementSpec.outAccountName, amount * -1, outAccountType, fundFlowConfig)
 
     movementRepo.insert:
       Movement(
@@ -66,10 +66,10 @@ class AccountOperations(
     accountRepo.findNominalWithNonZeroBalance(fundflow.id)
 
   private def upsertAccount(
-      accountName: String,
-      amount: Money,
-      accountType: AccountType,
-      ffConfig: FundFlowConfig
+    accountName: String,
+    amount: Money,
+    accountType: AccountType,
+    ffConfig: FundFlowConfig
   ): Txn[Account] =
     accountRepo.findByFundFlowAndAccountName(ffConfig.id, accountName) match
 
