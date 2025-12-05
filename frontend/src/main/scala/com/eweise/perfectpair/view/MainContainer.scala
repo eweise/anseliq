@@ -1,14 +1,11 @@
 package com.eweise.perfectpair.view
 
 import tyrian.Html.{text, *}
-import tyrian.syntax.*
 import tyrian.Html
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.view.components.Icons
 import com.eweise.perfectpair.page.Page
 import tyrian.Elem
-
-import javax.swing.Icon
 
 object MainContainer:
 
@@ -52,7 +49,7 @@ object MainContainer:
     controlButton(Msg.ToggleDarkMode, icon)
 
   private def leftNav(): Html[Msg] =
-    aside(cls := "fixed left-0 top-20 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto")(
+    aside(cls := "fixed left-0 top-20 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto")(
       nav(cls := "p-4")(
         ul(cls := "space-y-2")(
           navItem("Home", Page.Home, Icons.home),
@@ -97,10 +94,9 @@ object MainContainer:
     )
 
   def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
-    val mainMargin = if isLoggedIn then "ml-64" else ""
     div(cls := (if isDark then "dark" else "not-dark-mode"))(
       navbar(isDark, isLoggedIn),
       leftNav(),
-      main(cls := s"flex flex-col min-h-screen mt-20 bg-gray-200 dark:bg-gray-900 $mainMargin")(content),
+      main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-gray-200 dark:bg-gray-900")(content),
       theFooter
     )
