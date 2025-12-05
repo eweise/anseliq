@@ -1,6 +1,6 @@
 package com.eweise.perfectpair.services
 
-import zio._
+import zio.*
 
 trait RandomQuotes {
   def getRandomMessage: UIO[String]

@@ -2,8 +2,8 @@ package com.eweise.perfectpair.adapter.driven
 
 import com.augustnagro.magnum.Repo
 import com.eweise.perfectpair.domain.model
+import com.eweise.perfectpair.domain.model.{FundFlowConfig, ID}
 import com.eweise.perfectpair.domain.port.driven.FundFlowConfigRepo
-import model.{FundFlowConfig, ID}
 
 import java.util.UUID
 

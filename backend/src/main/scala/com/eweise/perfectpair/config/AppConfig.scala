@@ -1,7 +1,6 @@
 package com.eweise.perfectpair.config
 
-import zio.ZLayer
-import zio._
+import zio.*
 
 case class AppConfig(secret: String)
 

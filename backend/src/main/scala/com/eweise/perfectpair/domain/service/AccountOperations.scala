@@ -1,9 +1,9 @@
 package com.eweise.perfectpair.domain.service
 
 import com.eweise.perfectpair.domain.model
+import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
 import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, Txn}
-import model.*
 
 class AccountOperations(
   val fundFlowCache: FundFlowCache,

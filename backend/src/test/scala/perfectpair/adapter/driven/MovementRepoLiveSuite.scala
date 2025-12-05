@@ -2,11 +2,11 @@ package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{DbDataSource, MovementRepoLive, ReconciliationRepoLive}
+import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
+import com.eweise.perfectpair.domain.model.{Movement, Reconciliation, createID}
 import com.typesafe.config.ConfigFactory
 import perfectpair.domain.DataSetup
-import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
-import com.eweise.perfectpair.domain.model.{Movement, Reconciliation, createID}
 import perfectpair.testing.rollBackOnly
 
 import javax.sql.DataSource
