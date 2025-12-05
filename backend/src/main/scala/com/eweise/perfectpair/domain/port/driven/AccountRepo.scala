@@ -1,7 +1,7 @@
 package com.eweise.perfectpair.domain.port.driven
 
 import com.eweise.perfectpair.domain.model
-import model.*
+import com.eweise.perfectpair.domain.model.*
 
 trait AccountRepo extends DomainRepo[Account, Account]:
 

@@ -3,7 +3,7 @@ package com.eweise.perfectpair.adapter.driven
 import com.augustnagro.magnum.{DbCon, Repo, sql}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
-import model.{Direction, ID, Movement}
+import com.eweise.perfectpair.domain.model.{Direction, ID, Movement}
 import com.eweise.perfectpair.domain.port.driven.{MovementRepo, Txn}
 
 import java.util.UUID

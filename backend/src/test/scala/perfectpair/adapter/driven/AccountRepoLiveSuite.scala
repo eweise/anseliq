@@ -3,10 +3,10 @@ package perfectpair.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, DbDataSource}
 import com.eweise.perfectpair.domain.model
-import com.typesafe.config.ConfigFactory
-import perfectpair.domain.DataSetup
 import com.eweise.perfectpair.domain.model.{Account, AccountType}
 import com.eweise.perfectpair.domain.port.driven.AccountRepo
+import com.typesafe.config.ConfigFactory
+import perfectpair.domain.DataSetup
 import perfectpair.testing.rollBackOnly
 
 import java.util.UUID

@@ -1,7 +1,7 @@
 package com.eweise.perfectpair.domain.model
 
 import com.augustnagro.magnum.*
-import MovementStatus.{Reconciled, WithinSLA}
+import com.eweise.perfectpair.domain.model.MovementStatus.{Reconciled, WithinSLA}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
 
 import java.util.UUID

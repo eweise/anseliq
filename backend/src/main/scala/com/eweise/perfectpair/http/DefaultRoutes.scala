@@ -4,11 +4,11 @@ import com.eweise.perfectpair.model.{LoginFailure, LoginRequest, LoginSuccess, R
 import com.eweise.perfectpair.service.{JWTIssuer, JWTVerifier}
 import com.eweise.perfectpair.services.RandomQuotes
 import com.eweise.perfectpair.util.JwtHelper.UserClaim
-import zio.{IO, ZIO}
+import zio.http.*
 import zio.http.Header.{AccessControlAllowOrigin, Origin}
 import zio.http.Middleware.{CorsConfig, cors}
-import zio.http.*
 import zio.json.*
+import zio.{IO, ZIO}
 
 import scala.reflect.{ClassTag, classTag}
 

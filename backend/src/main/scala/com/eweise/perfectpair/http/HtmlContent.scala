@@ -1,7 +1,7 @@
 package com.eweise.perfectpair.http
 
-import zio._
-import zio.http._
+import zio.*
+import zio.http.*
 
 object HtmlContent {
   val value = """

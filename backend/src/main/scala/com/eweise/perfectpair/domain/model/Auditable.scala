@@ -1,6 +1,5 @@
 package com.eweise.perfectpair.domain.model
 
-import com.augustnagro.magnum.common.DbCodec
 import com.augustnagro.magnum.{PostgresDbType, SqlNameMapper, Table}
 
 import java.time.OffsetDateTime
