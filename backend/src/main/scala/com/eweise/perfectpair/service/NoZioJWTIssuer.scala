@@ -1,8 +1,8 @@
 package com.eweise.perfectpair.service
 
+import com.eweise.perfectpair.common.util.JwtHelper
 import com.eweise.perfectpair.service.JWTIssuer.User
-import com.eweise.perfectpair.util.JwtHelper
-import com.eweise.perfectpair.util.JwtHelper.UserClaim
+import JwtHelper.UserClaim
 
 object NoZioJWTIssuer:
   private val secretKey = "123"

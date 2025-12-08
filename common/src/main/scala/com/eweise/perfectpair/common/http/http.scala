@@ -1,4 +1,4 @@
-package com.eweise.perfectpair.http
+package com.eweise.perfectpair.common.http
 
 import zio.http.Path
 import zio.http.Root

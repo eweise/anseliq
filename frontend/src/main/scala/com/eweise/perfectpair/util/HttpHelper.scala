@@ -2,12 +2,8 @@ package com.eweise.perfectpair.until
 
 import cats.implicits.catsSyntaxSemigroup
 import com.eweise.perfectpair.common.BuildInfo
-import com.eweise.perfectpair.http.BackendApiUrl
-import com.eweise.perfectpair.http.PathDef
-import com.eweise.perfectpair.model.RandomMessage
-import com.eweise.perfectpair.model.LoginFailure
-import com.eweise.perfectpair.model.LoginRequest
-import com.eweise.perfectpair.model.LoginSuccess
+import com.eweise.perfectpair.common.http.{BackendApiUrl, PathDef}
+import com.eweise.perfectpair.common.model.{LoginFailure, LoginRequest, LoginSuccess, RandomMessage}
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.model.Msg.*
 import com.eweise.perfectpair.until.HttpHelper.ResponseDecoders.*

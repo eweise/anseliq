@@ -1,5 +1,7 @@
 package com.eweise.perfectpair.model
 
+import com.eweise.perfectpair.common.model.LoginFailure
+import com.eweise.perfectpair.common.util.JwtHelper
 import tyrian.Location
 import tyrian.Cmd
 import tyrian.http._
@@ -9,9 +11,7 @@ import zio.json.ast.Json
 
 import com.eweise.perfectpair.page.*
 import com.eweise.perfectpair.model.Model.User
-import com.eweise.perfectpair.util.JwtHelper
 import com.eweise.perfectpair.model.Model.LoginForm
-import com.eweise.perfectpair.model.LoginFailure
 import com.eweise.perfectpair.model.Model.HomeState
 import com.eweise.perfectpair.model.Model.emptyLoginForm
 
