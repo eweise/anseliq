@@ -1,9 +1,9 @@
 package com.eweise.perfectpair.service
 
+import com.eweise.perfectpair.common.util.JwtHelper
 import com.eweise.perfectpair.config.AppConfig
 import com.eweise.perfectpair.service.JWTVerifier.*
-import com.eweise.perfectpair.util.JwtHelper
-import com.eweise.perfectpair.util.JwtHelper.UserClaim
+import JwtHelper.UserClaim
 import zio.*
 
 trait JWTVerifier {

@@ -1,9 +1,10 @@
 package com.eweise.perfectpair.http
 
-import com.eweise.perfectpair.model.{LoginFailure, LoginRequest, LoginSuccess, RandomMessage}
+import com.eweise.perfectpair.common.http.PathDef
+import com.eweise.perfectpair.common.model.{LoginFailure, LoginRequest, LoginSuccess, RandomMessage}
 import com.eweise.perfectpair.service.{JWTIssuer, JWTVerifier}
 import com.eweise.perfectpair.services.RandomQuotes
-import com.eweise.perfectpair.util.JwtHelper.UserClaim
+import com.eweise.perfectpair.common.util.JwtHelper.UserClaim
 import zio.http.*
 import zio.http.Header.{AccessControlAllowOrigin, Origin}
 import zio.http.Middleware.{CorsConfig, cors}

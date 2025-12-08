@@ -1,4 +1,4 @@
-package com.eweise.perfectpair.model
+package com.eweise.perfectpair.common.model
 
 import upickle.default.*
 import zio.json.*

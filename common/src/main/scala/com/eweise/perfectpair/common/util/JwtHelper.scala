@@ -1,4 +1,4 @@
-package com.eweise.perfectpair.util
+package com.eweise.perfectpair.common.util
 
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtBase64, JwtClaim}
 import zio.json.*

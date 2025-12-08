@@ -7,9 +7,9 @@ import cask.router.Result
 import com.augustnagro.magnum.*
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
 import com.eweise.perfectpair.adapter.{AdapterModel, driven}
+import com.eweise.perfectpair.common.model.RandomMessage
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache, Reconciler}
-import com.eweise.perfectpair.model.RandomMessage
 import com.typesafe.config.ConfigFactory
 import upickle.default.*
 //import zio.http.codec.HttpCodec.connect
