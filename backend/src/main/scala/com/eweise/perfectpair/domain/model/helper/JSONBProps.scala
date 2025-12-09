@@ -1,7 +1,7 @@
 package com.eweise.perfectpair.domain.model.helper
 
 import com.augustnagro.magnum.pg.json.JsonBDbCodec
-import com.eweise.perfectpair.domain.model.Properties
+import com.eweise.perfectpair.common.model.model.Properties
 import io.circe.parser.decode as circeDecode
 import io.circe.syntax.*
 import io.circe.{Codec, Decoder, Encoder}

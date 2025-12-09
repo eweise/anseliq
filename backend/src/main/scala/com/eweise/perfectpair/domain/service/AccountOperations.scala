@@ -1,5 +1,6 @@
 package com.eweise.perfectpair.domain.service
 
+import com.eweise.perfectpair.common.model.model.{Money, Properties}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.model.helper.JSONBProps

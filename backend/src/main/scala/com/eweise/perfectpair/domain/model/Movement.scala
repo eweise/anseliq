@@ -1,6 +1,7 @@
 package com.eweise.perfectpair.domain.model
 
 import com.augustnagro.magnum.*
+import com.eweise.perfectpair.common.model.model.{ID, Money}
 import com.eweise.perfectpair.domain.model.MovementStatus.{Reconciled, WithinSLA}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
 

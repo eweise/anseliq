@@ -1,7 +1,8 @@
 package com.eweise.perfectpair.domain.service
 
 import com.augustnagro.magnum.DbCon
-import com.eweise.perfectpair.domain.model.{FundFlowConfig, ID}
+import com.eweise.perfectpair.common.model.model.ID
+import com.eweise.perfectpair.domain.model.{FundFlowConfig}
 import com.eweise.perfectpair.domain.port.driven.FundFlowConfigRepo
 
 class FundFlowCache(fundFlowConfigRepo: FundFlowConfigRepo):

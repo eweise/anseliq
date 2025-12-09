@@ -1,8 +1,9 @@
 package com.eweise.perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Repo, sql}
+import com.eweise.perfectpair.common.model.model.ID
 import com.eweise.perfectpair.domain.model
-import com.eweise.perfectpair.domain.model.{Account, ID}
+import com.eweise.perfectpair.domain.model.{Account}
 import com.eweise.perfectpair.domain.port.driven.{AccountRepo, Txn}
 
 import java.util.UUID

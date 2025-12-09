@@ -1,6 +1,8 @@
 package com.eweise.perfectpair.domain.model
 
 import com.augustnagro.magnum.*
+import com.eweise.perfectpair.common.model.model.ID
+import com.eweise.perfectpair.domain.createID
 import upickle.default.*
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
