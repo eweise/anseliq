@@ -1,7 +1,7 @@
 package com.eweise.perfectpair.domain.port.driven
 
 import com.augustnagro.magnum.{BatchUpdateResult, DbCon}
-import com.eweise.perfectpair.domain.model.ID
+import com.eweise.perfectpair.common.model.model.ID
 
 trait DomainRepo[E, EC] {
   def count(using DbCon): Long

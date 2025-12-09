@@ -1,6 +1,7 @@
 package com.eweise.perfectpair.domain.model
 
 import com.augustnagro.magnum.*
+import com.eweise.perfectpair.common.model.model.{ID, Money}
 
 import java.util
 import java.util.UUID

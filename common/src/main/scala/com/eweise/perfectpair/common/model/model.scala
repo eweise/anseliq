@@ -1,5 +1,7 @@
 package com.eweise.perfectpair.common.model
 
+import com.eweise.perfectpair.common.model.MovementStatus.WithinSLA
+import com.eweise.perfectpair.common.model.model.{Money, Properties}
 import upickle.default.*
 import zio.json.*
 
@@ -26,3 +28,7 @@ object LoginFailure {
 object RandomMessage {
   given JsonCodec[RandomMessage] = DeriveJsonCodec.gen[RandomMessage]
 }
+
+enum MovementStatus:
+  case Reconciled, WithinSLA, OutOfSLA
+

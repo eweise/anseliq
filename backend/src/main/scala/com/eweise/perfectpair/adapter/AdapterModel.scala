@@ -1,8 +1,8 @@
 package com.eweise.perfectpair.adapter
 
+import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model as dm
-import com.eweise.perfectpair.domain.model.{ID, Money, Properties}
 import upickle.*
 import upickle.default.*
 

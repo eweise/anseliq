@@ -2,9 +2,10 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.DbDataSource
+import com.eweise.perfectpair.common.model.model.Zero
 import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
-import com.eweise.perfectpair.domain.model.{Account, Movement, Zero, isReconciled}
+import com.eweise.perfectpair.domain.model.{Account, Movement, isReconciled}
 import com.eweise.perfectpair.domain.port.driven.Txn
 import com.eweise.perfectpair.domain.service.{AccountOperations, Reconciler}
 import com.typesafe.config.ConfigFactory
