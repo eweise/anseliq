@@ -1,5 +1,6 @@
 package com.eweise.perfectpair.domain.model
 
+import com.eweise.perfectpair.common.model.{EqualityMatcher, Matcher}
 import upickle.default.*
 
 enum Direction:
@@ -26,18 +27,10 @@ case class ReconciliationAccountSpec(
   name: String,
   matcher: Matcher = EqualityMatcher(Array("id"), Array("id")),
   agingLimit: String = ""
+  
 ) extends AccountSpec
 
 case class RealAccountSpec(
   name: String
 ) extends AccountSpec
 
-sealed trait Matcher derives ReadWriter
-case class EqualityMatcher(
-  inKeys: Array[String],
-  outKeys: Array[String]
-) extends Matcher
-
-case class SQLMatcher(
-  sql: String
-) extends Matcher

@@ -6,8 +6,10 @@ import cask.model.Response.Raw
 import cask.router.Result
 import com.augustnagro.magnum.*
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
-import com.eweise.perfectpair.adapter.{AdapterModel, driven}
-import com.eweise.perfectpair.common.model.RandomMessage
+import com.eweise.perfectpair.adapter.driven
+import com.eweise.perfectpair.adapter.driving.*
+import com.eweise.perfectpair.adapter.driving.Payload.accountPayloadfromDomainModel
+import com.eweise.perfectpair.common.model.{EqualityMatcher, RandomMessage}
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache, Reconciler}
 import com.typesafe.config.ConfigFactory
@@ -119,6 +121,14 @@ object Example extends cask.MainRoutes:
       .getOrElse(throw Exception(s"fund flow name $fundFlowName not found"))
     fundFlow.fundFlowJson
 
+  @cask.get("/recon-account")
+  def reconAccounts(): String =
+    transact(transactor):
+      val accounts = accountRepo.findAllRecon()
+        val payload = accounts.map(Payload.accountPayloadfromDomainModel)
+        write(payload)
+
+
   @cask.get("/fundflow/:fundFlowName/account/:accountName")
   def account(fundFlowName: String, accountName: String): String =
     val fundFlow = fundFlowCache
@@ -132,7 +142,7 @@ object Example extends cask.MainRoutes:
         .getOrElse:
           throw Exception("not found") // todo need proper http errors
 
-      write(AdapterModel.Account.fromDomainModel(account))
+      write(Payload.accountPayloadfromDomainModel(account))
 
   // todo this should just pass in an account ID
   @cask.get("/fundflow/:fundFlowName/account/:accountName/movements")
@@ -150,7 +160,7 @@ object Example extends cask.MainRoutes:
 
       val adapterMovements = movementRepo
         .findByAccount(account.id)
-        .map(AdapterModel.Movement.fromDomainModel)
+        .map(Payload.movementPayloadfromDomainModel)
 
       write(adapterMovements)
 
