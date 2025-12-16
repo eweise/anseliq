@@ -2,6 +2,7 @@ package perfectpair.domain
 
 import com.augustnagro.magnum.DbTx
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
+import com.eweise.perfectpair.common.model.EqualityMatcher
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, ReconciliationRepo}
 import com.eweise.perfectpair.domain.service.FundFlowCache

@@ -3,7 +3,8 @@ package com.eweise.perfectpair.adapter.driven
 import com.augustnagro.magnum.{Repo, sql}
 import com.eweise.perfectpair.common.model.model.ID
 import com.eweise.perfectpair.domain.model
-import com.eweise.perfectpair.domain.model.{Account}
+import com.eweise.perfectpair.domain.model.Account
+import com.eweise.perfectpair.domain.model.AccountType.Recon
 import com.eweise.perfectpair.domain.port.driven.{AccountRepo, Txn}
 
 import java.util.UUID
@@ -35,3 +36,9 @@ class AccountRepoLive extends AuditableRepo[model.Account, model.Account, UUID] 
         SELECT ${a.all} FROM $a as a
         where fund_flow_id = $fundFlowID
        """.query[Account].run()
+
+  def findAllRecon():Txn[Vector[model.Account]] =
+    sql"""
+        SELECT ${a.all} FROM $a as a
+        where account_type = ${Recon.toString.toUpperCase}
+         """.query[Account].run()

@@ -1,23 +1,15 @@
-package com.eweise.perfectpair.adapter
+package com.eweise.perfectpair.adapter.driving
 
+import com.eweise.perfectpair.common.model.AdapterModel.{AccountPayload, MovementPayload}
 import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model as dm
 import upickle.*
 import upickle.default.*
 
-object AdapterModel:
-  case class Account(
-    id: String,
-    name: String,
-    fundFlowId: ID,
-    accountType: String,
-    balance: Money
-  ) derives ReadWriter
-
-  object Account:
-    def fromDomainModel(dmAccount: model.Account): AdapterModel.Account =
-      AdapterModel.Account(
+object Payload:
+    def accountPayloadfromDomainModel(dmAccount: model.Account): AccountPayload =
+      AccountPayload(
         id = dmAccount.id.toString,
         name = dmAccount.name,
         fundFlowId = dmAccount.fundFlowId,
@@ -25,20 +17,8 @@ object AdapterModel:
         balance = dmAccount.balance
       )
 
-  case class Movement(
-    id: String,
-    referenceId: String,
-    outAccountId: String,
-    inAccountId: String,
-    amount: Money,
-    properties: Properties,
-    reconciliationId: String,
-    status: String
-  ) derives ReadWriter
-
-  object Movement:
-    def fromDomainModel(dmMovement: model.Movement): AdapterModel.Movement =
-      AdapterModel.Movement(
+    def movementPayloadfromDomainModel(dmMovement: model.Movement): MovementPayload =
+      MovementPayload(
         id = dmMovement.id.toString,
         referenceId = dmMovement.referenceId.toString,
         outAccountId = dmMovement.outAccountId.toString,
