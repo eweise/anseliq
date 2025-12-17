@@ -18,10 +18,11 @@ enum Page(
   val render: Model => Html[Msg],
   beforeEnter: Model => Cmd[Task, Msg] = _ => Cmd.None, // e.g: side effect for loading data
   val isSecured: Boolean = false
-){
+) {
   def doNavigate(model: Model): Cmd[Task, Msg] = beforeEnter(model) |+| Cmd.emit(Msg.DoNavigate(this))
 
-  case Login      extends Page("/login", model => LoginPage(model.loginForm), isSecured = false)
-  case Home       extends Page("/", model => Welcome(model.homeState), _ => HttpHelper.fetchServerMessage)
-  case Toggle     extends Page("/components/toggle", model => ToggleView(), _ => PrettyLogger.info("Entering Toggle page"))
+  case Login   extends Page("/login", model => LoginPage(model.loginForm), isSecured = false)
+  case Home    extends Page("/", model => Welcome(model.homeState), _ => HttpHelper.fetchServerMessage)
+  case Accounts extends Page("/components/accounts", model => AccountsView(), _ => PrettyLogger.info("Entering Accounts page"))
+  case Toggle  extends Page("/components/toggle", model => ToggleView(), _ => PrettyLogger.info("Entering Toggle page"))
 }

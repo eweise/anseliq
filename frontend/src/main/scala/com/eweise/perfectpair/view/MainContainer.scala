@@ -57,6 +57,7 @@ object MainContainer:
         ul(cls := "space-y-2")(
           navItem("Home", Page.Home, Icons.home),
           navItem("Components", Page.Toggle, Icons.component),
+          navItem("Accounts", Page.Accounts, Icons.component),
           navSeparator(),
           navItemExternal("Dashboard", "#", Icons.dashboard),
           navItemExternal("Profile", "#", Icons.user),
