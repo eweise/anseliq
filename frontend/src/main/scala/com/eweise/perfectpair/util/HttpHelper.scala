@@ -1,25 +1,27 @@
-package com.eweise.perfectpair.until
+package com.eweise.perfectpair.util
 
 import cats.implicits.catsSyntaxSemigroup
 import com.eweise.perfectpair.common.BuildInfo
 import com.eweise.perfectpair.common.http.{BackendApiUrl, PathDef}
-import com.eweise.perfectpair.common.model.{LoginFailure, LoginRequest, LoginSuccess, RandomMessage}
+import com.eweise.perfectpair.common.model.{LoginFailure, LoginRequest, LoginSuccess, RandomMessage, ReconciliationAccountPayload}
 import com.eweise.perfectpair.model.Msg
+import com.eweise.perfectpair.common.model.AdapterModel.AccountPayload
 import com.eweise.perfectpair.model.Msg.*
-import com.eweise.perfectpair.until.HttpHelper.ResponseDecoders.*
+import com.eweise.perfectpair.util.HttpHelper.ResponseDecoders.*
 import com.eweise.perfectpair.util.PrettyLogger
 import tyrian.Cmd
 import tyrian.http.*
 import zio.Task
 import zio.interop.catz.*
 import zio.json.*
+import upickle.default.*
 
 object HttpHelper:
 
   private def sendWithAuthToken[A, R <: Msg](request: Request[A], resultToMessage: Decoder[R]): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-      PrettyLogger.info("Cnd.Emit") |+| Cmd.Emit(
+    PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
       Msg.SendHttpRequestWithAccessToken(accessToken =>
-        Http.send(request.withHeaders(Header("Authorization", s"Bearer $accessToken")), resultToMessage )
+        Http.send(request.withHeaders(Header("Authorization", s"Bearer $accessToken")), resultToMessage)
       )
     )
 
@@ -30,15 +32,19 @@ object HttpHelper:
   }
 
   val fetchServerMessage: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessage(BackendApiUrl.randomMessage)
+    fetchGreetServerMessage(BackendApiUrl.randomMessage, greetDecoder)
 
   val fetchServerMessage2: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessage(BackendApiUrl.randomMessage2)
+    fetchGreetServerMessage(BackendApiUrl.randomMessage2, greetDecoder)
 
-  private def fetchServerMessage(apiUrl: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] = {
-    val request = Request.get(apiUrl)
-    sendWithAuthToken(request, greetDecoder)  |+|  PrettyLogger.info("http.send")
-  }
+  val fetchReconAccounts: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchGreetServerMessage(BackendApiUrl.reconAccounts, accountDecoder)
+
+  private def fetchGreetServerMessage[R <: Msg](
+    apiUrl: String,
+    resultToDecoder: Decoder[R]
+  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(Request.get(apiUrl), resultToDecoder) |+| PrettyLogger.info("http.send")
 
   object ResponseDecoders {
 
@@ -58,13 +64,25 @@ object HttpHelper:
       )
 
     val greetDecoder: Decoder[Msg.GreetingFromBackend | Msg.Error | Msg.Logout.type] = Decoder(
-      _.body.fromJson[RandomMessage] match {
-        case Right(RandomMessage(text)) =>
-          Msg.GreetingFromBackend(text)
-        case _ =>
-          Msg.Logout
-      },
+      onResponse =>
+        val tmp = onResponse.body.fromJson[RandomMessage]
+        tmp match {
+          case Right(RandomMessage(text)) =>
+            Msg.GreetingFromBackend(text)
+          case _ =>
+            Msg.Logout
+        }
+      ,
       error => Msg.Error(error.toString())
     )
+
+    val accountDecoder: Decoder[Msg.AccountsFromBackend | Msg.Error] =
+      Decoder(
+        onResponse =>
+          val accountsPayload = read[Seq[AccountPayload]](onResponse.body)
+          Msg.AccountsFromBackend(accounts = accountsPayload)
+        ,
+        error => com.eweise.perfectpair.model.Msg.Error(error.toString)
+      )
 
   }

@@ -3,6 +3,7 @@ import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 import sbt.Keys.libraryDependencies
 
 lazy val scala3Version = "3.7.3"
+lazy val upickleVersion = "4.0.2"
 ThisBuild / organization := "com.eweise"
 ThisBuild / scalaVersion := scala3Version
 
@@ -26,6 +27,7 @@ lazy val frontend = (project in file("frontend"))
     libraryDependencies ++= Seq(
       "io.indigoengine"            %%% "tyrian-zio"                % Dependencies.Tyrian,
       "dev.zio"                    %%% "zio-interop-cats"          % Dependencies.ZioInteropCats,
+      "com.lihaoyi"                %%% "upickle"                   % upickleVersion,
       "com.softwaremill.quicklens" %%% "quicklens"                 % Dependencies.Quicklens,
       ("org.scala-js"              %%% "scalajs-java-securerandom" % Dependencies.JavaSecureRandom).cross(CrossVersion.for3Use2_13)
     )
@@ -111,14 +113,12 @@ lazy val backend = (project in file("backend"))
       "dev.zio"             %% "zio-logging-slf4j2" % Dependencies.ZioLogging,
       "org.scalatest"       %% "scalatest"          % Dependencies.Scalatest % Test,
       "com.augustnagro"     %% "magnum"             % "2.0.0-M2",
-      "com.recon"           %% "recon-proto"        % "0.1-SNAPSHOT",
       "org.postgresql"       % "postgresql"         % "42.7.4",
       "org.scalamock"       %% "scalamock"          % "6.0.0"                % Test,
       "org.flywaydb"         % "flyway-core"        % "10.20.0",
       "com.augustnagro"     %% "magnumpg"           % "2.0.0-M2",
       "com.typesafe"         % "config"             % "1.4.3",
       "com.lihaoyi"         %% "cask"               % "0.10.2",
-      "com.lihaoyi"         %% "upickle"            % "4.0.2",
       "org.scalameta"       %% "munit"              % "1.0.2"                % Test,
       "io.circe"            %% "circe-core"         % "0.14.10",
       "io.circe"            %% "circe-parser"       % "0.14.10"
@@ -147,7 +147,7 @@ lazy val common = (crossProject(JVMPlatform, JSPlatform)
       "dev.zio"              %%% "zio-json"        % Dependencies.ZioJson,
       "dev.zio"              %%% "zio-http"        % Dependencies.ZioHttp,
       "com.github.jwt-scala" %%% "jwt-json-common" % Dependencies.JwtScala,
-      "com.lihaoyi"           %% "upickle"         % "4.0.2",
+      "com.lihaoyi"           %% "upickle"         % upickleVersion,
       "org.scalatest"         %% "scalatest"       % Dependencies.Scalatest % Test
     ),
     buildInfoKeys := Seq[BuildInfoKey](

@@ -5,16 +5,18 @@ import cask.model.Request
 import cask.model.Response.Raw
 import cask.router.Result
 import com.augustnagro.magnum.*
-import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
 import com.eweise.perfectpair.adapter.driven
+import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
 import com.eweise.perfectpair.adapter.driving.*
-import com.eweise.perfectpair.adapter.driving.Payload.accountPayloadfromDomainModel
+import com.eweise.perfectpair.common.model.AdapterModel.AccountPayload
 import com.eweise.perfectpair.common.model.{EqualityMatcher, RandomMessage}
 import com.eweise.perfectpair.domain.model.*
+import ujson.Value.JsonableSeq
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache, Reconciler}
 import com.typesafe.config.ConfigFactory
+import ujson.Arr.from
 import upickle.default.*
-//import zio.http.codec.HttpCodec.connect
+
 import java.util.UUID
 
 object Example extends cask.MainRoutes:
@@ -113,6 +115,7 @@ object Example extends cask.MainRoutes:
     )
   }
 
+  case class Thing(name : String) derives ReadWriter
 
   @cask.get("/fundflow/:fundFlowName")
   def fundFlow(fundFlowName: String): String =
@@ -126,6 +129,9 @@ object Example extends cask.MainRoutes:
     transact(transactor):
       val accounts = accountRepo.findAllRecon()
         val payload = accounts.map(Payload.accountPayloadfromDomainModel)
+        read[Thing]("""{"myFieldA":1,"myFieldB":"gg"}""")
+        val tmp = read[AccountPayload]("")
+//        println(tmp)
         write(payload)
 
 

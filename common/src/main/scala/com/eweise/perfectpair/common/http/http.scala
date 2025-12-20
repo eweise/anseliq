@@ -16,6 +16,7 @@ object PathDef {
   val login: PathCodec[Unit]                  = prefix / "login"
   val randomMessage: PathCodec[Unit]          = prefix / "random-message"
   val randomMessage2: PathCodec[Unit]         = prefix / "random-message2"
+  val reconAccounts: PathCodec[Unit]          = prefix / "recon-account"
   val ping: PathCodec[Unit]                   = prefix / "scala"
   val subscribeServerMessage: PathCodec[Unit] = prefix / "subscribe"
 }
@@ -49,5 +50,6 @@ object BackendApiUrl {
   val login: String                  = generateUrl(PathDef.login.format(()))
   val randomMessage: String          = generateUrl(PathDef.randomMessage.format(()))
   val randomMessage2: String         = generateUrl(PathDef.randomMessage2.format(()))
+  val reconAccounts: String          = generateUrl(PathDef.reconAccounts.format(()))
   val subscribeServerMessage: String = generateWsUrl(PathDef.subscribeServerMessage.format(()))
 }
