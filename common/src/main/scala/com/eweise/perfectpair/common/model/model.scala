@@ -1,8 +1,10 @@
 package com.eweise.perfectpair.common.model
 
-import com.eweise.perfectpair.common.model.model.{Money, Properties}
+import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
+import upickle.*
 import upickle.default.*
 import zio.json.*
+
 
 /**
  * Shared models between Backend and Frontend
@@ -48,9 +50,6 @@ case class SQLMatcher(
                        sql: String
                      ) extends Matcher
 
-import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
-import upickle.*
-import upickle.default.*
 
 object AdapterModel:
   case class AccountPayload(

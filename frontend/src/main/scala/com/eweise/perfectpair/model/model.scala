@@ -1,14 +1,14 @@
 package com.eweise.perfectpair.model
 
+import com.eweise.perfectpair.common.model.AdapterModel.AccountPayload
 import com.eweise.perfectpair.common.model.LoginFailure
 import com.eweise.perfectpair.common.util.JwtHelper
 import tyrian.Location
 import tyrian.Cmd
-import tyrian.http._
-import zio.json._
+import tyrian.http.*
+import zio.json.*
 import zio.Task
 import zio.json.ast.Json
-
 import com.eweise.perfectpair.page.*
 import com.eweise.perfectpair.model.Model.User
 import com.eweise.perfectpair.model.Model.LoginForm
@@ -33,6 +33,7 @@ enum Msg {
   case UpdateLoginForm(form: LoginForm)
   case SubmitLogin
   case GreetingFromBackend(text: String)
+  case AccountsFromBackend(accounts: Seq[AccountPayload])
   case NextBackendMessage
   case Logout
 }

@@ -17,7 +17,7 @@ import com.eweise.perfectpair.route.*
 import com.eweise.perfectpair.util.*
 import com.eweise.perfectpair.page.*
 import com.eweise.perfectpair.util.LocalStorageHelper
-import com.eweise.perfectpair.until.HttpHelper
+import com.eweise.perfectpair.util.HttpHelper
 
 @JSExportTopLevel("TyrianApp")
 object WebApp extends TyrianZIOApp[Msg, Model]:

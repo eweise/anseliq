@@ -9,7 +9,7 @@ import zio.*
 import zio.interop.catz.*
 import com.eweise.perfectpair.util.PrettyLogger
 import com.eweise.perfectpair.view.pages.LoginPage
-import com.eweise.perfectpair.until.HttpHelper
+import com.eweise.perfectpair.util.HttpHelper
 import com.eweise.perfectpair.model.*
 import com.eweise.perfectpair.view.pages.*
 
