@@ -20,30 +20,30 @@ class MovementRepoLive extends Repo[model.Movement, model.Movement, UUID] with M
 
   def findUnReconciledByAccountAndDirection(accountID: ID, direction: Direction): Txn[Vector[Movement]] =
     val directionFrag = direction match
-      case IN  => sql"""in_account_id """
-      case OUT => sql"""out_account_id """
+      case IN  => sql"""in_account_id"""
+      case OUT => sql"""out_account_id"""
 
     sql"""
       SELECT ${m.all}
-      FROM $m as a
-      where status <> 'reconciled'
-      and ${directionFrag} = $accountID
-      order by created_at
-       """.query[Movement].run()
+      FROM $m AS a
+      WHERE status <> 'reconciled'
+      AND ${directionFrag} = $accountID
+      ORDER BY created_at
+    """.query[Movement].run()
 
   def findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
-      FROM $m as a
-      where reconciliation_id is not null
-      and (in_account_id = $accountID or out_account_id = $accountID)
-      order by created_at
-       """.query[Movement].run()
+      FROM $m AS a
+      WHERE reconciliation_id IS NOT NULL
+      AND (in_account_id = $accountID OR out_account_id = $accountID)
+      ORDER BY created_at
+    """.query[Movement].run()
 
   def findByAccount(accountID: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
-      FROM $m as a
-      where (in_account_id = $accountID or out_account_id = $accountID)
-      order by created_at
-       """.query[Movement].run()
+      FROM $m AS a
+      WHERE (in_account_id = $accountID OR out_account_id = $accountID)
+      ORDER BY created_at
+    """.query[Movement].run()
