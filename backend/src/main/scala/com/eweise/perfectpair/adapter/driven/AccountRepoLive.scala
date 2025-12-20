@@ -14,30 +14,34 @@ class AccountRepoLive extends AuditableRepo[model.Account, model.Account, UUID] 
 
   def findNominalWithNonZeroBalance(fundFlowID: ID): Txn[Vector[model.Account]] =
     sql"""
-      SELECT ${a.all} FROM $a as a
-      where balance <> 0
-      and a.fund_flow_id = $fundFlowID
-       """.query[Account].run()
+      SELECT ${a.all}
+      FROM $a AS a
+      WHERE balance <> 0
+      AND a.fund_flow_id = $fundFlowID
+    """.query[Account].run()
 
   def findByFundFlowAndAccountName(
     fundFlowID: ID,
     accountName: String
   ): Txn[Option[model.Account]] =
     sql"""
-        SELECT ${a.all} FROM $a as a
-        where fund_flow_id = $fundFlowID
-        and name = $accountName
-       """.query[Account].run().headOption
+      SELECT ${a.all}
+      FROM $a AS a
+      WHERE fund_flow_id = $fundFlowID
+      AND name = $accountName
+    """.query[Account].run().headOption
 
   def findByFundFlow(
     fundFlowID: ID
   ): Txn[Vector[model.Account]] =
     sql"""
-        SELECT ${a.all} FROM $a as a
-        where fund_flow_id = $fundFlowID
-       """.query[Account].run()
+      SELECT ${a.all}
+      FROM $a AS a
+      WHERE fund_flow_id = $fundFlowID
+    """.query[Account].run()
 
   def findAll():Txn[Vector[model.Account]] =
     sql"""
-        SELECT ${a.all} FROM $a as a
-         """.query[Account].run()
+      SELECT ${a.all}
+      FROM $a AS a
+    """.query[Account].run()
