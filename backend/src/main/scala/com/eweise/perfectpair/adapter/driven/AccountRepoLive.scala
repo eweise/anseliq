@@ -37,8 +37,7 @@ class AccountRepoLive extends AuditableRepo[model.Account, model.Account, UUID] 
         where fund_flow_id = $fundFlowID
        """.query[Account].run()
 
-  def findAllRecon():Txn[Vector[model.Account]] =
+  def findAll():Txn[Vector[model.Account]] =
     sql"""
         SELECT ${a.all} FROM $a as a
-        where account_type = ${Recon.toString.toUpperCase}
          """.query[Account].run()

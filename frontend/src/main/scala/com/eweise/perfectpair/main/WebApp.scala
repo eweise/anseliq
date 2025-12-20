@@ -96,6 +96,12 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.NextBackendMessage =>
       (model, HttpHelper.fetchServerMessage2 |+| PrettyLogger.info("fetchserverMessage2"))
 
+    case Msg.GetReconAccounts =>
+      (model, HttpHelper.fetchReconAccounts |+| PrettyLogger.info("fetchserverMessage2"))
+
+    case Msg.ReconAccountsFromBackend(reconAccounts) =>
+      (model.modify(_.reconAccounts).setTo(reconAccounts), PrettyLogger.info("updated model with reconAccounts"))
+
     case Msg.SendHttpRequestWithAccessToken(f) =>
 //      val cmd = model.user match
 //        case None =>

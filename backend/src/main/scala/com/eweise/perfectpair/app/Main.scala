@@ -109,13 +109,10 @@ object Example extends cask.MainRoutes:
     )
 
   @cask.get("api/v1/fund-flows")
-  def getFundFlows() = {
+  def getFundFlows() =
     cask.Response(
       data = write(fundFlowCache.getAll)
     )
-  }
-
-  case class Thing(name : String) derives ReadWriter
 
   @cask.get("/fundflow/:fundFlowName")
   def fundFlow(fundFlowName: String): String =
@@ -124,16 +121,15 @@ object Example extends cask.MainRoutes:
       .getOrElse(throw Exception(s"fund flow name $fundFlowName not found"))
     fundFlow.fundFlowJson
 
-  @cask.get("/recon-account")
-  def reconAccounts(): String =
-    transact(transactor):
-      val accounts = accountRepo.findAllRecon()
-        val payload = accounts.map(Payload.accountPayloadfromDomainModel)
-        read[Thing]("""{"myFieldA":1,"myFieldB":"gg"}""")
-        val tmp = read[AccountPayload]("")
-//        println(tmp)
-        write(payload)
+  @cask.options("api/v1/account")
+  def getAccountsOption() = ""
 
+  @cask.get("api/v1/account")
+  def allAccounts(): String =
+    transact(transactor):
+      val accounts = accountRepo.findAll()
+      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
+      write(payload)
 
   @cask.get("/fundflow/:fundFlowName/account/:accountName")
   def account(fundFlowName: String, accountName: String): String =

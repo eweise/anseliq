@@ -5,7 +5,7 @@ import com.eweise.perfectpair.common.model.{LoginFailure, LoginRequest, LoginSuc
 import com.eweise.perfectpair.service.{JWTIssuer, JWTVerifier}
 import com.eweise.perfectpair.services.RandomQuotes
 import com.eweise.perfectpair.common.util.JwtHelper.UserClaim
-import zio.http.*
+import zio.http.{Method, *}
 import zio.http.Header.{AccessControlAllowOrigin, Origin}
 import zio.http.Middleware.{CorsConfig, cors}
 import zio.json.*
@@ -90,11 +90,12 @@ object DefaultRoutes {
       handler(parseJson >>> processLogin)
   ) @@ corsMiddleWare
 
-  val authenticated = withAuthMiddleware {
-    Routes(
-      Method.GET / PathDef.randomMessage  -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson))),
-      Method.GET / PathDef.randomMessage2 -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson)))
-    )
-  } @@ corsMiddleWare
+//  val authenticated = withAuthMiddleware {
+//    Routes(
+//      Method.GET / PathDef.randomMessage  -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson))),
+//      Method.GET / PathDef.randomMessage2 -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson))),
+//      Method.GET / PathDef.reconAccounts -> handler(RandomQuotes.getRandomMessage.map(msg => Response.json(RandomMessage(msg).toJson)))
+//    )
+//  } @@ corsMiddleWare
 
 }
