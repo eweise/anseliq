@@ -23,6 +23,6 @@ enum Page(
 
   case Login   extends Page("/login", model => LoginPage(model.loginForm), isSecured = false)
   case Home    extends Page("/", model => Welcome(model.homeState), _ => HttpHelper.fetchServerMessage)
-  case Accounts extends Page("/components/accounts", model => AccountsView(), _ => PrettyLogger.info("Entering Accounts page"))
+  case Accounts extends Page("/components/accounts", model => AccountsView(model.reconAccounts), _ => PrettyLogger.info("Entering Accounts page"))
   case Toggle  extends Page("/components/toggle", model => ToggleView(), _ => PrettyLogger.info("Entering Toggle page"))
 }

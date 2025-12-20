@@ -32,15 +32,15 @@ object HttpHelper:
   }
 
   val fetchServerMessage: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchGreetServerMessage(BackendApiUrl.randomMessage, greetDecoder)
+    fetchServerMessage(BackendApiUrl.randomMessage, greetDecoder)
 
   val fetchServerMessage2: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchGreetServerMessage(BackendApiUrl.randomMessage2, greetDecoder)
+    fetchServerMessage(BackendApiUrl.randomMessage2, greetDecoder)
 
   val fetchReconAccounts: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchGreetServerMessage(BackendApiUrl.reconAccounts, accountDecoder)
+    fetchServerMessage(BackendApiUrl.accounts, accountDecoder)
 
-  private def fetchGreetServerMessage[R <: Msg](
+  private def fetchServerMessage[R <: Msg](
     apiUrl: String,
     resultToDecoder: Decoder[R]
   ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
@@ -76,11 +76,11 @@ object HttpHelper:
       error => Msg.Error(error.toString())
     )
 
-    val accountDecoder: Decoder[Msg.AccountsFromBackend | Msg.Error] =
+    val accountDecoder: Decoder[Msg.ReconAccountsFromBackend | Msg.Error] =
       Decoder(
         onResponse =>
           val accountsPayload = read[Seq[AccountPayload]](onResponse.body)
-          Msg.AccountsFromBackend(accounts = accountsPayload)
+          Msg.ReconAccountsFromBackend(accounts = accountsPayload)
         ,
         error => com.eweise.perfectpair.model.Msg.Error(error.toString)
       )

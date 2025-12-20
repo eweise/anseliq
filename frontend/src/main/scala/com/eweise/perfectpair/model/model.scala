@@ -1,7 +1,7 @@
 package com.eweise.perfectpair.model
 
 import com.eweise.perfectpair.common.model.AdapterModel.AccountPayload
-import com.eweise.perfectpair.common.model.LoginFailure
+import com.eweise.perfectpair.common.model.{LoginFailure, ReconciliationAccountPayload}
 import com.eweise.perfectpair.common.util.JwtHelper
 import tyrian.Location
 import tyrian.Cmd
@@ -32,16 +32,24 @@ enum Msg {
   case RestoredSession(accessToken: String, refreshToken: String)
   case UpdateLoginForm(form: LoginForm)
   case SubmitLogin
-  case GreetingFromBackend(text: String)
-  case AccountsFromBackend(accounts: Seq[AccountPayload])
   case NextBackendMessage
+  case GreetingFromBackend(text: String)
+  case GetReconAccounts
+  case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
   case Logout
 }
 
 /**
  * All frontend states is stored here
  */
-case class Model(currentPage: Page, user: Option[User], loginForm: LoginForm, homeState: HomeState, isDarkMode: Boolean) {
+case class Model(
+  currentPage: Page,
+  user: Option[User],
+  loginForm: LoginForm,
+  homeState: HomeState,
+  isDarkMode: Boolean,
+  reconAccounts: Seq[AccountPayload]
+) {
   def toggleDarkMode: Model =
     copy(isDarkMode = !isDarkMode)
 
@@ -75,5 +83,12 @@ object Model {
 
   val emptyLoginForm = LoginForm("Scala", "nopassword", None, false)
   val emptyHomeState = HomeState(None)
-  val init: Model    = Model(Page.Login, user = None, emptyLoginForm, emptyHomeState, isDarkMode = false)
+  val init: Model = Model(
+    Page.Login,
+    user = None,
+    emptyLoginForm,
+    emptyHomeState,
+    isDarkMode = false,
+    reconAccounts = Seq()
+  )
 }

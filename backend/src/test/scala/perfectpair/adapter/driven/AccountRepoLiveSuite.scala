@@ -34,7 +34,7 @@ class AccountRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data = DataSetup()
-        val found = accountRepo.findAllRecon()
+        val found = accountRepo.findAll()
         assertEquals(1, found.length)
 
   test("findByFundFlowAndAccountName"):
