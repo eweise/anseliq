@@ -19,26 +19,49 @@ import upickle.default.*
 
 import java.util.UUID
 
+object HttpCmd:
+  def GET  = Seq("get", "options")
+  def POST = Seq("post", "options")
+
 object Example extends cask.MainRoutes:
   val dataSource = driven.DbDataSource.create(ConfigFactory.load("application.conf"))
   val transactor = Transactor(dataSource)
 
-  class CORSDecorator extends RawDecorator:
-    def wrapFunction(ctx: Request, delegate: Delegate): Result[Raw] =
-      delegate(ctx, Map.empty).map(response =>
-        response.copy(headers =
-          response.headers ++ Seq(
-            "access-control-allow-origin"      -> "*",
-            "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
-            "Access-Control-Allow-Headers"     -> "*",
-            "Access-Control-Allow-Credentials" -> "true",
-            "Access-Control-Max-Age"           -> "86400"
+  class corsDecorator extends cask.RawDecorator:
+    def wrapFunction(ctx: Request, delegate: Delegate) =
+      println(s"CORSDecorator called for ${ctx.exchange.getRequestMethod} ${ctx.exchange.getRequestPath}")
+
+      // Automatically handle OPTIONS requests for CORS preflight
+      if ctx.exchange.getRequestMethod.toString == "OPTIONS" then
+        println("Handling OPTIONS request")
+        Result.Success(
+          cask.Response(
+            data = "",
+            statusCode = 200,
+            headers = Seq(
+              "access-control-allow-origin"      -> "*",
+              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
+              "Access-Control-Allow-Headers"     -> "*",
+              "Access-Control-Allow-Credentials" -> "true",
+              "Access-Control-Max-Age"           -> "86400"
+            )
           )
         )
-      )
+      else
+        println("Adding CORS headers to response")
+        delegate(ctx, Map.empty).map(response =>
+          response.copy(headers =
+            response.headers ++ Seq(
+              "access-control-allow-origin"      -> "*",
+              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
+              "Access-Control-Allow-Headers"     -> "*",
+              "Access-Control-Allow-Credentials" -> "true",
+              "Access-Control-Max-Age"           -> "86400"
+            )
+          )
+        )
 
-  override def decorators =
-    super.decorators ++ Seq(CORSDecorator())
+  override def mainDecorators = Seq(corsDecorator())
 
   val fundFlowConfigRepo = FundFlowConfigRepoLive()
   val fundFlowCache      = FundFlowCache(fundFlowConfigRepo)
@@ -89,18 +112,13 @@ object Example extends cask.MainRoutes:
   val randomMessage2Path         = s"$prefixPath / random-message2"
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
-
-  @cask.options("api/v1/random-message")
-  def getRandomMessageOptions() = ""
+  val accountURL                 = s"${prefixPath}/account"
 
   @cask.get("api/v1/random-message")
   def getRandomMessage() =
     cask.Response(
       data = write(RandomMessage("random message"))
     )
-
-  @cask.options("api/v1/random-message2")
-  def getRandomMessageOptions2() = ""
 
   @cask.get("api/v1/random-message2")
   def getNextRandomMessage() =
@@ -121,10 +139,7 @@ object Example extends cask.MainRoutes:
       .getOrElse(throw Exception(s"fund flow name $fundFlowName not found"))
     fundFlow.fundFlowJson
 
-  @cask.options("api/v1/account")
-  def getAccountsOption() = ""
-
-  @cask.get("api/v1/account")
+  @cask.route(accountURL, methods = HttpCmd.GET)
   def allAccounts(): String =
     transact(transactor):
       val accounts = accountRepo.findAll()
