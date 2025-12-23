@@ -130,6 +130,13 @@ object Example extends cask.MainRoutes:
       write(payloads)
   }
 
+  @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts" , methods = HttpCmd.GET)
+  def accountsByFundFlowID(fundFlowID:String): String =
+    transact(transactor):
+      val accounts = accountRepo.findByFundFlow(UUID.fromString(fundFlowID))
+      val payload = accounts.map(Payload.accountPayloadfromDomainModel)
+      write(payload)
+
   @cask.route(HttpPath.accounts, methods = HttpCmd.GET)
   def allAccounts(): String =
     transact(transactor):

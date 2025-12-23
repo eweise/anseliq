@@ -96,8 +96,11 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.NextBackendMessage =>
       (model, HttpHelper.fetchServerMessage2 |+| PrettyLogger.info("fetchserverMessage2"))
 
+    case Msg.GetAccountsForFundFlow(fundFlowID) =>
+      (model, HttpHelper.fetchAccountsByFundFlowID(fundFlowID) |+| PrettyLogger.info("fetchAccountsByFundFlowID"))
+
     case Msg.GetReconAccounts =>
-      (model, HttpHelper.fetchReconAccounts |+| PrettyLogger.info("fetchserverMessage2"))
+      (model, HttpHelper.fetchReconAccounts |+| PrettyLogger.info("fetch recon accounts"))
 
     case Msg.ReconAccountsFromBackend(reconAccounts) =>
       (model.modify(_.reconAccounts).setTo(reconAccounts), PrettyLogger.info("updated model with reconAccounts"))
