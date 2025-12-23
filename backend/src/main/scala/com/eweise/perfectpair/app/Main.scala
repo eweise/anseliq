@@ -6,6 +6,8 @@ import com.augustnagro.magnum.*
 import com.eweise.perfectpair.adapter.driven
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
 import com.eweise.perfectpair.adapter.driving.*
+import com.eweise.perfectpair.common.http.BackendApiUrl.*
+import com.eweise.perfectpair.common.http.HttpPath
 import com.eweise.perfectpair.common.model.{AccountPayload, EqualityMatcher, RandomMessage}
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache, Reconciler}
@@ -107,7 +109,6 @@ object Example extends cask.MainRoutes:
   val randomMessage2Path         = s"$prefixPath / random-message2"
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
-  val accountURL                 = s"${prefixPath}/account"
 
   @cask.get("api/v1/random-message")
   def getRandomMessage() =
@@ -121,20 +122,20 @@ object Example extends cask.MainRoutes:
       data = write(RandomMessage("next random message"))
     )
 
-  @cask.get("api/v1/fund-flows")
+  @cask.route(HttpPath.fundFlows, methods = HttpCmd.GET)
   def getFundFlows() = {
     transact(transactor):
       val fundFlows = fundFlowCache.getAll
-      val payloads = fundFlows.map( ff =>
-        Payload.fundFlowPayloadFromDomain(ff, accountRepo.findByFundFlow(ff.id))
-      ).toSeq
+      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff, accountRepo.findByFundFlow(ff.id))).toSeq
       write(payloads)
-
-
-    cask.Response(
-      data = write(fundFlowCache.getAll)
-    )
   }
+
+  @cask.route(HttpPath.accounts, methods = HttpCmd.GET)
+  def allAccounts(): String =
+    transact(transactor):
+      val accounts = accountRepo.findAll()
+      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
+      write(payload)
 
   @cask.get("/fundflow/:fundFlowName")
   def fundFlow(fundFlowName: String): String =
@@ -142,13 +143,6 @@ object Example extends cask.MainRoutes:
       .getConfigByName(fundFlowName)
       .getOrElse(throw Exception(s"fund flow name $fundFlowName not found"))
     fundFlow.fundFlowJson
-
-  @cask.route(accountURL, methods = HttpCmd.GET)
-  def allAccounts(): String =
-    transact(transactor):
-      val accounts = accountRepo.findAll()
-      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
-      write(payload)
 
   @cask.get("/fundflow/:fundFlowName/account/:accountName")
   def account(fundFlowName: String, accountName: String): String =

@@ -102,6 +102,9 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.ReconAccountsFromBackend(reconAccounts) =>
       (model.modify(_.reconAccounts).setTo(reconAccounts), PrettyLogger.info("updated model with reconAccounts"))
 
+    case Msg.FundFlowsFromBackend(ff) =>
+      (model.modify(_.fundFlows).setTo(ff), PrettyLogger.info("updated model with fund flows"))
+
     case Msg.SendHttpRequestWithAccessToken(f) =>
 //      val cmd = model.user match
 //        case None =>

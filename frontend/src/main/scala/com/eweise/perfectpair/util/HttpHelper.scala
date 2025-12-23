@@ -2,19 +2,18 @@ package com.eweise.perfectpair.util
 
 import cats.implicits.catsSyntaxSemigroup
 import com.eweise.perfectpair.common.BuildInfo
-import com.eweise.perfectpair.common.http.{BackendApiUrl, PathDef}
-import com.eweise.perfectpair.common.model.{LoginFailure, LoginRequest, LoginSuccess, RandomMessage, ReconciliationAccountPayload}
+import com.eweise.perfectpair.common.http.{BackendApiUrl, HttpPath, PathDef}
+import com.eweise.perfectpair.common.model.{LoginFailure, LoginSuccess, *}
 import com.eweise.perfectpair.model.Msg
-import com.eweise.perfectpair.common.model.AdapterModel.AccountPayload
 import com.eweise.perfectpair.model.Msg.*
 import com.eweise.perfectpair.util.HttpHelper.ResponseDecoders.*
 import com.eweise.perfectpair.util.PrettyLogger
 import tyrian.Cmd
 import tyrian.http.*
+import upickle.default.*
 import zio.Task
 import zio.interop.catz.*
 import zio.json.*
-import upickle.default.*
 
 object HttpHelper:
 
@@ -37,8 +36,11 @@ object HttpHelper:
   val fetchServerMessage2: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessage(BackendApiUrl.randomMessage2, greetDecoder)
 
+  val fetchFundFlows: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessage(HttpPath.url(HttpPath.fundFlows), fundFlowsDecoder)
+
   val fetchReconAccounts: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessage(BackendApiUrl.accounts, accountDecoder)
+    fetchServerMessage(HttpPath.url(HttpPath.accounts), accountDecoder)
 
   private def fetchServerMessage[R <: Msg](
     apiUrl: String,
@@ -75,6 +77,16 @@ object HttpHelper:
       ,
       error => Msg.Error(error.toString())
     )
+
+    val fundFlowsDecoder: Decoder[Msg.FundFlowsFromBackend | Msg.Error] =
+      Decoder(
+        onResponse =>
+          val ffPayload = read[Seq[FundFlowPayload]](onResponse.body)
+          Msg.FundFlowsFromBackend(fundFlows = ffPayload)
+        ,
+        error => com.eweise.perfectpair.model.Msg.Error(error.toString)
+      )
+
 
     val accountDecoder: Decoder[Msg.ReconAccountsFromBackend | Msg.Error] =
       Decoder(
