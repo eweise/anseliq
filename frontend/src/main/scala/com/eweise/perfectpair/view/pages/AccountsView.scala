@@ -1,6 +1,6 @@
 package com.eweise.perfectpair.view.pages
 
-import com.eweise.perfectpair.common.model.AdapterModel.AccountPayload
+import com.eweise.perfectpair.common.model.AccountPayload
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.view.components.{Icons, Table}
 import tyrian.Html

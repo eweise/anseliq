@@ -1,7 +1,6 @@
 package com.eweise.perfectpair.model
 
-import com.eweise.perfectpair.common.model.AdapterModel.AccountPayload
-import com.eweise.perfectpair.common.model.{LoginFailure, ReconciliationAccountPayload}
+import com.eweise.perfectpair.common.model.{AccountPayload, FundFlowPayload, LoginFailure, ReconciliationAccountPayload}
 import com.eweise.perfectpair.common.util.JwtHelper
 import tyrian.Location
 import tyrian.Cmd
@@ -36,6 +35,7 @@ enum Msg {
   case GreetingFromBackend(text: String)
   case GetReconAccounts
   case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
+  case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
   case Logout
 }
 
@@ -48,6 +48,7 @@ case class Model(
   loginForm: LoginForm,
   homeState: HomeState,
   isDarkMode: Boolean,
+  fundFlows: Seq[FundFlowPayload],
   reconAccounts: Seq[AccountPayload]
 ) {
   def toggleDarkMode: Model =
@@ -89,6 +90,7 @@ object Model {
     emptyLoginForm,
     emptyHomeState,
     isDarkMode = false,
+    fundFlows = Seq(),
     reconAccounts = Seq()
   )
 }
