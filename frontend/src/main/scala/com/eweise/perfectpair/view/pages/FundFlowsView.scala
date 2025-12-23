@@ -1,6 +1,6 @@
 package com.eweise.perfectpair.view.pages
 
-import com.eweise.perfectpair.common.model.{AccountType, FundFlowPayload}
+import com.eweise.perfectpair.common.model.{AccountTypePayload, FundFlowPayload}
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.view.components.{Buttons, Table}
 import tyrian.Html
@@ -20,9 +20,9 @@ object FundFlowsView:
             "Balance"
           ),
           fundFlows.map(ff =>
-            val reconAccount = ff.accounts.filter(_.accountType == AccountType.Recon).head
+            val reconAccount = ff.accounts.filter(_.accountType == AccountTypePayload.Recon).head
             Seq(
-              Buttons.linkButton("Recon Details", Msg.NoOp),
+              Buttons.linkButton("Recon Details", Msg.GetAccountsForFundFlow(ff.id)),
               text(ff.name),
               text(reconAccount.name),
               text(reconAccount.balance.toString())

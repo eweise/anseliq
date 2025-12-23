@@ -1,9 +1,10 @@
 package com.eweise.perfectpair.adapter.driving
 
-import com.eweise.perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementPayload}
+import com.eweise.perfectpair.common.model.{AccountPayload, AccountTypePayload, FundFlowPayload, MovementPayload}
 import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model as dm
+import com.eweise.perfectpair.domain.model.AccountType.{Real, Recon}
 import upickle.*
 import upickle.default.*
 
@@ -25,9 +26,14 @@ object Payload:
       id = dmAccount.id.toString,
       name = dmAccount.name,
       fundFlowId = dmAccount.fundFlowId,
-      accountType = dmAccount.accountType.toString,
+      accountType = accountTypeFromModel(dmAccount.accountType),
       balance = dmAccount.balance
     )
+
+  def accountTypeFromModel(at: model.AccountType): AccountTypePayload =
+    at match
+      case Real  => AccountTypePayload.Real
+      case Recon => AccountTypePayload.Recon
 
   def movementPayloadfromDomainModel(dmMovement: model.Movement): MovementPayload =
     MovementPayload(

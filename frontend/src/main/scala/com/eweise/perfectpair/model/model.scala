@@ -34,6 +34,7 @@ enum Msg {
   case NextBackendMessage
   case GreetingFromBackend(text: String)
   case GetReconAccounts
+  case GetAccountsForFundFlow(fundFlowID: String)
   case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
   case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
   case Logout
