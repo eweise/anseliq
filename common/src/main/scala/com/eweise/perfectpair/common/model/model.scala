@@ -85,11 +85,15 @@ case class SQLMatcher(
   sql: String
 ) extends Matcher derives ReadWriter
 
+enum AccountType derives ReadWriter:
+  case Recon
+  case Real
+
 case class AccountPayload(
   id: String,
   name: String,
   fundFlowId: ID,
-  accountType: String,
+  accountType: AccountType,
   balance: Money
 ) derives ReadWriter
 
