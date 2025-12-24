@@ -20,12 +20,12 @@ object FundFlowsView:
             "Balance"
           ),
           fundFlows.map(ff =>
-            val reconAccount = ff.accounts.filter(_.accountType == AccountTypePayload.Recon).head
+            val reconAccount = ff.accounts.find(_.accountType == AccountTypePayload.Recon)
             Seq(
-              Buttons.linkButton("Recon Details", Msg.GetAccountsForFundFlow(ff.id)),
+              Buttons.linkButton("Recon Details", Msg.GetAccountsForFundFlow(ff)),
               text(ff.name),
-              text(reconAccount.name),
-              text(reconAccount.balance.toString())
+              text(s"account count = ${ff.accounts.length}"),
+              text(s"recon Balance = ${reconAccount.fold(0)(_.balance)}")
             )
           )
         )

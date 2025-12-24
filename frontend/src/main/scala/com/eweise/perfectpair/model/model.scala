@@ -1,18 +1,11 @@
 package com.eweise.perfectpair.model
 
-import com.eweise.perfectpair.common.model.{AccountPayload, FundFlowPayload, LoginFailure, ReconciliationAccountPayload}
+import com.eweise.perfectpair.common.model.{AccountPayload, FundFlowPayload}
 import com.eweise.perfectpair.common.util.JwtHelper
-import tyrian.Location
-import tyrian.Cmd
-import tyrian.http.*
-import zio.json.*
-import zio.Task
-import zio.json.ast.Json
+import com.eweise.perfectpair.model.Model.{HomeState, LoginForm, User, emptyLoginForm}
 import com.eweise.perfectpair.page.*
-import com.eweise.perfectpair.model.Model.User
-import com.eweise.perfectpair.model.Model.LoginForm
-import com.eweise.perfectpair.model.Model.HomeState
-import com.eweise.perfectpair.model.Model.emptyLoginForm
+import tyrian.{Cmd, Location}
+import zio.Task
 
 enum Msg {
   case NoOp
@@ -34,7 +27,7 @@ enum Msg {
   case NextBackendMessage
   case GreetingFromBackend(text: String)
   case GetReconAccounts
-  case GetAccountsForFundFlow(fundFlowID: String)
+  case GetAccountsForFundFlow(fundFlow: FundFlowPayload)
   case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
   case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
   case Logout
@@ -44,13 +37,14 @@ enum Msg {
  * All frontend states is stored here
  */
 case class Model(
-  currentPage: Page,
-  user: Option[User],
-  loginForm: LoginForm,
-  homeState: HomeState,
-  isDarkMode: Boolean,
-  fundFlows: Seq[FundFlowPayload],
-  reconAccounts: Seq[AccountPayload]
+                  currentPage: Page,
+                  user: Option[User],
+                  loginForm: LoginForm,
+                  homeState: HomeState,
+                  isDarkMode: Boolean,
+                  fundFlows: Seq[FundFlowPayload],
+                  selectedFundFlow : Option[FundFlowPayload] = None,
+                  accounts: Seq[AccountPayload]
 ) {
   def toggleDarkMode: Model =
     copy(isDarkMode = !isDarkMode)
@@ -92,6 +86,6 @@ object Model {
     emptyHomeState,
     isDarkMode = false,
     fundFlows = Seq(),
-    reconAccounts = Seq()
+    accounts = Seq()
   )
 }
