@@ -6,7 +6,6 @@ import com.augustnagro.magnum.*
 import com.eweise.perfectpair.adapter.driven
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
 import com.eweise.perfectpair.adapter.driving.*
-import com.eweise.perfectpair.common.http.BackendApiUrl.*
 import com.eweise.perfectpair.common.http.HttpPath
 import com.eweise.perfectpair.common.model.{AccountPayload, EqualityMatcher, RandomMessage}
 import com.eweise.perfectpair.domain.model.*
@@ -82,7 +81,11 @@ object Example extends cask.MainRoutes:
   )
 
   transact(transactor):
-    val testFundFlowConfig = createTestData().copy(name = "testconfig")
+    val testFundFlowConfig = createTestData(
+      reconName = "ACH Recon",
+      journalName = "Journal",
+      reportName = "ACH Report"
+    ).copy(name = "ACH Recon Fund Flow")
     try
       accountOperations.createConfig(testFundFlowConfig)
     catch {
@@ -90,13 +93,25 @@ object Example extends cask.MainRoutes:
         println("config already exists")
     }
 
+    val testFundFlowConfig2 = createTestData(
+      reconName = "Visa Recon",
+      journalName = "Journal",
+      reportName = "Visa Report"
+    ).copy(name = "Visa Fund Flow")
+    try
+      accountOperations.createConfig(testFundFlowConfig2)
+    catch {
+      case e: SqlException =>
+        println("config2 already exists")
+    }
+
   transact(transactor):
     fundFlowCache.init()
-    val config = fundFlowCache.getConfigByName("testconfig").getOrElse(throw Exception("not found"))
+    val config = fundFlowCache.getConfigByName("ACH Recon Fund Flow").getOrElse(throw Exception("not found"))
     // create some account data
     val props = Map("id" -> "1")
-    accountOperations.postAmount("testconfig", "post_journal", 100d, properties = props)
-    accountOperations.postAmount("testconfig", "bank_report", 100d, properties = props)
+    accountOperations.postAmount("ACH Recon Fund Flow", "post_journal", 100d, properties = props)
+    accountOperations.postAmount("ACH Recon Fund Flow", "bank_report", 100d, properties = props)
 
     accountRepo
       .findByFundFlow(config.id)
@@ -123,18 +138,17 @@ object Example extends cask.MainRoutes:
     )
 
   @cask.route(HttpPath.fundFlows, methods = HttpCmd.GET)
-  def getFundFlows() = {
+  def getFundFlows() =
     transact(transactor):
       val fundFlows = fundFlowCache.getAll
       val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff, accountRepo.findByFundFlow(ff.id))).toSeq
       write(payloads)
-  }
 
-  @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts" , methods = HttpCmd.GET)
-  def accountsByFundFlowID(fundFlowID:String): String =
+  @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts", methods = HttpCmd.GET)
+  def accountsByFundFlowID(fundFlowID: String): String =
     transact(transactor):
       val accounts = accountRepo.findByFundFlow(UUID.fromString(fundFlowID))
-      val payload = accounts.map(Payload.accountPayloadfromDomainModel)
+      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
       write(payload)
 
   @cask.route(HttpPath.accounts, methods = HttpCmd.GET)
@@ -188,10 +202,14 @@ object Example extends cask.MainRoutes:
 
   initialize()
 
-def createTestData(): FundFlowConfig =
-  val reconAccountName   = "recon"
-  val journalAccountName = "journal"
-  val reportAccountName  = "report"
+def createTestData(
+  reconName: String,
+  journalName: String,
+  reportName: String
+): FundFlowConfig =
+  val reconAccountName   = reconName
+  val journalAccountName = journalName
+  val reportAccountName  = reportName
 
   val reconAccountSpec = ReconciliationAccountSpec(
     name = reconAccountName,

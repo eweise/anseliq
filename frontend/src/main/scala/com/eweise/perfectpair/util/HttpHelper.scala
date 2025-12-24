@@ -1,11 +1,9 @@
 package com.eweise.perfectpair.util
 
-import cats.implicits.catsSyntaxSemigroup
 import com.eweise.perfectpair.common.BuildInfo
-import com.eweise.perfectpair.common.http.{BackendApiUrl, HttpPath, PathDef}
-import com.eweise.perfectpair.common.model.{LoginFailure, LoginSuccess, *}
+import com.eweise.perfectpair.common.http.{BackendApiUrl, HttpPath}
+import com.eweise.perfectpair.common.model.*
 import com.eweise.perfectpair.model.Msg
-import com.eweise.perfectpair.model.Msg.*
 import com.eweise.perfectpair.util.HttpHelper.ResponseDecoders.*
 import com.eweise.perfectpair.util.PrettyLogger
 import tyrian.Cmd
@@ -42,6 +40,7 @@ object HttpHelper:
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessage(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountDecoder)
 
+  
   val fetchReconAccounts: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessage(HttpPath.url(HttpPath.accounts), accountDecoder)
 
