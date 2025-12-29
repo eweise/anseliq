@@ -62,11 +62,11 @@ enum MovementStatus:
   case Reconciled, WithinSLA, OutOfSLA
 
 case class FundFlowPayload(
-  id: String,
-  name: String,
-  accounts: Seq[AccountPayload],
-  createdAt: OffsetDateTime,
-  updatedAt: OffsetDateTime
+  id: String = "",
+  name: String = "",
+  accounts: Seq[AccountPayload] = Seq(),
+  createdAt: OffsetDateTime = OffsetDateTime.now(),
+  updatedAt: OffsetDateTime = OffsetDateTime.now(), //fixme should not be set like this
 ) derives ReadWriter
 
 case class ReconciliationAccountPayload(
