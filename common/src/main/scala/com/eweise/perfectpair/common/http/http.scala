@@ -7,6 +7,7 @@ import zio.http.codec.PathCodec.*
 object HttpPath:
   val prefix    = "/api/v1"
   val fundFlows = s"$prefix/fund-flows"
+  val createFundFlow = s"$prefix/fund-flow"
   val accounts  = s"$prefix/accounts"
 
   def url(path: String) = s"http://localhost:8080$path"

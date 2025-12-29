@@ -37,6 +37,9 @@ object HttpHelper:
   val fetchFundFlows: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessage(HttpPath.url(HttpPath.fundFlows), fundFlowsDecoder)
 
+  def createFundFlow(fundFlow:FundFlowPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(Request.post(HttpPath.url(HttpPath.createFundFlow),Body.json(write(fundFlow))), fundFlowCreatedDecoder)
+
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessage(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountDecoder)
 
@@ -85,6 +88,15 @@ object HttpHelper:
         onResponse =>
           val ffPayload = read[Seq[FundFlowPayload]](onResponse.body)
           Msg.FundFlowsFromBackend(fundFlows = ffPayload)
+        ,
+        error => com.eweise.perfectpair.model.Msg.Error(error.toString)
+      )
+
+    val fundFlowCreatedDecoder: Decoder[Msg.FundFlowCreated | Msg.Error] =
+      Decoder(
+        onResponse =>
+          val ffPayload = read[FundFlowPayload](onResponse.body)
+          Msg.FundFlowCreated(fundFlow = ffPayload)
         ,
         error => com.eweise.perfectpair.model.Msg.Error(error.toString)
       )

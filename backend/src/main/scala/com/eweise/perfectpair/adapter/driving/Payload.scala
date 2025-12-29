@@ -1,11 +1,8 @@
 package com.eweise.perfectpair.adapter.driving
 
 import com.eweise.perfectpair.common.model.{AccountPayload, AccountTypePayload, FundFlowPayload, MovementPayload}
-import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
 import com.eweise.perfectpair.domain.model
-import com.eweise.perfectpair.domain.model as dm
 import com.eweise.perfectpair.domain.model.AccountType.{Real, Recon}
-import upickle.*
 import upickle.default.*
 
 import java.time.OffsetDateTime
@@ -20,6 +17,10 @@ object Payload:
       createdAt = ff.createdAt.getOrElse(OffsetDateTime.now()),
       updatedAt = ff.updatedAt.getOrElse(OffsetDateTime.now())
     )
+
+  def fundFlowPayloadToDomain(payload: FundFlowPayload): model.FundFlowConfig =
+    val spec = model.FundFlowSpec(accountSpecs = Seq(), movementSpecs = Seq())
+    model.FundFlowConfig(name = payload.name, fundFlowJson = write(spec))
 
   def accountPayloadfromDomainModel(dmAccount: model.Account): AccountPayload =
     AccountPayload(

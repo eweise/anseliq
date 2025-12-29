@@ -30,6 +30,9 @@ enum Msg {
   case GetAccountsForFundFlow(fundFlow: FundFlowPayload)
   case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
   case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
+  case FundFlowFormUpdate(fundFlow:FundFlowPayload)
+  case CreateFundFlow(fundFlow:FundFlowPayload)
+  case FundFlowCreated(fundFlow:FundFlowPayload)
   case Logout
 }
 

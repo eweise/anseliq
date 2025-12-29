@@ -7,7 +7,7 @@ import com.eweise.perfectpair.adapter.driven
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
 import com.eweise.perfectpair.adapter.driving.*
 import com.eweise.perfectpair.common.http.HttpPath
-import com.eweise.perfectpair.common.model.{AccountPayload, EqualityMatcher, RandomMessage}
+import com.eweise.perfectpair.common.model.{AccountPayload, EqualityMatcher, FundFlowPayload, RandomMessage}
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache, Reconciler}
 import com.typesafe.config.ConfigFactory
@@ -140,7 +140,7 @@ object Example extends cask.MainRoutes:
   @cask.route(HttpPath.fundFlows, methods = HttpCmd.GET)
   def getFundFlows() =
     transact(transactor):
-      val fundFlows = fundFlowCache.getAll
+      val fundFlows = fundFlowConfigRepo.findAll
       val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff, accountRepo.findByFundFlow(ff.id))).toSeq
       write(payloads)
 
@@ -164,6 +164,15 @@ object Example extends cask.MainRoutes:
       .getConfigByName(fundFlowName)
       .getOrElse(throw Exception(s"fund flow name $fundFlowName not found"))
     fundFlow.fundFlowJson
+
+  @cask.route(s"${HttpPath.createFundFlow}", methods = HttpCmd.POST)
+  def createFundFlow(request: cask.Request): String =
+    val payload = read[FundFlowPayload](request.text())
+    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
+
+    transact(transactor):
+      fundFlowConfigRepo.insert(fundFlow)
+    write(Payload.fundFlowPayloadFromDomain(fundFlow, Seq()))
 
   @cask.get("/fundflow/:fundFlowName/account/:accountName")
   def account(fundFlowName: String, accountName: String): String =

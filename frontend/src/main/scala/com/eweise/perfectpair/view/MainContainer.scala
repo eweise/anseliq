@@ -58,6 +58,7 @@ object MainContainer:
           navItem("Home", Page.Home, Icons.home),
           navItem("Components", Page.Toggle, Icons.component),
           navItem("Fund Flows", Page.FundFlows, Icons.component),
+          navItem("Create Fund Flow", Page.MaintainFundFlow, Icons.component),
           navItem("Accounts", Page.Accounts, Icons.component),
           navSeparator(),
           navItemExternal("Dashboard", "#", Icons.dashboard),
