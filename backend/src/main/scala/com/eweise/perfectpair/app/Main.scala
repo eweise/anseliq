@@ -243,7 +243,8 @@ def createTestData(
 
   val fundFlow =
     FundFlowSpec(
-      accountSpecs = Seq(reconAccountSpec, journalAccountSpec, reportAccountSpec),
+      realAccountSpecs = Seq(journalAccountSpec, reportAccountSpec),
+      reconAccountSpecs = Seq(reconAccountSpec),
       movementSpecs = Seq(movementSpecPostJournal, movementSpecBankReport)
     )
 

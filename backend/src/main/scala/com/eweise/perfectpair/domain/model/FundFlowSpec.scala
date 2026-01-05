@@ -14,23 +14,27 @@ case class MovementSpec(
 ) derives ReadWriter
 
 case class FundFlowSpec(
-  accountSpecs: Seq[AccountSpec],
-  movementSpecs: Seq[MovementSpec]
-) derives ReadWriter
+  realAccountSpecs: Seq[RealAccountSpec] = Seq(),
+  reconAccountSpecs: Seq[ReconciliationAccountSpec] = Seq(),
+  movementSpecs: Seq[MovementSpec] = Seq()
+) derives ReadWriter:
 
-sealed trait AccountSpec derives ReadWriter:
-  val name: String
-  val properties: Array[String] = Array.empty
+  def allAccounts: Seq[AccountSpec] =
+    realAccountSpecs ++ reconAccountSpecs
+
+private sealed trait AccountSpec derives ReadWriter:
+  def name: String
+  def properties: Array[String]
   def isReconSpec: Boolean      = this.isInstanceOf[ReconciliationAccountSpec]
 
 case class ReconciliationAccountSpec(
   name: String,
+  properties: Array[String] = Array(),
   matcher: Matcher = EqualityMatcher(Array("id"), Array("id")),
   agingLimit: String = ""
-  
 ) extends AccountSpec
 
 case class RealAccountSpec(
-  name: String
+  name: String,
+  properties: Array[String] = Array(),
 ) extends AccountSpec
-

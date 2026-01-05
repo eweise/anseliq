@@ -36,7 +36,7 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val fundFlowSpec = FundFlowSpec(
-          accountSpecs = Seq(RealAccountSpec(name = "test")),
+          realAccountSpecs = Seq(RealAccountSpec(name = "test")),
           movementSpecs = Seq()
         )
         val config = FundFlowConfig(
@@ -61,7 +61,7 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val fundFlowSpec = FundFlowSpec(
-          accountSpecs = Seq(RealAccountSpec(name = "original")),
+          realAccountSpecs = Seq(RealAccountSpec(name = "original")),
           movementSpecs = Seq()
         )
         val config = FundFlowConfig(
@@ -81,7 +81,7 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val fundFlowSpec = FundFlowSpec(
-          accountSpecs = Seq(RealAccountSpec(name = "to-delete")),
+          realAccountSpecs = Seq(RealAccountSpec(name = "to-delete")),
           movementSpecs = Seq()
         )
         val config = FundFlowConfig(
@@ -102,7 +102,7 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
         val initialCount = fundFlowRepo.findAll.size
 
         val fundFlowSpec = FundFlowSpec(
-          accountSpecs = Seq(RealAccountSpec(name = "test")),
+          realAccountSpecs = Seq(RealAccountSpec(name = "test")),
           movementSpecs = Seq()
         )
 

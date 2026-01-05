@@ -28,14 +28,14 @@ class AccountRepoLiveSuite extends munit.FunSuite:
       rollBackOnly:
         accountRepo.findNominalWithNonZeroBalance(UUID.randomUUID())
 
-  test("findAllRecon"):
+  test("findAll"):
     val accountRepo = AccountRepoLive()
 
     transact(transactor):
       rollBackOnly:
         val data = DataSetup()
         val found = accountRepo.findAll()
-        assertEquals(1, found.length)
+        assertEquals(3, found.length)
 
   test("findByFundFlowAndAccountName"):
     val accountRepo = AccountRepoLive()

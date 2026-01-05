@@ -35,7 +35,7 @@ class AccountOperations(
       .getOrElse(
         throw NotFoundException(s"no movement found for fundFlowConfig $movementName")
       )
-    val inAccountSpec = fundFlow.accountSpecs
+    val inAccountSpec = fundFlow.allAccounts
       .find(_.name == movementSpec.inAccountName)
       .getOrElse(
         throw NotFoundException(s"no account found for account name ${movementSpec.inAccountName}")
@@ -43,7 +43,7 @@ class AccountOperations(
     val inAccountType = if inAccountSpec.isReconSpec then model.AccountType.Recon else model.AccountType.Real
     val inAccount     = upsertAccount(movementSpec.inAccountName, amount, inAccountType, fundFlowConfig)
 
-    val outAccountSpec = fundFlow.accountSpecs
+    val outAccountSpec = fundFlow.allAccounts
       .find(_.name == movementSpec.outAccountName)
       .getOrElse(
         throw NotFoundException(s"no account found for account name ${movementSpec.outAccountName}")

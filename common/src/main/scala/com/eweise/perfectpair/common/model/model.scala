@@ -27,8 +27,8 @@ object OffsetDateTimeRW {
 
   // Define the given ReadWriter for Scala 3
   given rw: ReadWriter[OffsetDateTime] = readwriter[String].bimap[OffsetDateTime](
-    odt => formatter.format(odt),        // Serialize to string
-    str => OffsetDateTime.parse(str)     // Deserialize from string
+    odt => formatter.format(odt),    // Serialize to string
+    str => OffsetDateTime.parse(str) // Deserialize from string
   )
 }
 
@@ -64,9 +64,9 @@ enum MovementStatus:
 case class FundFlowPayload(
   id: String = "",
   name: String = "",
-  accounts: Seq[AccountPayload] = Seq(),
+  specs: FundFlowSpecPayload,
   createdAt: OffsetDateTime = OffsetDateTime.now(),
-  updatedAt: OffsetDateTime = OffsetDateTime.now(), //fixme should not be set like this
+  updatedAt: OffsetDateTime = OffsetDateTime.now() // fixme should not be set like this
 ) derives ReadWriter
 
 case class ReconciliationAccountPayload(
@@ -79,22 +79,24 @@ sealed trait Matcher derives ReadWriter
 case class EqualityMatcher(
   inKeys: Array[String],
   outKeys: Array[String]
-) extends Matcher derives ReadWriter
+) extends Matcher
+    derives ReadWriter
 
 case class SQLMatcher(
   sql: String
-) extends Matcher derives ReadWriter
+) extends Matcher
+    derives ReadWriter
 
 enum AccountTypePayload derives ReadWriter:
   case Recon
   case Real
 
 case class AccountPayload(
-                           id: String,
-                           name: String,
-                           fundFlowId: ID,
-                           accountType: AccountTypePayload,
-                           balance: Money
+  id: String,
+  name: String,
+  fundFlowId: ID,
+  accountType: AccountTypePayload,
+  balance: Money
 ) derives ReadWriter
 
 case class MovementPayload(
@@ -106,4 +108,32 @@ case class MovementPayload(
   properties: Properties,
   reconciliationId: String,
   status: String
+) derives ReadWriter
+
+enum Direction:
+  case IN, OUT
+
+case class FundFlowSpecPayload(
+  reconAccountSpecs: Seq[ReconAccountSpecPayload] = Seq(),
+  realAccountSpecs: Seq[RealAccountSpecPayload] = Seq(),
+  movementSpecs: Seq[MovementSpecPayload] = Seq()
+) derives ReadWriter
+
+case class ReconAccountSpecPayload(
+  name: String,
+  matcher: Matcher = EqualityMatcher(Array("id"), Array("id")),
+  agingLimit: String = "",
+  properties: Array[String] = Array.empty
+) derives ReadWriter
+
+case class RealAccountSpecPayload(
+  name: String,
+  properties: Array[String] = Array.empty
+) derives ReadWriter
+
+case class MovementSpecPayload(
+  name: String,
+  inAccountName: String,
+  outAccountName: String,
+  attributes: Array[String] = Array.empty
 ) derives ReadWriter
