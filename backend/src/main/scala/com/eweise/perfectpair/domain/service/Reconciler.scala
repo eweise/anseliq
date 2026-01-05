@@ -30,7 +30,7 @@ class Reconciler(
       .getConfigByID(reconAccount.fundFlowId)
       .getOrElse(throw NotFoundException(s"no fund flow found for ${reconAccount.fundFlowId}"))
 
-    val reconAccountSpec = fundFlow.fundFlow.accountSpecs
+    val reconAccountSpec = fundFlow.fundFlow.allAccounts
       .find(r => r.name == reconAccount.name && r.isReconSpec)
       .getOrElse(throw NotFoundException(s"no reconciliation account found for fund flow ${fundFlow.name}"))
       .asInstanceOf[model.ReconciliationAccountSpec]

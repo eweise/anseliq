@@ -37,7 +37,8 @@ class AccountOperationsSuite extends munit.FunSuite:
     val sendClearing   = MovementSpec("sendClearing", clearingAccount.name, clearingReconciliation.name)
     val receiveBAIFile = MovementSpec("receiveBAIFile", clearingReconciliation.name, baiReceived.name)
     val cardFlow = FundFlowSpec(
-      Seq(clearingAccount, clearingReconciliation, baiReceived),
+      Seq(clearingAccount, baiReceived),
+      Seq(clearingReconciliation),
       Seq(sendClearing, receiveBAIFile)
     )
 
