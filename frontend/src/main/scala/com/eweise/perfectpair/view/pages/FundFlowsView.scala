@@ -1,8 +1,8 @@
 package com.eweise.perfectpair.view.pages
 
-import com.eweise.perfectpair.common.model.{AccountTypePayload, FundFlowPayload}
+import com.eweise.perfectpair.common.model.FundFlowPayload
 import com.eweise.perfectpair.model.Msg
-import com.eweise.perfectpair.view.components.{Buttons, Table}
+import com.eweise.perfectpair.view.components.Table
 import tyrian.Html
 import tyrian.Html.*
 
@@ -19,15 +19,7 @@ object FundFlowsView:
             "Recon Account",
             "Balance"
           ),
-          fundFlows.map(ff =>
-            val reconAccount = ff.accounts.find(_.accountType == AccountTypePayload.Recon)
-            Seq(
-              Buttons.linkButton("Recon Details", Msg.GetAccountsForFundFlow(ff)),
-              text(ff.name),
-              text(s"account count = ${ff.accounts.length}"),
-              text(s"recon Balance = ${reconAccount.fold(0)(_.balance)}")
-            )
-          )
+          Seq()
         )
       )
     )

@@ -1,17 +1,6 @@
 package com.eweise.perfectpair.adapter.driving
 
-import com.eweise.perfectpair.common.model.{
-  AccountPayload,
-  AccountTypePayload,
-  EqualityMatcher,
-  FundFlowPayload,
-  FundFlowSpecPayload,
-  Matcher,
-  MovementPayload,
-  MovementSpecPayload,
-  RealAccountSpecPayload,
-  ReconAccountSpecPayload
-}
+import com.eweise.perfectpair.common.model.*
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model.AccountType.{Real, Recon}
 import upickle.default.*
@@ -29,11 +18,14 @@ object Payload:
       updatedAt = ff.updatedAt.getOrElse(OffsetDateTime.now())
     )
 
-  def fundFlowSpecPayloadFromDomain(spec: model.FundFlowSpec): FundFlowSpecPayload =
+  def fundFlowSpecPayloadFromDomain(config: model.FundFlowConfig): FundFlowSpecPayload =
     FundFlowSpecPayload(
-      realAccountSpecs = spec.realAccountSpecs.map(realAccountSpecPayloadFromDomain),
-      reconAccountSpecs = spec.reconAccountSpecs.map(reconAccountSpecPayloadFromDomain),
-      movementSpecs = Seq()
+      name = config.name,
+      realAccountSpecs = config.fundFlow.realAccountSpecs.map(realAccountSpecPayloadFromDomain),
+      reconAccountSpecs = config.fundFlow.reconAccountSpecs.map(reconAccountSpecPayloadFromDomain),
+      movementSpecs = Seq(),
+      createdAt = config.createdAt,
+      updatedAt = config.updatedAt,
     )
 
   def fundFlowSpecPayloadToDomain(ff: FundFlowSpecPayload): model.FundFlowSpec =

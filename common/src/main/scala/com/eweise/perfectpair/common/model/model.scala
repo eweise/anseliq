@@ -64,7 +64,7 @@ enum MovementStatus:
 case class FundFlowPayload(
   id: String = "",
   name: String = "",
-  specs: FundFlowSpecPayload,
+  specs: FundFlowSpecPayload = FundFlowSpecPayload(),
   createdAt: OffsetDateTime = OffsetDateTime.now(),
   updatedAt: OffsetDateTime = OffsetDateTime.now() // fixme should not be set like this
 ) derives ReadWriter
@@ -114,9 +114,13 @@ enum Direction:
   case IN, OUT
 
 case class FundFlowSpecPayload(
+  id: String = "",
+  name: String = "",
   reconAccountSpecs: Seq[ReconAccountSpecPayload] = Seq(),
   realAccountSpecs: Seq[RealAccountSpecPayload] = Seq(),
-  movementSpecs: Seq[MovementSpecPayload] = Seq()
+  movementSpecs: Seq[MovementSpecPayload] = Seq(),
+  createdAt: Option[OffsetDateTime] = None,
+  updatedAt: Option[OffsetDateTime] = None
 ) derives ReadWriter
 
 case class ReconAccountSpecPayload(
