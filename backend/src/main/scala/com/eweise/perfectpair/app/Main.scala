@@ -141,7 +141,7 @@ object Example extends cask.MainRoutes:
   def getFundFlows() =
     transact(transactor):
       val fundFlows = fundFlowConfigRepo.findAll
-      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff, accountRepo.findByFundFlow(ff.id))).toSeq
+      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff))
       write(payloads)
 
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts", methods = HttpCmd.GET)
@@ -172,7 +172,7 @@ object Example extends cask.MainRoutes:
 
     transact(transactor):
       fundFlowConfigRepo.insert(fundFlow)
-    write(Payload.fundFlowPayloadFromDomain(fundFlow, Seq()))
+    write(Payload.fundFlowPayloadFromDomain(fundFlow))
 
   @cask.get("/fundflow/:fundFlowName/account/:accountName")
   def account(fundFlowName: String, accountName: String): String =

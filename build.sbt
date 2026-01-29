@@ -2,8 +2,8 @@ import sbt.io.Path.relativeTo
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 import sbt.Keys.libraryDependencies
 
-lazy val scala3Version = "3.7.3"
-lazy val upickleVersion = "4.0.2"
+lazy val scala3Version = "3.8.1"
+lazy val upickleVersion = "4.4.2"
 ThisBuild / organization := "com.eweise"
 ThisBuild / scalaVersion := scala3Version
 

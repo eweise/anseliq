@@ -2,7 +2,6 @@ package com.eweise.perfectpair.common.model
 
 import com.eweise.perfectpair.common.model.AccountPayload
 import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
-import upickle.*
 import upickle.default.*
 import zio.json.*
 
@@ -64,9 +63,11 @@ enum MovementStatus:
 case class FundFlowPayload(
   id: String = "",
   name: String = "",
-  specs: FundFlowSpecPayload = FundFlowSpecPayload(),
-  createdAt: OffsetDateTime = OffsetDateTime.now(),
-  updatedAt: OffsetDateTime = OffsetDateTime.now() // fixme should not be set like this
+  reconAccountSpecs: Seq[ReconAccountSpecPayload] = Seq(),
+  realAccountSpecs: Seq[RealAccountSpecPayload] = Seq(),
+  movementSpecs: Seq[MovementSpecPayload] = Seq(),
+  createdAt: Option[OffsetDateTime] = None,
+  updatedAt: Option[OffsetDateTime] = None
 ) derives ReadWriter
 
 case class ReconciliationAccountPayload(
@@ -112,16 +113,6 @@ case class MovementPayload(
 
 enum Direction:
   case IN, OUT
-
-case class FundFlowSpecPayload(
-  id: String = "",
-  name: String = "",
-  reconAccountSpecs: Seq[ReconAccountSpecPayload] = Seq(),
-  realAccountSpecs: Seq[RealAccountSpecPayload] = Seq(),
-  movementSpecs: Seq[MovementSpecPayload] = Seq(),
-  createdAt: Option[OffsetDateTime] = None,
-  updatedAt: Option[OffsetDateTime] = None
-) derives ReadWriter
 
 case class ReconAccountSpecPayload(
   name: String,

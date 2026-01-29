@@ -1,20 +1,34 @@
 package com.eweise.perfectpair.view.pages
 
-import com.eweise.perfectpair.common.model.{FundFlowPayload, FundFlowSpecPayload}
+import com.eweise.perfectpair.common.model.{FundFlowPayload, RealAccountSpecPayload}
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.view.components.{Buttons, Form}
 import tyrian.Html.*
 import tyrian.Html
 
+import scala.:+
+
 object MaintainFundFlowView:
-  def apply(ff: FundFlowSpecPayload): Html[Msg] =
+  def apply(ff: FundFlowPayload): Html[Msg] =
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       form(cls := "max-w-sm mx-auto")(
         Form.field(fieldID = "123", labelName = "Name", onChangFn = value => Msg.FundFlowFormUpdate(ff.copy(name = value)))
       ),
-      Form.field("123", "Aging Limit", (value => Msg.FundFlowFormUpdate(ff.copy(name = value))),
-      Form.field("account1", "First Data Source", (value => Msg.NoOp)),
-      Form.field("account2", "Secon Data Source", (value => Msg.NoOp)),
+      Form.field(
+        "123",
+        "Aging Limit",
+        value => Msg.FundFlowFormUpdate(ff.copy(name = value))
+      ),
+      Form.field(
+        "account1",
+        "First Data Source",
+        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ RealAccountSpecPayload(name = value)))
+      ),
+      Form.field(
+        "account2",
+        "Secon Data Source",
+        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ RealAccountSpecPayload(name = value)))
+      ),
       Buttons.linkButton("Save", Msg.CreateFundFlow(ff))
     )
 

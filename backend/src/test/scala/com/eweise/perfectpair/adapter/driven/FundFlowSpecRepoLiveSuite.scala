@@ -1,12 +1,12 @@
-package perfectpair.adapter.driven
+package com.eweise.perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{DbDataSource, FundFlowConfigRepoLive}
+import com.eweise.perfectpair.domain.DataSetup
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.service.FundFlowCache
 import com.typesafe.config.ConfigFactory
-import perfectpair.domain.DataSetup
-import perfectpair.testing.rollBackOnly
+import com.eweise.perfectpair.testing.rollBackOnly
 import upickle.default.*
 
 import java.util.UUID

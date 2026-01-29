@@ -1,16 +1,16 @@
-package perfectpair.domain.service
+package com.eweise.perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.DbDataSource
 import com.eweise.perfectpair.common.model.model.Zero
+import com.eweise.perfectpair.domain.DataSetup
 import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
 import com.eweise.perfectpair.domain.model.{Account, Movement, isReconciled}
 import com.eweise.perfectpair.domain.port.driven.Txn
 import com.eweise.perfectpair.domain.service.{AccountOperations, Reconciler}
 import com.typesafe.config.ConfigFactory
-import perfectpair.domain.DataSetup
-import perfectpair.testing.rollBackOnly
+import com.eweise.perfectpair.testing.rollBackOnly
 
 import java.util.UUID
 import javax.sql.DataSource
