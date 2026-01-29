@@ -16,7 +16,7 @@ create table recon.fund_flow_config(
 
 create table recon.account (
     id uuid primary key,
-    fund_flow_id uuid not null references recon.fund_flow_config(id),
+    fund_flow_id uuid not null references recon.fund_flow_config(id) ON DELETE CASCADE,
     name text not null,
     account_type text not null,
     balance numeric(15,2),
@@ -35,12 +35,12 @@ create table recon.reconciliation (
 create table recon.movement (
     id uuid primary key,
     reference_id uuid not null UNIQUE,
-    in_account_id uuid not null REFERENCES recon.account (id),
-    out_account_id uuid not null REFERENCES recon.account (id),
+    in_account_id uuid not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_id uuid not null REFERENCES recon.account (id) ON DELETE CASCADE,
     properties jsonb,
     amount numeric(15, 2) not null,
     status text not null,
-    reconciliation_id uuid REFERENCES recon.reconciliation (id),
+    reconciliation_id uuid REFERENCES recon.reconciliation (id) ON DELETE CASCADE,
     created_at timestamptz default CURRENT_TIMESTAMP not null,
     updated_at timestamptz default CURRENT_TIMESTAMP not null
 );
