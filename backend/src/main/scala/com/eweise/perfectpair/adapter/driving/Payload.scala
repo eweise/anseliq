@@ -51,6 +51,7 @@ object Payload:
     )
 
   def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
+    //fixme need to convert payload to domain object and then write to fundFlowSon
     FundFlowConfig(name = payload.name, fundFlowJson = write(payload))
 
   def accountPayloadfromDomainModel(dmAccount: Account): AccountPayload =

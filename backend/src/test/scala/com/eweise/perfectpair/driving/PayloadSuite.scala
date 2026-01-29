@@ -7,7 +7,7 @@ import com.eweise.perfectpair.domain.model.{Account, FundFlowConfig, FundFlowSpe
 class PayloadSuite extends munit.FunSuite:
 
   test("Create Fund Flow Config"):
-    val ff = FundFlowConfig(name = "name", fundFlowJson = upickle.write(FundFlowSpec()))
+    val ff = FundFlowConfig(name = "name", fundFlowJson = """{"name":"4","realAccountSpecs":[{"name":"source1"},{"name":"source2"}]}""")
     val account = Account(name = "name", fundFlowId = ff.id, accountType = Real)
     Payload.realAccountSpecPayloadFromDomain(RealAccountSpec(name = "name1"))
     Payload.realAccountSpecPayloadFromDomain(RealAccountSpec(name = "name1"))
