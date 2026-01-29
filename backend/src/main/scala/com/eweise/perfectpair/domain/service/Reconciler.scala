@@ -1,10 +1,10 @@
 package com.eweise.perfectpair.domain.service
 
+import com.eweise.perfectpair.common.model.{EqualityMatcher, SQLMatcher}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.port.driven.*
-import com.eweise.perfectpair.common.model.{EqualityMatcher, SQLMatcher}
 
 def mapKeyToMovement(keys: Array[String], outMovements: Vector[Movement]) =
   outMovements

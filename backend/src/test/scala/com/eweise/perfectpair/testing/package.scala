@@ -1,4 +1,4 @@
-package perfectpair
+package com.eweise.perfectpair
 
 import com.augustnagro.magnum.DbTx
 import com.eweise.perfectpair.domain.port.driven.Txn

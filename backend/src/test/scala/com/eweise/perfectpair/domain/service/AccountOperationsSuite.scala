@@ -1,13 +1,13 @@
-package perfectpair.domain.service
+package com.eweise.perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, DbDataSource, FundFlowConfigRepoLive, MovementRepoLive}
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo}
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache}
+import com.eweise.perfectpair.testing
 import com.typesafe.config.ConfigFactory
-import perfectpair.testing
-import perfectpair.testing.rollBackOnly
+import testing.rollBackOnly
 import upickle.default.*
 
 import scala.collection.immutable.Seq

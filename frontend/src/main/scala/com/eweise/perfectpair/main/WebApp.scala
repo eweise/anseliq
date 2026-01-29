@@ -114,7 +114,7 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
       (model.modify(_.fundFlows).setTo(ff), PrettyLogger.info("updated model with fund flows"))
 
     case Msg.FundFlowFormUpdate(ff) =>
-      (model.modify(_.selectedFundFlow).setTo(Some(ff)), PrettyLogger.info("fund flow form modified"))
+      (model.modify(_.selectedFundFlow).setTo(Some(ff)), PrettyLogger.info(s"fund flow form modified value is $ff"))
     case Msg.CreateFundFlow(ff) =>
       (model, HttpHelper.createFundFlow(ff) |+| PrettyLogger.info("creating fund flow"))
 

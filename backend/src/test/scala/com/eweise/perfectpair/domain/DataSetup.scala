@@ -1,4 +1,4 @@
-package perfectpair.domain
+package com.eweise.perfectpair.domain
 
 import com.augustnagro.magnum.DbTx
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
