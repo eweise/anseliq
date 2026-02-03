@@ -8,9 +8,9 @@ import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRep
 
 class AccountOperations(
   val fundFlowCache: FundFlowCache,
-  val accountRepo: AccountRepo,
-  val movementRepo: MovementRepo,
-  val configRepo: FundFlowConfigRepo
+  val accountRepo:   AccountRepo,
+  val movementRepo:  MovementRepo,
+  val configRepo:    FundFlowConfigRepo
 ):
 
   def createConfig(fundFlowConfig: FundFlowConfig): Txn[FundFlowConfig] =
@@ -20,8 +20,8 @@ class AccountOperations(
   def postAmount(
     fundFlowName: String,
     movementName: String,
-    amount: Money,
-    properties: Properties = Map[String, String]()
+    amount:       Money,
+    properties:   Properties = Map[String, String]()
   ): Txn[Unit] =
     // find the fund flow
     val fundFlowConfig = fundFlowCache
@@ -53,10 +53,10 @@ class AccountOperations(
 
     movementRepo.insert:
       Movement(
-        properties = JSONBProps(properties),
+        properties   = JSONBProps(properties),
         outAccountId = outAccount.id,
-        inAccountId = inAccount.id,
-        amount = amount
+        inAccountId  = inAccount.id,
+        amount       = amount
       )
 
   def findMismatches(fundFlowName: String): Txn[Vector[Account]] =
@@ -68,9 +68,9 @@ class AccountOperations(
 
   private def upsertAccount(
     accountName: String,
-    amount: Money,
+    amount:      Money,
     accountType: AccountType,
-    ffConfig: FundFlowConfig
+    ffConfig:    FundFlowConfig
   ): Txn[Account] =
     accountRepo.findByFundFlowAndAccountName(ffConfig.id, accountName) match
 
@@ -80,10 +80,10 @@ class AccountOperations(
 
       case _ =>
         val newAccount = Account(
-          name = accountName,
+          name        = accountName,
           accountType = accountType,
-          fundFlowId = ffConfig.id,
-          balance = amount
+          fundFlowId  = ffConfig.id,
+          balance     = amount
         )
         accountRepo.insert(newAccount)
         newAccount

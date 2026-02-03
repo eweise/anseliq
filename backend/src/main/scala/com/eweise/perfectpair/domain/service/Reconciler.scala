@@ -14,10 +14,10 @@ def mapKeyToMovement(keys: Array[String], outMovements: Vector[Movement]) =
     .toMap
 
 class Reconciler(
-  val fundFlowCache: FundFlowCache,
-  val accountRepo: AccountRepo,
-  val movementRepo: MovementRepo,
-  val reconRepo: ReconciliationRepo,
+  val fundFlowCache:      FundFlowCache,
+  val accountRepo:        AccountRepo,
+  val movementRepo:       MovementRepo,
+  val reconRepo:          ReconciliationRepo,
   val fundFlowConfigRepo: FundFlowConfigRepo
 ):
 
@@ -37,9 +37,8 @@ class Reconciler(
 
     reconAccountSpec.matcher match
       case EqualityMatcher(inKeys, outKeys) =>
-        val inMovements  = movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, IN)
-        val outMovements = movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, OUT)
-
+        val inMovements        = movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, IN)
+        val outMovements       = movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, OUT)
         val inKeysToMovements  = mapKeyToMovement(inKeys, inMovements)
         val outKeysToMovements = mapKeyToMovement(outKeys, outMovements)
 
@@ -54,13 +53,13 @@ class Reconciler(
           reconRepo.insert(reconciliation)
           movementRepo.update(
             inMovement.copy(
-              status = MovementStatus.Reconciled,
+              status           = MovementStatus.Reconciled,
               reconciliationId = Some(reconciliation.id)
             )
           )
           movementRepo.update(
             outMovement.copy(
-              status = MovementStatus.Reconciled,
+              status           = MovementStatus.Reconciled,
               reconciliationId = Some(reconciliation.id)
             )
           )
