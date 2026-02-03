@@ -32,7 +32,7 @@ object Example extends cask.MainRoutes:
         println("Handling OPTIONS request")
         Result.Success(
           cask.Response(
-            data = "",
+            data       = "",
             statusCode = 200,
             headers = Seq(
               "access-control-allow-origin"      -> "*",
@@ -66,25 +66,25 @@ object Example extends cask.MainRoutes:
   val reconRepo          = ReconciliationRepoLive()
 
   val reconciler = Reconciler(
-    fundFlowCache = fundFlowCache,
-    accountRepo = accountRepo,
-    movementRepo = movementRepo,
-    reconRepo = reconRepo,
+    fundFlowCache      = fundFlowCache,
+    accountRepo        = accountRepo,
+    movementRepo       = movementRepo,
+    reconRepo          = reconRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
 
   val accountOperations = AccountOperations(
     fundFlowCache = fundFlowCache,
-    accountRepo = accountRepo,
-    movementRepo = movementRepo,
-    configRepo = fundFlowConfigRepo
+    accountRepo   = accountRepo,
+    movementRepo  = movementRepo,
+    configRepo    = fundFlowConfigRepo
   )
 
   transact(transactor):
     val testFundFlowConfig = createTestData(
-      reconName = "ACH Recon",
+      reconName   = "ACH Recon",
       journalName = "Journal",
-      reportName = "ACH Report"
+      reportName  = "ACH Report"
     ).copy(name = "ACH Recon Fund Flow")
     try
       accountOperations.createConfig(testFundFlowConfig)
@@ -94,9 +94,9 @@ object Example extends cask.MainRoutes:
     }
 
     val testFundFlowConfig2 = createTestData(
-      reconName = "Visa Recon",
+      reconName   = "Visa Recon",
       journalName = "Journal",
-      reportName = "Visa Report"
+      reportName  = "Visa Report"
     ).copy(name = "Visa Fund Flow")
     try
       accountOperations.createConfig(testFundFlowConfig2)
@@ -111,7 +111,7 @@ object Example extends cask.MainRoutes:
     // create some account data
     val props = Map("id" -> "1")
     accountOperations.postAmount("ACH Recon Fund Flow", "post_journal", 100d, properties = props)
-    accountOperations.postAmount("ACH Recon Fund Flow", "bank_report", 100d, properties = props)
+    accountOperations.postAmount("ACH Recon Fund Flow", "bank_report", 100d, properties  = props)
 
     accountRepo
       .findByFundFlow(config.id)
@@ -167,7 +167,7 @@ object Example extends cask.MainRoutes:
 
   @cask.route(s"${HttpPath.createFundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
-    val payload = read[FundFlowPayload](request.text())
+    val payload  = read[FundFlowPayload](request.text())
     val fundFlow = Payload.fundFlowPayloadToDomain(payload)
 
     transact(transactor):
@@ -212,16 +212,16 @@ object Example extends cask.MainRoutes:
   initialize()
 
 def createTestData(
-  reconName: String,
+  reconName:   String,
   journalName: String,
-  reportName: String
+  reportName:  String
 ): FundFlowConfig =
   val reconAccountName   = reconName
   val journalAccountName = journalName
   val reportAccountName  = reportName
 
   val reconAccountSpec = ReconciliationAccountSpec(
-    name = reconAccountName,
+    name    = reconAccountName,
     matcher = EqualityMatcher(inKeys = Array("id"), outKeys = Array("id"))
   )
   val journalAccountSpec = RealAccountSpec(name = journalAccountName)
@@ -229,23 +229,23 @@ def createTestData(
 
   val postJournalMovementName = "post_journal"
   val movementSpecPostJournal = MovementSpec(
-    name = postJournalMovementName,
-    inAccountName = journalAccountName,
+    name           = postJournalMovementName,
+    inAccountName  = journalAccountName,
     outAccountName = reconAccountName
   )
 
   val bankReportMovementName = "bank_report"
   val movementSpecBankReport = MovementSpec(
-    name = bankReportMovementName,
-    inAccountName = reconAccountName,
+    name           = bankReportMovementName,
+    inAccountName  = reconAccountName,
     outAccountName = reportAccountName
   )
 
   val fundFlow =
     FundFlowSpec(
-      realAccountSpecs = Seq(journalAccountSpec, reportAccountSpec),
+      realAccountSpecs  = Seq(journalAccountSpec, reportAccountSpec),
       reconAccountSpecs = Seq(reconAccountSpec),
-      movementSpecs = Seq(movementSpecPostJournal, movementSpecBankReport)
+      movementSpecs     = Seq(movementSpecPostJournal, movementSpecBankReport)
     )
 
   FundFlowConfig(name = UUID.randomUUID().toString, fundFlowJson = write(fundFlow, escapeUnicode = true))

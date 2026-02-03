@@ -5,7 +5,7 @@ import com.eweise.perfectpair.common.model.model.ID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Reconciliation(
-  @Id id: ID = createID(),
+  @Id id:      ID     = createID(),
   description: String = ""
 ) extends Auditable
     derives DbCodec
