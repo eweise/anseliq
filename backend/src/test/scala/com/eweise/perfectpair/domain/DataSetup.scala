@@ -61,21 +61,18 @@ class DataSetup(using DbTx) {
 
   val reconAccount = Account(
     name = reconAccountSpec.name,
-    accountType = AccountType.Recon,
     fundFlowId = fundFlowConfig.id
   )
   accountRepo.insert(reconAccount)
 
   val journalAccount = Account(
     name = journalAccountSpec.name,
-    accountType = AccountType.Real,
     fundFlowId = fundFlowConfig.id
   )
   accountRepo.insert(journalAccount)
 
   val reportAccount = Account(
     name = reportAccountSpec.name,
-    accountType = AccountType.Real,
     fundFlowId = fundFlowConfig.id
   )
   accountRepo.insert(reportAccount)

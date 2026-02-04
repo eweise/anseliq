@@ -18,12 +18,15 @@ create table recon.account (
     id uuid primary key,
     fund_flow_id uuid not null references recon.fund_flow_config(id) ON DELETE CASCADE,
     name text not null,
-    account_type text not null,
     balance numeric(15,2),
-    tags text[],
+    properties jsonb,
     created_at timestamptz default CURRENT_TIMESTAMP not null,
     updated_at timestamptz default CURRENT_TIMESTAMP not null
 );
+
+CREATE INDEX account_props_index
+    ON recon.account
+        USING GIN (properties jsonb_path_ops);
 
 create table recon.reconciliation (
     id uuid primary key,
