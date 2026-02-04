@@ -45,6 +45,10 @@ create table recon.movement (
     updated_at timestamptz default CURRENT_TIMESTAMP not null
 );
 
+CREATE INDEX movement_props_index
+    ON recon.movement
+    USING GIN (properties jsonb_path_ops);
+
 
 CREATE  FUNCTION update_update_at_user_task()
 RETURNS TRIGGER AS $$

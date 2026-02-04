@@ -25,13 +25,13 @@ class MovementRepoLiveSuite extends munit.FunSuite:
       rollBackOnly:
         val data        = DataSetup()
         val referenceID = createID()
-        val props = Map("id" -> "1")
+        val props       = Map("id" -> "1")
         val movement = Movement(
-          inAccountId = data.journalAccount.id,
+          inAccountId  = data.journalAccount.id,
           outAccountId = data.reconAccount.id,
-          referenceId = referenceID,
-          properties = JSONBProps(props),
-          amount = 100
+          referenceId  = referenceID,
+          properties   = JSONBProps(props),
+          amount       = 100
         )
         movementRepo.insert(movement)
         movementRepo.insert(movement)
@@ -49,9 +49,9 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
-          inAccountId = data.journalAccount.id,
-          outAccountId = data.reconAccount.id,
-          amount = 100,
+          inAccountId      = data.journalAccount.id,
+          outAccountId     = data.reconAccount.id,
+          amount           = 100,
           reconciliationId = Some(reconciliation.id)
         )
 
@@ -64,9 +64,9 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(notFound.size, 0)
 
         val inReconMovement = Movement(
-          inAccountId = data.reconAccount.id,
-          outAccountId = data.reportAccount.id,
-          amount = 100,
+          inAccountId      = data.reconAccount.id,
+          outAccountId     = data.reportAccount.id,
+          amount           = 100,
           reconciliationId = Some(reconciliation.id)
         )
 
@@ -77,6 +77,28 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
         assertEquals(foundByAccount.size, 2)
 
+  test("findUnreconciledByAttribute"):
+    val movementRepo = MovementRepoLive()
+    val reconRepo    = ReconciliationRepoLive()
+
+    transact(transactor):
+      rollBackOnly:
+        val data           = DataSetup()
+        val reconciliation = Reconciliation()
+        reconRepo.insert(reconciliation)
+
+        val outReconMovement = Movement(
+          inAccountId      = data.journalAccount.id,
+          outAccountId     = data.reconAccount.id,
+          amount           = 100,
+          reconciliationId = Some(reconciliation.id),
+          properties       = JSONBProps(Map("id" -> "1", "name" -> s"doug"))
+        )
+        data.movementRepo.insert(outReconMovement)
+
+        val foundMovement = movementRepo.findUnreconciledByProperty("name", "doug")
+        assertEquals(foundMovement.head.id, outReconMovement.id)
+
   test("findByAccount returns all movements for an account"):
     val movementRepo = MovementRepoLive()
 
@@ -85,19 +107,19 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         val data = DataSetup()
 
         val movement1 = Movement(
-          inAccountId = data.journalAccount.id,
+          inAccountId  = data.journalAccount.id,
           outAccountId = data.reconAccount.id,
-          amount = 100
+          amount       = 100
         )
         val movement2 = Movement(
-          inAccountId = data.reconAccount.id,
+          inAccountId  = data.reconAccount.id,
           outAccountId = data.reportAccount.id,
-          amount = 200
+          amount       = 200
         )
         val movement3 = Movement(
-          inAccountId = data.journalAccount.id,
+          inAccountId  = data.journalAccount.id,
           outAccountId = data.reportAccount.id,
-          amount = 300
+          amount       = 300
         )
 
         movementRepo.insert(movement1)
@@ -118,6 +140,6 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
     transact(transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data      = DataSetup()
         val movements = movementRepo.findByAccount(data.reconAccount.id)
         assertEquals(movements.size, 0)
