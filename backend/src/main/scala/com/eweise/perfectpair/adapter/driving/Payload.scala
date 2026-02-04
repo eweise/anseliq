@@ -2,7 +2,6 @@ package com.eweise.perfectpair.adapter.driving
 
 import com.eweise.perfectpair.common.model.*
 import com.eweise.perfectpair.domain.model.*
-import com.eweise.perfectpair.domain.model.AccountType.{Real, Recon}
 import upickle.default.*
 
 object Payload:
@@ -11,8 +10,6 @@ object Payload:
     FundFlowPayload(
       id                = ff.id.toString,
       name              = ff.name,
-      realAccountSpecs  = ff.fundFlow.realAccountSpecs.map(realAccountSpecPayloadFromDomain),
-      reconAccountSpecs = ff.fundFlow.reconAccountSpecs.map(reconAccountSpecPayloadFromDomain),
       movementSpecs     = Seq(),
       createdAt         = ff.createdAt,
       updatedAt         = ff.updatedAt
@@ -59,14 +56,8 @@ object Payload:
       id          = dmAccount.id.toString,
       name        = dmAccount.name,
       fundFlowId  = dmAccount.fundFlowId,
-      accountType = accountTypeFromModel(dmAccount.accountType),
       balance     = dmAccount.balance
     )
-
-  def accountTypeFromModel(at: AccountType): AccountTypePayload =
-    at match
-      case Real  => AccountTypePayload.Real
-      case Recon => AccountTypePayload.Recon
 
   def movementPayloadfromDomainModel(dmMovement: Movement): MovementPayload =
     MovementPayload(

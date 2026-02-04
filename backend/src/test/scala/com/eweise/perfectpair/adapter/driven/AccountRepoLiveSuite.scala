@@ -3,7 +3,7 @@ package com.eweise.perfectpair.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, DbDataSource}
 import com.eweise.perfectpair.domain.{DataSetup, model}
-import com.eweise.perfectpair.domain.model.{Account, AccountType}
+import com.eweise.perfectpair.domain.model.{Account}
 import com.eweise.perfectpair.domain.port.driven.AccountRepo
 import com.typesafe.config.ConfigFactory
 import com.eweise.perfectpair.testing.rollBackOnly
@@ -52,7 +52,6 @@ class AccountRepoLiveSuite extends munit.FunSuite:
 
         val account = Account(
           name = UUID.randomUUID().toString,
-          accountType = AccountType.Real,
           fundFlowId = data.fundFlowConfig.id
         )
         assertEquals(account.createdAt, None)
