@@ -1,7 +1,7 @@
 package com.eweise.perfectpair.adapter.driven
 
-import com.augustnagro.magnum.{DbCon, Repo, sql}
-import com.eweise.perfectpair.common.model.model.ID
+import com.augustnagro.magnum.{DbCon, Repo, SqlLiteral, sql}
+import com.eweise.perfectpair.common.model.model.{ID, Properties}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.model.{Direction, Movement}
@@ -17,6 +17,16 @@ class MovementRepoLive extends Repo[model.Movement, model.Movement, UUID] with M
          INSERT INTO $m ${m.insertColumns}
          VALUES ($movement)
          ON CONFLICT(reference_id) DO NOTHING""".update.run()
+
+  def findUnreconciledByProperty(key : String, value:String): Txn[Vector[Movement]] =
+    val whereProps = SqlLiteral(s"""where properties @> '{"props":{"$key":"$value"}}'""")
+    sql"""
+      SELECT ${m.all}
+      FROM $m AS a
+      $whereProps
+      ORDER BY created_at
+    """.query[Movement].run()
+
 
   def findUnReconciledByAccountAndDirection(accountID: ID, direction: Direction): Txn[Vector[Movement]] =
     val directionFrag = direction match
