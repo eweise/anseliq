@@ -96,7 +96,6 @@ case class AccountPayload(
   id: String,
   name: String,
   fundFlowId: ID,
-  accountType: AccountTypePayload,
   balance: Money
 ) derives ReadWriter
 

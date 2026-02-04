@@ -113,10 +113,7 @@ object Example extends cask.MainRoutes:
     accountOperations.postAmount("ACH Recon Fund Flow", "post_journal", 100d, properties = props)
     accountOperations.postAmount("ACH Recon Fund Flow", "bank_report", 100d, properties  = props)
 
-    accountRepo
-      .findByFundFlow(config.id)
-      .foreach: account =>
-        if account.accountType == AccountType.Recon then reconciler.reconcileAccount(account)
+    accountRepo.findByFundFlow(config.id)
 
   val prefixPath                 = "/api/v1"
   val loginPath                  = s"$prefixPath / login"
