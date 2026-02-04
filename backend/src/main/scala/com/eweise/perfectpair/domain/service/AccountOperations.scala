@@ -40,16 +40,14 @@ class AccountOperations(
       .getOrElse(
         throw NotFoundException(s"no account found for account name ${movementSpec.inAccountName}")
       )
-    val inAccountType = if inAccountSpec.isReconSpec then model.AccountType.Recon else model.AccountType.Real
-    val inAccount     = upsertAccount(movementSpec.inAccountName, amount, inAccountType, fundFlowConfig)
+    val inAccount = upsertAccount(movementSpec.inAccountName, amount, fundFlowConfig)
 
     val outAccountSpec = fundFlow.allAccounts
       .find(_.name == movementSpec.outAccountName)
       .getOrElse(
         throw NotFoundException(s"no account found for account name ${movementSpec.outAccountName}")
       )
-    val outAccountType = if outAccountSpec.isReconSpec then model.AccountType.Recon else model.AccountType.Real
-    val outAccount     = upsertAccount(movementSpec.outAccountName, amount * -1, outAccountType, fundFlowConfig)
+    val outAccount = upsertAccount(movementSpec.outAccountName, amount * -1, fundFlowConfig)
 
     movementRepo.insert:
       Movement(
@@ -69,7 +67,6 @@ class AccountOperations(
   private def upsertAccount(
     accountName: String,
     amount:      Money,
-    accountType: AccountType,
     ffConfig:    FundFlowConfig
   ): Txn[Account] =
     accountRepo.findByFundFlowAndAccountName(ffConfig.id, accountName) match
@@ -80,10 +77,9 @@ class AccountOperations(
 
       case _ =>
         val newAccount = Account(
-          name        = accountName,
-          accountType = accountType,
-          fundFlowId  = ffConfig.id,
-          balance     = amount
+          name       = accountName,
+          fundFlowId = ffConfig.id,
+          balance    = amount
         )
         accountRepo.insert(newAccount)
         newAccount
