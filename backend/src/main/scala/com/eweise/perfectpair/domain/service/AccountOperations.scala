@@ -29,33 +29,6 @@ class AccountOperations(
       .getOrElse:
         throw NotFoundException(s"no fund flow found for $fundFlowName")
 
-    val fundFlow = fundFlowConfig.fundFlow
-    val movementSpec = fundFlow.movementSpecs
-      .find(_.name == movementName)
-      .getOrElse(
-        throw NotFoundException(s"no movement found for fundFlowConfig $movementName")
-      )
-    val inAccountSpec = fundFlow.allAccounts
-      .find(_.name == movementSpec.inAccountName)
-      .getOrElse(
-        throw NotFoundException(s"no account found for account name ${movementSpec.inAccountName}")
-      )
-    val inAccount = upsertAccount(movementSpec.inAccountName, amount, fundFlowConfig)
-
-    val outAccountSpec = fundFlow.allAccounts
-      .find(_.name == movementSpec.outAccountName)
-      .getOrElse(
-        throw NotFoundException(s"no account found for account name ${movementSpec.outAccountName}")
-      )
-    val outAccount = upsertAccount(movementSpec.outAccountName, amount * -1, fundFlowConfig)
-
-    movementRepo.insert:
-      Movement(
-        properties   = JSONBProps(properties),
-        outAccountId = outAccount.id,
-        inAccountId  = inAccount.id,
-        amount       = amount
-      )
 
   def findMismatches(fundFlowName: String): Txn[Vector[Account]] =
     val fundflow = fundFlowCache
@@ -79,7 +52,8 @@ class AccountOperations(
         val newAccount = Account(
           name       = accountName,
           fundFlowId = ffConfig.id,
-          balance    = amount
+          balance    = amount,
+          properties = JSONBProps(Map()), // todo
         )
         accountRepo.insert(newAccount)
         newAccount

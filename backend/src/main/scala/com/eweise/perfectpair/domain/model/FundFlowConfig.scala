@@ -6,10 +6,8 @@ import upickle.default.*
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class FundFlowConfig(
-  @Id id:       ID = createID(),
-  name:         String,
-  fundFlowJson: String
+  @Id id: ID = createID(),
+  name:   String
 ) extends Auditable
     derives DbCodec,
-      ReadWriter:
-  def fundFlow: FundFlowSpec = read[FundFlowSpec](fundFlowJson)
+      ReadWriter
