@@ -23,14 +23,6 @@ class DataSetup(using DbTx) {
   val journalAccountName = "journal"
   val reportAccountName  = "report"
 
-  val reconAccountSpec = ReconciliationAccountSpec(
-    name = reconAccountName,
-    matcher = EqualityMatcher(inKeys = Array("id"), outKeys = Array("id"))
-  )
-
-  var journalAccountSpec = RealAccountSpec(name = journalAccountName)
-  var reportAccountSpec  = RealAccountSpec(name = reportAccountName)
-
   val postJournalName = "post_journal"
   var movementSpecPostJournal = MovementSpec(
     name = postJournalName,
@@ -45,34 +37,26 @@ class DataSetup(using DbTx) {
     outAccountName = reportAccountName
   )
 
-  var fundFlow =
-    FundFlowSpec(
-      realAccountSpecs = Seq(journalAccountSpec, reportAccountSpec),
-      reconAccountSpecs = Seq(reconAccountSpec),
-      movementSpecs = Seq(movementSpecPostJournal, movementSpecBankReport)
-    )
-
   var fundFlowConfig = FundFlowConfig(
     name = UUID.randomUUID().toString,
-    fundFlowJson = write(fundFlow)
   )
 
   fundFlowConfigRepo.insert(fundFlowConfig)
 
   val reconAccount = Account(
-    name = reconAccountSpec.name,
+    name = reconAccountName,
     fundFlowId = fundFlowConfig.id
   )
   accountRepo.insert(reconAccount)
 
   val journalAccount = Account(
-    name = journalAccountSpec.name,
+    name = journalAccountName,
     fundFlowId = fundFlowConfig.id
   )
   accountRepo.insert(journalAccount)
 
   val reportAccount = Account(
-    name = reportAccountSpec.name,
+    name = reportAccountName,
     fundFlowId = fundFlowConfig.id
   )
   accountRepo.insert(reportAccount)

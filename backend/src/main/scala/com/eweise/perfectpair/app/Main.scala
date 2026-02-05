@@ -145,31 +145,25 @@ object Example extends cask.MainRoutes:
   def accountsByFundFlowID(fundFlowID: String): String =
     transact(transactor):
       val accounts = accountRepo.findByFundFlow(UUID.fromString(fundFlowID))
-      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
+      val payload  = accounts.map(Payload.accountPayloadFromDomain)
       write(payload)
 
   @cask.route(HttpPath.accounts, methods = HttpCmd.GET)
   def allAccounts(): String =
     transact(transactor):
       val accounts = accountRepo.findAll()
-      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
+      val payload  = accounts.map(Payload.accountPayloadFromDomain)
       write(payload)
-
-  @cask.get("/fundflow/:fundFlowName")
-  def fundFlow(fundFlowName: String): String =
-    val fundFlow = fundFlowCache
-      .getConfigByName(fundFlowName)
-      .getOrElse(throw Exception(s"fund flow name $fundFlowName not found"))
-    fundFlow.fundFlowJson
 
   @cask.route(s"${HttpPath.createFundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
-    val payload  = read[FundFlowPayload](request.text())
-    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
-
-    transact(transactor):
-      fundFlowConfigRepo.insert(fundFlow)
-    write(Payload.fundFlowPayloadFromDomain(fundFlow))
+//    val payload  = read[FundFlowPayload](request.text())
+//    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
+//
+//    transact(transactor):
+//      fundFlowConfigRepo.insert(fundFlow)
+//    write(Payload.fundFlowPayloadFromDomain(fundFlow))
+      write("todo")
 
   @cask.get("/fundflow/:fundFlowName/account/:accountName")
   def account(fundFlowName: String, accountName: String): String =
@@ -184,7 +178,7 @@ object Example extends cask.MainRoutes:
         .getOrElse:
           throw Exception("not found") // todo need proper http errors
 
-      write(Payload.accountPayloadfromDomainModel(account))
+      write(Payload.accountPayloadFromDomain(account))
 
   // todo this should just pass in an account ID
   @cask.get("/fundflow/:fundFlowName/account/:accountName/movements")
@@ -217,13 +211,6 @@ def createTestData(
   val journalAccountName = journalName
   val reportAccountName  = reportName
 
-  val reconAccountSpec = ReconciliationAccountSpec(
-    name    = reconAccountName,
-    matcher = EqualityMatcher(inKeys = Array("id"), outKeys = Array("id"))
-  )
-  val journalAccountSpec = RealAccountSpec(name = journalAccountName)
-  val reportAccountSpec  = RealAccountSpec(name = reportAccountName)
-
   val postJournalMovementName = "post_journal"
   val movementSpecPostJournal = MovementSpec(
     name           = postJournalMovementName,
@@ -238,11 +225,4 @@ def createTestData(
     outAccountName = reportAccountName
   )
 
-  val fundFlow =
-    FundFlowSpec(
-      realAccountSpecs  = Seq(journalAccountSpec, reportAccountSpec),
-      reconAccountSpecs = Seq(reconAccountSpec),
-      movementSpecs     = Seq(movementSpecPostJournal, movementSpecBankReport)
-    )
-
-  FundFlowConfig(name = UUID.randomUUID().toString, fundFlowJson = write(fundFlow, escapeUnicode = true))
+  FundFlowConfig(name = UUID.randomUUID().toString)

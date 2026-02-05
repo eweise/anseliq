@@ -9,7 +9,6 @@ create schema if not exists recon ;
 create table recon.fund_flow_config(
     id uuid primary key,
     name text not null unique,
-    fund_flow_json text not null,
     created_at timestamptz default CURRENT_TIMESTAMP not null,
     updated_at timestamptz default CURRENT_TIMESTAMP not null
 );
