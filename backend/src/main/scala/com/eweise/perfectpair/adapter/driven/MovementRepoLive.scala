@@ -3,8 +3,7 @@ package com.eweise.perfectpair.adapter.driven
 import com.augustnagro.magnum.{DbCon, Repo, SqlLiteral, sql}
 import com.eweise.perfectpair.common.model.model.{ID, Properties}
 import com.eweise.perfectpair.domain.model
-import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
-import com.eweise.perfectpair.domain.model.{Direction, Movement}
+import com.eweise.perfectpair.domain.model.{Movement}
 import com.eweise.perfectpair.domain.port.driven.{MovementRepo, Txn}
 
 import java.util.UUID
@@ -28,24 +27,11 @@ class MovementRepoLive extends Repo[model.Movement, model.Movement, UUID] with M
     """.query[Movement].run()
 
 
-  def findUnReconciledByAccountAndDirection(accountID: ID, direction: Direction): Txn[Vector[Movement]] =
-    val directionFrag = direction match
-      case IN  => sql"""in_account_id"""
-      case OUT => sql"""out_account_id"""
-
-    sql"""
-      SELECT ${m.all}
-      FROM $m AS a
-      WHERE status <> 'reconciled'
-      AND ${directionFrag} = $accountID
-      ORDER BY created_at
-    """.query[Movement].run()
-
   def findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
       FROM $m AS a
-      WHERE reconciliation_id IS NOT NULL
+      WHERE reconciliation_id IS NULL
       AND (in_account_id = $accountID OR out_account_id = $accountID)
       ORDER BY created_at
     """.query[Movement].run()

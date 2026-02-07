@@ -1,41 +1,45 @@
 package com.eweise.perfectpair.domain.service
 
-import com.eweise.perfectpair.common.model.model.{Money, Properties}
+import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
-import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, Txn}
+import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo, Txn}
 
 class AccountOperations(
-  val fundFlowCache: FundFlowCache,
-  val accountRepo:   AccountRepo,
-  val movementRepo:  MovementRepo,
-  val configRepo:    FundFlowConfigRepo
+  val fundFlowCache:    FundFlowCache,
+  val accountRepo:      AccountRepo,
+  val movementRepo:     MovementRepo,
+  val movementSpecRepo: MovementSpecRepo,
+  val configRepo:       FundFlowConfigRepo
 ):
 
-  def createConfig(fundFlowConfig: FundFlowConfig): Txn[FundFlowConfig] =
-    configRepo.insert(fundFlowConfig)
-    fundFlowConfig
-
   def postAmount(
-    fundFlowName: String,
-    movementName: String,
+    movementSpec: MovementSpec,
     amount:       Money,
+    referenceID:  ID,
     properties:   Properties = Map[String, String]()
   ): Txn[Unit] =
-    // find the fund flow
-    val fundFlowConfig = fundFlowCache
-      .getConfigByName(fundFlowName)
+    // todo do I need to find the accounts if the movement
+    // spec already has the ids? I think no
+    val inAccount = accountRepo
+      .findById(movementSpec.inAccountId)
       .getOrElse:
-        throw NotFoundException(s"no fund flow found for $fundFlowName")
+        throw NotFoundException(s"no account found for ${movementSpec.inAccountId}")
 
-
-  def findMismatches(fundFlowName: String): Txn[Vector[Account]] =
-    val fundflow = fundFlowCache
-      .getConfigByName(fundFlowName)
+    val outAccount = accountRepo
+      .findById(movementSpec.outAccountId)
       .getOrElse:
-        throw new NotFoundException(s"getMismatches; fundFlowName: $fundFlowName does not exist")
-    accountRepo.findNominalWithNonZeroBalance(fundflow.id)
+        throw NotFoundException(s"no account found for ${movementSpec.outAccountId}")
+
+    val movement = Movement(
+      referenceId  = referenceID,
+      amount       = amount,
+      properties   = JSONBProps(properties),
+      inAccountId  = inAccount.id,
+      outAccountId = outAccount.id
+    )
+    movementRepo.insert(movement)
 
   private def upsertAccount(
     accountName: String,
@@ -53,7 +57,7 @@ class AccountOperations(
           name       = accountName,
           fundFlowId = ffConfig.id,
           balance    = amount,
-          properties = JSONBProps(Map()), // todo
+          properties = JSONBProps(Map()) // todo
         )
         accountRepo.insert(newAccount)
         newAccount

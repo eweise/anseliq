@@ -4,6 +4,8 @@ import com.augustnagro.magnum.*
 import com.eweise.perfectpair.common.model.model.ID
 import upickle.default.*
 
+import java.util.UUID
+
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class FundFlowConfig(
   @Id id: ID = createID(),
@@ -11,3 +13,6 @@ case class FundFlowConfig(
 ) extends Auditable
     derives DbCodec,
       ReadWriter
+
+object FundFlowConfig:
+  val Table = TableInfo[FundFlowConfig, FundFlowConfig, UUID]

@@ -4,7 +4,6 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.DbDataSource
 import com.eweise.perfectpair.common.model.model.Zero
 import com.eweise.perfectpair.domain.DataSetup
-import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
 import com.eweise.perfectpair.domain.model.{Account, Movement, isReconciled}
 import com.eweise.perfectpair.domain.port.driven.Txn
@@ -66,18 +65,11 @@ class ReconcilerSuite extends munit.FunSuite:
           fundFlowConfigRepo = data.fundFlowConfigRepo
         )
 
-        val ops = AccountOperations(
-          fundFlowCache = data.fundFlowCache,
-          accountRepo = data.accountRepo,
-          movementRepo = data.movementRepo,
-          configRepo = data.fundFlowConfigRepo
-        )
-
-        for _ <- 1 to 10
-        do
-          val keyID = UUID.randomUUID().toString
-          ops.postAmount(data.fundFlowConfig.name, data.movementSpecPostJournal.name, 1000, Map("id" -> keyID))
-          ops.postAmount(data.fundFlowConfig.name, data.movementSpecBankReport.name, 1000, Map("id" -> keyID))
+//        for _ <- 1 to 10
+//        do
+//          val keyID = UUID.randomUUID().toString
+//          ops.postAmount(data.fundFlowConfig.name, data., 1000, Map("id" -> keyID))
+//          ops.postAmount(data.fundFlowConfig.name, data.movementBankReport.name, 1000, Map("id" -> keyID))
 
 //        val reconAccount =
 //          data.accountRepo.findByFundFlowAndAccountName(data.fundFlowConfig.id, data.reconAccountSpec.name).get
