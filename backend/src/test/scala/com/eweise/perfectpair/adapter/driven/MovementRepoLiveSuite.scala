@@ -3,7 +3,6 @@ package com.eweise.perfectpair.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{DbDataSource, MovementRepoLive, ReconciliationRepoLive}
 import com.eweise.perfectpair.domain.DataSetup
-import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
 import com.eweise.perfectpair.domain.model.{Movement, Reconciliation, createID}
 import com.typesafe.config.ConfigFactory
@@ -45,23 +44,19 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation()
+        val reconciliation = Reconciliation(specId = data.reconSpec.id)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
           inAccountId      = data.journalAccount.id,
           outAccountId     = data.reconAccount.id,
           amount           = 100,
-          reconciliationId = Some(reconciliation.id)
         )
 
         data.movementRepo.insert(outReconMovement)
 
-        val foundMovement = movementRepo.findUnReconciledByAccountAndDirection(data.reconAccount.id, OUT)
+        val foundMovement = movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assertEquals(foundMovement.head.id, outReconMovement.id)
-
-        val notFound = movementRepo.findUnReconciledByAccountAndDirection(data.reconAccount.id, IN)
-        assertEquals(notFound.size, 0)
 
         val inReconMovement = Movement(
           inAccountId      = data.reconAccount.id,
@@ -72,10 +67,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
         data.movementRepo.insert(inReconMovement)
 
-        assertEquals(movementRepo.findUnReconciledByAccountAndDirection(data.reconAccount.id, IN).size, 1)
-        val foundByAccount = movementRepo.findUnReconciledByAccount(data.reconAccount.id)
-
-        assertEquals(foundByAccount.size, 2)
+        assertEquals(movementRepo.findUnReconciledByAccount(data.reconAccount.id).size, 1)
 
   test("findUnreconciledByAttribute"):
     val movementRepo = MovementRepoLive()
@@ -84,7 +76,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation()
+        val reconciliation = Reconciliation(specId = data.reconSpec.id)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(

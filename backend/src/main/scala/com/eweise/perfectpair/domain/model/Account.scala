@@ -13,11 +13,11 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Account(
-  @Id id:      ID    = createID(),
+  @Id id:      ID         = createID(),
   name:        String,
   fundFlowId:  ID,
-  properties: JSONBProps     = JSONBProps(Map()),
-  var balance: Money = 0
+  properties:  JSONBProps = JSONBProps(Map()),
+  var balance: Money      = 0
 ) extends Auditable
     derives DbCodec
 

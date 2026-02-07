@@ -3,7 +3,8 @@ package com.eweise.perfectpair.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, DbDataSource}
 import com.eweise.perfectpair.domain.{DataSetup, model}
-import com.eweise.perfectpair.domain.model.{Account}
+import com.eweise.perfectpair.domain.model.Account
+import com.eweise.perfectpair.domain.model.helper.JSONBProps
 import com.eweise.perfectpair.domain.port.driven.AccountRepo
 import com.typesafe.config.ConfigFactory
 import com.eweise.perfectpair.testing.rollBackOnly
@@ -49,10 +50,11 @@ class AccountRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data = DataSetup()
-
+        val props = Map("type" -> "settlement", "bank" -> "wells")
         val account = Account(
           name = UUID.randomUUID().toString,
-          fundFlowId = data.fundFlowConfig.id
+          fundFlowId = data.fundFlowConfig.id,
+          properties = JSONBProps(props)
         )
         assertEquals(account.createdAt, None)
         assertEquals(account.updatedAt, None)
@@ -60,6 +62,8 @@ class AccountRepoLiveSuite extends munit.FunSuite:
         assertEquals(account.createdAt.isEmpty, false)
         assertEquals(account.updatedAt.isEmpty, false)
         assertEquals(account.createdAt, account.updatedAt)
+        val foundInserted = accountRepo.findById(account.id).get
+        assertEquals(foundInserted.properties.props,  props)
 
         accountRepo.update(account)
         assert(account.updatedAt.get.isAfter(account.createdAt.get))

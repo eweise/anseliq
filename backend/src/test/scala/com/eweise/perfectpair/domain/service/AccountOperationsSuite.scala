@@ -21,14 +21,6 @@ class AccountOperationsSuite extends munit.FunSuite:
   val movementRepo: MovementRepo     = MovementRepoLive()
   val fundFlowCache: FundFlowCache   = FundFlowCache(configRepo)
 
-  val service = AccountOperations(
-    fundFlowCache = fundFlowCache,
-    accountRepo = accountRepo,
-    movementRepo = movementRepo,
-    configRepo = configRepo
-  )
-
-
   test("Post Amount balances"):
     ()
 //    transact(transactor):
