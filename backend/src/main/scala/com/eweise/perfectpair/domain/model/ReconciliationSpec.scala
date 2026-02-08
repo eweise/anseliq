@@ -1,7 +1,10 @@
 package com.eweise.perfectpair.domain.model
 
-import com.augustnagro.magnum.{DbCodec, Id, PostgresDbType, SqlNameMapper, Table}
+import com.augustnagro.magnum.{DbCodec, Id, PostgresDbType, SqlNameMapper, Table, TableInfo}
+import com.eweise.perfectpair.common.model.Matcher
 import com.eweise.perfectpair.common.model.model.ID
+
+import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class ReconciliationSpec(
@@ -11,4 +14,8 @@ case class ReconciliationSpec(
   agingLimit:        Int    = 0,
   matchingRulesJson: String = "{}"
 ) extends Auditable
-    derives DbCodec
+    derives DbCodec:
+  def matcher():Matcher = upickle.read(matchingRulesJson)
+
+object ReconciliationSpec:
+  val Table = TableInfo[ReconciliationSpec, ReconciliationSpec, UUID]

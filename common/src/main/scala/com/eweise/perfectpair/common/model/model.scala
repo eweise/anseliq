@@ -8,6 +8,7 @@ import zio.json.*
 import java.time.OffsetDateTime
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 object InstantRW {
   // Use ISO_INSTANT formatter for standard representation
@@ -69,15 +70,22 @@ case class FundFlowPayload(
 ) derives ReadWriter
 
 case class ReconciliationAccountPayload(
-  name:       String,
-  matcher:    Matcher = EqualityMatcher(Array("id"), Array("id")),
-  agingLimit: String  = ""
+  name: String,
+  matcher: Matcher = EqualityMatcher(
+    inMovementSpecID  = UUID.randomUUID(),
+    outMovementSpecID = UUID.randomUUID(),
+    inKeys            = Array("id"),
+    outKeys           = Array("id")
+  ),
+  agingLimit: String = ""
 )
 
 sealed trait Matcher derives ReadWriter
 case class EqualityMatcher(
-  inKeys:  Array[String],
-  outKeys: Array[String]
+  inMovementSpecID:  ID,
+  outMovementSpecID: ID,
+  inKeys:            Array[String],
+  outKeys:           Array[String]
 ) extends Matcher
     derives ReadWriter
 

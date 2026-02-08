@@ -4,7 +4,14 @@ import cask.model.Request
 import cask.router.Result
 import com.augustnagro.magnum.*
 import com.eweise.perfectpair.adapter.driven
-import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, MovementSpecRepoLive, ReconciliationRepoLive}
+import com.eweise.perfectpair.adapter.driven.{
+  AccountRepoLive,
+  FundFlowConfigRepoLive,
+  MovementRepoLive,
+  MovementSpecRepoLive,
+  ReconciliationRepoLive,
+  ReconciliationSpecRepoLive
+}
 import com.eweise.perfectpair.adapter.driving.*
 import com.eweise.perfectpair.common.http.HttpPath
 import com.eweise.perfectpair.common.model.{AccountPayload, EqualityMatcher, FundFlowPayload, RandomMessage}
@@ -66,38 +73,33 @@ object Example extends cask.MainRoutes:
   val movementRepo       = MovementRepoLive()
   val movementSpecRepo   = MovementSpecRepoLive()
   val reconRepo          = ReconciliationRepoLive()
+  val reconSpecRepo      = ReconciliationSpecRepoLive()
 
   val reconciler = Reconciler(
     fundFlowCache      = fundFlowCache,
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
+    movementSpecRepo   = movementSpecRepo,
+    reconSpecRepo      = reconSpecRepo,
     reconRepo          = reconRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
 
   val accountOperations = AccountOperations(
-    fundFlowCache    = fundFlowCache,
-    accountRepo      = accountRepo,
-    movementRepo     = movementRepo,
-    movementSpecRepo = movementSpecRepo,
-    configRepo       = fundFlowConfigRepo
+    fundFlowCache      = fundFlowCache,
+    accountRepo        = accountRepo,
+    movementRepo       = movementRepo,
+    movementSpecRepo   = movementSpecRepo,
+    fundFlowConfigRepo = fundFlowConfigRepo
   )
 
   transact(transactor) {
-    val testFundFlowConfig = FundFlowConfig(name = "ACH Recon Fund Flow")
+    val testFundFlowConfig = FundFlowConfig(name = s"ACH Recon Fund Flow_${createID().toString}")
     try
       fundFlowConfigRepo.insert(testFundFlowConfig)
     catch {
       case e: SqlException =>
         println("config already exists")
-    }
-
-    val testFundFlowConfig2 = FundFlowConfig(name = "Visa Fund Flow")
-    try
-      fundFlowConfigRepo.insert(testFundFlowConfig2)
-    catch {
-      case e: SqlException =>
-        println("config2 already exists")
     }
 
     val achAccount = Account(name = "ach", fundFlowId = testFundFlowConfig.id)
@@ -116,9 +118,11 @@ object Example extends cask.MainRoutes:
     movementSpecRepo.insert(reconToJournal)
 
     // create some account data
-    val props = Map("id" -> "1")
-    accountOperations.postAmount(movementSpec = achToRecon, amount     = 100d, referenceID = createID(), properties = props)
-    accountOperations.postAmount(movementSpec = reconToJournal, amount = 100d, referenceID = createID(), properties = props)
+    for (i <- 1 to 500000) {
+      val props = Map("id" -> createID().toString)
+      accountOperations.postAmount(movementSpec = achToRecon, amount     = 100d, referenceID = createID(), properties = props)
+      accountOperations.postAmount(movementSpec = reconToJournal, amount = 100d, referenceID = createID(), properties = props)
+    }
   }
 
   val prefixPath                 = "/api/v1"

@@ -2,10 +2,11 @@ package com.eweise.perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{DbDataSource, ReconciliationRepoLive}
+import com.eweise.perfectpair.common.model.EqualityMatcher
 import com.eweise.perfectpair.domain.DataSetup
-import com.eweise.perfectpair.domain.model.{FundFlowConfig, Reconciliation, ReconciliationSpec}
-import com.typesafe.config.ConfigFactory
+import com.eweise.perfectpair.domain.model.Reconciliation
 import com.eweise.perfectpair.testing.rollBackOnly
+import com.typesafe.config.ConfigFactory
 
 import java.util.UUID
 import javax.sql.DataSource
@@ -22,6 +23,10 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data  = DataSetup()
+
+        val matcher = data.reconSpecRepo.findById(data.reconSpec.id).get.matcher()
+        assert(matcher.isInstanceOf[EqualityMatcher])
+
         val recon = Reconciliation(description = "hey", specId = data.reconSpec.id)
         data.reconRepo.insert(recon)
 
