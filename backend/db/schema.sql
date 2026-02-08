@@ -53,10 +53,10 @@ create table recon.movement_spec
 (
     id             uuid primary key,
     name           text,
-    in_account_id  uuid not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    out_account_id uuid not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    created_at        timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at        timestamptz default CURRENT_TIMESTAMP not null
+    in_account_id  uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_id uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    created_at     timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at     timestamptz default CURRENT_TIMESTAMP not null
 );
 create table recon.movement
 (
@@ -64,6 +64,7 @@ create table recon.movement
     reference_id      uuid                                  not null UNIQUE,
     in_account_id     uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
     out_account_id    uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    movement_spec_id  uuid                                  not null REFERENCES recon.movement_spec (id),
     properties        jsonb,
     amount            numeric(15, 2)                        not null,
     status            text                                  not null,

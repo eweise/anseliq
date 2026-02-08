@@ -1,11 +1,12 @@
 package com.eweise.perfectpair.domain.service
 
+import cats.data
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.DbDataSource
 import com.eweise.perfectpair.common.model.model.Zero
 import com.eweise.perfectpair.domain.DataSetup
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
-import com.eweise.perfectpair.domain.model.{Account, Movement, isReconciled}
+import com.eweise.perfectpair.domain.model.{Account, Movement, MovementSpec, createID, isReconciled}
 import com.eweise.perfectpair.domain.port.driven.Txn
 import com.eweise.perfectpair.domain.service.{AccountOperations, Reconciler}
 import com.typesafe.config.ConfigFactory
@@ -25,29 +26,29 @@ class ReconcilerSuite extends munit.FunSuite:
 
         data.fundFlowCache.init()
         val reconciler = Reconciler(
-          fundFlowCache = data.fundFlowCache,
-          accountRepo = data.accountRepo,
-          movementRepo = data.movementRepo,
-          reconRepo = data.reconRepo,
+          fundFlowCache      = data.fundFlowCache,
+          accountRepo        = data.accountRepo,
+          movementRepo       = data.movementRepo,
+          movementSpecRepo   = data.movementSpecRepo,
+          reconSpecRepo      = data.reconSpecRepo,
+          reconRepo          = data.reconRepo,
           fundFlowConfigRepo = data.fundFlowConfigRepo
         )
 
         // create some movements
-        createMovement(data, "123", data.reportAccount, data.reconAccount)
-        createMovement(data, "123", data.reconAccount, data.journalAccount)
+        createMovement(data, data.journalToRecon)
+        createMovement(data, data.reportToRecon)
 
-        val reconAccount = data.accountRepo
-          .findByFundFlowAndAccountName(data.fundFlowConfig.id, data.reconAccountName)
-          .get
-        reconciler.reconcileAccount(reconAccount)
+        reconciler.reconcileFundFlow(data.fundFlowConfig)
 
-  def createMovement(data: DataSetup, id: String, inAccount: Account, outAccount: Account): Txn[Unit] =
+  def createMovement(data: DataSetup, movementSpec: MovementSpec): Txn[Unit] =
     data.movementRepo.insert(
       Movement(
-        inAccountId = inAccount.id,
-        outAccountId = outAccount.id,
-        amount = 100,
-        properties = JSONBProps(Map("foo" -> "bar", "id" -> id))
+        inAccountId    = movementSpec.inAccountId,
+        outAccountId   = movementSpec.outAccountId,
+        movementSpecId = movementSpec.id,
+        amount         = 100,
+        properties     = JSONBProps(Map("foo" -> "bar", "id" -> createID().toString))
       )
     )
 
@@ -55,39 +56,27 @@ class ReconcilerSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data: DataSetup = DataSetup()
-        data.fundFlowCache.init()
-
+        val ops = AccountOperations(
+          fundFlowCache      = data.fundFlowCache,
+          accountRepo        = data.accountRepo,
+          movementRepo       = data.movementRepo,
+          movementSpecRepo   = data.movementSpecRepo,
+          fundFlowConfigRepo = data.fundFlowConfigRepo
+        )
         val reconciler = Reconciler(
-          fundFlowCache = data.fundFlowCache,
-          accountRepo = data.accountRepo,
-          movementRepo = data.movementRepo,
-          reconRepo = data.reconRepo,
+          fundFlowCache      = data.fundFlowCache,
+          accountRepo        = data.accountRepo,
+          movementRepo       = data.movementRepo,
+          movementSpecRepo   = data.movementSpecRepo,
+          reconSpecRepo      = data.reconSpecRepo,
+          reconRepo          = data.reconRepo,
           fundFlowConfigRepo = data.fundFlowConfigRepo
         )
 
-//        for _ <- 1 to 10
-//        do
-//          val keyID = UUID.randomUUID().toString
-//          ops.postAmount(data.fundFlowConfig.name, data., 1000, Map("id" -> keyID))
-//          ops.postAmount(data.fundFlowConfig.name, data.movementBankReport.name, 1000, Map("id" -> keyID))
+        for _ <- 1 to 10
+        do
+          val keyID       = UUID.randomUUID().toString
+          val referenceID = createID()
+          ops.postAmount(data.journalToRecon, 1000, referenceID = referenceID, Map("id" -> keyID))
+          ops.postAmount(data.reportToRecon, 1000, referenceID  = referenceID, Map("id" -> keyID))
 
-//        val reconAccount =
-//          data.accountRepo.findByFundFlowAndAccountName(data.fundFlowConfig.id, data.reconAccountSpec.name).get
-//        val inMovements  = data.movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, IN)
-//        val outMovements = data.movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, OUT)
-//
-//        assertEquals(reconAccount.balance, Zero)
-//        assert(!inMovements.isReconciled)
-//        assert(!outMovements.isReconciled)
-//
-//        // Now reconcile them
-//        reconciler.reconcileAccount(reconAccount)
-//
-//        // Verify that they were reconciled
-//        val inReconciled  = data.movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, IN)
-//        val outReconciled = data.movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, OUT)
-//
-//        assert(inReconciled.isReconciled)
-//        assert(outReconciled.isReconciled)
-//
-//        assertEquals(reconAccount.balance, Zero)

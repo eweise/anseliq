@@ -7,11 +7,11 @@ import com.eweise.perfectpair.domain.model.helper.JSONBProps
 import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo, Txn}
 
 class AccountOperations(
-  val fundFlowCache:    FundFlowCache,
-  val accountRepo:      AccountRepo,
-  val movementRepo:     MovementRepo,
-  val movementSpecRepo: MovementSpecRepo,
-  val configRepo:       FundFlowConfigRepo
+  val fundFlowCache:      FundFlowCache,
+  val accountRepo:        AccountRepo,
+  val movementRepo:       MovementRepo,
+  val movementSpecRepo:   MovementSpecRepo,
+  val fundFlowConfigRepo: FundFlowConfigRepo
 ):
 
   def postAmount(
@@ -35,6 +35,7 @@ class AccountOperations(
     val movement = Movement(
       referenceId  = referenceID,
       amount       = amount,
+      movementSpecId = movementSpec.id,
       properties   = JSONBProps(properties),
       inAccountId  = inAccount.id,
       outAccountId = outAccount.id
