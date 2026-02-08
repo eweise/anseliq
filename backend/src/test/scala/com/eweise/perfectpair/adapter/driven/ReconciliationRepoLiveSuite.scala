@@ -2,10 +2,11 @@ package com.eweise.perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{DbDataSource, ReconciliationRepoLive}
+import com.eweise.perfectpair.common.model.EqualityMatcher
 import com.eweise.perfectpair.domain.DataSetup
 import com.eweise.perfectpair.domain.model.Reconciliation
-import com.typesafe.config.ConfigFactory
 import com.eweise.perfectpair.testing.rollBackOnly
+import com.typesafe.config.ConfigFactory
 
 import java.util.UUID
 import javax.sql.DataSource
@@ -18,22 +19,20 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
     transactor = Transactor(dataSource)
 
-  test("Create Reconciliation"):
+  test("Create and Find Reconciliation"):
     transact(transactor):
       rollBackOnly:
-        val data = DataSetup()
-        data.reconRepo.insert(Reconciliation(description = "hey"))
+        val data  = DataSetup()
 
-  test("findById returns inserted reconciliation"):
-    val reconRepo = ReconciliationRepoLive()
-    transact(transactor):
-      rollBackOnly:
-        val reconciliation = Reconciliation(description = "test reconciliation")
-        reconRepo.insert(reconciliation)
+        val matcher = data.reconSpecRepo.findById(data.reconSpec.id).get.matcher()
+        assert(matcher.isInstanceOf[EqualityMatcher])
 
-        val found = reconRepo.findById(reconciliation.id)
+        val recon = Reconciliation(description = "hey", specId = data.reconSpec.id)
+        data.reconRepo.insert(recon)
+
+        val found = data.reconRepo.findById(recon.id)
         assert(found.isDefined)
-        assertEquals(found.get.description, "test reconciliation")
+        assertEquals(found.get.description, "hey")
 
   test("findById returns None for non-existent id"):
     val reconRepo = ReconciliationRepoLive()
@@ -46,7 +45,8 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     val reconRepo = ReconciliationRepoLive()
     transact(transactor):
       rollBackOnly:
-        val reconciliation = Reconciliation(description = "original")
+        val data           = DataSetup()
+        val reconciliation = Reconciliation(description = "original", specId = data.reconSpec.id)
         reconRepo.insert(reconciliation)
 
         val updated = reconciliation.copy(description = "updated")
@@ -59,7 +59,8 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     val reconRepo = ReconciliationRepoLive()
     transact(transactor):
       rollBackOnly:
-        val reconciliation = Reconciliation(description = "to delete")
+        val data           = DataSetup()
+        val reconciliation = Reconciliation(specId = data.reconSpec.id, description = "to delete")
         reconRepo.insert(reconciliation)
 
         reconRepo.delete(reconciliation)
@@ -71,10 +72,11 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     val reconRepo = ReconciliationRepoLive()
     transact(transactor):
       rollBackOnly:
+        val data         = DataSetup()
         val initialCount = reconRepo.findAll.size
 
-        reconRepo.insert(Reconciliation(description = "first"))
-        reconRepo.insert(Reconciliation(description = "second"))
+        reconRepo.insert(Reconciliation(specId = data.reconSpec.id, description = "first"))
+        reconRepo.insert(Reconciliation(specId = data.reconSpec.id, description = "second"))
 
         val allReconciliations = reconRepo.findAll
         assertEquals(allReconciliations.size, initialCount + 2)

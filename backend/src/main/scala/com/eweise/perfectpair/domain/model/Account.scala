@@ -1,7 +1,8 @@
 package com.eweise.perfectpair.domain.model
 
 import com.augustnagro.magnum.*
-import com.eweise.perfectpair.common.model.model.{ID, Money}
+import com.eweise.perfectpair.common.model.model.{ID, Money, Properties}
+import com.eweise.perfectpair.domain.model.helper.JSONBProps
 
 import java.util
 import java.util.UUID
@@ -12,10 +13,11 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Account(
-  @Id id:      ID    = createID(),
+  @Id id:      ID         = createID(),
   name:        String,
   fundFlowId:  ID,
-  var balance: Money = 0
+  properties:  JSONBProps = JSONBProps(Map()),
+  var balance: Money      = 0
 ) extends Auditable
     derives DbCodec
 

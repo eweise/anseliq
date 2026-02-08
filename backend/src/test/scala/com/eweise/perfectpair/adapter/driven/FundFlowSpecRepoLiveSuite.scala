@@ -27,21 +27,13 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
         val data         = DataSetup()
         val cache        = FundFlowCache(fundFlowRepo)
         cache.init()
-        val foundFundFlow = cache.getConfigByName(data.fundFlowConfig.name).get.fundFlow
-
-        assertNotEquals(foundFundFlow, null)
 
   test("findById returns inserted fund flow config"):
     val fundFlowRepo = FundFlowConfigRepoLive()
     transact(transactor):
       rollBackOnly:
-        val fundFlowSpec = FundFlowSpec(
-          realAccountSpecs = Seq(RealAccountSpec(name = "test")),
-          movementSpecs = Seq()
-        )
         val config = FundFlowConfig(
           name = UUID.randomUUID().toString,
-          fundFlowJson = write(fundFlowSpec)
         )
         fundFlowRepo.insert(config)
 
@@ -60,13 +52,8 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     val fundFlowRepo = FundFlowConfigRepoLive()
     transact(transactor):
       rollBackOnly:
-        val fundFlowSpec = FundFlowSpec(
-          realAccountSpecs = Seq(RealAccountSpec(name = "original")),
-          movementSpecs = Seq()
-        )
         val config = FundFlowConfig(
           name = "original-name",
-          fundFlowJson = write(fundFlowSpec)
         )
         fundFlowRepo.insert(config)
 
@@ -80,13 +67,8 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     val fundFlowRepo = FundFlowConfigRepoLive()
     transact(transactor):
       rollBackOnly:
-        val fundFlowSpec = FundFlowSpec(
-          realAccountSpecs = Seq(RealAccountSpec(name = "to-delete")),
-          movementSpecs = Seq()
-        )
         val config = FundFlowConfig(
           name = UUID.randomUUID().toString,
-          fundFlowJson = write(fundFlowSpec)
         )
         fundFlowRepo.insert(config)
 
@@ -101,18 +83,11 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
       rollBackOnly:
         val initialCount = fundFlowRepo.findAll.size
 
-        val fundFlowSpec = FundFlowSpec(
-          realAccountSpecs = Seq(RealAccountSpec(name = "test")),
-          movementSpecs = Seq()
-        )
-
         fundFlowRepo.insert(FundFlowConfig(
           name = UUID.randomUUID().toString,
-          fundFlowJson = write(fundFlowSpec)
         ))
         fundFlowRepo.insert(FundFlowConfig(
           name = UUID.randomUUID().toString,
-          fundFlowJson = write(fundFlowSpec)
         ))
 
         val allConfigs = fundFlowRepo.findAll

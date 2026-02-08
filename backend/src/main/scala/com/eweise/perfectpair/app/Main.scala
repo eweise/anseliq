@@ -4,7 +4,14 @@ import cask.model.Request
 import cask.router.Result
 import com.augustnagro.magnum.*
 import com.eweise.perfectpair.adapter.driven
-import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, ReconciliationRepoLive}
+import com.eweise.perfectpair.adapter.driven.{
+  AccountRepoLive,
+  FundFlowConfigRepoLive,
+  MovementRepoLive,
+  MovementSpecRepoLive,
+  ReconciliationRepoLive,
+  ReconciliationSpecRepoLive
+}
 import com.eweise.perfectpair.adapter.driving.*
 import com.eweise.perfectpair.common.http.HttpPath
 import com.eweise.perfectpair.common.model.{AccountPayload, EqualityMatcher, FundFlowPayload, RandomMessage}
@@ -14,6 +21,7 @@ import com.typesafe.config.ConfigFactory
 import upickle.default.*
 
 import java.util.UUID
+import scala.util.Try
 
 object HttpCmd:
   def GET  = Seq("get", "options")
@@ -63,57 +71,59 @@ object Example extends cask.MainRoutes:
   val fundFlowCache      = FundFlowCache(fundFlowConfigRepo)
   val accountRepo        = AccountRepoLive()
   val movementRepo       = MovementRepoLive()
+  val movementSpecRepo   = MovementSpecRepoLive()
   val reconRepo          = ReconciliationRepoLive()
+  val reconSpecRepo      = ReconciliationSpecRepoLive()
 
   val reconciler = Reconciler(
     fundFlowCache      = fundFlowCache,
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
+    movementSpecRepo   = movementSpecRepo,
+    reconSpecRepo      = reconSpecRepo,
     reconRepo          = reconRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
 
   val accountOperations = AccountOperations(
-    fundFlowCache = fundFlowCache,
-    accountRepo   = accountRepo,
-    movementRepo  = movementRepo,
-    configRepo    = fundFlowConfigRepo
+    fundFlowCache      = fundFlowCache,
+    accountRepo        = accountRepo,
+    movementRepo       = movementRepo,
+    movementSpecRepo   = movementSpecRepo,
+    fundFlowConfigRepo = fundFlowConfigRepo
   )
 
-  transact(transactor):
-    val testFundFlowConfig = createTestData(
-      reconName   = "ACH Recon",
-      journalName = "Journal",
-      reportName  = "ACH Report"
-    ).copy(name = "ACH Recon Fund Flow")
+  transact(transactor) {
+    val testFundFlowConfig = FundFlowConfig(name = s"ACH Recon Fund Flow_${createID().toString}")
     try
-      accountOperations.createConfig(testFundFlowConfig)
+      fundFlowConfigRepo.insert(testFundFlowConfig)
     catch {
       case e: SqlException =>
         println("config already exists")
     }
 
-    val testFundFlowConfig2 = createTestData(
-      reconName   = "Visa Recon",
-      journalName = "Journal",
-      reportName  = "Visa Report"
-    ).copy(name = "Visa Fund Flow")
-    try
-      accountOperations.createConfig(testFundFlowConfig2)
-    catch {
-      case e: SqlException =>
-        println("config2 already exists")
-    }
+    val achAccount = Account(name = "ach", fundFlowId = testFundFlowConfig.id)
+    accountRepo.insert(achAccount)
 
-  transact(transactor):
-    fundFlowCache.init()
-    val config = fundFlowCache.getConfigByName("ACH Recon Fund Flow").getOrElse(throw Exception("not found"))
+    val journalAccount = Account(name = "journal", fundFlowId = testFundFlowConfig.id)
+    accountRepo.insert(journalAccount)
+
+    val reconAccount = Account(name = "recon", fundFlowId = testFundFlowConfig.id)
+    accountRepo.insert(reconAccount)
+
+    val achToRecon = MovementSpec(name = "ach-to-recon", inAccountId = reconAccount.id, outAccountId = achAccount.id)
+    movementSpecRepo.insert(achToRecon)
+
+    val reconToJournal = MovementSpec(name = "recon-journal", inAccountId = journalAccount.id, outAccountId = reconAccount.id)
+    movementSpecRepo.insert(reconToJournal)
+
     // create some account data
-    val props = Map("id" -> "1")
-    accountOperations.postAmount("ACH Recon Fund Flow", "post_journal", 100d, properties = props)
-    accountOperations.postAmount("ACH Recon Fund Flow", "bank_report", 100d, properties  = props)
-
-    accountRepo.findByFundFlow(config.id)
+    for (i <- 1 to 500000) {
+      val props = Map("id" -> createID().toString)
+      accountOperations.postAmount(movementSpec = achToRecon, amount     = 100d, referenceID = createID(), properties = props)
+      accountOperations.postAmount(movementSpec = reconToJournal, amount = 100d, referenceID = createID(), properties = props)
+    }
+  }
 
   val prefixPath                 = "/api/v1"
   val loginPath                  = s"$prefixPath / login"
@@ -145,104 +155,56 @@ object Example extends cask.MainRoutes:
   def accountsByFundFlowID(fundFlowID: String): String =
     transact(transactor):
       val accounts = accountRepo.findByFundFlow(UUID.fromString(fundFlowID))
-      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
+      val payload  = accounts.map(Payload.accountPayloadFromDomain)
       write(payload)
 
   @cask.route(HttpPath.accounts, methods = HttpCmd.GET)
   def allAccounts(): String =
     transact(transactor):
       val accounts = accountRepo.findAll()
-      val payload  = accounts.map(Payload.accountPayloadfromDomainModel)
+      val payload  = accounts.map(Payload.accountPayloadFromDomain)
       write(payload)
-
-  @cask.get("/fundflow/:fundFlowName")
-  def fundFlow(fundFlowName: String): String =
-    val fundFlow = fundFlowCache
-      .getConfigByName(fundFlowName)
-      .getOrElse(throw Exception(s"fund flow name $fundFlowName not found"))
-    fundFlow.fundFlowJson
 
   @cask.route(s"${HttpPath.createFundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
-    val payload  = read[FundFlowPayload](request.text())
-    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
+//    val payload  = read[FundFlowPayload](request.text())
+//    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
+//
+//    transact(transactor):
+//      fundFlowConfigRepo.insert(fundFlow)
+//    write(Payload.fundFlowPayloadFromDomain(fundFlow))
+    write("todo")
 
+  @cask.get("/account/:id")
+  def account(fundFlowName: String, accountIdStr: String): String =
     transact(transactor):
-      fundFlowConfigRepo.insert(fundFlow)
-    write(Payload.fundFlowPayloadFromDomain(fundFlow))
+      val accountID = Try {
+        UUID.fromString(accountIdStr)
+      }.getOrElse(
+        throw new Exception("bad uuid")
+      )
 
-  @cask.get("/fundflow/:fundFlowName/account/:accountName")
-  def account(fundFlowName: String, accountName: String): String =
-    val fundFlow = fundFlowCache
-      .getConfigByName(fundFlowName)
-      .getOrElse:
-        throw Exception(s"fund flow name $fundFlowName not found")
-
-    transact(transactor):
       val account = accountRepo
-        .findByFundFlowAndAccountName(fundFlow.id, accountName)
+        .findById(accountID)
         .getOrElse:
           throw Exception("not found") // todo need proper http errors
 
-      write(Payload.accountPayloadfromDomainModel(account))
+      write(Payload.accountPayloadFromDomain(account))
 
   // todo this should just pass in an account ID
-  @cask.get("/fundflow/:fundFlowName/account/:accountName/movements")
-  def movements(fundFlowName: String, accountName: String): String =
-    val fundFlow = fundFlowCache
-      .getConfigByName(fundFlowName)
-      .getOrElse:
-        throw Exception(s"fund flow name $fundFlowName not found")
-
-    transact(transactor):
-      val account = accountRepo
-        .findByFundFlowAndAccountName(fundFlow.id, accountName)
-        .getOrElse:
-          throw Exception("not found") // todo need proper http errors
-
-      val adapterMovements = movementRepo
-        .findByAccount(account.id)
-        .map(Payload.movementPayloadfromDomainModel)
-
-      write(adapterMovements)
-
-  initialize()
-
-def createTestData(
-  reconName:   String,
-  journalName: String,
-  reportName:  String
-): FundFlowConfig =
-  val reconAccountName   = reconName
-  val journalAccountName = journalName
-  val reportAccountName  = reportName
-
-  val reconAccountSpec = ReconciliationAccountSpec(
-    name    = reconAccountName,
-    matcher = EqualityMatcher(inKeys = Array("id"), outKeys = Array("id"))
-  )
-  val journalAccountSpec = RealAccountSpec(name = journalAccountName)
-  val reportAccountSpec  = RealAccountSpec(name = reportAccountName)
-
-  val postJournalMovementName = "post_journal"
-  val movementSpecPostJournal = MovementSpec(
-    name           = postJournalMovementName,
-    inAccountName  = journalAccountName,
-    outAccountName = reconAccountName
-  )
-
-  val bankReportMovementName = "bank_report"
-  val movementSpecBankReport = MovementSpec(
-    name           = bankReportMovementName,
-    inAccountName  = reconAccountName,
-    outAccountName = reportAccountName
-  )
-
-  val fundFlow =
-    FundFlowSpec(
-      realAccountSpecs  = Seq(journalAccountSpec, reportAccountSpec),
-      reconAccountSpecs = Seq(reconAccountSpec),
-      movementSpecs     = Seq(movementSpecPostJournal, movementSpecBankReport)
+  @cask.get("/account/:id/movements")
+  def movements(fundFlowName: String, accountIdStr: String): String =
+    val accountID = Try {
+      UUID.fromString(accountIdStr)
+    }.getOrElse(
+      throw new Exception("bad uuid")
     )
 
-  FundFlowConfig(name = UUID.randomUUID().toString, fundFlowJson = write(fundFlow, escapeUnicode = true))
+    transact(transactor):
+      val adapterMovements = movementRepo
+        .findByAccount(accountID)
+        .map(Payload.movementPayloadfromDomainModel)
+
+      write(adapterMovements.toSeq)
+
+  initialize()

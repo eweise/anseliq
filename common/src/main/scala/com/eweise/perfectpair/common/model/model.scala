@@ -8,6 +8,7 @@ import zio.json.*
 import java.time.OffsetDateTime
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 
 object InstantRW {
   // Use ISO_INSTANT formatter for standard representation
@@ -61,25 +62,30 @@ enum MovementStatus:
   case Reconciled, WithinSLA, OutOfSLA
 
 case class FundFlowPayload(
-  id: String = "",
-  name: String = "",
-  reconAccountSpecs: Seq[ReconAccountSpecPayload] = Seq(),
-  realAccountSpecs: Seq[RealAccountSpecPayload] = Seq(),
-  movementSpecs: Seq[MovementSpecPayload] = Seq(),
+  id:        String                 = "",
+  name:      String                 = "",
+  accounts:  Seq[AccountPayload]    = Seq(),
   createdAt: Option[OffsetDateTime] = None,
   updatedAt: Option[OffsetDateTime] = None
 ) derives ReadWriter
 
 case class ReconciliationAccountPayload(
   name: String,
-  matcher: Matcher = EqualityMatcher(Array("id"), Array("id")),
+  matcher: Matcher = EqualityMatcher(
+    inMovementSpecID  = UUID.randomUUID(),
+    outMovementSpecID = UUID.randomUUID(),
+    inKeys            = Array("id"),
+    outKeys           = Array("id")
+  ),
   agingLimit: String = ""
 )
 
 sealed trait Matcher derives ReadWriter
 case class EqualityMatcher(
-  inKeys: Array[String],
-  outKeys: Array[String]
+  inMovementSpecID:  ID,
+  outMovementSpecID: ID,
+  inKeys:            Array[String],
+  outKeys:           Array[String]
 ) extends Matcher
     derives ReadWriter
 
@@ -88,46 +94,24 @@ case class SQLMatcher(
 ) extends Matcher
     derives ReadWriter
 
-enum AccountTypePayload derives ReadWriter:
-  case Recon
-  case Real
-
 case class AccountPayload(
-  id: String,
-  name: String,
+  id:         String,
+  name:       String,
   fundFlowId: ID,
-  balance: Money
+  properties: Properties = Map(),
+  balance:    Money
 ) derives ReadWriter
 
 case class MovementPayload(
-  id: String,
-  referenceId: String,
-  outAccountId: String,
-  inAccountId: String,
-  amount: Money,
-  properties: Properties,
+  id:               String,
+  referenceId:      String,
+  outAccountId:     String,
+  inAccountId:      String,
+  amount:           Money,
+  properties:       Properties,
   reconciliationId: String,
-  status: String
+  status:           String
 ) derives ReadWriter
 
 enum Direction:
   case IN, OUT
-
-case class ReconAccountSpecPayload(
-  name: String,
-  matcher: Matcher = EqualityMatcher(Array("id"), Array("id")),
-  agingLimit: String = "",
-  properties: Array[String] = Array.empty
-) derives ReadWriter
-
-case class RealAccountSpecPayload(
-  name: String,
-  properties: Array[String] = Array.empty
-) derives ReadWriter
-
-case class MovementSpecPayload(
-  name: String,
-  inAccountName: String,
-  outAccountName: String,
-  attributes: Array[String] = Array.empty
-) derives ReadWriter
