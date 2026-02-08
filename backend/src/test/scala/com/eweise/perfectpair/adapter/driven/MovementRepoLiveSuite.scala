@@ -2,8 +2,8 @@ package com.eweise.perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{DbDataSource, MovementRepoLive, ReconciliationRepoLive}
+import com.eweise.perfectpair.common.model.model.ID
 import com.eweise.perfectpair.domain.DataSetup
-import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
 import com.eweise.perfectpair.domain.model.{Movement, Reconciliation, createID}
 import com.typesafe.config.ConfigFactory
@@ -27,11 +27,12 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         val referenceID = createID()
         val props       = Map("id" -> "1")
         val movement = Movement(
-          inAccountId  = data.journalAccount.id,
-          outAccountId = data.reconAccount.id,
-          referenceId  = referenceID,
-          properties   = JSONBProps(props),
-          amount       = 100
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          referenceId    = referenceID,
+          properties     = JSONBProps(props),
+          amount         = 100
         )
         movementRepo.insert(movement)
         movementRepo.insert(movement)
@@ -45,37 +46,73 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation()
+        val reconciliation = Reconciliation(specId = data.reconSpec.id)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
-          inAccountId      = data.journalAccount.id,
-          outAccountId     = data.reconAccount.id,
-          amount           = 100,
-          reconciliationId = Some(reconciliation.id)
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 100
         )
 
         data.movementRepo.insert(outReconMovement)
 
-        val foundMovement = movementRepo.findUnReconciledByAccountAndDirection(data.reconAccount.id, OUT)
+        val foundMovement = movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assertEquals(foundMovement.head.id, outReconMovement.id)
-
-        val notFound = movementRepo.findUnReconciledByAccountAndDirection(data.reconAccount.id, IN)
-        assertEquals(notFound.size, 0)
 
         val inReconMovement = Movement(
           inAccountId      = data.reconAccount.id,
           outAccountId     = data.reportAccount.id,
+          movementSpecId   = data.reportToRecon.id,
           amount           = 100,
           reconciliationId = Some(reconciliation.id)
         )
 
         data.movementRepo.insert(inReconMovement)
 
-        assertEquals(movementRepo.findUnReconciledByAccountAndDirection(data.reconAccount.id, IN).size, 1)
-        val foundByAccount = movementRepo.findUnReconciledByAccount(data.reconAccount.id)
+        assertEquals(movementRepo.findUnReconciledByAccount(data.reconAccount.id).size, 1)
 
-        assertEquals(foundByAccount.size, 2)
+  test("findMatches"):
+    val movementRepo = MovementRepoLive()
+    val reconRepo    = ReconciliationRepoLive()
+
+    transact(transactor):
+      rollBackOnly:
+        val data           = DataSetup()
+        val reconciliation = Reconciliation(specId = data.reconSpec.id)
+        reconRepo.insert(reconciliation)
+
+        val outReconMovement = Movement(
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          properties     = JSONBProps(Map("key1" -> "value1")),
+          amount         = 100
+        )
+
+        data.movementRepo.insert(outReconMovement)
+
+        val inReconMovement = Movement(
+          inAccountId      = data.reconAccount.id,
+          outAccountId     = data.reportAccount.id,
+          movementSpecId   = data.reportToRecon.id,
+          properties       = JSONBProps(Map("key2" -> "value1")),
+          amount           = 100,
+          reconciliationId = Some(reconciliation.id)
+        )
+
+        data.movementRepo.insert(inReconMovement)
+
+        val results = movementRepo.findEqualityMatches(
+          inMovementSpecID  = data.reportToRecon.id,
+          outMovementSpecID = data.journalToRecon.id,
+          inTag             = "key2",
+          outTag            = "key1",
+        )
+        val (inMovementId, outMovementId) = results.head
+        assertEquals(inReconMovement.id.toString, inMovementId)
+        assertEquals(outReconMovement.id.toString, outMovementId)
 
   test("findUnreconciledByAttribute"):
     val movementRepo = MovementRepoLive()
@@ -84,12 +121,13 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation()
+        val reconciliation = Reconciliation(specId = data.reconSpec.id)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
           inAccountId      = data.journalAccount.id,
           outAccountId     = data.reconAccount.id,
+          movementSpecId   = data.journalToRecon.id,
           amount           = 100,
           reconciliationId = Some(reconciliation.id),
           properties       = JSONBProps(Map("id" -> "1", "name" -> s"doug"))
@@ -107,19 +145,22 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         val data = DataSetup()
 
         val movement1 = Movement(
-          inAccountId  = data.journalAccount.id,
-          outAccountId = data.reconAccount.id,
-          amount       = 100
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 100
         )
         val movement2 = Movement(
-          inAccountId  = data.reconAccount.id,
-          outAccountId = data.reportAccount.id,
-          amount       = 200
+          inAccountId    = data.reconAccount.id,
+          outAccountId   = data.reportAccount.id,
+          movementSpecId = data.reportToRecon.id,
+          amount         = 200
         )
         val movement3 = Movement(
-          inAccountId  = data.journalAccount.id,
-          outAccountId = data.reportAccount.id,
-          amount       = 300
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reportAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 300
         )
 
         movementRepo.insert(movement1)

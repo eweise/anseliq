@@ -8,55 +8,19 @@ object Payload:
 
   def fundFlowPayloadFromDomain(ff: FundFlowConfig): FundFlowPayload =
     FundFlowPayload(
-      id                = ff.id.toString,
-      name              = ff.name,
-      movementSpecs     = Seq(),
-      createdAt         = ff.createdAt,
-      updatedAt         = ff.updatedAt
+      id        = ff.id.toString,
+      name      = ff.name,
+      createdAt = ff.createdAt,
+      updatedAt = ff.updatedAt
     )
 
-  def fundFlowSpecPayloadToDomain(ff: FundFlowPayload): FundFlowSpec =
-    FundFlowSpec(
-      realAccountSpecs  = ff.realAccountSpecs.map(realAccountSpecPayloadToDomain),
-      reconAccountSpecs = ff.reconAccountSpecs.map(reconAccountSpecPayloadToDomain),
-      movementSpecs     = Seq()
-    )
-
-  def realAccountSpecPayloadFromDomain(spec: RealAccountSpec): RealAccountSpecPayload =
-    RealAccountSpecPayload(name = spec.name, properties = spec.properties)
-
-  def realAccountSpecPayloadToDomain(a: RealAccountSpecPayload): RealAccountSpec =
-    RealAccountSpec(
-      name       = a.name,
-      properties = a.properties
-    )
-
-  def reconAccountSpecPayloadFromDomain(spec: ReconciliationAccountSpec): ReconAccountSpecPayload =
-    ReconAccountSpecPayload(
-      name       = spec.name,
-      matcher    = spec.matcher,
-      agingLimit = spec.agingLimit,
-      properties = spec.properties
-    )
-
-  def reconAccountSpecPayloadToDomain(r: ReconAccountSpecPayload): ReconciliationAccountSpec =
-    ReconciliationAccountSpec(
-      name       = r.name,
-      matcher    = r.matcher,
-      agingLimit = r.agingLimit,
-      properties = r.properties
-    )
-
-  def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
-    // fixme need to convert payload to domain object and then write to fundFlowSon
-    FundFlowConfig(name = payload.name, fundFlowJson = write(payload))
-
-  def accountPayloadfromDomainModel(dmAccount: Account): AccountPayload =
+  def accountPayloadFromDomain(account: Account): AccountPayload =
     AccountPayload(
-      id          = dmAccount.id.toString,
-      name        = dmAccount.name,
-      fundFlowId  = dmAccount.fundFlowId,
-      balance     = dmAccount.balance
+      fundFlowId = account.fundFlowId,
+      id         = account.id.toString,
+      name       = account.name,
+      properties = account.properties.props,
+      balance    = account.balance
     )
 
   def movementPayloadfromDomainModel(dmMovement: Movement): MovementPayload =

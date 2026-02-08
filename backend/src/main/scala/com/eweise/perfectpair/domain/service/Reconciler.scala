@@ -3,7 +3,6 @@ package com.eweise.perfectpair.domain.service
 import com.eweise.perfectpair.common.model.{EqualityMatcher, SQLMatcher}
 import com.eweise.perfectpair.domain.model
 import com.eweise.perfectpair.domain.model.*
-import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
 import com.eweise.perfectpair.domain.port.driven.*
 
 def mapKeyToMovement(keys: Array[String], outMovements: Vector[Movement]) =
@@ -17,52 +16,27 @@ class Reconciler(
   val fundFlowCache:      FundFlowCache,
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,
+  val reconSpecRepo:      ReconciliationSpecRepo,
+  val movementSpecRepo:   MovementSpecRepo,
   val reconRepo:          ReconciliationRepo,
   val fundFlowConfigRepo: FundFlowConfigRepo
 ):
 
-  // todo this needs to pass in a reconciliation Account ID, not a fund flow
-  def reconcileAccount(
-    reconAccount: Account
-  ): Txn[Unit] =
+  def reconcileFundFlow(fundFlow: FundFlowConfig): Txn[Unit] =
+    /* find reconciliation specs for account
+      for each recon spec
+     */
 
-    val fundFlow = fundFlowCache
-      .getConfigByID(reconAccount.fundFlowId)
-      .getOrElse(throw NotFoundException(s"no fund flow found for ${reconAccount.fundFlowId}"))
-
-    val reconAccountSpec = fundFlow.fundFlow.allAccounts
-      .find(r => r.name == reconAccount.name && r.isReconSpec)
-      .getOrElse(throw NotFoundException(s"no reconciliation account found for fund flow ${fundFlow.name}"))
-      .asInstanceOf[model.ReconciliationAccountSpec]
-
-    reconAccountSpec.matcher match
-      case EqualityMatcher(inKeys, outKeys) =>
-        val inMovements        = movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, IN)
-        val outMovements       = movementRepo.findUnReconciledByAccountAndDirection(reconAccount.id, OUT)
-        val inKeysToMovements  = mapKeyToMovement(inKeys, inMovements)
-        val outKeysToMovements = mapKeyToMovement(outKeys, outMovements)
-
-        val matches = inKeysToMovements.keys.toSet.intersect(outKeysToMovements.keys.toSet)
-
-        for
-          aMatch      <- matches
-          inMovement  <- inKeysToMovements.get(aMatch)
-          outMovement <- outKeysToMovements.get(aMatch)
-        do
-          val reconciliation = Reconciliation()
-          reconRepo.insert(reconciliation)
-          movementRepo.update(
-            inMovement.copy(
-              status           = MovementStatus.Reconciled,
-              reconciliationId = Some(reconciliation.id)
-            )
+    val reconSpecs = reconSpecRepo.findByFundFlow(fundFlow.id)
+    for reconSpec <- reconSpecs
+    do
+      reconSpec.matcher() match
+        case eq: EqualityMatcher =>
+          val inMovementSpec = movementSpecRepo.findById(eq.inMovementSpecID).getOrElse(
+            throw NotFoundError(s"movement spec ${eq.inMovementSpecID} not found")
           )
-          movementRepo.update(
-            outMovement.copy(
-              status           = MovementStatus.Reconciled,
-              reconciliationId = Some(reconciliation.id)
-            )
-          )
-        ()
 
-      case SQLMatcher(sql) => throw NotImplementedError("SQLMatcher not implemented")
+          val outMovementSpec = movementSpecRepo.findById(eq.inMovementSpecID).getOrElse(
+            throw NotFoundError(s"movement spec ${eq.inMovementSpecID} not found")
+          )
+        case _ => ()

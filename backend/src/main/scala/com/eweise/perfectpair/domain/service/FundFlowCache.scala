@@ -14,8 +14,8 @@ class FundFlowCache(fundFlowConfigRepo: FundFlowConfigRepo):
     configsByName = ffConfigs.view.map(f => f.name -> f).toMap
     configsByID   = ffConfigs.view.map(f => f.id -> f).toMap
 
-  def getConfigByName(name: String): Option[FundFlowConfig] = configsByName.get(name)
-
-  def getConfigByID(id: ID): Option[FundFlowConfig] = configsByID.get(id)
-
-  def getAll: Iterable[FundFlowConfig] = configsByName.values
+//  def getConfigByName(name: String): Option[FundFlowConfig] = configsByName.get(name)
+//
+//  def getConfigByID(id: ID): Option[FundFlowConfig] = configsByID.get(id)
+//
+//  def getAll: Iterable[FundFlowConfig] = configsByName.values

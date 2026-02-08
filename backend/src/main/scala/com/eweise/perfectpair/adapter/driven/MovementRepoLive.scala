@@ -3,8 +3,7 @@ package com.eweise.perfectpair.adapter.driven
 import com.augustnagro.magnum.{DbCon, Repo, SqlLiteral, sql}
 import com.eweise.perfectpair.common.model.model.{ID, Properties}
 import com.eweise.perfectpair.domain.model
-import com.eweise.perfectpair.domain.model.Direction.{IN, OUT}
-import com.eweise.perfectpair.domain.model.{Direction, Movement}
+import com.eweise.perfectpair.domain.model.Movement
 import com.eweise.perfectpair.domain.port.driven.{MovementRepo, Txn}
 
 import java.util.UUID
@@ -18,7 +17,7 @@ class MovementRepoLive extends Repo[model.Movement, model.Movement, UUID] with M
          VALUES ($movement)
          ON CONFLICT(reference_id) DO NOTHING""".update.run()
 
-  def findUnreconciledByProperty(key : String, value:String): Txn[Vector[Movement]] =
+  def findUnreconciledByProperty(key: String, value: String): Txn[Vector[Movement]] =
     val whereProps = SqlLiteral(s"""where properties @> '{"props":{"$key":"$value"}}'""")
     sql"""
       SELECT ${m.all}
@@ -27,25 +26,11 @@ class MovementRepoLive extends Repo[model.Movement, model.Movement, UUID] with M
       ORDER BY created_at
     """.query[Movement].run()
 
-
-  def findUnReconciledByAccountAndDirection(accountID: ID, direction: Direction): Txn[Vector[Movement]] =
-    val directionFrag = direction match
-      case IN  => sql"""in_account_id"""
-      case OUT => sql"""out_account_id"""
-
-    sql"""
-      SELECT ${m.all}
-      FROM $m AS a
-      WHERE status <> 'reconciled'
-      AND ${directionFrag} = $accountID
-      ORDER BY created_at
-    """.query[Movement].run()
-
   def findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
       FROM $m AS a
-      WHERE reconciliation_id IS NOT NULL
+      WHERE reconciliation_id IS NULL
       AND (in_account_id = $accountID OR out_account_id = $accountID)
       ORDER BY created_at
     """.query[Movement].run()
@@ -57,3 +42,18 @@ class MovementRepoLive extends Repo[model.Movement, model.Movement, UUID] with M
       WHERE (in_account_id = $accountID OR out_account_id = $accountID)
       ORDER BY created_at
     """.query[Movement].run()
+
+  def findEqualityMatches(
+    inMovementSpecID:  ID,
+    outMovementSpecID: ID,
+    inTag:             String,
+    outTag:            String
+  ): Txn[Vector[(String, String)]] =
+    sql"""
+      SELECT a.id, b.id
+      FROM $m AS a, $m AS b
+      where 1 = 1
+      and a.properties ['props'] [$inTag] = b.properties ['props'] [$outTag]
+      and a.movement_spec_id = ${inMovementSpecID}
+      and b.movement_spec_id = ${outMovementSpecID}
+    """.query[(String, String)].run()

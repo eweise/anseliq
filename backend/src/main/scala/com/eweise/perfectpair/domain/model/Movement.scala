@@ -19,6 +19,7 @@ case class Movement(
   inAccountId:      ID,
   amount:           Money,
   properties:       JSONBProps     = JSONBProps(Map()),
+  movementSpecId:   ID,
   reconciliationId: Option[ID]     = None,
   status:           MovementStatus = WithinSLA
 ) extends Auditable

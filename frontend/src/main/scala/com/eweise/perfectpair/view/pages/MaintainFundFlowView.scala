@@ -1,6 +1,6 @@
 package com.eweise.perfectpair.view.pages
 
-import com.eweise.perfectpair.common.model.{FundFlowPayload, RealAccountSpecPayload}
+import com.eweise.perfectpair.common.model.{FundFlowPayload, AcountPayload}
 import com.eweise.perfectpair.model.Msg
 import com.eweise.perfectpair.view.components.{Buttons, Form}
 import tyrian.Html.*
@@ -22,12 +22,12 @@ object MaintainFundFlowView:
       Form.field(
         "account1",
         "First Data Source",
-        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ RealAccountSpecPayload(name = value)))
+        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ AcountPayload(name = value)))
       ),
       Form.field(
         "account2",
         "Secon Data Source",
-        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ RealAccountSpecPayload(name = value)))
+        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ AcountPayload(name = value)))
       ),
       Buttons.linkButton("Save", Msg.CreateFundFlow(ff))
     )
