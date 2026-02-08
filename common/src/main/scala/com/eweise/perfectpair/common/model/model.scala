@@ -74,8 +74,8 @@ case class ReconciliationAccountPayload(
   matcher: Matcher = EqualityMatcher(
     inMovementSpecID  = UUID.randomUUID(),
     outMovementSpecID = UUID.randomUUID(),
-    inKeys            = Array("id"),
-    outKeys           = Array("id")
+    inKey             = "id",
+    outKey            = "id"
   ),
   agingLimit: String = ""
 )
@@ -84,8 +84,8 @@ sealed trait Matcher derives ReadWriter
 case class EqualityMatcher(
   inMovementSpecID:  ID,
   outMovementSpecID: ID,
-  inKeys:            Array[String],
-  outKeys:           Array[String]
+  inKey:             String,
+  outKey:            String
 ) extends Matcher
     derives ReadWriter
 

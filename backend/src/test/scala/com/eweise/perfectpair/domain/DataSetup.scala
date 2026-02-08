@@ -87,8 +87,8 @@ class DataSetup(using DbTx) {
   val equalityMatcher = EqualityMatcher(
     inMovementSpecID  = journalToRecon.id,
     outMovementSpecID = reportToRecon.id,
-    inKeys            = Array("key1"),
-    outKeys           = Array("key2")
+    inKey            = "id",
+    outKey           = "id"
   )
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
     fundFlowId        = fundFlowConfig.id,

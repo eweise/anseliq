@@ -13,15 +13,15 @@ enum MovementStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Movement(
-  @Id id:           ID             = createID(),
-  referenceId:      ID             = createID(), // serves as the idempotency id //todo remove default
-  outAccountId:     ID,
-  inAccountId:      ID,
-  amount:           Money,
-  properties:       JSONBProps     = JSONBProps(Map()),
-  movementSpecId:   ID,
-  reconciliationId: Option[ID]     = None,
-  status:           MovementStatus = WithinSLA
+  @Id id:               ID             = createID(),
+  referenceId:          ID             = createID(), // serves as the idempotency id //todo remove default
+  outAccountId:         ID,
+  inAccountId:          ID,
+  amount:               Money,
+  properties:           JSONBProps     = JSONBProps(Map()),
+  movementSpecId:       ID,
+  var reconciliationId: Option[ID]     = None,
+  var status:           MovementStatus = WithinSLA
 ) extends Auditable
     derives DbCodec
 
