@@ -1,25 +1,11 @@
 package com.eweise.perfectpair.domain
 
 import com.augustnagro.magnum.DbTx
-import com.eweise.perfectpair.adapter.driven.{
-  AccountRepoLive,
-  FundFlowConfigRepoLive,
-  MovementRepoLive,
-  MovementSpecRepoLive,
-  ReconciliationRepoLive,
-  ReconciliationSpecRepoLive
-}
-import com.eweise.perfectpair.common.model.EqualityMatcher
+import com.eweise.perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, MovementSpecRepoLive, ReconciliationRepoLive, ReconciliationSpecRepoLive}
+import com.eweise.perfectpair.common.model.{AttributeMatchRule, EqualityMatcher}
 import com.eweise.perfectpair.domain.model.*
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
-import com.eweise.perfectpair.domain.port.driven.{
-  AccountRepo,
-  FundFlowConfigRepo,
-  MovementRepo,
-  MovementSpecRepo,
-  ReconciliationRepo,
-  ReconciliationSpecRepo
-}
+import com.eweise.perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo, ReconciliationRepo, ReconciliationSpecRepo}
 import com.eweise.perfectpair.domain.service.{AccountOperations, FundFlowCache}
 
 import java.util.UUID
@@ -85,10 +71,12 @@ class DataSetup(using DbTx) {
   movementSpecRepo.insert(reportToRecon)
 
   val equalityMatcher = EqualityMatcher(
-    inMovementSpecID  = journalToRecon.id,
-    outMovementSpecID = reportToRecon.id,
-    inKey            = "id",
-    outKey           = "id"
+    AttributeMatchRule(
+      inMovementSpecID  = journalToRecon.id,
+      outMovementSpecID = reportToRecon.id,
+      inKey            = "id",
+      outKey           = "id"
+    )
   )
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
     fundFlowId        = fundFlowConfig.id,

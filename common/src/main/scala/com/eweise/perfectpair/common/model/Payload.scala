@@ -72,27 +72,15 @@ case class FundFlowPayload(
 case class ReconciliationAccountPayload(
   name: String,
   matcher: Matcher = EqualityMatcher(
-    inMovementSpecID  = UUID.randomUUID(),
-    outMovementSpecID = UUID.randomUUID(),
-    inKey             = "id",
-    outKey            = "id"
+    rule = AttributeMatchRule(
+      inMovementSpecID  = UUID.randomUUID(),
+      outMovementSpecID = UUID.randomUUID(),
+      inKey             = "id",
+      outKey            = "id"
+    )
   ),
   agingLimit: String = ""
 )
-
-sealed trait Matcher derives ReadWriter
-case class EqualityMatcher(
-  inMovementSpecID:  ID,
-  outMovementSpecID: ID,
-  inKey:             String,
-  outKey:            String
-) extends Matcher
-    derives ReadWriter
-
-case class SQLMatcher(
-  sql: String
-) extends Matcher
-    derives ReadWriter
 
 case class AccountPayload(
   id:         String,

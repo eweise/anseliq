@@ -32,29 +32,15 @@ class Reconciler(
     do
       reconSpec.matcher() match
         case eq: EqualityMatcher =>
-          val inMovementSpec = movementSpecRepo
-            .findById(eq.inMovementSpecID)
-            .getOrElse(
-              throw NotFoundError(s"movement spec ${eq.inMovementSpecID} not found")
-            )
+          val matches = movementRepo.findEqualityMatches(eq.rule.sql)
 
-          val outMovementSpec = movementSpecRepo
-            .findById(eq.inMovementSpecID)
-            .getOrElse(
-              throw NotFoundError(s"movement spec ${eq.inMovementSpecID} not found")
-            )
-          val matches = movementRepo.findEqualityMatches(
-            inMovementSpec.id,
-            outMovementSpec.id,
-            eq.inKey,
-            eq.outKey
-          )
           for aMatch <- matches
           do
             val reconciliation = Reconciliation(
               specId      = reconSpec.id,
               description = "need a description. probabaly equality matcher"
             )
+
             val inMovement = movementRepo
               .findById(UUID.fromString(aMatch._1))
               .getOrElse(

@@ -9,8 +9,5 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
   def findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]]
   def findByAccount(accountID:             ID): Txn[Vector[Movement]]
   def findEqualityMatches(
-    inMovementSpecID:  ID,
-    outMovementSpecID: ID,
-    inTag:             String,
-    outTag:            String
+    sqlCriteria: String
   ): Txn[Vector[(String, String)]]
