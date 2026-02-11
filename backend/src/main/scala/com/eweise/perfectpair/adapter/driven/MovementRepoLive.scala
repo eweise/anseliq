@@ -44,16 +44,15 @@ class MovementRepoLive extends Repo[model.Movement, model.Movement, UUID] with M
     """.query[Movement].run()
 
   def findEqualityMatches(
-    inMovementSpecID:  ID,
-    outMovementSpecID: ID,
-    inTag:             String,
-    outTag:            String
+    sqlCriteria:String
   ): Txn[Vector[(String, String)]] =
+    val criteria = SqlLiteral(sqlCriteria)
     sql"""
       SELECT a.id, b.id
       FROM $m AS a, $m AS b
       where 1 = 1
-      and a.properties ['props'] [$inTag] = b.properties ['props'] [$outTag]
-      and a.movement_spec_id = ${inMovementSpecID}
-      and b.movement_spec_id = ${outMovementSpecID}
+      AND $criteria
     """.query[(String, String)].run()
+
+
+
