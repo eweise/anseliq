@@ -37,14 +37,6 @@ case class AndRule(rules: List[Rule]) extends Rule:
 case class ORRule(rules: List[Rule]) extends Rule:
   def sql: String = createSqlDelimiter(rules, "OR")
 
-/*
-/*
-      and a.properties ['props'] [$inTag] = b.properties ['props'] [$outTag]
-      and a.movement_spec_id = ${inMovementSpecID}
-      and b.movement_spec_id = ${outMovementSpecID}
-
- */
- */
 case class AttributeMatchRule(
   inMovementSpecID:  ID,
   outMovementSpecID: ID,
