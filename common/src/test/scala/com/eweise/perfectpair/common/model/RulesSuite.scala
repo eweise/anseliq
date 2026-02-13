@@ -11,5 +11,8 @@ class RulesSuite extends AnyFunSuite:
     val matchRule2 = AttributeMatchRule(UUID.randomUUID(), UUID.randomUUID(), "key2", "value1")
 
     val andRule = AndRule(List(matchRule1, matchRule2))
+    
+    val ruleJson = upickle.write(andRule)
+    println(ruleJson)
 
 
