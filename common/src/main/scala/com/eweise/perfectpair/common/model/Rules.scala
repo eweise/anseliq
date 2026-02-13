@@ -15,7 +15,7 @@ case class SQLMatcher(
 ) extends Matcher
     derives ReadWriter
 
-sealed trait Rule:
+sealed trait Rule derives ReadWriter:
   def sql: String
 
   def createSqlDelimiter(rules: List[Rule], andOr: String): String = {
