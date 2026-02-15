@@ -1,0 +1,90 @@
+package perfectpair.domain.service
+
+import com.augustnagro.magnum.{Transactor, transact}
+import perfectpair.domain.model.MovementStatus.{Reconciled, WithinSLA}
+import perfectpair.testing.rollBackOnly
+import com.typesafe.config.ConfigFactory
+import perfectpair.adapter.driven.{DbDataSource, MovementRepoLive}
+import perfectpair.domain.DataSetup
+import perfectpair.domain.model.{Movement, MovementSpec, createID}
+import perfectpair.domain.model.helper.JSONBProps
+import perfectpair.domain.port.driven.Txn
+
+import java.util.UUID
+import javax.sql.DataSource
+
+class ReconcilerSuite extends munit.FunSuite:
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given transactor: Transactor = Transactor(dataSource)
+
+  test("Post Amount balances"):
+    val movementRepo = MovementRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data: DataSetup = DataSetup()
+
+        data.fundFlowCache.init()
+        val reconciler = Reconciler(
+          fundFlowCache      = data.fundFlowCache,
+          accountRepo        = data.accountRepo,
+          movementRepo       = data.movementRepo,
+          movementSpecRepo   = data.movementSpecRepo,
+          reconSpecRepo      = data.reconSpecRepo,
+          reconRepo          = data.reconRepo,
+          fundFlowConfigRepo = data.fundFlowConfigRepo
+        )
+
+        // create some movements
+        val idToMatchMovements = "123"
+        val journalMovement = createMovement(data, data.journalToRecon, idToMatchMovements)
+        val reportMovement  = createMovement(data, data.reportToRecon, idToMatchMovements)
+
+        val journalMBeforeReconciled = movementRepo.findById(journalMovement.id).get
+        assertEquals(None, journalMBeforeReconciled.reconciliationId)
+        assertEquals(journalMBeforeReconciled.status, WithinSLA)
+
+        reconciler.reconcileFundFlow(data.fundFlowConfig)
+
+        val journalAfterReconciled = movementRepo.findById(journalMovement.id).get
+        assert(journalAfterReconciled.reconciliationId.nonEmpty)
+        assertEquals(journalAfterReconciled.status, Reconciled)
+
+  def createMovement(data: DataSetup, movementSpec: MovementSpec, idValue:String): Txn[Movement] =
+    val m = Movement(
+      inAccountId    = movementSpec.inAccountId,
+      outAccountId   = movementSpec.outAccountId,
+      movementSpecId = movementSpec.id,
+      amount         = 100,
+      properties     = JSONBProps(Map("foo" -> "bar", "id" -> idValue))
+    )
+
+    data.movementRepo.insert(m)
+    m
+
+  test("Post Amount balances and Reconcile"):
+    transact(transactor):
+      rollBackOnly:
+        val data: DataSetup = DataSetup()
+        val ops = AccountOperations(
+          fundFlowCache      = data.fundFlowCache,
+          accountRepo        = data.accountRepo,
+          movementRepo       = data.movementRepo,
+          movementSpecRepo   = data.movementSpecRepo,
+          fundFlowConfigRepo = data.fundFlowConfigRepo
+        )
+        val reconciler = Reconciler(
+          fundFlowCache      = data.fundFlowCache,
+          accountRepo        = data.accountRepo,
+          movementRepo       = data.movementRepo,
+          movementSpecRepo   = data.movementSpecRepo,
+          reconSpecRepo      = data.reconSpecRepo,
+          reconRepo          = data.reconRepo,
+          fundFlowConfigRepo = data.fundFlowConfigRepo
+        )
+
+        for _ <- 1 to 10
+        do
+          val keyID       = UUID.randomUUID().toString
+          val referenceID = createID()
+          ops.postAmount(data.journalToRecon, 1000, referenceID = referenceID, Map("id" -> keyID))
+          ops.postAmount(data.reportToRecon, 1000, referenceID  = referenceID, Map("id" -> keyID))
