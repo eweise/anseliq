@@ -1,0 +1,94 @@
+package perfectpair.adapter.driven
+
+import com.augustnagro.magnum.{Transactor, transact}
+import perfectpair.domain.model.*
+import com.typesafe.config.ConfigFactory
+import perfectpair.testing.rollBackOnly
+import perfectpair.domain.DataSetup
+import perfectpair.domain.model.FundFlowConfig
+import perfectpair.domain.service.FundFlowCache
+import upickle.default.*
+
+import java.util.UUID
+import javax.sql.DataSource
+
+class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
+  var transactor: Transactor = null
+  var dataSource: DataSource = null
+
+  override def beforeAll(): Unit =
+    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+    transactor = Transactor(dataSource)
+
+  test("Create Fund Flow Config"):
+    transact(transactor):
+      rollBackOnly:
+        val fundFlowRepo = FundFlowConfigRepoLive()
+        val data         = DataSetup()
+        val cache        = FundFlowCache(fundFlowRepo)
+        cache.init()
+
+  test("findById returns inserted fund flow config"):
+    val fundFlowRepo = FundFlowConfigRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val config = FundFlowConfig(
+          name = UUID.randomUUID().toString,
+        )
+        fundFlowRepo.insert(config)
+
+        val found = fundFlowRepo.findById(config.id)
+        assert(found.isDefined)
+        assertEquals(found.get.name, config.name)
+
+  test("findById returns None for non-existent id"):
+    val fundFlowRepo = FundFlowConfigRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val found = fundFlowRepo.findById(UUID.randomUUID())
+        assert(found.isEmpty)
+
+  test("update modifies fund flow config"):
+    val fundFlowRepo = FundFlowConfigRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val config = FundFlowConfig(
+          name = "original-name",
+        )
+        fundFlowRepo.insert(config)
+
+        val updatedConfig = config.copy(name = "updated-name")
+        fundFlowRepo.update(updatedConfig)
+
+        val found = fundFlowRepo.findById(config.id)
+        assertEquals(found.get.name, "updated-name")
+
+  test("delete removes fund flow config"):
+    val fundFlowRepo = FundFlowConfigRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val config = FundFlowConfig(
+          name = UUID.randomUUID().toString,
+        )
+        fundFlowRepo.insert(config)
+
+        fundFlowRepo.delete(config)
+
+        val found = fundFlowRepo.findById(config.id)
+        assert(found.isEmpty)
+
+  test("findAll returns all fund flow configs"):
+    val fundFlowRepo = FundFlowConfigRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val initialCount = fundFlowRepo.findAll.size
+
+        fundFlowRepo.insert(FundFlowConfig(
+          name = UUID.randomUUID().toString,
+        ))
+        fundFlowRepo.insert(FundFlowConfig(
+          name = UUID.randomUUID().toString,
+        ))
+
+        val allConfigs = fundFlowRepo.findAll
+        assertEquals(allConfigs.size, initialCount + 2)

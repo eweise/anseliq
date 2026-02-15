@@ -1,6 +1,6 @@
 # PerfectPair Model Class Diagram
 
-## com.eweise.perfectpair.model (Shared Models)
+## perfectpair.model (Shared Models)
 
 ```mermaid
 classDiagram
@@ -23,7 +23,7 @@ classDiagram
     }
 ```
 
-## com.eweise.perfectpair.domain.model (Domain Models)
+## perfectpair.domain.model (Domain Models)
 
 ```mermaid
 classDiagram

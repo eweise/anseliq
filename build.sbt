@@ -4,7 +4,7 @@ import sbt.Keys.libraryDependencies
 
 lazy val scala3Version = "3.8.1"
 lazy val upickleVersion = "4.4.2"
-ThisBuild / organization := "com.eweise"
+ThisBuild / organization := "perfectpair"
 ThisBuild / scalaVersion := scala3Version
 
 lazy val root = (project in file("."))
@@ -155,5 +155,5 @@ lazy val common = (crossProject(JVMPlatform, JSPlatform)
         Environtments.backendBaseUrl()
       }
     ),
-    buildInfoPackage := "com.eweise.perfectpair.common"
+    buildInfoPackage := "perfectpair.common"
   )
