@@ -49,13 +49,18 @@ case class AttributeMatchRule(
     case NoModifier => ""
 
   def sql: String =
-    s""" a.movement_spec_id = '$inMovementSpecID'
-       | and b.movement_spec_id= '$outMovementSpecID'
-       | and a.properties ['props'] ['${inKey.key}'] = b.properties ['props'] ['${outKey.key}']""".stripMargin
+    s""" move_in.movement_spec_id = '$inMovementSpecID'
+       | and move_out.movement_spec_id = '$outMovementSpecID'
+       | and move_in.properties ['props'] ['${inKey.key}'] = move_out.properties ['props'] ['${outKey.key}']""".stripMargin
 
 sealed abstract class Attribute(val key: String, val modifier: Modifier) derives ReadWriter
 
 case class StringAttribute(
+  override val key:      String,
+  override val modifier: Modifier = NoModifier
+) extends Attribute(key = key, modifier = modifier)
+
+case class DateAttribute(
   override val key:      String,
   override val modifier: Modifier = NoModifier
 ) extends Attribute(key = key, modifier = modifier)

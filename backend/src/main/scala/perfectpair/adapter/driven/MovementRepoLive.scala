@@ -48,8 +48,10 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
   ): Txn[Vector[(String, String)]] =
     val criteria = SqlLiteral(sqlCriteria)
     sql"""
-      SELECT a.id, b.id
-      FROM $m AS a, $m AS b
+      SELECT move_in.id, move_out.id
+      FROM $m AS move_in
+      JOIN $m AS move_out
+      ON move_in.in_account_id = move_out.out_account_id
       where 1 = 1
       AND $criteria
     """.query[(String, String)].run()
