@@ -2,7 +2,7 @@ package com.eweise.perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.eweise.perfectpair.adapter.driven.{DbDataSource, MovementRepoLive, ReconciliationRepoLive}
-import com.eweise.perfectpair.common.model.{AndRule, AttributeMatchRule}
+import com.eweise.perfectpair.common.model.{AndRule, AttributeMatchRule, StringAttribute}
 import com.eweise.perfectpair.common.model.model.ID
 import com.eweise.perfectpair.domain.DataSetup
 import com.eweise.perfectpair.domain.model.helper.JSONBProps
@@ -106,18 +106,24 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         data.movementRepo.insert(inReconMovement)
 
         val rule = AttributeMatchRule(
-          inMovementSpecID = data.reportToRecon.id,
+          inMovementSpecID  = data.reportToRecon.id,
           outMovementSpecID = data.journalToRecon.id,
-          inKey = "key2",
-          outKey = "key1",
+          inKey             = StringAttribute(key = "key2"),
+          outKey            = StringAttribute(key = "key1")
         )
-        
-        // Let's see if the AND rule works
-        val sqlStr = AndRule(List(rule, rule)).sql
-        val results = movementRepo.findEqualityMatches(sqlStr)
+
+        val sqlStr                        = rule.sql
+        val results                       = movementRepo.findEqualityMatches(sqlStr)
         val (inMovementId, outMovementId) = results.head
         assertEquals(inReconMovement.id.toString, inMovementId)
         assertEquals(outReconMovement.id.toString, outMovementId)
+
+        // Let's see if the AND rule works
+        val sqlStrWithAnd                               = AndRule(List(rule, rule)).sql
+        val resultsWithAnd                              = movementRepo.findEqualityMatches(sqlStrWithAnd)
+        val (inMovementIdWithAnd, outMovementIdWithAnd) = resultsWithAnd.head
+        assertEquals(inReconMovement.id.toString, inMovementIdWithAnd)
+        assertEquals(outReconMovement.id.toString, outMovementIdWithAnd)
 
   test("findUnreconciledByAttribute"):
     val movementRepo = MovementRepoLive()

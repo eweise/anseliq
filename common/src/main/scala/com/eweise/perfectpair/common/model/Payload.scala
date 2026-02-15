@@ -75,8 +75,8 @@ case class ReconciliationAccountPayload(
     rule = AttributeMatchRule(
       inMovementSpecID  = UUID.randomUUID(),
       outMovementSpecID = UUID.randomUUID(),
-      inKey             = "id",
-      outKey            = "id"
+      inKey             = StringAttribute(key = "id"),
+      outKey            = StringAttribute(key = "id")
     )
   ),
   agingLimit: String = ""
