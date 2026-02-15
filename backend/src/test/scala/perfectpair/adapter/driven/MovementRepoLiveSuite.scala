@@ -1,13 +1,13 @@
 package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
-import perfectpair.common.model.{AndRule, AttributeMatchRule, StringAttribute}
-import perfectpair.common.model.model.ID
 import com.typesafe.config.ConfigFactory
-import perfectpair.testing.rollBackOnly
+import perfectpair.common.model.model.ID
+import perfectpair.common.model.{AndRule, AttributeMatchRule, StringAttribute}
 import perfectpair.domain.DataSetup
-import perfectpair.domain.model.{Movement, Reconciliation, createID}
 import perfectpair.domain.model.helper.JSONBProps
+import perfectpair.domain.model.{Movement, Reconciliation, createID}
+import perfectpair.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -72,6 +72,43 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         data.movementRepo.insert(inReconMovement)
 
         assertEquals(movementRepo.findUnReconciledByAccount(data.reconAccount.id).size, 1)
+
+//  test("generateLotsOfData"):
+//    val movementRepo = MovementRepoLive()
+//    val reconRepo    = ReconciliationRepoLive()
+//
+//    var mSpecID1 = ""
+//    var mSpecID2 = ""
+//
+//    transact(transactor):
+//      val data           = DataSetup()
+//      val reconciliation = Reconciliation(specId = data.reconSpec.id)
+//      reconRepo.insert(reconciliation)
+//
+//      for (i <- 1 to 5000)
+//        val value = createID().toString
+//        val outReconMovement = Movement(
+//          inAccountId    = data.journalAccount.id,
+//          outAccountId   = data.reconAccount.id,
+//          movementSpecId = data.journalToRecon.id,
+//          properties     = JSONBProps(Map("key1" -> value)),
+//          amount         = 100
+//        )
+//
+//        data.movementRepo.insert(outReconMovement)
+//
+//        val inReconMovement = Movement(
+//          inAccountId      = data.reconAccount.id,
+//          outAccountId     = data.reportAccount.id,
+//          movementSpecId   = data.reportToRecon.id,
+//          properties       = JSONBProps(Map("key2" -> value)),
+//          amount           = 100,
+//          reconciliationId = Some(reconciliation.id)
+//        )
+//        data.movementRepo.insert(inReconMovement)
+//        mSpecID1 = data.journalToRecon.id.toString
+//        mSpecID2 = data.reportToRecon.id.toString
+//    print(mSpecID1)
 
   test("findMatches"):
     val movementRepo = MovementRepoLive()
