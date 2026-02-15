@@ -40,11 +40,31 @@ case class ORRule(rules: List[Rule]) extends Rule:
 case class AttributeMatchRule(
   inMovementSpecID:  ID,
   outMovementSpecID: ID,
-  inKey:             String,
-  outKey:            String
+  inKey:             Attribute,
+  outKey:            Attribute
 ) extends Rule
     derives ReadWriter:
+
+  val inModifierStr = inKey.modifier match
+    case NoModifier => ""
+
   def sql: String =
     s""" a.movement_spec_id = '$inMovementSpecID'
        | and b.movement_spec_id= '$outMovementSpecID'
-       | and a.properties ['props'] ['$inKey'] = b.properties ['props'] ['$outKey']""".stripMargin
+       | and a.properties ['props'] ['${inKey.key}'] = b.properties ['props'] ['${outKey.key}']""".stripMargin
+
+sealed abstract class Attribute(val key: String, val modifier: Modifier) derives ReadWriter
+
+case class StringAttribute(
+  override val key:      String,
+  override val modifier: Modifier = NoModifier
+) extends Attribute(key = key, modifier = modifier)
+
+sealed trait Modifier derives ReadWriter
+
+case class DateAdd(datePart: DatePart, interval: Int, value: Int) extends Modifier
+
+case object NoModifier extends Modifier
+
+enum DatePart derives ReadWriter:
+  case Year, Month, Days, Hours, Minute
