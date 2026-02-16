@@ -1,6 +1,6 @@
 package perfectpair.adapter.driven
 
-import com.augustnagro.magnum.{DbCon, Repo, SqlLiteral, sql}
+import com.augustnagro.magnum.{BatchUpdateResult, DbCon, Repo, SqlLiteral, batchUpdate, sql}
 import perfectpair.common.model.model.{ID, Properties}
 import perfectpair.domain.model
 import perfectpair.domain.port.driven.{MovementRepo, Txn}
@@ -10,6 +10,13 @@ import java.util.UUID
 
 class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
   val m = Movement.Table
+
+  override def insertAll(movements: Iterable[Movement])(using DbCon): Unit =
+    batchUpdate(movements): movement =>
+      sql"""
+           INSERT INTO $m ${m.insertColumns}
+           VALUES ($movement)
+           ON CONFLICT(reference_id) DO NOTHING""".update
 
   override def insert(movement: Movement)(using DbCon): Unit =
     sql"""
@@ -44,7 +51,7 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
     """.query[Movement].run()
 
   def findEqualityMatches(
-    sqlCriteria:String
+    sqlCriteria: String
   ): Txn[Vector[(String, String)]] =
     val criteria = SqlLiteral(sqlCriteria)
     sql"""
@@ -55,6 +62,3 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       where 1 = 1
       AND $criteria
     """.query[(String, String)].run()
-
-
-
