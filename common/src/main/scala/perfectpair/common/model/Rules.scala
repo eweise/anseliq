@@ -45,31 +45,38 @@ case class AttributeMatchRule(
 ) extends Rule
     derives ReadWriter:
 
-  val inModifierStr = inKey.modifier match
-    case NoModifier => ""
-
   def sql: String =
-    s""" move_in.movement_spec_id = '$inMovementSpecID'
-       | and move_out.movement_spec_id = '$outMovementSpecID'
-       | and move_in.properties ['props'] ['${inKey.key}'] = move_out.properties ['props'] ['${outKey.key}']""".stripMargin
+    val inAttributeFrag  = s" move_in.properties ['props'] ['${inKey.key}']"
+    val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
+    val inModifiedFrag   = inKey.modify(inAttributeFrag)
+    val outModifiedFrag  = outKey.modify(outAttributeFrag)
+    s""" move_in.movement_spec_id = '${inMovementSpecID.toString}'
+       | and move_out.movement_spec_id = '${outMovementSpecID.toString}'
+       | and $inModifiedFrag = $outModifiedFrag""".stripMargin
 
-sealed abstract class Attribute(val key: String, val modifier: Modifier) derives ReadWriter
+sealed abstract class Attribute(val key: String, val modifier: Modifier) derives ReadWriter:
+  def modify(frag: String): String
 
 case class StringAttribute(
   override val key:      String,
   override val modifier: Modifier = NoModifier
-) extends Attribute(key = key, modifier = modifier)
+) extends Attribute(key = key, modifier = modifier):
+  def modify(frag: String): String = modifier.modify(frag + "::text")
 
 case class DateAttribute(
   override val key:      String,
   override val modifier: Modifier = NoModifier
-) extends Attribute(key = key, modifier = modifier)
+) extends Attribute(key = key, modifier = modifier):
+  def modify(frag: String): String = modifier.modify(frag + "::text::date")
 
-sealed trait Modifier derives ReadWriter
+sealed trait Modifier derives ReadWriter:
+  def modify(frad: String): String
 
-case class DateAdd(datePart: DatePart, interval: Int, value: Int) extends Modifier
+case class DateAdd(interval: Interval, value: Int) extends Modifier:
+  def modify(frag: String): String = s"$frag + interval '$value $interval'"
 
-case object NoModifier extends Modifier
+case object NoModifier extends Modifier:
+  def modify(frag: String): String = frag
 
-enum DatePart derives ReadWriter:
-  case Year, Month, Days, Hours, Minute
+enum Interval derives ReadWriter:
+  case Year, Month, Day, Hour, Minute
