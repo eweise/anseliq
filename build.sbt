@@ -2,7 +2,7 @@ import sbt.io.Path.relativeTo
 import com.typesafe.sbt.packager.docker.{Cmd, ExecCmd}
 import sbt.Keys.libraryDependencies
 
-lazy val scala3Version = "3.8.1"
+lazy val scala3Version  = "3.8.1"
 lazy val upickleVersion = "4.4.2"
 ThisBuild / organization := "perfectpair"
 ThisBuild / scalaVersion := scala3Version
@@ -87,7 +87,7 @@ lazy val frontend = (project in file("frontend"))
         scalaVer,
         sourceDirs,
         compilationRunner,
-        prefix = "frontend",
+        prefix     = "frontend",
         backendUrl = Some(backendUrl)
       )
     },
@@ -110,6 +110,7 @@ lazy val backend = (project in file("backend"))
       "ch.qos.logback"       % "logback-classic"    % Dependencies.LogbackClassic,
       "org.fusesource.jansi" % "jansi"              % Dependencies.Jansi,
       "dev.zio"             %% "zio-logging"        % Dependencies.ZioLogging,
+      "dev.zio"             %% "zio-streams"        % Dependencies.ZioStreams,
       "dev.zio"             %% "zio-logging-slf4j2" % Dependencies.ZioLogging,
       "org.scalatest"       %% "scalatest"          % Dependencies.Scalatest % Test,
       "com.augustnagro"     %% "magnum"             % "2.0.0-M2",

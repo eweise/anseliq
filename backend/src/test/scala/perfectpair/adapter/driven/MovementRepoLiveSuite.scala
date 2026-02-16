@@ -39,6 +39,25 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         val found = movementRepo.findById(movement.id).get
         assertEquals(found.properties.props, props)
 
+  test("insertAllWithIdempotency"):
+    val movementRepo = MovementRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data        = DataSetup()
+        val referenceID = createID()
+        val props       = Map("id" -> "1")
+        val movement = Movement(
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          referenceId    = referenceID,
+          properties     = JSONBProps(props),
+          amount         = 100
+        )
+        movementRepo.insertAll(List(movement))
+        val found = movementRepo.findById(movement.id).get
+        assertEquals(found.properties.props, props)
+
   test("findUnreconciledByAccount"):
     val movementRepo = MovementRepoLive()
     val reconRepo    = ReconciliationRepoLive()
