@@ -1,10 +1,10 @@
 package perfectpair.domain.model.helper
 
 import com.augustnagro.magnum.pg.json.JsonBDbCodec
-import perfectpair.common.model.model.Properties
 import io.circe.parser.decode as circeDecode
 import io.circe.syntax.*
 import io.circe.{Codec, Decoder, Encoder}
+import perfectpair.common.model.model.Properties
 
 trait CirceJsonBDbCodec[A] extends JsonBDbCodec[A]
 

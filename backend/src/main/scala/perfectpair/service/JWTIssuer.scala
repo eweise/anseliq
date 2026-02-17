@@ -1,11 +1,11 @@
 package perfectpair.service
 
-import JWTIssuer.User
-import JWTVerifier.*
-import perfectpair.common.util.JwtHelper.UserClaim
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtClaim}
 import perfectpair.common.util.JwtHelper
+import perfectpair.common.util.JwtHelper.UserClaim
 import perfectpair.config.AppConfig
+import perfectpair.service.JWTIssuer.User
+import perfectpair.service.JWTVerifier.*
 import zio.*
 import zio.json.*
 

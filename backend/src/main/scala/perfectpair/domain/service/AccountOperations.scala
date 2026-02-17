@@ -2,10 +2,9 @@ package perfectpair.domain.service
 
 import perfectpair.common.model.model.{ID, Money, Properties}
 import perfectpair.domain.model
-import perfectpair.domain.model.*
-import perfectpair.domain.model.{Account, FundFlowConfig, Movement, MovementSpec, NotFoundException}
-import perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo, Txn}
 import perfectpair.domain.model.helper.JSONBProps
+import perfectpair.domain.model.*
+import perfectpair.domain.port.driven.*
 
 class AccountOperations(
   val fundFlowCache:      FundFlowCache,
