@@ -1,12 +1,11 @@
 package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
-import perfectpair.domain.model.*
 import com.typesafe.config.ConfigFactory
-import perfectpair.testing.rollBackOnly
 import perfectpair.domain.DataSetup
-import perfectpair.domain.model.FundFlowConfig
+import perfectpair.domain.model.*
 import perfectpair.domain.service.FundFlowCache
+import perfectpair.testing.rollBackOnly
 import upickle.default.*
 
 import java.util.UUID

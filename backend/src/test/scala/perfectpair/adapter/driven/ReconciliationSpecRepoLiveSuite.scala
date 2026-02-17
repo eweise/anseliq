@@ -1,9 +1,9 @@
 package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
-import perfectpair.testing.rollBackOnly
 import com.typesafe.config.ConfigFactory
 import perfectpair.domain.DataSetup
+import perfectpair.testing.rollBackOnly
 
 import javax.sql.DataSource
 

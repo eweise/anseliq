@@ -54,7 +54,15 @@ class MovementRepoLiveSuite extends munit.FunSuite:
           properties     = JSONBProps(props),
           amount         = 100
         )
-        movementRepo.insertAll(List(movement))
+        val movement2 = Movement(
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          referenceId    = referenceID,
+          properties     = JSONBProps(props),
+          amount         = 100
+        )
+        movementRepo.insertAll(List(movement, movement2))
         val found = movementRepo.findById(movement.id).get
         assertEquals(found.properties.props, props)
 

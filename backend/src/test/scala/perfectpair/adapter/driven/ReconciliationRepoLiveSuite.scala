@@ -1,11 +1,11 @@
 package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
-import perfectpair.testing.rollBackOnly
 import com.typesafe.config.ConfigFactory
 import perfectpair.common.model.EqualityMatcher
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.Reconciliation
+import perfectpair.testing.rollBackOnly
 
 import java.util.UUID
 import javax.sql.DataSource
