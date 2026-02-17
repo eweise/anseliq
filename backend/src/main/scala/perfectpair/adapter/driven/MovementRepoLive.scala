@@ -1,10 +1,10 @@
 package perfectpair.adapter.driven
 
-import com.augustnagro.magnum.{BatchUpdateResult, DbCon, Repo, SqlLiteral, batchUpdate, sql}
-import perfectpair.common.model.model.{ID, Properties}
+import com.augustnagro.magnum.*
+import perfectpair.common.model.model.ID
 import perfectpair.domain.model
-import perfectpair.domain.port.driven.{MovementRepo, Txn}
 import perfectpair.domain.model.Movement
+import perfectpair.domain.port.driven.{MovementRepo, Txn}
 
 import java.util.UUID
 

@@ -1,8 +1,8 @@
 package perfectpair.domain.model
 
-import com.augustnagro.magnum.{DbCodec, Id, PostgresDbType, SqlNameMapper, Table, TableInfo}
-import perfectpair.common.model.model.ID
+import com.augustnagro.magnum.*
 import perfectpair.common.model.Matcher
+import perfectpair.common.model.model.ID
 
 import java.util.UUID
 

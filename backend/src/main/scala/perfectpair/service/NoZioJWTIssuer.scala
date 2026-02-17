@@ -1,8 +1,8 @@
 package perfectpair.service
 
-import JWTIssuer.User
 import perfectpair.common.util.JwtHelper
-import JwtHelper.UserClaim
+import perfectpair.common.util.JwtHelper.UserClaim
+import perfectpair.service.JWTIssuer.User
 
 object NoZioJWTIssuer:
   private val secretKey = "123"

@@ -1,6 +1,6 @@
 package perfectpair.domain.model
 
-import com.augustnagro.magnum.{DbCodec, Id, PostgresDbType, SqlNameMapper, Table}
+import com.augustnagro.magnum.*
 import perfectpair.common.model.model.ID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)

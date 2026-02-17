@@ -3,8 +3,8 @@ package perfectpair.adapter.driven
 import com.augustnagro.magnum.{Repo, sql}
 import perfectpair.common.model.model.ID
 import perfectpair.domain.model
-import perfectpair.domain.port.driven.{ReconciliationSpecRepo, Txn}
 import perfectpair.domain.model.ReconciliationSpec
+import perfectpair.domain.port.driven.{ReconciliationSpecRepo, Txn}
 
 import java.util.UUID
 

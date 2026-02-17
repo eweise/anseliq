@@ -1,13 +1,12 @@
 package perfectpair.domain.service
 
-import io.netty.util.CharsetUtil
 import ox.flow.Flow
-import perfectpair.common.model.model.{ID, Properties}
+import perfectpair.common.model.model.Properties
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.{Movement, MovementSpec}
 import perfectpair.domain.port.driven.{MovementRepo, Txn}
 
-import java.io.{File, InputStream}
+import java.io.InputStream
 
 trait Parser:
   def parse(text: String): Properties

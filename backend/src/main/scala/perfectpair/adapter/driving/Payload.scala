@@ -2,7 +2,6 @@ package perfectpair.adapter.driving
 
 import perfectpair.common.model.*
 import perfectpair.domain.model.*
-import perfectpair.domain.model.{Account, FundFlowConfig, Movement}
 import upickle.default.*
 
 object Payload:

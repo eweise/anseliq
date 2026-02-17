@@ -2,9 +2,8 @@ package perfectpair.domain.service
 
 import perfectpair.common.model.{EqualityMatcher, SQLMatcher}
 import perfectpair.domain.model
-import perfectpair.domain.model.*
-import perfectpair.domain.model.{FundFlowConfig, Movement, NotFoundError, Reconciliation}
 import perfectpair.domain.model.MovementStatus.Reconciled
+import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 
 import java.util.UUID

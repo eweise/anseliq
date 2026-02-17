@@ -2,8 +2,8 @@ package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Repo, sql}
 import perfectpair.domain.model
-import perfectpair.domain.port.driven.{FundFlowConfigRepo, Txn}
 import perfectpair.domain.model.FundFlowConfig
+import perfectpair.domain.port.driven.{FundFlowConfigRepo, Txn}
 
 import java.util.UUID
 

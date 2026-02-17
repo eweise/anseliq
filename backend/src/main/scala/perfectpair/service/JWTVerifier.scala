@@ -1,9 +1,9 @@
 package perfectpair.service
 
-import JWTVerifier.*
 import perfectpair.common.util.JwtHelper
-import JwtHelper.UserClaim
+import perfectpair.common.util.JwtHelper.UserClaim
 import perfectpair.config.AppConfig
+import perfectpair.service.JWTVerifier.*
 import zio.*
 
 trait JWTVerifier {
