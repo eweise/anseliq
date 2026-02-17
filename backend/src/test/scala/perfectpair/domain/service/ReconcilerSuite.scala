@@ -1,14 +1,14 @@
 package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
-import perfectpair.domain.model.MovementStatus.{Reconciled, WithinSLA}
-import perfectpair.testing.rollBackOnly
 import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.{DbDataSource, MovementRepoLive}
 import perfectpair.domain.DataSetup
-import perfectpair.domain.model.{Movement, MovementSpec, createID}
+import perfectpair.domain.model.MovementStatus.{Reconciled, WithinSLA}
 import perfectpair.domain.model.helper.JSONBProps
+import perfectpair.domain.model.{Movement, MovementSpec, createID}
 import perfectpair.domain.port.driven.Txn
+import perfectpair.testing.rollBackOnly
 
 import java.util.UUID
 import javax.sql.DataSource

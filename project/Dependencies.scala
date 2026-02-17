@@ -9,6 +9,5 @@ object Dependencies {
   val JwtScala         = "10.0.1"
   val Jansi            = "2.4.0"
   val ZioLogging       = "2.4.0"
-  val ZioStreams       = "2.1.24"
   val LogbackClassic   = "1.5.16"
 }

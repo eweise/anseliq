@@ -1,13 +1,11 @@
 package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
+import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
+import perfectpair.domain.DataSetup
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo}
-import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{AccountRepoLive, DbDataSource, FundFlowConfigRepoLive, MovementRepoLive, MovementSpecRepoLive}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.createID
 import perfectpair.testing
 
 class AccountOperationsSuite extends munit.FunSuite:

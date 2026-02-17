@@ -1,12 +1,11 @@
 package perfectpair.domain
 
 import com.augustnagro.magnum.DbTx
+import perfectpair.adapter.driven.*
 import perfectpair.common.model.{AttributeMatchRule, EqualityMatcher, StringAttribute}
-import perfectpair.domain.model.*
-import perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo, ReconciliationRepo, ReconciliationSpecRepo}
-import perfectpair.adapter.driven.{AccountRepoLive, FundFlowConfigRepoLive, MovementRepoLive, MovementSpecRepoLive, ReconciliationRepoLive, ReconciliationSpecRepoLive}
-import perfectpair.domain.model.{Account, FundFlowConfig, MovementSpec, ReconciliationSpec}
 import perfectpair.domain.model.helper.JSONBProps
+import perfectpair.domain.model.*
+import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.{AccountOperations, FundFlowCache}
 
 import java.util.UUID
