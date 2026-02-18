@@ -6,7 +6,7 @@ import upickle.default.ReadWriter.join
 
 sealed trait Matcher derives ReadWriter
 case class EqualityMatcher(
-  rule: AttributeMatchRule
+  rule: Rule
 ) extends Matcher
     derives ReadWriter
 
@@ -73,7 +73,7 @@ sealed trait Modifier derives ReadWriter:
   def modify(frad: String): String
 
 case class DateAdd(interval: Interval, value: Int) extends Modifier:
-  def modify(frag: String): String = s"$frag + interval '$value $interval'"
+  def modify(frag: String): String = s"($frag + interval '$value $interval')::date"
 
 case object NoModifier extends Modifier:
   def modify(frag: String): String = frag
