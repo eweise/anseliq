@@ -107,14 +107,12 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           fundFlowId = fundFlowConfig.id,
-          matchingRulesJson = upickle.write(
-            EqualityMatcher(
-              AttributeMatchRule(
-                inMovementSpecID  = journalToRecon.id,
-                outMovementSpecID = reportToRecon.id,
-                inKey             = StringAttribute(key = "transaction_id"),
-                outKey            = StringAttribute(key = "txn_id")
-              )
+          ruleJson = upickle.write(
+            AttributeMatchRule(
+              inMovementSpecID  = journalToRecon.id,
+              outMovementSpecID = reportToRecon.id,
+              inKey             = StringAttribute(key = "transaction_id"),
+              outKey            = StringAttribute(key = "txn_id")
             )
           )
         )
@@ -215,22 +213,20 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           fundFlowId = fundFlowConfig.id,
-          matchingRulesJson = upickle.write(
-            EqualityMatcher(
-              AndRule(
-                List(
-                  AttributeMatchRule(
-                    inMovementSpecID  = journalToRecon.id,
-                    outMovementSpecID = reportToRecon.id,
-                    inKey             = StringAttribute(key = "transaction_id"),
-                    outKey            = StringAttribute(key = "txn_id")
-                  ),
-                  AttributeMatchRule(
-                    inMovementSpecID  = journalToRecon.id,
-                    outMovementSpecID = reportToRecon.id,
-                    inKey             = DateAttribute(key = "record_date"),
-                    outKey            = DateAttribute(key = "txn_date", DateAdd(Day, -1))
-                  )
+          ruleJson = upickle.write(
+            AndRule(
+              List(
+                AttributeMatchRule(
+                  inMovementSpecID  = journalToRecon.id,
+                  outMovementSpecID = reportToRecon.id,
+                  inKey             = StringAttribute(key = "transaction_id"),
+                  outKey            = StringAttribute(key = "txn_id")
+                ),
+                AttributeMatchRule(
+                  inMovementSpecID  = journalToRecon.id,
+                  outMovementSpecID = reportToRecon.id,
+                  inKey             = DateAttribute(key = "record_date"),
+                  outKey            = DateAttribute(key = "txn_date", DateAdd(Day, -1))
                 )
               )
             )

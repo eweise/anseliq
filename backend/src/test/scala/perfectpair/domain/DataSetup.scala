@@ -79,13 +79,11 @@ class DataSetup(using DbTx) {
   )
   movementSpecRepo.insert(reportToRecon)
 
-  val equalityMatcher = EqualityMatcher(
-    AttributeMatchRule(
-      inMovementSpecID  = journalToRecon.id,
-      outMovementSpecID = reportToRecon.id,
-      inKey             = StringAttribute(key = "id"),
-      outKey            = StringAttribute(key = "id")
-    )
+  val rule = AttributeMatchRule(
+    inMovementSpecID  = journalToRecon.id,
+    outMovementSpecID = reportToRecon.id,
+    inKey             = StringAttribute(key = "id"),
+    outKey            = StringAttribute(key = "id")
   )
   val accountOperations = AccountOperations(
     accountRepo        = accountRepo,
@@ -95,8 +93,8 @@ class DataSetup(using DbTx) {
   )
 
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
-    fundFlowId        = fundFlowConfig.id,
-    matchingRulesJson = upickle.write(equalityMatcher)
+    fundFlowId = fundFlowConfig.id,
+    ruleJson   = upickle.write(rule)
   )
   reconSpecRepo.insert(reconSpec)
 

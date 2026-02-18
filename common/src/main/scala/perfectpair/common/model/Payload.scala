@@ -69,13 +69,11 @@ case class FundFlowPayload(
 
 case class ReconciliationAccountPayload(
   name: String,
-  matcher: Matcher = EqualityMatcher(
-    rule = AttributeMatchRule(
-      inMovementSpecID  = UUID.randomUUID(),
-      outMovementSpecID = UUID.randomUUID(),
-      inKey             = StringAttribute(key = "id"),
-      outKey            = StringAttribute(key = "id")
-    )
+  rule: Rule = AttributeMatchRule(
+    inMovementSpecID  = UUID.randomUUID(),
+    outMovementSpecID = UUID.randomUUID(),
+    inKey             = StringAttribute(key = "id"),
+    outKey            = StringAttribute(key = "id")
   ),
   agingLimit: String = ""
 )

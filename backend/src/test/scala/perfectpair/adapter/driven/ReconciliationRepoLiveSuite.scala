@@ -2,7 +2,6 @@ package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.common.model.EqualityMatcher
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.Reconciliation
 import perfectpair.testing.rollBackOnly
@@ -22,9 +21,6 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data = DataSetup()
-
-        val matcher = data.reconSpecRepo.findById(data.reconSpec.id).get.matcher()
-        assert(matcher.isInstanceOf[EqualityMatcher])
 
         val recon = Reconciliation(description = "hey", specId = data.reconSpec.id)
         data.reconRepo.insert(recon)
