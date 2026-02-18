@@ -2,10 +2,10 @@ package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.domain.{DataSetup, model}
 import perfectpair.domain.model.Account
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.AccountRepo
+import perfectpair.domain.{DataSetup, model}
 import perfectpair.testing.rollBackOnly
 
 import java.util.UUID

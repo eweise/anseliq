@@ -4,9 +4,9 @@ import perfectpair.common.http.PathDef
 import perfectpair.common.model.{LoginFailure, LoginRequest, LoginSuccess, RandomMessage}
 import perfectpair.common.util.JwtHelper.UserClaim
 import perfectpair.service.{JWTIssuer, JWTVerifier, RandomQuotes}
+import zio.http.*
 import zio.http.Header.{AccessControlAllowOrigin, Origin}
 import zio.http.Middleware.{CorsConfig, cors}
-import zio.http.*
 import zio.json.*
 import zio.{IO, ZIO}
 

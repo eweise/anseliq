@@ -1,8 +1,8 @@
 package perfectpair.common.http
 
-import zio.http.{Root, Scheme, URL}
 import zio.http.codec.PathCodec
 import zio.http.codec.PathCodec.*
+import zio.http.{Root, Scheme, URL}
 
 object HttpPath:
   val prefix    = "/api/v1"

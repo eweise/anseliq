@@ -1,5 +1,6 @@
-import sbtwelcome._
-import scala.Console._
+import sbtwelcome.*
+
+import scala.Console.*
 
 /**
  * Logo generated on [[https://patorjk.com]]

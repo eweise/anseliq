@@ -1,7 +1,7 @@
 package perfectpair.common.util
 
 import org.scalatest.funsuite.AnyFunSuite
-import JwtHelper.*
+import perfectpair.common.util.JwtHelper.*
 
 class JwtHelperSuite extends AnyFunSuite {
   test("issue and validate") {
