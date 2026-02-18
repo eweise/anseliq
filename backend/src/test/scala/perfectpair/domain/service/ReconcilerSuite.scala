@@ -25,7 +25,6 @@ class ReconcilerSuite extends munit.FunSuite:
 
         data.fundFlowCache.init()
         val reconciler = Reconciler(
-          fundFlowCache      = data.fundFlowCache,
           accountRepo        = data.accountRepo,
           movementRepo       = data.movementRepo,
           movementSpecRepo   = data.movementSpecRepo,
@@ -66,14 +65,12 @@ class ReconcilerSuite extends munit.FunSuite:
       rollBackOnly:
         val data: DataSetup = DataSetup()
         val ops = AccountOperations(
-          fundFlowCache      = data.fundFlowCache,
           accountRepo        = data.accountRepo,
           movementRepo       = data.movementRepo,
           movementSpecRepo   = data.movementSpecRepo,
           fundFlowConfigRepo = data.fundFlowConfigRepo
         )
         val reconciler = Reconciler(
-          fundFlowCache      = data.fundFlowCache,
           accountRepo        = data.accountRepo,
           movementRepo       = data.movementRepo,
           movementSpecRepo   = data.movementSpecRepo,

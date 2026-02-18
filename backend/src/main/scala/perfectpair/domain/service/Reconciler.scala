@@ -16,7 +16,6 @@ def mapKeyToMovement(keys: Array[String], outMovements: Vector[Movement]) =
     .toMap
 
 class Reconciler(
-  val fundFlowCache:      FundFlowCache,
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,
   val reconSpecRepo:      ReconciliationSpecRepo,

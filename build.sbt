@@ -112,6 +112,7 @@ lazy val backend = (project in file("backend"))
       "dev.zio"             %% "zio-logging"        % Dependencies.ZioLogging,
       "dev.zio"             %% "zio-logging-slf4j2" % Dependencies.ZioLogging,
       "com.softwaremill.ox" %% "core"               % "1.0.3",
+      "org.javamoney"        % "moneta"             % "1.4.5" pomOnly (),
       "org.scalatest"       %% "scalatest"          % Dependencies.Scalatest % Test,
       "com.augustnagro"     %% "magnum"             % "2.0.0-M2",
       "org.postgresql"       % "postgresql"         % "42.7.4",

@@ -61,7 +61,6 @@ object Example extends cask.MainRoutes:
   override def mainDecorators = Seq(corsDecorator())
 
   val fundFlowConfigRepo = FundFlowConfigRepoLive()
-  val fundFlowCache      = FundFlowCache(fundFlowConfigRepo)
   val accountRepo        = AccountRepoLive()
   val movementRepo       = MovementRepoLive()
   val movementSpecRepo   = MovementSpecRepoLive()
@@ -69,7 +68,6 @@ object Example extends cask.MainRoutes:
   val reconSpecRepo      = ReconciliationSpecRepoLive()
 
   val reconciler = Reconciler(
-    fundFlowCache      = fundFlowCache,
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
@@ -79,7 +77,6 @@ object Example extends cask.MainRoutes:
   )
 
   val accountOperations = AccountOperations(
-    fundFlowCache      = fundFlowCache,
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,

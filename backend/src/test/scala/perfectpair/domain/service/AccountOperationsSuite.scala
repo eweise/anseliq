@@ -16,9 +16,7 @@ class AccountOperationsSuite extends munit.FunSuite:
   val accountRepo:      AccountRepo        = AccountRepoLive()
   val movementRepo:     MovementRepo       = MovementRepoLive()
   val movementSpecRepo: MovementSpecRepo   = MovementSpecRepoLive()
-  val fundFlowCache:    FundFlowCache      = FundFlowCache(configRepo)
   val accountOperations = AccountOperations(
-    fundFlowCache      = fundFlowCache,
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,

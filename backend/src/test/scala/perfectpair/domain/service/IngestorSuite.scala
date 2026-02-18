@@ -17,11 +17,8 @@ class IngestorSuite extends munit.FunSuite:
 
   test("Post Amount balances"):
     val movementRepo = MovementRepoLive()
-    val parser       = CSVParser(Map(0 -> "field1", 1 -> "field2"))
-    val ingestor = Ingestor(
-      movementRepo = movementRepo,
-      parser       = parser
-    )
+    val parser       = CSVParser(Map(0 -> "field1", 1 -> "field2"), None)
+    val ingestor     = Ingestor(movementRepo = movementRepo)
     transact(transactor):
       rollBackOnly:
         val data: DataSetup = DataSetup()
