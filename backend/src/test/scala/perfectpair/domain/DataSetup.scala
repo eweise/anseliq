@@ -94,10 +94,10 @@ class DataSetup(using DbTx) {
     fundFlowConfigRepo = fundFlowConfigRepo
   )
 
-  reconSpecRepo.insert(reconSpec)
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
     fundFlowId        = fundFlowConfig.id,
     matchingRulesJson = upickle.write(equalityMatcher)
   )
+  reconSpecRepo.insert(reconSpec)
 
 }

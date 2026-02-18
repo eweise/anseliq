@@ -79,3 +79,12 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
 
         val allReconciliations = reconRepo.findAll
         assertEquals(allReconciliations.size, initialCount + 2)
+
+  test("findByReconSpecID"):
+    val reconRepo = ReconciliationRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        reconRepo.insert(Reconciliation(specId = data.reconSpec.id, description = "first"))
+        val foundRecons = reconRepo.findByReconSpecID(data.reconSpec.id)
+        assert(foundRecons.nonEmpty)
