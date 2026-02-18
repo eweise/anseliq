@@ -31,13 +31,13 @@ CREATE INDEX account_props_index
 
 create table recon.reconciliation_spec
 (
-    id                  uuid primary key,
-    fund_flow_id        uuid                                  not null REFERENCES recon.fund_flow_config (id),
-    description         text,
-    aging_limit         int,
-    matching_rules_json text, -- todo. should be jsonB?
-    created_at          timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at          timestamptz default CURRENT_TIMESTAMP not null
+    id           uuid primary key,
+    fund_flow_id uuid                                  not null REFERENCES recon.fund_flow_config (id),
+    description  text,
+    aging_limit  int,
+    rule_json    text, -- todo. should be jsonB?
+    created_at   timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at   timestamptz default CURRENT_TIMESTAMP not null
 );
 
 create table recon.reconciliation

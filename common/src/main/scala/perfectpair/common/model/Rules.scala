@@ -4,17 +4,6 @@ import perfectpair.common.model.model.ID
 import upickle.ReadWriter
 import upickle.default.ReadWriter.join
 
-sealed trait Matcher derives ReadWriter
-case class EqualityMatcher(
-  rule: Rule
-) extends Matcher
-    derives ReadWriter
-
-case class SQLMatcher(
-  sql: String
-) extends Matcher
-    derives ReadWriter
-
 sealed trait Rule derives ReadWriter:
   def sql: String
 
