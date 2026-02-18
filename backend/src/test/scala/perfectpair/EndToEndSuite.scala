@@ -126,18 +126,17 @@ class EndToEndSuite extends munit.FunSuite:
         // Reconcile the data
         reconciler.reconcileFundFlow(fundFlowConfig)
 
-        val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
 
-        val unreconciledJournalAccounts = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        val unreconciledJournalAccounts = movementRepo.findUnReconciledByAccount(journalAccount.id)
         assertEquals(unreconciledJournalAccounts.length, 1)
 
         val unreconciledReports = movementRepo.findUnReconciledByAccount(reportAccount.id)
         assertEquals(unreconciledReports.length, 0)
-        
-//        val reconciliations = reconRepo.fin
-//
-//        println(unreconciledMovements)
+
+        val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
+        assertEquals(reconciliations.length, 3)
       } // rollback
     }   // transaction
   }     // test
