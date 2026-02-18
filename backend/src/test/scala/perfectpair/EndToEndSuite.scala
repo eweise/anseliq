@@ -6,7 +6,7 @@ import perfectpair.adapter.driven.*
 import perfectpair.common.model.*
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
-import perfectpair.domain.service.{CSVParser, Ingestor, Reconciler}
+import perfectpair.domain.service.{Ingestor, Reconciler}
 import perfectpair.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
@@ -20,52 +20,47 @@ class EndToEndSuite extends munit.FunSuite:
   val reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
   val reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
   val accountRepo:        AccountRepo            = AccountRepoLive()
+  val ingestor:           Ingestor               = Ingestor(movementRepo = movementRepo)
+  val reconciler: Reconciler = Reconciler(
+    accountRepo        = accountRepo,
+    movementRepo       = movementRepo,
+    reconSpecRepo      = reconSpecRepo,
+    movementSpecRepo   = movementSpecRepo,
+    reconRepo          = reconRepo,
+    fundFlowConfigRepo = fundFlowConfigRepo
+  )
 
   given transactor: Transactor = Transactor(dataSource)
-
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
   test("ingest and find unreconciled") {
-    val parser   = CSVParser(Map(0 -> "field1", 1 -> "field2"), None)
-    val ingestor = Ingestor(movementRepo = movementRepo)
-    val reconciler = Reconciler(
-      accountRepo        = accountRepo,
-      movementRepo       = movementRepo,
-      reconSpecRepo      = reconSpecRepo,
-      movementSpecRepo   = movementSpecRepo,
-      reconRepo          = reconRepo,
-      fundFlowConfigRepo = fundFlowConfigRepo
-    )
+    val journalFile1 =
+      """record_date, transaction_id, amount, description
+        |2025-03-04,123,120.50,posted to bank
+        |2025-03-04,456,-50,reversal
+        |2025-03-05,789,100.11,another posting
+        |2025-03-05,987,50.89,correction
+        |""".stripMargin
+
+    val reportFile1 =
+      """2025-03-05,123,120.50
+        |2025-03-06,789,100.11
+        |2025-03-06,987,50.89
+        |""".stripMargin
 
     transact(transactor) {
       rollBackOnly {
 
-        val reconAccountName   = "recon"
-        val journalAccountName = "journal"
-        val reportAccountName  = "report"
-
-        val fundFlowConfig = FundFlowConfig(
-          name = createID().toString
-        )
-
+        val fundFlowConfig = FundFlowConfig(name = createID().toString)
         fundFlowConfigRepo.insert(fundFlowConfig)
 
-        val reconAccount = Account(
-          name       = reconAccountName,
-          fundFlowId = fundFlowConfig.id
-        )
+        val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id)
         accountRepo.insert(reconAccount)
 
-        val journalAccount = Account(
-          name       = journalAccountName,
-          fundFlowId = fundFlowConfig.id
-        )
+        val journalAccount = Account(name = "journal", fundFlowId = fundFlowConfig.id)
         accountRepo.insert(journalAccount)
 
-        val reportAccount = Account(
-          name       = reportAccountName,
-          fundFlowId = fundFlowConfig.id
-        )
+        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id)
         accountRepo.insert(reportAccount)
 
         val journalToRecon = MovementSpec(
@@ -131,23 +126,18 @@ class EndToEndSuite extends munit.FunSuite:
         // Reconcile the data
         reconciler.reconcileFundFlow(fundFlowConfig)
 
-        val unreconciledMovements = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        assertEquals(unreconciledReconAccounts.length, 1)
 
-        println(unreconciledMovements)
+        val unreconciledJournalAccounts = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        assertEquals(unreconciledJournalAccounts.length, 1)
+
+        val unreconciledReports = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        assertEquals(unreconciledReports.length, 0)
+        
+//        val reconciliations = reconRepo.fin
+//
+//        println(unreconciledMovements)
       } // rollback
     }   // transaction
   }     // test
-
-val journalFile1 =
-  """record_date, transaction_id, amount, description
-    |2025-03-04,123,120.50,posted to bank
-    |2025-03-04,456,-50,reversal
-    |2025-03-05,789,100.11,another posting
-    |2025-03-05,987,50.89,correction
-    |""".stripMargin
-
-val reportFile1 =
-  """2025-03-05,123,120.50
-    |2025-03-06,789,100.11
-    |2025-03-06,987,50.89
-    |""".stripMargin
