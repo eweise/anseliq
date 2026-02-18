@@ -12,12 +12,12 @@ import java.util.UUID
 import javax.sql.DataSource
 
 class AccountRepoLiveSuite extends munit.FunSuite:
-  var transactor: Transactor   = null
-  var dataSource: DataSource   = null
+  var transactor:  Transactor  = null
+  var dataSource:  DataSource  = null
   var accountRepo: AccountRepo = null
   override def beforeAll(): Unit =
-    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-    transactor = Transactor(dataSource)
+    dataSource  = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+    transactor  = Transactor(dataSource)
     accountRepo = AccountRepoLive()
 
   test("findWithNonZeroBalance"):
@@ -32,7 +32,7 @@ class AccountRepoLiveSuite extends munit.FunSuite:
 
     transact(transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data  = DataSetup()
         val found = accountRepo.findAll()
         assert(found.nonEmpty)
 
@@ -48,10 +48,10 @@ class AccountRepoLiveSuite extends munit.FunSuite:
   test("auditable attributes are created on insert"):
     transact(transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data  = DataSetup()
         val props = Map("type" -> "settlement", "bank" -> "wells")
         val account = Account(
-          name = UUID.randomUUID().toString,
+          name       = UUID.randomUUID().toString,
           fundFlowId = data.fundFlowConfig.id,
           properties = JSONBProps(props)
         )
@@ -62,7 +62,7 @@ class AccountRepoLiveSuite extends munit.FunSuite:
         assertEquals(account.updatedAt.isEmpty, false)
         assertEquals(account.createdAt, account.updatedAt)
         val foundInserted = accountRepo.findById(account.id).get
-        assertEquals(foundInserted.properties.props,  props)
+        assertEquals(foundInserted.properties.props, props)
 
         accountRepo.update(account)
         assert(account.updatedAt.get.isAfter(account.createdAt.get))
@@ -70,7 +70,7 @@ class AccountRepoLiveSuite extends munit.FunSuite:
   test("findByFundFlow returns all accounts for a fund flow"):
     transact(transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data     = DataSetup()
         val accounts = accountRepo.findByFundFlow(data.fundFlowConfig.id)
         assertEquals(accounts.size, 3)
         assert(accounts.exists(_.name == data.reconAccountName))

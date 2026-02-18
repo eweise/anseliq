@@ -38,15 +38,14 @@ class AccountOperationsSuite extends munit.FunSuite:
 
         val fundFlowAccounts = dataSetup.accountRepo.findByFundFlow(dataSetup.fundFlowConfig.id)
 
-
         // make sure the non clearing accounts balance
         assertEquals(BigDecimal(0), fundFlowAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))
 
         accountOperations.postAmount(
           movementSpec = dataSetup.reportToRecon,
-          amount = 100,
-          referenceID = createID(),
-          properties = properties
+          amount       = 100,
+          referenceID  = createID(),
+          properties   = properties
         )
 
         assertEquals(BigDecimal(0), fundFlowAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))

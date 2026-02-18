@@ -87,19 +87,17 @@ class DataSetup(using DbTx) {
       outKey            = StringAttribute(key = "id")
     )
   )
-
-  var reconSpec: ReconciliationSpec = ReconciliationSpec(
-    fundFlowId        = fundFlowConfig.id,
-    matchingRulesJson = upickle.write(equalityMatcher)
-  )
-
-  reconSpecRepo.insert(reconSpec)
-
   val accountOperations = AccountOperations(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
+  )
+
+  reconSpecRepo.insert(reconSpec)
+  var reconSpec: ReconciliationSpec = ReconciliationSpec(
+    fundFlowId        = fundFlowConfig.id,
+    matchingRulesJson = upickle.write(equalityMatcher)
   )
 
 }

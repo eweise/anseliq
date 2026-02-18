@@ -15,7 +15,7 @@ case class ReconciliationSpec(
   matchingRulesJson: String = "{}"
 ) extends Auditable
     derives DbCodec:
-  def matcher():Matcher = upickle.read(matchingRulesJson)
+  def matcher(): Matcher = upickle.read(matchingRulesJson)
 
 object ReconciliationSpec:
   val Table = TableInfo[ReconciliationSpec, ReconciliationSpec, UUID]

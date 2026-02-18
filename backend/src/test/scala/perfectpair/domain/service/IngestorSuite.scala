@@ -11,9 +11,9 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.sql.DataSource
 
 class IngestorSuite extends munit.FunSuite:
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-
   given transactor: Transactor = Transactor(dataSource)
+
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
   test("Post Amount balances"):
     val movementRepo = MovementRepoLive()

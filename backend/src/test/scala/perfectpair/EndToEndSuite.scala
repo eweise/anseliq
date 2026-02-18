@@ -14,15 +14,16 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.sql.DataSource
 
 class EndToEndSuite extends munit.FunSuite:
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given transactor: Transactor = Transactor(dataSource)
-
   val fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
   val movementRepo:       MovementRepo           = MovementRepoLive()
   val movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
   val reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
   val reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
   val accountRepo:        AccountRepo            = AccountRepoLive()
+
+  given transactor: Transactor = Transactor(dataSource)
+
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
   test("ingest and find unreconciled") {
     val parser   = CSVParser(Map(0 -> "field1", 1 -> "field2"), None)

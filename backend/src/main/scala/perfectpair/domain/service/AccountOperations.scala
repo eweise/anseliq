@@ -32,12 +32,12 @@ class AccountOperations(
         throw NotFoundException(s"no account found for ${movementSpec.outAccountId}")
 
     val movement = Movement(
-      referenceId  = referenceID,
-      amount       = amount,
+      referenceId    = referenceID,
+      amount         = amount,
       movementSpecId = movementSpec.id,
-      properties   = JSONBProps(properties),
-      inAccountId  = inAccount.id,
-      outAccountId = outAccount.id
+      properties     = JSONBProps(properties),
+      inAccountId    = inAccount.id,
+      outAccountId   = outAccount.id
     )
     movementRepo.insert(movement)
 

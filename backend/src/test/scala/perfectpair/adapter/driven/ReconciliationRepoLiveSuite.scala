@@ -21,7 +21,7 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
   test("Create and Find Reconciliation"):
     transact(transactor):
       rollBackOnly:
-        val data  = DataSetup()
+        val data = DataSetup()
 
         val matcher = data.reconSpecRepo.findById(data.reconSpec.id).get.matcher()
         assert(matcher.isInstanceOf[EqualityMatcher])

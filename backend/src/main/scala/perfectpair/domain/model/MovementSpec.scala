@@ -6,11 +6,11 @@ import perfectpair.common.model.model.ID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class MovementSpec(
-  @Id id:         ID = createID(),
+  @Id id:         ID     = createID(),
   name:           String,
   inAccountId:    ID,
   outAccountId:   ID,
-  dataSourceJson: String = "",
+  dataSourceJson: String = ""
 ) extends Auditable
     derives DbCodec:
   def dataSourceConfig(): DataSourceConfig = upickle.read(dataSourceJson)

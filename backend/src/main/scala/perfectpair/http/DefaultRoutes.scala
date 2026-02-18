@@ -14,6 +14,55 @@ import scala.reflect.{ClassTag, classTag}
 
 object DefaultRoutes {
 
+  val public = Routes(
+    Method.GET / Root ->
+      handler(
+        Response.redirect(URL.decode(PathDef.ping.toString).toOption.get)
+      ),
+    Method.GET / PathDef.ping ->
+      handler(
+        Response(
+          status  = Status.Ok,
+          headers = Headers(Header.ContentType(MediaType.text.html)),
+          body    = Body.fromString(HtmlContent.value)
+        )
+      ),
+    Method.GET / PathDef.ping ->
+      handler(
+        Response(
+          status  = Status.Ok,
+          headers = Headers(Header.ContentType(MediaType.text.html)),
+          body    = Body.fromString(HtmlContent.value)
+        )
+      ),
+    Method.POST / PathDef.login ->
+      handler(parseJson >>> processLogin)
+  ) @@ corsMiddleWare
+  private val parseJson: Handler[Any, Response, Request, LoginRequest] =
+    Handler.fromFunctionZIO(parseBody[LoginRequest](_))
+  private val processLogin: Handler[JWTIssuer, Nothing, LoginRequest, Response] =
+    val verifyUserLogic =
+      (username: String, password: String) => username.equalsIgnoreCase("Scala") && password == "nopassword" // TODO: Create your own verify logic
+    Handler.fromFunctionZIO { loginRequest =>
+      val valid = verifyUserLogic(loginRequest.username, loginRequest.password)
+      if (valid) {
+        val user = JWTIssuer.User(loginRequest.username)
+        JWTIssuer.issueToken(user).map(issuedToken => Response.json(LoginSuccess(issuedToken, "not-implemented").toJson))
+      } else {
+        ZIO.succeed(Response.json(LoginFailure("Username or Password is not correct").toJson))
+      }
+    }
+  private val corsMiddleWare =
+    cors(
+      CorsConfig(
+        allowedOrigin = {
+          case origin if origin == Origin.parse("http://localhost:9876").toOption.get => // TODO: Move to  config
+            Some(AccessControlAllowOrigin.Specific(origin))
+          case _ => None
+        }
+      )
+    )
+
   private def parseBody[T: JsonDecoder: ClassTag](request: Request): IO[Response, T] =
     for {
       bodyStr <- request.body.asString(Charsets.Utf8).orElseFail(Response.text("Not supported request body format").status(Status.BadRequest))
@@ -37,57 +86,6 @@ object DefaultRoutes {
     )
     routes.@@[JWTVerifier & R](authMiddleware)
   }
-  private val parseJson: Handler[Any, Response, Request, LoginRequest] =
-    Handler.fromFunctionZIO(parseBody[LoginRequest](_))
-
-  private val processLogin: Handler[JWTIssuer, Nothing, LoginRequest, Response] =
-    val verifyUserLogic =
-      (username: String, password: String) => username.equalsIgnoreCase("Scala") && password == "nopassword" // TODO: Create your own verify logic
-    Handler.fromFunctionZIO { loginRequest =>
-      val valid = verifyUserLogic(loginRequest.username, loginRequest.password)
-      if (valid) {
-        val user = JWTIssuer.User(loginRequest.username)
-        JWTIssuer.issueToken(user).map(issuedToken => Response.json(LoginSuccess(issuedToken, "not-implemented").toJson))
-      } else {
-        ZIO.succeed(Response.json(LoginFailure("Username or Password is not correct").toJson))
-      }
-    }
-
-  private val corsMiddleWare =
-    cors(
-      CorsConfig(
-        allowedOrigin = {
-          case origin if origin == Origin.parse("http://localhost:9876").toOption.get => // TODO: Move to  config
-            Some(AccessControlAllowOrigin.Specific(origin))
-          case _ => None
-        }
-      )
-    )
-
-  val public = Routes(
-    Method.GET / Root ->
-      handler(
-        Response.redirect(URL.decode(PathDef.ping.toString).toOption.get)
-      ),
-    Method.GET / PathDef.ping ->
-      handler(
-        Response(
-          status = Status.Ok,
-          headers = Headers(Header.ContentType(MediaType.text.html)),
-          body = Body.fromString(HtmlContent.value)
-        )
-      ),
-    Method.GET / PathDef.ping ->
-      handler(
-        Response(
-          status = Status.Ok,
-          headers = Headers(Header.ContentType(MediaType.text.html)),
-          body = Body.fromString(HtmlContent.value)
-        )
-      ),
-    Method.POST / PathDef.login ->
-      handler(parseJson >>> processLogin)
-  ) @@ corsMiddleWare
 
 //  val authenticated = withAuthMiddleware {
 //    Routes(

@@ -8,7 +8,7 @@ import zio.*
 
 trait JWTVerifier {
   def isValid(token: String): UIO[Boolean] = decode(token).fold(_ => false, _ => true)
-  def decode(token: String): IO[String, UserClaim]
+  def decode(token:  String): IO[String, UserClaim]
 }
 
 object JWTVerifier {

@@ -20,7 +20,7 @@ class AccountRepoLive extends AuditableRepo[Account, Account, UUID] with Account
     """.query[Account].run()
 
   def findByFundFlowAndAccountName(
-    fundFlowID: ID,
+    fundFlowID:  ID,
     accountName: String
   ): Txn[Option[Account]] =
     sql"""
@@ -39,7 +39,7 @@ class AccountRepoLive extends AuditableRepo[Account, Account, UUID] with Account
       WHERE fund_flow_id = $fundFlowID
     """.query[Account].run()
 
-  def findAll():Txn[Vector[Account]] =
+  def findAll(): Txn[Vector[Account]] =
     sql"""
       SELECT ${a.all}
       FROM $a AS a

@@ -19,6 +19,6 @@ class ReconciliationSpecRepoLiveSuite extends munit.FunSuite:
   test("Find by Fund Flow"):
     transact(transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data            = DataSetup()
         val foundReconSpecs = data.reconSpecRepo.findByFundFlow(data.fundFlowConfig.id)
         assert(foundReconSpecs.nonEmpty)
