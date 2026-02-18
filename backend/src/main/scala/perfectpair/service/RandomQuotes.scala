@@ -7,17 +7,6 @@ trait RandomQuotes {
 }
 
 private[service] final case class RandomQuotesLive(random: Random) extends RandomQuotes {
-  override def getRandomMessage: UIO[String] =
-    for {
-      // 70% chance to get a quote, 30% chance to get a greeting
-      isQuote <- random.nextDouble.map(_ < 0.7)
-      result <- if (isQuote) {
-                  random.nextIntBounded(programmingQuotes.length).map(programmingQuotes(_))
-                } else {
-                  random.nextIntBounded(greetings.length).map(greetings(_))
-                }
-    } yield result
-
   private val greetings = List(
     "Hey there! (English)",
     "你好！(Mandarin Chinese)",
@@ -40,7 +29,6 @@ private[service] final case class RandomQuotesLive(random: Random) extends Rando
     "Merhaba! (Turkish)",
     "שָׁלוֹם! (Hebrew)"
   )
-
   private val programmingQuotes = List(
     "Programs must be written for people to read, and only incidentally for machines to execute. - Harold Abelson",
     "First, solve the problem. Then, write the code. - John Johnson",
@@ -63,6 +51,17 @@ private[service] final case class RandomQuotesLive(random: Random) extends Rando
     "The purpose of abstraction is not to be vague, but to create a new semantic level in which one can be absolutely precise. - Edsger W. Dijkstra",
     "The advantage of pure functions is that they are deterministic: given the same input, they always return the same output. - Martin Fowler"
   )
+
+  override def getRandomMessage: UIO[String] =
+    for {
+      // 70% chance to get a quote, 30% chance to get a greeting
+      isQuote <- random.nextDouble.map(_ < 0.7)
+      result <- if (isQuote) {
+                  random.nextIntBounded(programmingQuotes.length).map(programmingQuotes(_))
+                } else {
+                  random.nextIntBounded(greetings.length).map(greetings(_))
+                }
+    } yield result
 }
 
 object RandomQuotes {

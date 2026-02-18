@@ -15,8 +15,6 @@ object JwtHelper:
 
   private val ALG = JwtAlgorithm.HS256 // can be udpated quickly
 
-  case class UserClaim(username: String) // Add more fields on demand
-
   given JsonCodec[UserClaim] = DeriveJsonCodec.gen[UserClaim]
 
   def decode(accessToken: String, secretKey: String): Either[String, UserClaim] =
@@ -46,3 +44,5 @@ object JwtHelper:
     val claim      = JwtClaim(content, issuedAt = Some(issuedAt), expiration = Some(expiration))
     Jwt.encode(claim, secretKey, ALG)
   }
+
+  case class UserClaim(username: String) // Add more fields on demand

@@ -8,7 +8,7 @@ import zio.*
 
 trait NoZioJWTVerifier {
   def isValid(token: String): Boolean = decode(token).fold(_ => false, _ => true)
-  def decode(token: String): Either[String, UserClaim]
+  def decode(token:  String): Either[String, UserClaim]
 }
 
 object NoZioJWTVerifier {

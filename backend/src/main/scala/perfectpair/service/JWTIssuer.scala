@@ -16,10 +16,6 @@ trait JWTIssuer {
 }
 
 object JWTIssuer {
-  def issueToken(user: User): URIO[JWTIssuer, String] = ZIO.serviceWithZIO[JWTIssuer](_.issueToken(user))
-
-  case class User(username: String)
-
   val live = ZLayer.fromFunction((config: AppConfig) =>
     new JWTIssuer {
       private val secretKey = config.secret
@@ -28,4 +24,8 @@ object JWTIssuer {
         ZIO.succeed(JwtHelper.issueToken(claim, secretKey))
     }
   )
+
+  def issueToken(user: User): URIO[JWTIssuer, String] = ZIO.serviceWithZIO[JWTIssuer](_.issueToken(user))
+
+  case class User(username: String)
 }

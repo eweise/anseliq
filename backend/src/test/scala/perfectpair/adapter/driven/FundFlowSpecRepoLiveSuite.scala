@@ -32,7 +32,7 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val config = FundFlowConfig(
-          name = UUID.randomUUID().toString,
+          name = UUID.randomUUID().toString
         )
         fundFlowRepo.insert(config)
 
@@ -52,7 +52,7 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val config = FundFlowConfig(
-          name = "original-name",
+          name = "original-name"
         )
         fundFlowRepo.insert(config)
 
@@ -67,7 +67,7 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val config = FundFlowConfig(
-          name = UUID.randomUUID().toString,
+          name = UUID.randomUUID().toString
         )
         fundFlowRepo.insert(config)
 
@@ -82,12 +82,16 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
       rollBackOnly:
         val initialCount = fundFlowRepo.findAll.size
 
-        fundFlowRepo.insert(FundFlowConfig(
-          name = UUID.randomUUID().toString,
-        ))
-        fundFlowRepo.insert(FundFlowConfig(
-          name = UUID.randomUUID().toString,
-        ))
+        fundFlowRepo.insert(
+          FundFlowConfig(
+            name = UUID.randomUUID().toString
+          )
+        )
+        fundFlowRepo.insert(
+          FundFlowConfig(
+            name = UUID.randomUUID().toString
+          )
+        )
 
         val allConfigs = fundFlowRepo.findAll
         assertEquals(allConfigs.size, initialCount + 2)

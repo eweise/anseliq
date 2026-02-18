@@ -22,50 +22,12 @@ object HttpCmd:
 object Example extends cask.MainRoutes:
   val dataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
   val transactor = Transactor(dataSource)
-
-  class corsDecorator extends cask.RawDecorator:
-    def wrapFunction(ctx: Request, delegate: Delegate) =
-      println(s"CORSDecorator called for ${ctx.exchange.getRequestMethod} ${ctx.exchange.getRequestPath}")
-
-      // Automatically handle OPTIONS requests for CORS preflight
-      if ctx.exchange.getRequestMethod.toString == "OPTIONS" then
-        println("Handling OPTIONS request")
-        Result.Success(
-          cask.Response(
-            data       = "",
-            statusCode = 200,
-            headers = Seq(
-              "access-control-allow-origin"      -> "*",
-              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
-              "Access-Control-Allow-Headers"     -> "*",
-              "Access-Control-Allow-Credentials" -> "true",
-              "Access-Control-Max-Age"           -> "86400"
-            )
-          )
-        )
-      else
-        println("Adding CORS headers to response")
-        delegate(ctx, Map.empty).map(response =>
-          response.copy(headers =
-            response.headers ++ Seq(
-              "access-control-allow-origin"      -> "*",
-              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
-              "Access-Control-Allow-Headers"     -> "*",
-              "Access-Control-Allow-Credentials" -> "true",
-              "Access-Control-Max-Age"           -> "86400"
-            )
-          )
-        )
-
-  override def mainDecorators = Seq(corsDecorator())
-
   val fundFlowConfigRepo = FundFlowConfigRepoLive()
   val accountRepo        = AccountRepoLive()
   val movementRepo       = MovementRepoLive()
   val movementSpecRepo   = MovementSpecRepoLive()
   val reconRepo          = ReconciliationRepoLive()
   val reconSpecRepo      = ReconciliationSpecRepoLive()
-
   val reconciler = Reconciler(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
@@ -74,13 +36,14 @@ object Example extends cask.MainRoutes:
     reconRepo          = reconRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
-
   val accountOperations = AccountOperations(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
+  val prefixPath                 = "/api/v1"
+  val loginPath                  = s"$prefixPath / login"
 
   transact(transactor) {
     val testFundFlowConfig = FundFlowConfig(name = s"ACH Recon Fund Flow_${createID().toString}")
@@ -113,13 +76,12 @@ object Example extends cask.MainRoutes:
       accountOperations.postAmount(movementSpec = reconToJournal, amount = 100d, referenceID = createID(), properties = props)
     }
   }
-
-  val prefixPath                 = "/api/v1"
-  val loginPath                  = s"$prefixPath / login"
   val randomMessagePath          = s"$prefixPath / random-message"
   val randomMessage2Path         = s"$prefixPath / random-message2"
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
+
+  override def mainDecorators = Seq(corsDecorator())
 
   @cask.get("api/v1/random-message")
   def getRandomMessage() =
@@ -195,5 +157,39 @@ object Example extends cask.MainRoutes:
         .map(Payload.movementPayloadfromDomainModel)
 
       write(adapterMovements.toSeq)
+
+  class corsDecorator extends cask.RawDecorator:
+    def wrapFunction(ctx: Request, delegate: Delegate) =
+      println(s"CORSDecorator called for ${ctx.exchange.getRequestMethod} ${ctx.exchange.getRequestPath}")
+
+      // Automatically handle OPTIONS requests for CORS preflight
+      if ctx.exchange.getRequestMethod.toString == "OPTIONS" then
+        println("Handling OPTIONS request")
+        Result.Success(
+          cask.Response(
+            data       = "",
+            statusCode = 200,
+            headers = Seq(
+              "access-control-allow-origin"      -> "*",
+              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
+              "Access-Control-Allow-Headers"     -> "*",
+              "Access-Control-Allow-Credentials" -> "true",
+              "Access-Control-Max-Age"           -> "86400"
+            )
+          )
+        )
+      else
+        println("Adding CORS headers to response")
+        delegate(ctx, Map.empty).map(response =>
+          response.copy(headers =
+            response.headers ++ Seq(
+              "access-control-allow-origin"      -> "*",
+              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
+              "Access-Control-Allow-Headers"     -> "*",
+              "Access-Control-Allow-Credentials" -> "true",
+              "Access-Control-Max-Age"           -> "86400"
+            )
+          )
+        )
 
   initialize()

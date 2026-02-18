@@ -14,8 +14,9 @@ import java.util.UUID
 import javax.sql.DataSource
 
 class ReconcilerSuite extends munit.FunSuite:
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   given transactor: Transactor = Transactor(dataSource)
+
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
   test("Post Amount balances"):
     val movementRepo = MovementRepoLive()
@@ -35,8 +36,8 @@ class ReconcilerSuite extends munit.FunSuite:
 
         // create some movements
         val idToMatchMovements = "123"
-        val journalMovement = createMovement(data, data.journalToRecon, idToMatchMovements)
-        val reportMovement  = createMovement(data, data.reportToRecon, idToMatchMovements)
+        val journalMovement    = createMovement(data, data.journalToRecon, idToMatchMovements)
+        val reportMovement     = createMovement(data, data.reportToRecon, idToMatchMovements)
 
         val journalMBeforeReconciled = movementRepo.findById(journalMovement.id).get
         assertEquals(None, journalMBeforeReconciled.reconciliationId)
@@ -48,7 +49,7 @@ class ReconcilerSuite extends munit.FunSuite:
         assert(journalAfterReconciled.reconciliationId.nonEmpty)
         assertEquals(journalAfterReconciled.status, Reconciled)
 
-  def createMovement(data: DataSetup, movementSpec: MovementSpec, idValue:String): Txn[Movement] =
+  def createMovement(data: DataSetup, movementSpec: MovementSpec, idValue: String): Txn[Movement] =
     val m = Movement(
       inAccountId    = movementSpec.inAccountId,
       outAccountId   = movementSpec.outAccountId,

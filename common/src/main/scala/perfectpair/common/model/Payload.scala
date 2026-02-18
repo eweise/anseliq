@@ -4,8 +4,8 @@ import perfectpair.common.model.model.{ID, Money, Properties}
 import upickle.default.*
 import zio.json.*
 
-import java.time.{Instant, OffsetDateTime}
 import java.time.format.DateTimeFormatter
+import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 
 object InstantRW {
