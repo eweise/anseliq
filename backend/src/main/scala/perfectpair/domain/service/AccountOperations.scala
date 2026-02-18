@@ -2,8 +2,8 @@ package perfectpair.domain.service
 
 import perfectpair.common.model.model.{ID, Money, Properties}
 import perfectpair.domain.model
-import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.*
+import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
 
 class AccountOperations(

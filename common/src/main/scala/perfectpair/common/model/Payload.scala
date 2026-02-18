@@ -1,11 +1,10 @@
 package perfectpair.common.model
 
-import model.{ID, Money, Properties}
+import perfectpair.common.model.model.{ID, Money, Properties}
 import upickle.default.*
 import zio.json.*
 
-import java.time.OffsetDateTime
-import java.time.Instant
+import java.time.{Instant, OffsetDateTime}
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
@@ -31,7 +30,7 @@ object OffsetDateTimeRW {
   )
 }
 
-import OffsetDateTimeRW.given
+import perfectpair.common.model.OffsetDateTimeRW.given
 
 /**
  * Shared models between Backend and Frontend

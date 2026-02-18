@@ -1,6 +1,6 @@
 package perfectpair.common.model
 
-import model.ID
+import perfectpair.common.model.model.ID
 import upickle.ReadWriter
 import upickle.default.ReadWriter.join
 
