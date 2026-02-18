@@ -2,7 +2,7 @@ package perfectpair.domain
 
 import com.augustnagro.magnum.DbTx
 import perfectpair.adapter.driven.*
-import perfectpair.common.model.{AttributeMatchRule, EqualityMatcher, StringAttribute}
+import perfectpair.common.model.{AttributeMatchRule, CSVParserConfig, DataSourceConfig, EqualityMatcher, StringAttribute}
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
@@ -59,7 +59,16 @@ class DataSetup(using DbTx) {
   val journalToRecon = MovementSpec(
     name         = "journal to recon",
     inAccountId  = reconAccount.id,
-    outAccountId = journalAccount.id
+    outAccountId = journalAccount.id,
+    dataSourceJson = upickle.write(
+      DataSourceConfig(
+        parserConfig = CSVParserConfig(
+          hasHeader         = false,
+          columnDefinitions = Map(0 -> "field1", 1 -> "field2"),
+          amountField       = None
+        )
+      )
+    )
   )
   movementSpecRepo.insert(journalToRecon)
 
@@ -87,7 +96,6 @@ class DataSetup(using DbTx) {
   reconSpecRepo.insert(reconSpec)
 
   val accountOperations = AccountOperations(
-    fundFlowCache      = fundFlowCache,
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,

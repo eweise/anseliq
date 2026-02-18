@@ -51,12 +51,13 @@ create table recon.reconciliation
 
 create table recon.movement_spec
 (
-    id             uuid primary key,
-    name           text,
-    in_account_id  uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    out_account_id uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    created_at     timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at     timestamptz default CURRENT_TIMESTAMP not null
+    id               uuid primary key,
+    name             text,
+    in_account_id    uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_id   uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    data_source_json text                                 not null,
+    created_at       timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at       timestamptz default CURRENT_TIMESTAMP not null
 );
 create table recon.movement
 (

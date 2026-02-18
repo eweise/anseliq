@@ -7,7 +7,6 @@ import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 
 class AccountOperations(
-  val fundFlowCache:      FundFlowCache,
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,
   val movementSpecRepo:   MovementSpecRepo,

@@ -7,10 +7,6 @@ import perfectpair.domain.model.helper.JSONBProps
 import java.util
 import java.util.UUID
 
-//@Table(PostgresDbType, SqlNameMapper.CamelToUpperSnakeCase)
-//enum AccountType derives DbCodec:
-//  case Real, Recon
-
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Account(
   @Id id:      ID         = createID(),
