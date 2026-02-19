@@ -1,7 +1,6 @@
 package perfectpair.domain.service
 
 import perfectpair.domain.model.*
-import perfectpair.domain.model.MovementStatus.Reconciled
 import perfectpair.domain.port.driven.*
 
 import java.util.UUID
@@ -48,11 +47,8 @@ class Reconciler(
             throw NotFoundError(s"outMovement ${aMatch._2} not found")
           )
 
-        inMovement.reconciliationId = Some(reconciliation.id)
-        inMovement.status           = Reconciled
-
+        inMovement.reconciliationId  = Some(reconciliation.id)
         outMovement.reconciliationId = Some(reconciliation.id)
-        outMovement.status           = Reconciled
 
         reconRepo.insert(reconciliation)
         movementRepo.update(inMovement)

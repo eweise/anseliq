@@ -45,6 +45,7 @@ create table recon.reconciliation
     id          uuid primary key,
     spec_id     uuid                                  not null REFERENCES recon.reconciliation_spec (id),
     description text,
+    status      text                                  not null,
     created_at  timestamptz default CURRENT_TIMESTAMP not null,
     updated_at  timestamptz default CURRENT_TIMESTAMP not null
 );
@@ -68,7 +69,6 @@ create table recon.movement
     movement_spec_id  uuid                                  not null REFERENCES recon.movement_spec (id),
     properties        jsonb,
     amount            numeric(15, 2)                        not null,
-    status            text                                  not null,
     reconciliation_id uuid REFERENCES recon.reconciliation (id) ON DELETE CASCADE,
     created_at        timestamptz default CURRENT_TIMESTAMP not null,
     updated_at        timestamptz default CURRENT_TIMESTAMP not null
