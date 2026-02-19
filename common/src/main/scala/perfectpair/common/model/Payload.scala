@@ -93,8 +93,7 @@ case class MovementPayload(
   inAccountId:      String,
   amount:           Money,
   properties:       Properties,
-  reconciliationId: String,
-  status:           String
+  reconciliationId: String
 ) derives ReadWriter
 
 enum Direction:

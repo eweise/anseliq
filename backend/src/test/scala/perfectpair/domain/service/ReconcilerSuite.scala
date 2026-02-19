@@ -4,7 +4,6 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.{DbDataSource, MovementRepoLive}
 import perfectpair.domain.DataSetup
-import perfectpair.domain.model.MovementStatus.{Reconciled, WithinSLA}
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.{Movement, MovementSpec, createID}
 import perfectpair.domain.port.driven.Txn
@@ -41,13 +40,11 @@ class ReconcilerSuite extends munit.FunSuite:
 
         val journalMBeforeReconciled = movementRepo.findById(journalMovement.id).get
         assertEquals(None, journalMBeforeReconciled.reconciliationId)
-        assertEquals(journalMBeforeReconciled.status, WithinSLA)
 
         reconciler.reconcileFundFlow(data.fundFlowConfig)
 
         val journalAfterReconciled = movementRepo.findById(journalMovement.id).get
         assert(journalAfterReconciled.reconciliationId.nonEmpty)
-        assertEquals(journalAfterReconciled.status, Reconciled)
 
   def createMovement(data: DataSetup, movementSpec: MovementSpec, idValue: String): Txn[Movement] =
     val m = Movement(

@@ -32,5 +32,4 @@ object Payload:
       amount           = dmMovement.amount,
       properties       = dmMovement.properties.props,
       reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull,
-      status           = dmMovement.status.toString
     )
