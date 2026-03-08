@@ -1,13 +1,16 @@
 package perfectpair.domain.port.driven
 
-import com.augustnagro.magnum.DbCon
-import perfectpair.common.model.model.ID
-import perfectpair.domain.model.Movement
-import perfectpair.domain.port.driven.{MovementRepo, Txn}
+import perfectpair.common.model.model.{ID, Money}
+import perfectpair.domain.model.{Movement, Relationship}
+import perfectpair.domain.port.driven.Txn
+
+type MovementInID  = String
+type MovementOutID = String
 
 trait MovementRepo extends DomainRepo[Movement, Movement]:
-  def findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]]
-  def findByAccount(accountID:             ID): Txn[Vector[Movement]]
+  def findUnReconciledByAccount(accountID:       ID): Txn[Vector[Movement]]
+  def findByAccount(accountID:                   ID): Txn[Vector[Movement]]
   def findEqualityMatches(
-    sqlCriteria: String
-  ): Txn[Vector[(String, String)]]
+    sqlCriteria:  String,
+    relationship: Relationship
+  ): Txn[Vector[(MovementInID, MovementOutID)]]

@@ -35,6 +35,7 @@ create table recon.reconciliation_spec
     fund_flow_id uuid                                  not null REFERENCES recon.fund_flow_config (id),
     description  text,
     aging_limit  int,
+    relationship text                                  not null,
     rule_json    text, -- todo. should be jsonB?
     created_at   timestamptz default CURRENT_TIMESTAMP not null,
     updated_at   timestamptz default CURRENT_TIMESTAMP not null
