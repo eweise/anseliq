@@ -185,7 +185,7 @@ class EndToEndSuite extends munit.FunSuite {
                   2 -> "amount",
                   3 -> "description"
                 ),
-                amountField = Some(3)
+                amountField = Some(2)
               )
             )
           )
@@ -205,7 +205,7 @@ class EndToEndSuite extends munit.FunSuite {
                   1 -> "txn_id",
                   2 -> "amount"
                 ),
-                amountField = Some(3)
+                amountField = Some(2)
               )
             )
           )
