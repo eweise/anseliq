@@ -24,12 +24,12 @@ class AccountOperations(
     val inAccount = accountRepo
       .findById(movementSpec.inAccountId)
       .getOrElse:
-        throw NotFoundException(s"no account found for ${movementSpec.inAccountId}")
+        throw NotFoundError(s"no account found for ${movementSpec.inAccountId}")
 
     val outAccount = accountRepo
       .findById(movementSpec.outAccountId)
       .getOrElse:
-        throw NotFoundException(s"no account found for ${movementSpec.outAccountId}")
+        throw NotFoundError(s"no account found for ${movementSpec.outAccountId}")
 
     val movement = Movement(
       referenceId    = referenceID,

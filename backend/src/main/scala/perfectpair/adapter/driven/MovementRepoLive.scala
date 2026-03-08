@@ -1,15 +1,17 @@
 package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.ID
+import perfectpair.common.model.model.{ID, Money}
 import perfectpair.domain.model
-import perfectpair.domain.model.Movement
-import perfectpair.domain.port.driven.{MovementRepo, Txn}
+import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
+import perfectpair.domain.model.{Movement, Reconciliation, Relationship}
+import perfectpair.domain.port.driven.{MovementInID, MovementOutID, MovementRepo, Txn}
 
 import java.util.UUID
 
 class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
   val m = Movement.Table
+  val r = Reconciliation.Table
 
   override def insertAll(movements: Iterable[Movement])(using DbCon): Unit =
     batchUpdate(movements): movement =>
@@ -50,10 +52,18 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       ORDER BY created_at
     """.query[Movement].run()
 
+
   def findEqualityMatches(
-    sqlCriteria: String
-  ): Txn[Vector[(String, String)]] =
+    sqlCriteria:  String,
+    relationship: Relationship = OneToOne
+  ): Txn[Vector[(MovementInID, MovementOutID)]] =
     val criteria = SqlLiteral(sqlCriteria)
+    val orderingClause = SqlLiteral(
+      relationship match
+        case OneToOne | OneToMany | ManyToMany => " order by move_in.id, move_out.id"
+        case ManyToOne                         => " order by move_out.id, move_in.id"
+    )
+
     sql"""
       SELECT move_in.id, move_out.id
       FROM $m AS move_in
@@ -61,4 +71,5 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       ON move_in.in_account_id = move_out.out_account_id
       where 1 = 1
       AND $criteria
+      $orderingClause
     """.query[(String, String)].run()

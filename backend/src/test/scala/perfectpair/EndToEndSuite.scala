@@ -6,6 +6,7 @@ import perfectpair.adapter.driven.*
 import perfectpair.common.model.*
 import perfectpair.common.model.Interval.Day
 import perfectpair.domain.model.*
+import perfectpair.domain.model.Relationship.OneToMany
 import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.{Ingestor, Reconciler}
 import perfectpair.testing.rollBackOnly
@@ -21,7 +22,7 @@ class EndToEndSuite extends munit.FunSuite {
   val reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
   val reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
   val accountRepo:        AccountRepo            = AccountRepoLive()
-  val ingestor:           Ingestor               = Ingestor(movementRepo = movementRepo)
+  val ingestor:           Ingestor               = Ingestor(accountRepo = accountRepo, movementRepo = movementRepo)
   val reconciler: Reconciler = Reconciler(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
@@ -34,7 +35,7 @@ class EndToEndSuite extends munit.FunSuite {
   given transactor: Transactor = Transactor(dataSource)
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
-  test("1 to 1 attribute teset") {
+  test("1 to 1 attribute test") {
     val journalFile1 =
       """record_date, transaction_id, amount, description
         |2025-03-04,123,120.50,posted to bank
@@ -184,7 +185,7 @@ class EndToEndSuite extends munit.FunSuite {
                   2 -> "amount",
                   3 -> "description"
                 ),
-                amountField = Some(2)
+                amountField = Some(3)
               )
             )
           )
@@ -204,7 +205,7 @@ class EndToEndSuite extends munit.FunSuite {
                   1 -> "txn_id",
                   2 -> "amount"
                 ),
-                amountField = Some(2)
+                amountField = Some(3)
               )
             )
           )
@@ -226,7 +227,7 @@ class EndToEndSuite extends munit.FunSuite {
                   inMovementSpecID  = journalToRecon.id,
                   outMovementSpecID = reportToRecon.id,
                   inKey             = DateAttribute(key = "record_date"),
-                  outKey            = DateAttribute(key = "txn_date", DateAdd(Day, -1))
+                  outKey            = DateAttribute(key = "txn_date", DateAdd(Day, -1)) // shouldn't be less than watermark date
                 )
               )
             )
@@ -256,19 +257,17 @@ class EndToEndSuite extends munit.FunSuite {
     }   // transaction
   }     // test
 
-  test("1 to many where journal accounts transactions by date equal BAI amount by date") {
-    assume(false) // ignore
-    val journalFile1 =
-      """record_date, account, transaction_id, amount
-        |2025-03-04,abc,123,120.50
-        |2025-03-04,abc,456,-50
-        |2025-03-05,xyz,789,100.11
-        |2025-03-05,xyz,987,50.89
+  test("1 to many where journal accounts transactions by date + account have missing record on 3-4 but then reconcile on 03-5") {
+    val journalFile =
+      """record_date, account, amount
+        |2025-03-04,abc,200
+        |2025-03-05,xyz,300
         |""".stripMargin
 
-    val baiFile1 =
-      """2025-03-05,abc,120.50
-        |2025-03-06,xyz 100.11
+    val reportFile =
+      """2025-03-04,abc,123,150.50
+        |2025-03-04,abc,234,49.50
+        |2025-03-05,ddd,423,50.00
         |""".stripMargin
 
     transact(transactor) {
@@ -296,9 +295,8 @@ class EndToEndSuite extends munit.FunSuite {
                 hasHeader = true,
                 columnDefinitions = Map(
                   0 -> "record_date",
-                  1 -> "transaction_id",
-                  2 -> "amount",
-                  3 -> "description"
+                  1 -> "account",
+                  2 -> "amount"
                 ),
                 amountField = Some(2)
               )
@@ -307,7 +305,7 @@ class EndToEndSuite extends munit.FunSuite {
         )
         movementSpecRepo.insert(journalToRecon)
 
-        val reportToRecon = MovementSpec(
+        val reconToReport = MovementSpec(
           name         = "report to recon",
           outAccountId = reconAccount.id,
           inAccountId  = reportAccount.id,
@@ -316,33 +314,35 @@ class EndToEndSuite extends munit.FunSuite {
               parserConfig = CSVParserConfig(
                 hasHeader = false,
                 columnDefinitions = Map(
-                  0 -> "txn_date",
-                  1 -> "txn_id",
-                  2 -> "amount"
+                  0 -> "account_date",
+                  1 -> "account_id",
+                  2 -> "tranaction_id",
+                  3 -> "balance"
                 ),
-                amountField = Some(2)
+                amountField = Some(3)
               )
             )
           )
         )
-        movementSpecRepo.insert(reportToRecon)
+        movementSpecRepo.insert(reconToReport)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
-          fundFlowId = fundFlowConfig.id,
+          fundFlowId   = fundFlowConfig.id,
+          relationship = OneToMany,
           ruleJson = upickle.write(
             AndRule(
               List(
                 AttributeMatchRule(
                   inMovementSpecID  = journalToRecon.id,
-                  outMovementSpecID = reportToRecon.id,
-                  inKey             = StringAttribute(key = "transaction_id"),
-                  outKey            = StringAttribute(key = "txn_id")
+                  outMovementSpecID = reconToReport.id,
+                  inKey             = StringAttribute(key = "account"),
+                  outKey            = StringAttribute(key = "account_id")
                 ),
                 AttributeMatchRule(
                   inMovementSpecID  = journalToRecon.id,
-                  outMovementSpecID = reportToRecon.id,
+                  outMovementSpecID = reconToReport.id,
                   inKey             = DateAttribute(key = "record_date"),
-                  outKey            = DateAttribute(key = "txn_date", DateAdd(Day, -1))
+                  outKey            = DateAttribute(key = "account_date")
                 )
               )
             )
@@ -351,23 +351,14 @@ class EndToEndSuite extends munit.FunSuite {
         reconSpecRepo.insert(reconSpec)
 
         // Ingest some files
-        ingestor.ingest(reportToRecon, ByteArrayInputStream(baiFile1.getBytes(UTF_8)))
-        ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile1.getBytes(UTF_8)))
+        ingestor.ingest(reconToReport, ByteArrayInputStream(reportFile.getBytes(UTF_8)))
+        ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile.getBytes(UTF_8)))
 
         // Reconcile the data
         reconciler.reconcileFundFlow(fundFlowConfig)
-
-        val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
-        assertEquals(unreconciledReconAccounts.length, 1)
-
-        val unreconciledJournalAccounts = movementRepo.findUnReconciledByAccount(journalAccount.id)
-        assertEquals(unreconciledJournalAccounts.length, 1)
-
-        val unreconciledReports = movementRepo.findUnReconciledByAccount(reportAccount.id)
-        assertEquals(unreconciledReports.length, 0)
-
-        val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
-        assertEquals(reconciliations.length, 3)
+        val allReconMovements  = movementRepo.findByAccount(reconAccount.id)
+        val updateReconAccount = accountRepo.findById(reconAccount.id).get
+        assertEquals(updateReconAccount.balance, BigDecimal(250))
       } // rollback
     }   // transaction
   }     // test
