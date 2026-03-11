@@ -24,7 +24,11 @@ object Parser:
           amountField = csv.amountField
         )
 
-case class CSVParser(columns: Map[Int, String], amountField: Option[Int], hasHeader: Boolean = false) extends Parser:
+case class CSVParser(
+  columns:     Map[Int, String],
+  amountField: Option[Int],
+  hasHeader:   Boolean = false
+) extends Parser:
   override def parse(text: String, lineNumber: Long): Option[ParsedLine] =
     val fields = text.split(",") // todo replace with real csv parser
     if fields.length < 2 then None

@@ -1,7 +1,7 @@
 package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.{ID, Money}
+import perfectpair.common.model.model.ID
 import perfectpair.domain.model
 import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
 import perfectpair.domain.model.{Movement, Reconciliation, Relationship}
@@ -51,7 +51,6 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       WHERE (in_account_id = $accountID OR out_account_id = $accountID)
       ORDER BY created_at
     """.query[Movement].run()
-
 
   def findEqualityMatches(
     sqlCriteria:  String,

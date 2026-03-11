@@ -12,10 +12,11 @@ enum ReconciliationStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Reconciliation(
-  @Id id:      ID                   = createID(),
-  specId:      ID,
-  description: String               = "",
-  status:      ReconciliationStatus = Final
+  @Id id:       ID                   = createID(),
+  specId:       ID,
+  appliedRules: String               = "",
+  description:  String               = "",
+  status:       ReconciliationStatus = Final
 ) extends Auditable
     derives DbCodec
 

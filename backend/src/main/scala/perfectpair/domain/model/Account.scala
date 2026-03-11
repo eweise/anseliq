@@ -1,7 +1,7 @@
 package perfectpair.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.{ID, Money, Properties}
+import perfectpair.common.model.model.{ID, Money}
 import perfectpair.domain.model.helper.JSONBProps
 
 import java.util

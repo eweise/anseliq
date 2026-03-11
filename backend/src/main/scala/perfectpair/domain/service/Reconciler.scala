@@ -58,8 +58,9 @@ class Reconciler(
       for aMatch <- groupedMatches
       do
         val reconciliation = Reconciliation(
-          specId      = reconSpec.id,
-          description = "need a description. probabaly equality matcher"
+          specId       = reconSpec.id,
+          appliedRules = reconSpec.rule().sql,
+          description  = "need a description. probabaly equality matcher"
         )
         reconRepo.insert(reconciliation)
 

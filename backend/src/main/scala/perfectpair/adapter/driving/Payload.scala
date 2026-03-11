@@ -31,5 +31,5 @@ object Payload:
       inAccountId      = dmMovement.inAccountId.toString,
       amount           = dmMovement.amount,
       properties       = dmMovement.properties.props,
-      reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull,
+      reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull
     )
