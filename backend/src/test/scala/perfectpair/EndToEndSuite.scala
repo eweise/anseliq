@@ -359,6 +359,8 @@ class EndToEndSuite extends munit.FunSuite {
         val allReconMovements  = movementRepo.findByAccount(reconAccount.id)
         val updateReconAccount = accountRepo.findById(reconAccount.id).get
         assertEquals(updateReconAccount.balance, BigDecimal(250))
+        val reconciliations = reconRepo.findAll
+        assertEquals(reconciliations.size, 1)
       } // rollback
     }   // transaction
   }     // test

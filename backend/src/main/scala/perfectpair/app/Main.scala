@@ -20,8 +20,8 @@ object HttpCmd:
   def POST = Seq("post", "options")
 
 object Example extends cask.MainRoutes:
-  val dataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
-  val transactor = Transactor(dataSource)
+  val dataSource         = DbDataSource.create(ConfigFactory.load("application.conf"))
+  val transactor         = Transactor(dataSource)
   val fundFlowConfigRepo = FundFlowConfigRepoLive()
   val accountRepo        = AccountRepoLive()
   val movementRepo       = MovementRepoLive()
@@ -42,8 +42,8 @@ object Example extends cask.MainRoutes:
     movementSpecRepo   = movementSpecRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
-  val prefixPath                 = "/api/v1"
-  val loginPath                  = s"$prefixPath / login"
+  val prefixPath = "/api/v1"
+  val loginPath  = s"$prefixPath / login"
 
   transact(transactor) {
     val testFundFlowConfig = FundFlowConfig(name = s"ACH Recon Fund Flow_${createID().toString}")

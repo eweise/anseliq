@@ -43,12 +43,13 @@ create table recon.reconciliation_spec
 
 create table recon.reconciliation
 (
-    id          uuid primary key,
-    spec_id     uuid                                  not null REFERENCES recon.reconciliation_spec (id),
-    description text,
-    status      text                                  not null,
-    created_at  timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at  timestamptz default CURRENT_TIMESTAMP not null
+    id            uuid primary key,
+    spec_id       uuid                                  not null REFERENCES recon.reconciliation_spec (id),
+    description   text,
+    applied_rules text,
+    status        text                                  not null,
+    created_at    timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at    timestamptz default CURRENT_TIMESTAMP not null
 );
 
 create table recon.movement_spec

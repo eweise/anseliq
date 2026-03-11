@@ -17,7 +17,7 @@ class IngestorSuite extends munit.FunSuite:
 
   test("Post Amount balances"):
     val movementRepo = MovementRepoLive()
-    val accountRepo = AccountRepoLive()
+    val accountRepo  = AccountRepoLive()
     val parser       = CSVParser(Map(0 -> "field1", 1 -> "field2"), None)
     val ingestor     = Ingestor(movementRepo = movementRepo, accountRepo = accountRepo)
     transact(transactor):

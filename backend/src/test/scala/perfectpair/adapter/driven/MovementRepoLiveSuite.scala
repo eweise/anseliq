@@ -73,7 +73,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation(specId = data.reconSpec.id)
+        val reconciliation = Reconciliation(specId = data.reconSpec.id, appliedRules = "")
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
@@ -144,7 +144,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation(specId = data.reconSpec.id)
+        val reconciliation = Reconciliation(specId = data.reconSpec.id, appliedRules = "")
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
@@ -195,7 +195,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation(specId = data.reconSpec.id)
+        val reconciliation = Reconciliation(specId = data.reconSpec.id, appliedRules = "")
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
