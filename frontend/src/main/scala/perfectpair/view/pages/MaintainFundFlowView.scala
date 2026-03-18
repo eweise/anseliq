@@ -1,10 +1,10 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{FundFlowPayload, AcountPayload}
+import perfectpair.common.model.FundFlowPayload
 import perfectpair.model.Msg
 import perfectpair.view.components.{Buttons, Form}
-import tyrian.Html.*
 import tyrian.Html
+import tyrian.Html.*
 
 import scala.:+
 
@@ -22,12 +22,12 @@ object MaintainFundFlowView:
       Form.field(
         "account1",
         "First Data Source",
-        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ AcountPayload(name = value)))
+        value => Msg.FundFlowFormUpdate(ff)
       ),
       Form.field(
         "account2",
         "Secon Data Source",
-        value => Msg.FundFlowFormUpdate(ff.copy(realAccountSpecs = ff.realAccountSpecs :+ AcountPayload(name = value)))
+        value => Msg.FundFlowFormUpdate(ff)
       ),
       Buttons.linkButton("Save", Msg.CreateFundFlow(ff))
     )

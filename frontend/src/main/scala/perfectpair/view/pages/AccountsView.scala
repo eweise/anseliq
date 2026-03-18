@@ -21,16 +21,12 @@ object AccountsView:
           Seq(
             "ID",
             "Name",
-            "Account Type",
-            "Fund Flow ID",
             "Balance"
           ),
           accounts.map(account =>
             Seq(
               text(account.id),
               text(account.name),
-              text(account.accountType.toString),
-              text(account.fundFlowId.toString),
               text(account.balance.toString)
             )
           )
