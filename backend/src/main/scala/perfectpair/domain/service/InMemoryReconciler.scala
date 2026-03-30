@@ -79,9 +79,9 @@ class InMemoryReconciler(
                     inIndex += 1
                     outIndex += 1
                     groupedMatches.append((ListBuffer(yMovement.id.toString), ListBuffer(xMovement.id.toString)))
-                  case -1 =>
+                  case x if x < 0 =>
                     inIndex += 1
-                  case 1 =>
+                  case x if x > 0 =>
                     outIndex += 1
               }
 
