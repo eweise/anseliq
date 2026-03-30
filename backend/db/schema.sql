@@ -29,16 +29,29 @@ CREATE INDEX account_props_index
     ON recon.account
         USING GIN (properties jsonb_path_ops);
 
+create table recon.movement_spec
+(
+    id               uuid primary key,
+    name             text,
+    in_account_id    uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_id   uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    data_source_json text                                  not null,
+    created_at       timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at       timestamptz default CURRENT_TIMESTAMP not null
+);
+
 create table recon.reconciliation_spec
 (
-    id           uuid primary key,
-    account_id   uuid                                  not null REFERENCES recon.account (id),
-    description  text,
-    aging_limit  int,
-    relationship text                                  not null,
-    rule_json    text, -- todo. should be jsonB?
-    created_at   timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at   timestamptz default CURRENT_TIMESTAMP not null
+    id                   uuid primary key,
+    account_id           uuid                                  not null REFERENCES recon.account (id),
+    description          text,
+    aging_limit          int,
+    relationship         text                                  not null,
+    in_movement_spec_id  uuid                                  not null REFERENCES recon.movement_spec (id),
+    out_movement_spec_id uuid                                  not null REFERENCES recon.movement_spec (id),
+    rule_json            text, -- todo. should be jsonB?
+    created_at           timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at           timestamptz default CURRENT_TIMESTAMP not null
 );
 
 create table recon.reconciliation
@@ -52,16 +65,7 @@ create table recon.reconciliation
     updated_at    timestamptz default CURRENT_TIMESTAMP not null
 );
 
-create table recon.movement_spec
-(
-    id               uuid primary key,
-    name             text,
-    in_account_id    uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    out_account_id   uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    data_source_json text                                  not null,
-    created_at       timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at       timestamptz default CURRENT_TIMESTAMP not null
-);
+
 create table recon.movement
 (
     id                uuid primary key,

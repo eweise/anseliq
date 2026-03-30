@@ -1,6 +1,7 @@
 package perfectpair.domain.service
 
 import perfectpair.common.model.*
+import perfectpair.common.model.Direction.{IN, OUT}
 import perfectpair.common.model.model.ID
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
@@ -8,6 +9,8 @@ import perfectpair.domain.port.driven.*
 
 import java.util.UUID
 import scala.collection.mutable.ListBuffer
+import scala.util.boundary
+import scala.util.boundary.break
 
 class InMemoryReconciler(
   val accountRepo:        AccountRepo,
@@ -18,28 +21,58 @@ class InMemoryReconciler(
   val fundFlowConfigRepo: FundFlowConfigRepo
 ):
 
-  def getMovementsByRule(movementSpecs: Map[ID, Seq[Movement]], rule: Rule): Txn[Map[ID, Seq[Movement]]] =
-    var msMap = movementSpecs
+  def getMovementsByRule(
+    movementSpecs: Map[ID, Seq[Movement]],
+    reconSpec:     ReconciliationSpec
+  ): Txn[Map[ID, Seq[Movement]]] =
+    var msMap        = movementSpecs
+    var inMovements  = getMovements(reconSpec.inMovementSpecId)
+    var outMovements = getMovements(reconSpec.outMovementSpecId)
 
-    rule match
-      case StringAttributeMatchRule(inId, outId, _, _) =>
-        val inMovements  = getMovements(inId)
-        val outMovements = getMovements(outId)
-        msMap = msMap + inMovements + outMovements
-        msMap
-      case AndRule(rules) =>
-        rules.map(rule => msMap ++ getMovementsByRule(msMap, rule))
-        msMap
-      case ORRule(rules) =>
-        rules.map(rule => msMap ++ getMovementsByRule(msMap, rule))
-        msMap
+    val inComparables = getComparableForAttributes(Seq(), reconSpec.rule(), IN)
 
-  def reconcileFundFlow(account: Account): Txn[Unit] =
+    inMovements = inMovements.sortWith((a, b) =>
+      var result = 0
+      boundary:
+        for (c <- inComparables) {
+          result = c.compare(a.props, b.props)
+          if result != 0 then break()
+        }
+      result < 0
+    )
+
+    val outComparables = getComparableForAttributes(Seq(), reconSpec.rule(), OUT)
+
+    outMovements = outMovements.sortWith((a, b) =>
+      var result = 0
+      boundary:
+        for (c <- outComparables) {
+          result = c.compare(a.props, b.props)
+          if result != 0 then break()
+        }
+      result < 0
+    )
+
+    Map(
+      reconSpec.inMovementSpecId  -> inMovements,
+      reconSpec.outMovementSpecId -> outMovements
+    )
+
+//    reconSpec.rule() match
+//      case StringAttributeMatchRule =>
+//        msMap = msMap + inMovements + outMovements
+//        msMap
+//      case AndRule(rules) => ???
+////        rules.map(rule => msMap ++ getMovementsByRule(msMap, rule))
+////        msMap
+//      case ORRule(rules) => ??? // todo implement
+
+  def reconcileAccount(account: Account): Txn[Unit] =
 
     val reconSpecs = reconSpecRepo.findByAccountID(account.id)
     for reconSpec <- reconSpecs
     do
-      val movementsMap = getMovementsByRule(Map(), reconSpec.rule())
+      val movementsMap = getMovementsByRule(Map(), reconSpec)
 
       // build a mapping of the two sets of
       val groupedMatches = ListBuffer[(ListBuffer[String], ListBuffer[String])]()
@@ -53,13 +86,13 @@ class InMemoryReconciler(
 
           rule match
             case amr: StringAttributeMatchRule =>
-              val inMovements = movementsMap(amr.inMovementSpecID)
+              val inMovements = movementsMap(reconSpec.inMovementSpecId)
                 .sortWith((x, y) =>
                   val xValue = x.properties.props(amr.inKey.key)
                   val yValue = y.properties.props(amr.inKey.key)
                   amr.inKey.compare(xValue, yValue) < 0
                 )
-              val outMovements = movementsMap(amr.outMovementSpecID)
+              val outMovements = movementsMap(reconSpec.outMovementSpecId)
                 .sortWith((x, y) =>
                   val xValue = x.properties.props(amr.outKey.key)
                   val yValue = y.properties.props(amr.outKey.key)
@@ -122,7 +155,20 @@ class InMemoryReconciler(
           outMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(outMovement)
 
-  private def getMovements(movementSpecID: ID): Txn[(ID, Seq[Movement])] = {
+  private def getComparableForAttributes(
+    comparables: Seq[CanCompareProperties],
+    rule:        Rule,
+    direction:   Direction
+  ): Seq[CanCompareProperties] =
+    rule match
+      case rc: RuleCollection =>
+        comparables ++ (for
+          r       <- rc.rules
+          matches <- getComparableForAttributes(comparables, r, direction)
+        yield matches)
+      case _ => comparables
+
+  private def getMovements(movementSpecID: ID): Txn[Seq[Movement]] = {
     val movementSpec = movementSpecRepo.findById(movementSpecID).ErrIfNotFound("movementSpec", movementSpecID)
-    movementSpec.id -> movementRepo.findUnReconciledByMovementSpec(movementSpec.id)
+    movementRepo.findUnReconciledByMovementSpec(movementSpec.id)
   }

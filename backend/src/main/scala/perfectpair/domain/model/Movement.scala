@@ -17,7 +17,9 @@ case class Movement(
   movementSpecId:       ID,
   var reconciliationId: Option[ID] = None
 ) extends Auditable
-    derives DbCodec
+    derives DbCodec:
+
+  def props = this.properties.props
 
 object Movement:
   val Table = TableInfo[Movement, Movement, UUID]

@@ -80,8 +80,6 @@ class DataSetup(using DbTx) {
   movementSpecRepo.insert(reportToRecon)
 
   val rule = StringAttributeMatchRule(
-    inMovementSpecID  = journalToRecon.id,
-    outMovementSpecID = reportToRecon.id,
     inKey             = StringAttribute(key = "id"),
     outKey            = StringAttribute(key = "id")
   )
@@ -94,7 +92,9 @@ class DataSetup(using DbTx) {
 
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
     accountId = reconAccount.id,
-    ruleJson  = upickle.write(rule)
+    ruleJson  = upickle.write(rule),
+    inMovementSpecId  = journalToRecon.id,
+    outMovementSpecId = reportToRecon.id,
   )
   reconSpecRepo.insert(reconSpec)
 

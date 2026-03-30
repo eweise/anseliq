@@ -3,7 +3,7 @@ package perfectpair.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.common.model.model.ID
-import perfectpair.common.model.{AndRule, StringAttributeMatchRule, StringAttribute}
+import perfectpair.common.model.{AndRule, StringAttribute, StringAttributeMatchRule}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.{Movement, Reconciliation, createID}
@@ -204,8 +204,6 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         data.movementRepo.insert(inReconMovement)
 
         val rule = StringAttributeMatchRule(
-          inMovementSpecID  = data.reportToRecon.id,
-          outMovementSpecID = data.journalToRecon.id,
           inKey             = StringAttribute(key = "key2"),
           outKey            = StringAttribute(key = "key1")
         )

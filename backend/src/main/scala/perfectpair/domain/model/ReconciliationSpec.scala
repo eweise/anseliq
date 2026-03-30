@@ -13,12 +13,14 @@ enum Relationship derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class ReconciliationSpec(
-  @Id id:        ID           = createID(),
-  @Id accountId: ID,
-  description:   String       = "",
-  agingLimit:    Int          = 0,
-  relationship:  Relationship = OneToOne,
-  ruleJson:      String       = "{}"
+                               @Id id:          ID           = createID(),
+                               @Id accountId:   ID,
+                               description:     String       = "",
+                               agingLimit:      Int          = 0,
+                               relationship:    Relationship = OneToOne,
+                               inMovementSpecId:  ID,
+                               outMovementSpecId: ID,
+                               ruleJson:        String       = "{}"
 ) extends Auditable
     derives DbCodec:
   def rule(): Rule = upickle.read(ruleJson)

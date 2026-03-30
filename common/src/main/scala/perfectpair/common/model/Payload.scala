@@ -68,12 +68,12 @@ case class FundFlowPayload(
 ) derives ReadWriter
 
 case class ReconciliationAccountPayload(
-  name: String,
+  name:              String,
+  inMovementSpecID:  UUID = UUID.randomUUID(),
+  outMovementSpecID: UUID = UUID.randomUUID(),
   rule: Rule = StringAttributeMatchRule(
-    inMovementSpecID  = UUID.randomUUID(),
-    outMovementSpecID = UUID.randomUUID(),
-    inKey             = StringAttribute(key = "id"),
-    outKey            = StringAttribute(key = "id")
+    inKey  = StringAttribute(key = "id"),
+    outKey = StringAttribute(key = "id")
   ),
   agingLimit: String = ""
 )
@@ -96,5 +96,3 @@ case class MovementPayload(
   reconciliationId: String
 ) derives ReadWriter
 
-enum Direction:
-  case IN, OUT
