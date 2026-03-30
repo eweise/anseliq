@@ -8,7 +8,7 @@ import perfectpair.common.model.Interval.Day
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.OneToMany
 import perfectpair.domain.port.driven.*
-import perfectpair.domain.service.{Ingestor, Reconciler}
+import perfectpair.domain.service.{InMemoryReconciler, Ingestor}
 import perfectpair.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
@@ -23,7 +23,7 @@ class EndToEndSuite extends munit.FunSuite {
   val reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
   val accountRepo:        AccountRepo            = AccountRepoLive()
   val ingestor:           Ingestor               = Ingestor(accountRepo = accountRepo, movementRepo = movementRepo)
-  val reconciler: Reconciler = Reconciler(
+  val reconciler: InMemoryReconciler = InMemoryReconciler(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     reconSpecRepo      = reconSpecRepo,
@@ -108,10 +108,10 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           accountId = reconAccount.id,
+          inMovementSpecId  = journalToRecon.id,
+          outMovementSpecId = reportToRecon.id,
           ruleJson = upickle.write(
             StringAttributeMatchRule(
-              inMovementSpecID  = journalToRecon.id,
-              outMovementSpecID = reportToRecon.id,
               inKey             = StringAttribute(key = "transaction_id"),
               outKey            = StringAttribute(key = "txn_id")
             )
@@ -214,12 +214,12 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           accountId = reconAccount.id,
+          inMovementSpecId = journalAccount.id,
+          outMovementSpecId = reportToRecon.id,
           ruleJson = upickle.write(
             AndRule(
               List(
                 StringAttributeMatchRule(
-                  inMovementSpecID  = journalToRecon.id,
-                  outMovementSpecID = reportToRecon.id,
                   inKey             = StringAttribute(key = "transaction_id"),
                   outKey            = StringAttribute(key = "txn_id")
                 ),
@@ -329,12 +329,12 @@ class EndToEndSuite extends munit.FunSuite {
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           accountId    = reconAccount.id,
           relationship = OneToMany,
+          inMovementSpecId = journalAccount.id,
+          outMovementSpecId = reconToReport.id,
           ruleJson = upickle.write(
             AndRule(
               List(
                 StringAttributeMatchRule(
-                  inMovementSpecID  = journalToRecon.id,
-                  outMovementSpecID = reconToReport.id,
                   inKey             = StringAttribute(key = "account"),
                   outKey            = StringAttribute(key = "account_id")
                 ),

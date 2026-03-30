@@ -54,7 +54,7 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
           ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> keyID))
           ops.postAmount(data.reportToRecon, 1000, referenceID  = createID(), Map("id" -> keyID))
 
-        reconciler.reconcileFundFlow(data.reconAccount)
+        reconciler.reconcileAccount(data.reconAccount)
         val noUnreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assert(noUnreconciled.isEmpty)
 
@@ -62,6 +62,6 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
         ops.postAmount(data.reportToRecon, 1000, referenceID  = createID(), Map("id" -> createID().toString))
 
-        reconciler.reconcileFundFlow(data.reconAccount)
+        reconciler.reconcileAccount(data.reconAccount)
         val unreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assertEquals(unreconciled.size, 3)

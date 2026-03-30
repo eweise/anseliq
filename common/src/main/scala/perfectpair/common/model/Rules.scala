@@ -7,9 +7,14 @@ import upickle.default.ReadWriter.join
 import java.text.DateFormat
 import java.util.Date
 
+enum Direction:
+  case IN, OUT
+
 sealed trait Rule derives ReadWriter:
   def sql: String
-//  def isMatch:Boolean
+
+trait RuleCollection:
+  def rules: List[Rule]
 
   def createSqlDelimiter(rules: List[Rule], andOr: String): String = {
     var sqlAccum = ""
@@ -24,17 +29,18 @@ sealed trait Rule derives ReadWriter:
     sqlAccum
   }
 
-case class AndRule(rules: List[Rule]) extends Rule:
+case class AndRule(rules: List[Rule]) extends Rule, RuleCollection:
   def sql: String = createSqlDelimiter(rules, "AND")
 
-case class ORRule(rules: List[Rule]) extends Rule:
+case class ORRule(rules: List[Rule]) extends Rule, RuleCollection:
   def sql: String = createSqlDelimiter(rules, "OR")
 
+trait CanCompareProperties:
+  def compare(xProps: Properties, yProps: Properties): Int
+
 case class StringAttributeMatchRule(
-  inMovementSpecID:  ID,
-  outMovementSpecID: ID,
-  inKey:             StringAttribute,
-  outKey:            StringAttribute
+  inKey:  StringAttribute,
+  outKey: StringAttribute
 ) extends Rule
     derives ReadWriter:
 
@@ -43,8 +49,8 @@ case class StringAttributeMatchRule(
     val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
     val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
     val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
-    s""" move_in.movement_spec_id = '${inMovementSpecID.toString}'
-       | and move_out.movement_spec_id = '${outMovementSpecID.toString}'
+    s""" move_in.movement_spec_id = ''
+       | and move_out.movement_spec_id = ''
        | and $inModifiedFrag = $outModifiedFrag""".stripMargin
 
 case class DateAttributeMatchRule(
@@ -70,8 +76,13 @@ sealed abstract class Attribute(val key: String, val modifier: Modifier) extends
 case class StringAttribute(
   override val key:      String,
   override val modifier: Modifier = NoModifier
-) extends Attribute(key = key, modifier = modifier):
+) extends Attribute(key = key, modifier = modifier),
+      CanCompareProperties:
   def modifySQL(frag: String): String = modifier.modify(frag + "::text")
+
+  override def compare(xProps: Properties, yProps: Properties): Int =
+    getValue(xProps).compareTo(getValue(yProps))
+
   def getValue(props: Properties): String =
     props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
 
