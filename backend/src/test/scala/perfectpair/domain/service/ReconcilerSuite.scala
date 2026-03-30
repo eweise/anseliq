@@ -41,7 +41,7 @@ class ReconcilerSuite extends munit.FunSuite:
         val journalMBeforeReconciled = movementRepo.findById(journalMovement.id).get
         assertEquals(None, journalMBeforeReconciled.reconciliationId)
 
-        reconciler.reconcileFundFlow(data.fundFlowConfig)
+        reconciler.reconcileAccount(data.reconAccount)
 
         val journalAfterReconciled = movementRepo.findById(journalMovement.id).get
         assert(journalAfterReconciled.reconciliationId.nonEmpty)

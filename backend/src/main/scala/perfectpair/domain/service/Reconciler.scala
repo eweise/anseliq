@@ -23,9 +23,9 @@ class Reconciler(
   val fundFlowConfigRepo: FundFlowConfigRepo
 ):
 
-  def reconcileFundFlow(fundFlow: FundFlowConfig): Txn[Unit] =
+  def reconcileAccount(account: Account): Txn[Unit] =
 
-    val reconSpecs = reconSpecRepo.findByFundFlow(fundFlow.id)
+    val reconSpecs = reconSpecRepo.findByAccountID(account.id)
     for reconSpec <- reconSpecs
     do
       val matches = movementRepo.findEqualityMatches(reconSpec.rule().sql, reconSpec.relationship)

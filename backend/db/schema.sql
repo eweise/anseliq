@@ -32,7 +32,7 @@ CREATE INDEX account_props_index
 create table recon.reconciliation_spec
 (
     id           uuid primary key,
-    fund_flow_id uuid                                  not null REFERENCES recon.fund_flow_config (id),
+    account_id   uuid                                  not null REFERENCES recon.account (id),
     description  text,
     aging_limit  int,
     relationship text                                  not null,

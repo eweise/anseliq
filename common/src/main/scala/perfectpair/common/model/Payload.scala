@@ -69,7 +69,7 @@ case class FundFlowPayload(
 
 case class ReconciliationAccountPayload(
   name: String,
-  rule: Rule = AttributeMatchRule(
+  rule: Rule = StringAttributeMatchRule(
     inMovementSpecID  = UUID.randomUUID(),
     outMovementSpecID = UUID.randomUUID(),
     inKey             = StringAttribute(key = "id"),
