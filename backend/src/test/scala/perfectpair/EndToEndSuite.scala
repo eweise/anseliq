@@ -107,9 +107,9 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(reportToRecon)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
-          fundFlowId = fundFlowConfig.id,
+          accountId = reconAccount.id,
           ruleJson = upickle.write(
-            AttributeMatchRule(
+            StringAttributeMatchRule(
               inMovementSpecID  = journalToRecon.id,
               outMovementSpecID = reportToRecon.id,
               inKey             = StringAttribute(key = "transaction_id"),
@@ -124,7 +124,7 @@ class EndToEndSuite extends munit.FunSuite {
         ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile1.getBytes(UTF_8)))
 
         // Reconcile the data
-        reconciler.reconcileFundFlow(fundFlowConfig)
+        reconciler.reconcileAccount(reconAccount)
 
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
@@ -213,17 +213,17 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(reportToRecon)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
-          fundFlowId = fundFlowConfig.id,
+          accountId = reconAccount.id,
           ruleJson = upickle.write(
             AndRule(
               List(
-                AttributeMatchRule(
+                StringAttributeMatchRule(
                   inMovementSpecID  = journalToRecon.id,
                   outMovementSpecID = reportToRecon.id,
                   inKey             = StringAttribute(key = "transaction_id"),
                   outKey            = StringAttribute(key = "txn_id")
                 ),
-                AttributeMatchRule(
+                DateAttributeMatchRule(
                   inMovementSpecID  = journalToRecon.id,
                   outMovementSpecID = reportToRecon.id,
                   inKey             = DateAttribute(key = "record_date"),
@@ -240,7 +240,7 @@ class EndToEndSuite extends munit.FunSuite {
         ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile1.getBytes(UTF_8)))
 
         // Reconcile the data
-        reconciler.reconcileFundFlow(fundFlowConfig)
+        reconciler.reconcileAccount(reconAccount)
 
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
@@ -327,18 +327,18 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(reconToReport)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
-          fundFlowId   = fundFlowConfig.id,
+          accountId    = reconAccount.id,
           relationship = OneToMany,
           ruleJson = upickle.write(
             AndRule(
               List(
-                AttributeMatchRule(
+                StringAttributeMatchRule(
                   inMovementSpecID  = journalToRecon.id,
                   outMovementSpecID = reconToReport.id,
                   inKey             = StringAttribute(key = "account"),
                   outKey            = StringAttribute(key = "account_id")
                 ),
-                AttributeMatchRule(
+                DateAttributeMatchRule(
                   inMovementSpecID  = journalToRecon.id,
                   outMovementSpecID = reconToReport.id,
                   inKey             = DateAttribute(key = "record_date"),
@@ -355,7 +355,7 @@ class EndToEndSuite extends munit.FunSuite {
         ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile.getBytes(UTF_8)))
 
         // Reconcile the data
-        reconciler.reconcileFundFlow(fundFlowConfig)
+        reconciler.reconcileAccount(reconAccount)
         val allReconMovements  = movementRepo.findByAccount(reconAccount.id)
         val updateReconAccount = accountRepo.findById(reconAccount.id).get
         assertEquals(updateReconAccount.balance, BigDecimal(250))

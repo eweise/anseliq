@@ -1,11 +1,15 @@
 package perfectpair.common.model
 
-import perfectpair.common.model.model.ID
+import perfectpair.common.model.model.{ID, Properties}
 import upickle.ReadWriter
 import upickle.default.ReadWriter.join
 
+import java.text.DateFormat
+import java.util.Date
+
 sealed trait Rule derives ReadWriter:
   def sql: String
+//  def isMatch:Boolean
 
   def createSqlDelimiter(rules: List[Rule], andOr: String): String = {
     var sqlAccum = ""
@@ -26,37 +30,63 @@ case class AndRule(rules: List[Rule]) extends Rule:
 case class ORRule(rules: List[Rule]) extends Rule:
   def sql: String = createSqlDelimiter(rules, "OR")
 
-case class AttributeMatchRule(
+case class StringAttributeMatchRule(
   inMovementSpecID:  ID,
   outMovementSpecID: ID,
-  inKey:             Attribute,
-  outKey:            Attribute
+  inKey:             StringAttribute,
+  outKey:            StringAttribute
 ) extends Rule
     derives ReadWriter:
 
   def sql: String =
     val inAttributeFrag  = s" move_in.properties ['props'] ['${inKey.key}']"
     val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
-    val inModifiedFrag   = inKey.modify(inAttributeFrag)
-    val outModifiedFrag  = outKey.modify(outAttributeFrag)
+    val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
+    val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
     s""" move_in.movement_spec_id = '${inMovementSpecID.toString}'
        | and move_out.movement_spec_id = '${outMovementSpecID.toString}'
        | and $inModifiedFrag = $outModifiedFrag""".stripMargin
 
-sealed abstract class Attribute(val key: String, val modifier: Modifier) derives ReadWriter:
-  def modify(frag: String): String
+case class DateAttributeMatchRule(
+  inMovementSpecID:  ID,
+  outMovementSpecID: ID,
+  inKey:             DateAttribute,
+  outKey:            DateAttribute
+) extends Rule
+    derives ReadWriter:
+
+  def sql: String =
+    val inAttributeFrag  = s" move_in.properties ['props'] ['${inKey.key}']"
+    val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
+    val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
+    val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
+    s""" move_in.movement_spec_id = '${inMovementSpecID.toString}'
+       | and move_out.movement_spec_id = '${outMovementSpecID.toString}'
+       | and $inModifiedFrag = $outModifiedFrag""".stripMargin
+
+sealed abstract class Attribute(val key: String, val modifier: Modifier) extends Ordering[String] derives ReadWriter:
+  def modifySQL(frag: String): String
 
 case class StringAttribute(
   override val key:      String,
   override val modifier: Modifier = NoModifier
 ) extends Attribute(key = key, modifier = modifier):
-  def modify(frag: String): String = modifier.modify(frag + "::text")
+  def modifySQL(frag: String): String = modifier.modify(frag + "::text")
+  def getValue(props: Properties): String =
+    props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
+
+  override def compare(x: String, y: String): Int = x.compareTo(y)
 
 case class DateAttribute(
   override val key:      String,
   override val modifier: Modifier = NoModifier
 ) extends Attribute(key = key, modifier = modifier):
-  def modify(frag: String): String = modifier.modify(frag + "::text::date")
+  def modifySQL(frag: String):     String       = modifier.modify(frag + "::text::date")
+  def getValue(props: Properties): Option[Date] = props.get(key).map(DateFormat.getInstance().parse)
+
+  override def compare(x: String, y: String): Int =
+    val df = DateFormat.getInstance()
+    df.parse(x).compareTo(df.parse(y))
 
 sealed trait Modifier derives ReadWriter:
   def modify(frad: String): String
