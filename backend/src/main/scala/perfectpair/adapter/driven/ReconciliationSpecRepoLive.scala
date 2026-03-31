@@ -11,9 +11,9 @@ import java.util.UUID
 class ReconciliationSpecRepoLive extends Repo[ReconciliationSpec, ReconciliationSpec, UUID] with ReconciliationSpecRepo:
   private val t = ReconciliationSpec.Table
 
-  override def findByAccountID(accountId: ID): Txn[Vector[ReconciliationSpec]] =
+  override def findByAccountID(accountID: ID): Txn[Vector[ReconciliationSpec]] =
     sql"""
           SELECT ${t.all}
           FROM $t AS t
-          WHERE account_id = $accountId
+          WHERE account_id = $accountID
         """.query[ReconciliationSpec].run()

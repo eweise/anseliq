@@ -21,62 +21,58 @@ class InMemoryReconciler(
   val fundFlowConfigRepo: FundFlowConfigRepo
 ):
 
-  def reconcileAccount(account: Account): Txn[Unit] =
+  private def compareMovements(rule: Rule, inMovement: Movement, outMovement: Movement): Int =
+    rule match
+      case s: StringAttributeMatchRule =>
+        val inValue  = s.inKey.getValue(inMovement.props)
+        val outValue = s.outKey.getValue(outMovement.props)
+        inValue.compareTo(outValue)
+
+      case d: DateAttributeMatchRule =>
+        val inValue  = d.inKey.getValue(inMovement.props)
+        val outValue = d.outKey.getValue(outMovement.props)
+        inValue.compareTo(outValue)
+      case AndRule(rules) => rules.foldLeft(0)((result, r) => result)
+      case _              => ??? // todo implement me
+
+  def reconcileAccount(account: Account): Txn[Unit] = 
 
     val reconSpecs = reconSpecRepo.findByAccountID(account.id)
     for reconSpec <- reconSpecs
     do
       val movementsMap = getMovementsByRule(Map(), reconSpec)
-
+  
       // build a mapping of the two sets of
       val groupedMatches = ListBuffer[(ListBuffer[String], ListBuffer[String])]()
-
+  
       reconSpec.relationship match
         case OneToOne =>
           val rule = reconSpec.rule()
-
-          rule match
-            case stringRule: StringAttributeMatchRule =>
-              val inMovements = movementsMap(reconSpec.inMovementSpecId)
-                .sortWith((x, y) =>
-                  val xValue = x.properties.props(stringRule.inKey.key)
-                  val yValue = y.properties.props(stringRule.inKey.key)
-                  stringRule.inKey.compare(xValue, yValue) < 0
-                )
-              val outMovements = movementsMap(reconSpec.outMovementSpecId)
-                .sortWith((x, y) =>
-                  val xValue = x.properties.props(stringRule.outKey.key)
-                  val yValue = y.properties.props(stringRule.outKey.key)
-                  stringRule.outKey.compare(xValue, yValue) < 0
-                )
-              // find matches
-              var inIndex  = 0
-              var outIndex = 0
-              while (inIndex < inMovements.size && outIndex < outMovements.size) {
-                val yMovement  = inMovements(inIndex)
-                val xMovement  = outMovements(outIndex)
-                val inValue    = stringRule.inKey.getValue(yMovement.properties.props)
-                val outValue   = stringRule.outKey.getValue(xMovement.properties.props)
-                val comparison = inValue.compareTo(outValue)
-                comparison match
-                  case 0 =>
-                    inIndex += 1
-                    outIndex += 1
-                    groupedMatches.append((ListBuffer(yMovement.id.toString), ListBuffer(xMovement.id.toString)))
-                  case x if x < 0 =>
-                    inIndex += 1
-                  case x if x > 0 =>
-                    outIndex += 1
-              }
-
-            case perfectpair.common.model.AndRule(_) =>
-
-            case perfectpair.common.model.ORRule(_) => ???
-
+  
+          val inMovements  = movementsMap(reconSpec.inMovementSpecId)
+          val outMovements = movementsMap(reconSpec.outMovementSpecId)
+  
+          // find matches
+          var inIndex  = 0
+          var outIndex = 0
+          while (inIndex < inMovements.size && outIndex < outMovements.size) {
+            val inMovement  = inMovements(inIndex)
+            val outMovement = outMovements(outIndex)
+            val comparison  = compareMovements(rule, inMovement, outMovement)
+            comparison match
+              case 0 =>
+                inIndex += 1
+                outIndex += 1
+                groupedMatches.append((ListBuffer(inMovement.id.toString), ListBuffer(outMovement.id.toString)))
+              case x if x < 0 =>
+                inIndex += 1
+              case x if x > 0 =>
+                outIndex += 1
+          }
         case OneToMany  =>
         case ManyToOne  =>
         case ManyToMany =>
-
+  
       // Create reconciliations from matches
       for aMatch <- groupedMatches
       do
@@ -86,7 +82,7 @@ class InMemoryReconciler(
           description  = "need a description. probabaly equality matcher"
         )
         reconRepo.insert(reconciliation)
-
+  
         for inMatch <- aMatch._1
         do
           val inMovement = movementRepo
@@ -96,7 +92,7 @@ class InMemoryReconciler(
             )
           inMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(inMovement)
-
+  
         for outMatch <- aMatch._2
         do
           val outMovement = movementRepo
@@ -125,7 +121,7 @@ class InMemoryReconciler(
       reconSpec.inMovementSpecId  -> inMovements,
       reconSpec.outMovementSpecId -> outMovements
     )
-
+  
   private def doSort(comparables: Seq[CanCompareProperties], movements: Seq[Movement]): Seq[Movement] =
     movements.sortWith((a, b) =>
       var result = 0
@@ -136,7 +132,7 @@ class InMemoryReconciler(
         }
       result < 0
     )
-
+  
   private def getComparableForAttributes(
     comparables: Seq[CanCompareProperties],
     rule:        Rule,
