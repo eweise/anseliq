@@ -145,16 +145,16 @@ class EndToEndSuite extends munit.FunSuite {
   test("1 to 1 where report date 1 day greater than journal date") {
     val journalFile1 =
       """record_date, transaction_id, amount, description
+        |2025-03-05,987,50.89,correction
         |2025-03-04,123,120.50,posted to bank
         |2025-03-04,456,-50,reversal
         |2025-03-05,789,100.11,another posting
-        |2025-03-05,987,50.89,correction
         |""".stripMargin
 
     val reportFile1 =
-      """2025-03-05,123,120.50
-        |2025-03-06,789,100.11
+      """2025-03-06,789,100.11
         |2025-03-06,987,50.89
+        |2025-03-05,123,120.50
         |""".stripMargin
 
     transact(transactor) {
@@ -267,8 +267,8 @@ class EndToEndSuite extends munit.FunSuite {
 
     val reportFile =
       """2025-03-04,abc,123,150.50
-        |2025-03-04,abc,234,49.50
         |2025-03-05,ddd,423,50.00
+        |2025-03-04,abc,234,49.50
         |""".stripMargin
 
     transact(transactor) {
@@ -330,7 +330,7 @@ class EndToEndSuite extends munit.FunSuite {
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           accountId         = reconAccount.id,
           relationship      = OneToMany,
-          inMovementSpecId  = journalAccount.id,
+          inMovementSpecId  = journalToRecon.id,
           outMovementSpecId = reconToReport.id,
           ruleJson = upickle.write(
             AndRule(

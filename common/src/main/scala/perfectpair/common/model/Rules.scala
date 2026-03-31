@@ -5,7 +5,7 @@ import upickle.ReadWriter
 import upickle.default.ReadWriter.join
 
 import java.text.DateFormat
-import java.util.Date
+import java.time.LocalDate
 
 enum Direction:
   case IN, OUT
@@ -86,7 +86,7 @@ case class StringAttribute(
 
   override def compare(xProps: Properties, yProps: Properties): Int =
     val x = getValue(xProps)
-    val y = getValue(xProps)
+    val y = getValue(yProps)
     x.compareTo(y)
 
   def getValue(props: Properties): String =
@@ -106,9 +106,9 @@ case class DateAttribute(
     val y = getValue(xProps)
     x.compareTo(y)
 
-  def getValue(props: Properties): Date =
+  def getValue(props: Properties): LocalDate =
     val strValue: String = props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
-    DateFormat.getInstance().parse(strValue)
+    java.time.LocalDate.parse(strValue)
 
   override def compare(x: String, y: String): Int =
     val df = DateFormat.getInstance()
