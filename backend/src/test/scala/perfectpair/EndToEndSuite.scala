@@ -38,10 +38,11 @@ class EndToEndSuite extends munit.FunSuite {
   test("1 to 1 attribute test") {
     val journalFile1 =
       """record_date, transaction_id, amount, description
-        |2025-03-04,123,120.50,posted to bank
         |2025-03-04,456,-50,reversal
         |2025-03-05,789,100.11,another posting
         |2025-03-05,987,50.89,correction
+        |2025-03-04,123,120.50,posted to bank
+        |
         |""".stripMargin
 
     val reportFile1 =
@@ -107,13 +108,13 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(reportToRecon)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
-          accountId = reconAccount.id,
+          accountId         = reconAccount.id,
           inMovementSpecId  = journalToRecon.id,
           outMovementSpecId = reportToRecon.id,
           ruleJson = upickle.write(
             StringAttributeMatchRule(
-              inKey             = StringAttribute(key = "transaction_id"),
-              outKey            = StringAttribute(key = "txn_id")
+              inKey  = StringAttribute(key = "transaction_id"),
+              outKey = StringAttribute(key = "txn_id")
             )
           )
         )
@@ -213,21 +214,19 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(reportToRecon)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
-          accountId = reconAccount.id,
-          inMovementSpecId = journalAccount.id,
+          accountId         = reconAccount.id,
+          inMovementSpecId  = journalToRecon.id,
           outMovementSpecId = reportToRecon.id,
           ruleJson = upickle.write(
             AndRule(
               List(
                 StringAttributeMatchRule(
-                  inKey             = StringAttribute(key = "transaction_id"),
-                  outKey            = StringAttribute(key = "txn_id")
+                  inKey  = StringAttribute(key = "transaction_id"),
+                  outKey = StringAttribute(key = "txn_id")
                 ),
                 DateAttributeMatchRule(
-                  inMovementSpecID  = journalToRecon.id,
-                  outMovementSpecID = reportToRecon.id,
-                  inKey             = DateAttribute(key = "record_date"),
-                  outKey            = DateAttribute(key = "txn_date", DateAdd(Day, -1)) // shouldn't be less than watermark date
+                  inKey  = DateAttribute(key = "record_date"),
+                  outKey = DateAttribute(key = "txn_date", DateAdd(Day, -1)) // shouldn't be less than watermark date
                 )
               )
             )
@@ -257,7 +256,9 @@ class EndToEndSuite extends munit.FunSuite {
     }   // transaction
   }     // test
 
-  test("1 to many where journal accounts transactions by date + account have missing record on 3-4 but then reconcile on 03-5") {
+  test(
+    "1 to many where journal accounts transactions by date + account have missing record on 3-4 but then reconcile on 03-5"
+  ) {
     val journalFile =
       """record_date, account, amount
         |2025-03-04,abc,200
@@ -327,22 +328,20 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(reconToReport)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
-          accountId    = reconAccount.id,
-          relationship = OneToMany,
-          inMovementSpecId = journalAccount.id,
+          accountId         = reconAccount.id,
+          relationship      = OneToMany,
+          inMovementSpecId  = journalAccount.id,
           outMovementSpecId = reconToReport.id,
           ruleJson = upickle.write(
             AndRule(
               List(
                 StringAttributeMatchRule(
-                  inKey             = StringAttribute(key = "account"),
-                  outKey            = StringAttribute(key = "account_id")
+                  inKey  = StringAttribute(key = "account"),
+                  outKey = StringAttribute(key = "account_id")
                 ),
                 DateAttributeMatchRule(
-                  inMovementSpecID  = journalToRecon.id,
-                  outMovementSpecID = reconToReport.id,
-                  inKey             = DateAttribute(key = "record_date"),
-                  outKey            = DateAttribute(key = "account_date")
+                  inKey  = DateAttribute(key = "record_date"),
+                  outKey = DateAttribute(key = "account_date")
                 )
               )
             )

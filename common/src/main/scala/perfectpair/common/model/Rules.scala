@@ -1,6 +1,6 @@
 package perfectpair.common.model
 
-import perfectpair.common.model.model.{ID, Properties}
+import perfectpair.common.model.model.Properties
 import upickle.ReadWriter
 import upickle.default.ReadWriter.join
 
@@ -38,10 +38,15 @@ case class ORRule(rules: List[Rule]) extends Rule, RuleCollection:
 trait CanCompareProperties:
   def compare(xProps: Properties, yProps: Properties): Int
 
+trait AttributeMatcher:
+  def inKey:  CanCompareProperties
+  def outKey: CanCompareProperties
+
 case class StringAttributeMatchRule(
   inKey:  StringAttribute,
   outKey: StringAttribute
-) extends Rule
+) extends Rule,
+      AttributeMatcher
     derives ReadWriter:
 
   def sql: String =
@@ -54,11 +59,10 @@ case class StringAttributeMatchRule(
        | and $inModifiedFrag = $outModifiedFrag""".stripMargin
 
 case class DateAttributeMatchRule(
-  inMovementSpecID:  ID,
-  outMovementSpecID: ID,
-  inKey:             DateAttribute,
-  outKey:            DateAttribute
-) extends Rule
+  inKey:  DateAttribute,
+  outKey: DateAttribute
+) extends Rule,
+      AttributeMatcher
     derives ReadWriter:
 
   def sql: String =
@@ -66,8 +70,8 @@ case class DateAttributeMatchRule(
     val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
     val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
     val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
-    s""" move_in.movement_spec_id = '${inMovementSpecID.toString}'
-       | and move_out.movement_spec_id = '${outMovementSpecID.toString}'
+    s""" move_in.movement_spec_id = ''
+       | and move_out.movement_spec_id = ''
        | and $inModifiedFrag = $outModifiedFrag""".stripMargin
 
 sealed abstract class Attribute(val key: String, val modifier: Modifier) extends Ordering[String] derives ReadWriter:
@@ -81,7 +85,9 @@ case class StringAttribute(
   def modifySQL(frag: String): String = modifier.modify(frag + "::text")
 
   override def compare(xProps: Properties, yProps: Properties): Int =
-    getValue(xProps).compareTo(getValue(yProps))
+    val x = getValue(xProps)
+    val y = getValue(xProps)
+    x.compareTo(y)
 
   def getValue(props: Properties): String =
     props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
@@ -91,9 +97,18 @@ case class StringAttribute(
 case class DateAttribute(
   override val key:      String,
   override val modifier: Modifier = NoModifier
-) extends Attribute(key = key, modifier = modifier):
-  def modifySQL(frag: String):     String       = modifier.modify(frag + "::text::date")
-  def getValue(props: Properties): Option[Date] = props.get(key).map(DateFormat.getInstance().parse)
+) extends Attribute(key = key, modifier = modifier),
+      CanCompareProperties:
+  def modifySQL(frag: String): String = modifier.modify(frag + "::text::date")
+
+  override def compare(xProps: Properties, yProps: Properties): Int =
+    val x = getValue(xProps)
+    val y = getValue(xProps)
+    x.compareTo(y)
+
+  def getValue(props: Properties): Date =
+    val strValue: String = props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
+    DateFormat.getInstance().parse(strValue)
 
   override def compare(x: String, y: String): Int =
     val df = DateFormat.getInstance()
