@@ -220,13 +220,13 @@ class EndToEndSuite extends munit.FunSuite {
           ruleJson = upickle.write(
             AndRule(
               List(
-                StringAttributeMatchRule(
-                  inKey  = StringAttribute(key = "transaction_id"),
-                  outKey = StringAttribute(key = "txn_id")
-                ),
                 DateAttributeMatchRule(
                   inKey  = DateAttribute(key = "record_date"),
                   outKey = DateAttribute(key = "txn_date", DateAdd(Day, -1)) // shouldn't be less than watermark date
+                ),
+                StringAttributeMatchRule(
+                  inKey  = StringAttribute(key = "transaction_id"),
+                  outKey = StringAttribute(key = "txn_id")
                 )
               )
             )
