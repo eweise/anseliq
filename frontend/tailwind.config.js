@@ -14,6 +14,7 @@ module.exports = {
         'md-on-surface-variant':  '#49454f',
         'md-outline':             '#79747e',
         'md-error':               '#b3261e',
+        'md-primary-hover':       '#5b4397',
       }
     },
   },
