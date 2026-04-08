@@ -44,6 +44,15 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       ORDER BY created_at
     """.query[Movement].run()
 
+  def findByReconciliationID(reconciliationID: ID): Txn[Vector[Movement]] =
+    sql"""
+      SELECT ${m.all}
+      FROM $m AS a
+      WHERE 1 = 1
+      AND reconciliation_id = $reconciliationID
+      ORDER BY created_at
+    """.query[Movement].run()
+
   def findUnReconciledByMovementSpec(movementSpecID: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}

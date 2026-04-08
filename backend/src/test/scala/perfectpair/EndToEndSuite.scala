@@ -221,8 +221,9 @@ class EndToEndSuite extends munit.FunSuite {
             AndRule(
               List(
                 DateAttributeMatchRule(
-                  inKey  = DateAttribute(key = "record_date"),
-                  outKey = DateAttribute(key = "txn_date", DateAdd(Day, -1)) // shouldn't be less than watermark date
+                  inKey = DateAttribute(key = "record_date"),
+                  outKey =
+                    DateAttribute(key = "txn_date", Some(DateAdd(Day, -1))) // shouldn't be less than watermark date
                 ),
                 StringAttributeMatchRule(
                   inKey  = StringAttribute(key = "transaction_id"),
@@ -317,7 +318,7 @@ class EndToEndSuite extends munit.FunSuite {
                 columnDefinitions = Map(
                   0 -> "account_date",
                   1 -> "account_id",
-                  2 -> "tranaction_id",
+                  2 -> "transaction_id",
                   3 -> "balance"
                 ),
                 amountField = Some(3)
@@ -360,8 +361,32 @@ class EndToEndSuite extends munit.FunSuite {
         assertEquals(updateReconAccount.balance, BigDecimal(250))
         val reconciliations = reconRepo.findAll
         assertEquals(reconciliations.size, 1)
+
+        // add up movement from reconcilation. See if the amount matches
+        val reconciledMovements = movementRepo.findByReconciliationID(reconciliations.head.id)
+        assertEquals(reconciledMovements.size, 3)
+        // all movement amounts should add up to 0
+        val totalAmount = reconciledMovements.foldLeft(BigDecimal(0))((accum, movement) =>
+          if movement.inAccountId == reconAccount.id
+          then accum + movement.amount
+          else accum - movement.amount
+        )
+        assertEquals(totalAmount, BigDecimal(0))
+
+        val unreconciled = movementRepo.findUnReconciledByAccount(reconAccount.id);
+        assertEquals(unreconciled.size, 2)
+        val u1 = unreconciled.find(m =>
+          m.props.getOrElse("record_date", "") == "2025-03-05"
+            && m.props.getOrElse("account", "") == "xyz"
+        )
+        assert(u1.nonEmpty)
+        val u2 = unreconciled.find(m =>
+          m.props.getOrElse("account_date", "") == "2025-03-05"
+            && m.props.getOrElse("account_id", "") == "ddd"
+        )
+        assert(u2.nonEmpty)
+
       } // rollback
     }   // transaction
   }     // test
-
 }
