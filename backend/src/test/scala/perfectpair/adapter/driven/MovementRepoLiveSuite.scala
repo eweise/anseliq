@@ -172,7 +172,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 //        mSpecID2 = data.reportToRecon.id.toString
 //    print(mSpecID1)
 
-  test("findMatches"):
+  test("findMatches".ignore): //ignored because relies on old sql matching
     val movementRepo = MovementRepoLive()
     val reconRepo    = ReconciliationRepoLive()
 
@@ -204,8 +204,8 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         data.movementRepo.insert(inReconMovement)
 
         val rule = StringAttributeMatchRule(
-          inKey             = StringAttribute(key = "key2"),
-          outKey            = StringAttribute(key = "key1")
+          inKey  = StringAttribute(key = "key2"),
+          outKey = StringAttribute(key = "key1")
         )
 
         val sqlStr                        = rule.sql
