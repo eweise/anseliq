@@ -29,6 +29,7 @@ Add to `tailwind.config.js` under `theme.extend.colors`:
 | `md-on-surface-variant` | `#49454f` | Default label text, supporting text |
 | `md-outline` | `#79747e` | Default input border |
 | `md-error` | `#b3261e` | Error border, error label, error helper text |
+| `md-primary-hover` | `#5b4397` | Hover state for filled button (darker shade of `md-primary`; not a canonical M3 tonal value — update if palette is regenerated) |
 
 ## Component Changes
 
