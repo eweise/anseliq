@@ -16,7 +16,8 @@ object Form:
     val labelCls  = if hasError then "text-md-error" else "text-md-on-surface-variant"
     div(cls := s"relative mb-5 $borderCls rounded")(
       label(
-        cls := s"absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide $labelCls"
+        cls       := s"absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide $labelCls",
+        attribute("for", fieldID)
       )(text(labelName)),
       input(
         id  := fieldID,
