@@ -20,7 +20,7 @@ object MaintainFundFlowView:
         Form.field(
           fieldID   = "aging-limit",
           labelName = "Aging Limit",
-          onChangFn = value => Msg.FundFlowFormUpdate(ff.copy(name = value))
+          onChangFn = _ => Msg.FundFlowFormUpdate(ff)
         ),
         Form.field(
           fieldID   = "account1",
