@@ -10,42 +10,23 @@ object Form:
     onChangFn: String => M,
     maybeErrorMsg: Option[String] = None
   ): Html[M] =
-    div(cls := "mb-5")(
+    val hasError  = maybeErrorMsg.isDefined
+    val borderCls = if hasError then "border-2 border-md-error"
+                    else "border border-md-outline focus-within:border-2 focus-within:border-md-primary"
+    val labelCls  = if hasError then "text-md-error" else "text-md-on-surface-variant"
+    div(cls := s"relative mb-5 $borderCls rounded")(
       label(
-        cls :=
-          """block mb-2.5
-            |text-sm
-            |text-fg-danger-strong
-            |font-medium
-            |text-heading""".stripMargin
+        cls := s"absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide $labelCls"
       )(text(labelName)),
       input(
-        id := fieldID,
-        cls :=
-          """bg-neutral-secondary-medium
-            |border border-default-medium
-            |text-heading
-            |text-sm
-            |rounded-base
-            |focus:ring-brand
-            |focus:border-brand
-            |block
-            |w-full
-            |px-3
-            |py-2.5
-            |shadow-xs
-            |placeholder:text-body""".stripMargin,
+        id  := fieldID,
+        cls := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
         onChange(onChangFn),
         required
       ),
       maybeErrorMsg
         .map(errMsg =>
-          p(
-            cls :=
-              """mt-2.5
-                |text-sm
-                |text-fg-danger-strong""".stripMargin
-          )(span(cls := "font-medium")("Error"), text(errMsg))
+          p(cls := "absolute -bottom-5 left-0 px-4 text-xs text-md-error")(text(errMsg))
         )
         .getOrElse(div()())
     )
