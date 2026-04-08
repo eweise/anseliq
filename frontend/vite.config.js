@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig(({ command }) => {
-  const scalaVersion = '3.7.3'
+  const scalaVersion = '3.8.1'
   return {
     resolve: {
       alias: {
