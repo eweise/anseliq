@@ -6,6 +6,12 @@ import tyrian.Html.*
 object Buttons:
   def linkButton[M](title: String, msg: M): Html[M] =
     button(
-      cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-12 h-12 rounded-full hover:animate-spin mx-6 ml-auto transition-all duration-300 hover:bg-green-500 hover:text-white",
+      cls := "bg-md-primary text-md-on-primary rounded-full px-6 py-2.5 text-sm font-medium tracking-wide shadow-sm hover:bg-purple-800 transition-colors",
+      onClick(msg)
+    )(text(title))
+
+  def textButton[M](title: String, msg: M): Html[M] =
+    button(
+      cls := "text-md-primary rounded-full px-6 py-2.5 text-sm font-medium tracking-wide hover:bg-md-primary-container transition-colors",
       onClick(msg)
     )(text(title))
