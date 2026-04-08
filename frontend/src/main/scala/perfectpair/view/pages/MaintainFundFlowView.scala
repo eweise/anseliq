@@ -17,11 +17,13 @@ object MaintainFundFlowView:
           labelName  = "Name",
           onChangFn  = value => Msg.FundFlowFormUpdate(ff.copy(name = value))
         ),
+        // TODO: agingLimit belongs to ReconciliationAccountPayload, not FundFlowPayload — stub until domain model is extended
         Form.field(
           fieldID   = "aging-limit",
           labelName = "Aging Limit",
           onChangFn = _ => Msg.FundFlowFormUpdate(ff)
         ),
+        // TODO: account fields will be wired once account selection is supported
         Form.field(
           fieldID   = "account1",
           labelName = "First Data Source",
