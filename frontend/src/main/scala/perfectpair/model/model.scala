@@ -34,6 +34,7 @@ enum Msg {
   case FundFlowFormUpdate(fundFlow:FundFlowPayload)
   case CreateFundFlow(fundFlow:FundFlowPayload)
   case FundFlowCreated(fundFlow:FundFlowPayload)
+  case SelectFundFlow(fundFlow: FundFlowPayload)
   case Logout
 }
 
