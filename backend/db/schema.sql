@@ -89,7 +89,7 @@ CREATE INDEX movement_props_index
         USING GIN (properties jsonb_path_ops);
 
 
-CREATE FUNCTION update_update_at_task()
+CREATE FUNCTION update_audit_fields_task()
     RETURNS TRIGGER AS
 $$
 BEGIN
@@ -101,44 +101,44 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_fund_flow_config_update_at
+CREATE TRIGGER update_fund_flow_config
     BEFORE INSERT OR UPDATE
     ON
         recon.fund_flow_config
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_task();
+EXECUTE PROCEDURE update_audit_fields_task();
 
-CREATE TRIGGER update_account_update_at
-    BEFORE UPDATE
+CREATE TRIGGER update_account
+    BEFORE INSERT OR UPDATE
     ON
         recon.account
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_task();
+EXECUTE PROCEDURE update_audit_fields_task();
 
-CREATE TRIGGER update_movement_spec_update_at
-    BEFORE UPDATE
+CREATE TRIGGER update_movement_spec
+    BEFORE INSERT OR UPDATE
     ON
         recon.movement_spec
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_task();
+EXECUTE PROCEDURE update_audit_fields_task();
 
-CREATE TRIGGER update_movement_update_at
-    BEFORE UPDATE
+CREATE TRIGGER update_movement
+    BEFORE INSERT OR UPDATE
     ON
         recon.movement
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_task();
+EXECUTE PROCEDURE update_audit_fields_task();
 
-CREATE TRIGGER update_reconciliation_update_at
-    BEFORE UPDATE
+CREATE TRIGGER update_reconciliation
+    BEFORE INSERT OR UPDATE
     ON
         recon.reconciliation
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_task();
+EXECUTE PROCEDURE update_audit_fields_task();
 
-CREATE TRIGGER update_reconciliation_spec_update_at
-    BEFORE UPDATE
+CREATE TRIGGER update_reconciliation_spec
+    BEFORE INSERT OR UPDATE
     ON
         recon.reconciliation_spec
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_task();
+EXECUTE PROCEDURE update_audit_fields_task();
