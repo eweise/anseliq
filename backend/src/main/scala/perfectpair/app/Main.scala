@@ -1,7 +1,5 @@
 package perfectpair.app
 
-import cask.model.Request
-import cask.router.Result
 import com.augustnagro.magnum.*
 import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
@@ -66,14 +64,25 @@ object Example extends cask.MainRoutes:
     val achToRecon = MovementSpec(name = "ach-to-recon", inAccountId = reconAccount.id, outAccountId = achAccount.id)
     movementSpecRepo.insert(achToRecon)
 
-    val reconToJournal = MovementSpec(name = "recon-journal", inAccountId = journalAccount.id, outAccountId = reconAccount.id)
+    val reconToJournal =
+      MovementSpec(name = "recon-journal", inAccountId = journalAccount.id, outAccountId = reconAccount.id)
     movementSpecRepo.insert(reconToJournal)
 
     // create some account data
     for (i <- 1 to 500000) {
       val props = Map("id" -> createID().toString)
-      accountOperations.postAmount(movementSpec = achToRecon, amount     = 100d, referenceID = createID(), properties = props)
-      accountOperations.postAmount(movementSpec = reconToJournal, amount = 100d, referenceID = createID(), properties = props)
+      accountOperations.postAmount(
+        movementSpec = achToRecon,
+        amount       = 100d,
+        referenceID  = createID(),
+        properties   = props
+      )
+      accountOperations.postAmount(
+        movementSpec = reconToJournal,
+        amount       = 100d,
+        referenceID  = createID(),
+        properties   = props
+      )
     }
   }
   val randomMessagePath          = s"$prefixPath / random-message"
@@ -159,37 +168,18 @@ object Example extends cask.MainRoutes:
       write(adapterMovements.toSeq)
 
   class corsDecorator extends cask.RawDecorator:
-    def wrapFunction(ctx: Request, delegate: Delegate) =
-      println(s"CORSDecorator called for ${ctx.exchange.getRequestMethod} ${ctx.exchange.getRequestPath}")
-
-      // Automatically handle OPTIONS requests for CORS preflight
+    def wrapFunction(ctx: cask.model.Request, delegate: Delegate) =
+      val corsHeaders = Seq(
+        "Access-Control-Allow-Origin"  -> "*",
+        "Access-Control-Allow-Methods" -> "GET, POST, DELETE, OPTIONS, HEAD",
+        "Access-Control-Allow-Headers" -> "Authorization, Content-Type, Accept",
+        "Access-Control-Max-Age"       -> "86400"
+      )
       if ctx.exchange.getRequestMethod.toString == "OPTIONS" then
-        println("Handling OPTIONS request")
-        Result.Success(
-          cask.Response(
-            data       = "",
-            statusCode = 200,
-            headers = Seq(
-              "access-control-allow-origin"      -> "*",
-              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
-              "Access-Control-Allow-Headers"     -> "*",
-              "Access-Control-Allow-Credentials" -> "true",
-              "Access-Control-Max-Age"           -> "86400"
-            )
-          )
+        cask.router.Result.Success(
+          cask.Response("", statusCode = 200, headers = corsHeaders)
         )
-      else
-        println("Adding CORS headers to response")
-        delegate(ctx, Map.empty).map(response =>
-          response.copy(headers =
-            response.headers ++ Seq(
-              "access-control-allow-origin"      -> "*",
-              "Access-Control-Allow-Methods"     -> "GET, DELETE, POST, OPTIONS, HEAD",
-              "Access-Control-Allow-Headers"     -> "*",
-              "Access-Control-Allow-Credentials" -> "true",
-              "Access-Control-Max-Age"           -> "86400"
-            )
-          )
-        )
+      else delegate(ctx, Map.empty).map(response => response.copy(headers = response.headers ++ corsHeaders))
 
+  println("Initializing backend")
   initialize()
