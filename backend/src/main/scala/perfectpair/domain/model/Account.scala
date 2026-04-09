@@ -4,18 +4,20 @@ import com.augustnagro.magnum.*
 import perfectpair.common.model.model.{ID, Money}
 import perfectpair.domain.model.helper.JSONBProps
 
+import java.time.OffsetDateTime
 import java.util
 import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Account(
-  @Id id:      ID         = createID(),
-  name:        String,
-  fundFlowId:  ID,
-  properties:  JSONBProps = JSONBProps(Map()),
-  var balance: Money      = 0
-) extends Auditable
-    derives DbCodec
+  @Id id:        ID                     = createID(),
+  name:          String,
+  fundFlowId:    ID,
+  properties:    JSONBProps             = JSONBProps(Map()),
+  var balance:   Money                  = 0,
+  var createdAt: Option[OffsetDateTime] = None,
+  var updatedAt:  Option[OffsetDateTime] = None
+) derives DbCodec
 
 object Account:
   val Table = TableInfo[Account, Account, UUID]
