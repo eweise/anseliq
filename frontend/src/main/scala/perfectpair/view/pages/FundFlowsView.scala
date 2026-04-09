@@ -7,6 +7,8 @@ import perfectpair.view.components.{Buttons, Table}
 import tyrian.Html
 import tyrian.Html.*
 
+import java.time.format.DateTimeFormatter
+
 object FundFlowsView:
 
   def apply(fundFlows: Seq[FundFlowPayload]): Html[Msg] =
@@ -17,11 +19,14 @@ object FundFlowsView:
           Buttons.linkButton("Create", Msg.NavigateTo(Page.MaintainFundFlow))
         ),
         Table.create(
-          Seq("ID", "Name"),
+          Seq("ID", "Name", "Created At", "Updated At", ""),
           fundFlows.map(ff =>
             Seq(
               text(ff.id),
-              text(ff.name)
+              text(ff.name),
+              text(ff.createdAt.get.toString),
+              text(ff.updatedAt.get.toString),
+              Buttons.textButton("Edit", Msg.SelectFundFlow(ff))
             )
           )
         )
