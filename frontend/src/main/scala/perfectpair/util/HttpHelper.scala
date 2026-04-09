@@ -16,8 +16,8 @@ object HttpHelper:
 
   private def sendWithAuthToken[A, R <: Msg](request: Request[A], resultToMessage: Decoder[R]): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
-      Msg.SendHttpRequestWithAccessToken(accessToken =>
-        Http.send(request.withHeaders(Header("Authorization", s"Bearer $accessToken")), resultToMessage)
+      Msg.SendHttpRequestWithAccessToken(_ =>
+        Http.send(request, resultToMessage)
       )
     )
 

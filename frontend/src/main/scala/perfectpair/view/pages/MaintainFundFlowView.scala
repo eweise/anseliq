@@ -13,26 +13,9 @@ object MaintainFundFlowView:
       div(cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8")(
         h2(cls := "text-xl font-medium text-md-on-surface mb-7")(text("Fund Flow")),
         Form.field(
-          fieldID    = "name",
-          labelName  = "Name",
-          onChangFn  = value => Msg.FundFlowFormUpdate(ff.copy(name = value))
-        ),
-        // TODO: agingLimit belongs to ReconciliationAccountPayload, not FundFlowPayload — stub until domain model is extended
-        Form.field(
-          fieldID   = "aging-limit",
-          labelName = "Aging Limit",
-          onChangFn = _ => Msg.FundFlowFormUpdate(ff)
-        ),
-        // TODO: account fields will be wired once account selection is supported
-        Form.field(
-          fieldID   = "account1",
-          labelName = "First Data Source",
-          onChangFn = _ => Msg.FundFlowFormUpdate(ff)
-        ),
-        Form.field(
-          fieldID   = "account2",
-          labelName = "Second Data Source",
-          onChangFn = _ => Msg.FundFlowFormUpdate(ff)
+          fieldID   = "name",
+          labelName = "Name",
+          onChangFn = value => Msg.FundFlowFormUpdate(ff.copy(name = value))
         ),
         div(cls := "flex justify-end gap-2 mt-6")(
           Buttons.textButton("Cancel", Msg.NavigateTo(Page.FundFlows)),
