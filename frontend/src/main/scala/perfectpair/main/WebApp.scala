@@ -123,6 +123,12 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.FundFlowCreated(ff) =>
       (model.modify(_.fundFlows).setTo(Seq(ff)), PrettyLogger.info("created model with fund flow"))
 
+    case Msg.SelectFundFlow(ff) =>
+      (
+        model.modify(_.selectedFundFlow).setTo(Some(ff)),
+        Cmd.Emit(Msg.NavigateTo(Page.MaintainFundFlow))
+      )
+
     case Msg.SendHttpRequestWithAccessToken(f) =>
 //      val cmd = model.user match
 //        case None =>
