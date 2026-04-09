@@ -8,7 +8,7 @@ import perfectpair.domain.port.driven.{AccountRepo, Txn}
 
 import java.util.UUID
 
-class AccountRepoLive extends AuditableRepo[Account, Account, UUID] with AccountRepo:
+class AccountRepoLive extends Repo[Account, Account, UUID] with AccountRepo:
   val a = Account.Table
 
   def findNominalWithNonZeroBalance(fundFlowID: ID): Txn[Vector[Account]] =

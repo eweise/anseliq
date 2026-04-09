@@ -1,6 +1,7 @@
 package perfectpair.adapter.driven
 
-import com.augustnagro.magnum.{Repo, sql}
+import com.augustnagro.magnum.{DbCon, Repo, sql}
+import perfectpair.common.model.model.ID
 import perfectpair.domain.model
 import perfectpair.domain.model.FundFlowConfig
 import perfectpair.domain.port.driven.{FundFlowConfigRepo, Txn}
@@ -16,3 +17,11 @@ class FundFlowConfigRepoLive extends Repo[FundFlowConfig, FundFlowConfig, UUID] 
         FROM $f AS f
         WHERE name = $name
       """.query[FundFlowConfig].run().headOption
+
+  override def findById(id: ID)(using DbCon): Option[FundFlowConfig] =
+    val frag = sql"""
+        SELECT ${f.all}, created_at, updated_at
+        FROM $f AS f
+        WHERE id = ${id}
+      """
+    frag.query[FundFlowConfig].run().headOption

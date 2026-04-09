@@ -89,53 +89,56 @@ CREATE INDEX movement_props_index
         USING GIN (properties jsonb_path_ops);
 
 
-CREATE FUNCTION update_update_at_user_task()
+CREATE FUNCTION update_update_at_task()
     RETURNS TRIGGER AS
 $$
 BEGIN
+    IF NEW.created_at IS NULL THEN
+        NEW.created_at = now();
+    END IF;
     NEW.updated_at = now();
     RETURN NEW;
 END;
 $$ language 'plpgsql';
 
 CREATE TRIGGER update_fund_flow_config_update_at
-    BEFORE UPDATE
+    BEFORE INSERT OR UPDATE
     ON
         recon.fund_flow_config
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_user_task();
+EXECUTE PROCEDURE update_update_at_task();
 
 CREATE TRIGGER update_account_update_at
     BEFORE UPDATE
     ON
         recon.account
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_user_task();
+EXECUTE PROCEDURE update_update_at_task();
 
 CREATE TRIGGER update_movement_spec_update_at
     BEFORE UPDATE
     ON
         recon.movement_spec
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_user_task();
+EXECUTE PROCEDURE update_update_at_task();
 
 CREATE TRIGGER update_movement_update_at
     BEFORE UPDATE
     ON
         recon.movement
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_user_task();
+EXECUTE PROCEDURE update_update_at_task();
 
 CREATE TRIGGER update_reconciliation_update_at
     BEFORE UPDATE
     ON
         recon.reconciliation
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_user_task();
+EXECUTE PROCEDURE update_update_at_task();
 
 CREATE TRIGGER update_reconciliation_spec_update_at
     BEFORE UPDATE
     ON
         recon.reconciliation_spec
     FOR EACH ROW
-EXECUTE PROCEDURE update_update_at_user_task();
+EXECUTE PROCEDURE update_update_at_task();

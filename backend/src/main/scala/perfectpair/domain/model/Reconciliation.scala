@@ -4,6 +4,7 @@ import com.augustnagro.magnum.*
 import perfectpair.common.model.model.ID
 import perfectpair.domain.model.ReconciliationStatus.Final
 
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -12,13 +13,14 @@ enum ReconciliationStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Reconciliation(
-  @Id id:       ID                   = createID(),
-  specId:       ID,
-  appliedRules: String               = "",
-  description:  String               = "",
-  status:       ReconciliationStatus = Final
-) extends Auditable
-    derives DbCodec
+  @Id id:        ID                     = createID(),
+  specId:        ID,
+  appliedRules:  String                 = "",
+  description:   String                 = "",
+  status:        ReconciliationStatus   = Final,
+  var createdAt: Option[OffsetDateTime] = None,
+  var updatedAt:  Option[OffsetDateTime] = None
+) derives DbCodec
 
 object Reconciliation:
   val Table = TableInfo[Reconciliation, Reconciliation, UUID]
