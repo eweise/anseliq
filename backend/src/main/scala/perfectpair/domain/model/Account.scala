@@ -16,7 +16,7 @@ case class Account(
   properties:    JSONBProps             = JSONBProps(Map()),
   var balance:   Money                  = 0,
   var createdAt: Option[OffsetDateTime] = None,
-  var updatedAt:  Option[OffsetDateTime] = None
+  var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object Account:
