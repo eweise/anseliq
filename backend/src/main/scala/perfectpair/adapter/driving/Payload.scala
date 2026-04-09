@@ -2,9 +2,13 @@ package perfectpair.adapter.driving
 
 import perfectpair.common.model.*
 import perfectpair.domain.model.*
-import upickle.default.*
 
 object Payload:
+
+  def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
+    FundFlowConfig(
+      name = payload.name
+    )
 
   def fundFlowPayloadFromDomain(ff: FundFlowConfig): FundFlowPayload =
     FundFlowPayload(

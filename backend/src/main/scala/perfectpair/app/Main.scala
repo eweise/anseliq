@@ -69,7 +69,7 @@ object Example extends cask.MainRoutes:
     movementSpecRepo.insert(reconToJournal)
 
     // create some account data
-    for (i <- 1 to 500000) {
+    for (i <- 1 to 5) {
       val props = Map("id" -> createID().toString)
       accountOperations.postAmount(
         movementSpec = achToRecon,
@@ -127,13 +127,12 @@ object Example extends cask.MainRoutes:
 
   @cask.route(s"${HttpPath.createFundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
-//    val payload  = read[FundFlowPayload](request.text())
-//    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
-//
-//    transact(transactor):
-//      fundFlowConfigRepo.insert(fundFlow)
-//    write(Payload.fundFlowPayloadFromDomain(fundFlow))
-    write("todo")
+    val payload  = read[FundFlowPayload](request.text())
+    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
+
+    transact(transactor):
+      fundFlowConfigRepo.insert(fundFlow)
+    write(Payload.fundFlowPayloadFromDomain(fundFlow))
 
   @cask.get("/account/:id")
   def account(fundFlowName: String, accountIdStr: String): String =
