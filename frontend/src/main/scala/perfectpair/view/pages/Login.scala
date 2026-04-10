@@ -4,11 +4,44 @@ import tyrian.Html.*
 import tyrian.Html.{attribute => attr}
 import tyrian.*
 import perfectpair.model.Model.LoginForm
-import perfectpair.model.Msg
-import perfectpair.util.ElementIdGenerator
+import perfectpair.model.{Msg as AppMsg}
+import perfectpair.util.{ElementIdGenerator, HttpHelper, LocalStorageHelper}
 import perfectpair.view.components.Icons
+import zio.Task
+import zio.interop.catz.*
 
 object LoginPage {
+
+  enum Msg:
+    case UpdateUsername(value: String)
+    case UpdatePassword(value: String)
+    case Submit
+    case LoginSuccess(accessToken: String, refreshToken: String)
+    case LoginFailure(message: String)
+
+  case class Model(
+    username:  String,
+    password:  String,
+    error:     Option[String],
+    isLoading: Boolean
+  ):
+    def isSubmitDisabled: Boolean = username.isBlank() || password.isBlank()
+
+  object Model:
+    val init: Model = Model("Scala", "nopassword", None, false)
+
+  def update(model: Model, msg: Msg): (Model, tyrian.Cmd[zio.Task, perfectpair.model.Msg]) =
+    msg match
+      case Msg.UpdateUsername(v) =>
+        (model.copy(username = v), tyrian.Cmd.None)
+      case Msg.UpdatePassword(v) =>
+        (model.copy(password = v), tyrian.Cmd.None)
+      case Msg.Submit =>
+        (model.copy(isLoading = true), perfectpair.util.HttpHelper.login(model.username, model.password))
+      case Msg.LoginSuccess(at, rt) =>
+        (Model.init, perfectpair.util.LocalStorageHelper.storeSession(at, rt) |+| tyrian.Cmd.Emit(perfectpair.model.Msg.RestoredSession(at, rt)))
+      case Msg.LoginFailure(message) =>
+        (model.copy(error = Some(message), isLoading = false), tyrian.Cmd.None)
 
   private def formField(
     name: String,
