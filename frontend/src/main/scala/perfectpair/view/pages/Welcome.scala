@@ -2,6 +2,7 @@ package perfectpair.view.pages
 
 import tyrian.Html.*
 import tyrian.Html
+import tyrian.Cmd
 import perfectpair.model.Model.HomeState
 import perfectpair.model.{Msg as AppMsg}
 import perfectpair.util.{HttpHelper, PrettyLogger}
@@ -17,7 +18,7 @@ object Welcome:
 
   case class Model(serverMessage: Option[String] = None)
 
-  def update(model: Model, msg: Msg): (Model, tyrian.Cmd[Task, AppMsg]) =
+  def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     msg match
       case Msg.NextBackendMessage =>
         (model, HttpHelper.fetchServerMessage2 |+| PrettyLogger.info("fetchserverMessage2"))
