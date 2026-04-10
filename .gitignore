@@ -28,3 +28,5 @@ test/.DS_Store
 project/project/project
 project/project/metals.sbt
 project/metals.sbt
+
+.worktrees
