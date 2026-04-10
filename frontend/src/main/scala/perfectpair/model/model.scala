@@ -1,14 +1,14 @@
 package perfectpair.model
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload}
-import Model.{HomeState, LoginForm, User, emptyLoginForm}
-import perfectpair.page.*
+import perfectpair.common.model.FundFlowPayload
 import perfectpair.common.util.JwtHelper
 import perfectpair.page.Page
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
 import tyrian.{Cmd, Location}
 import zio.Task
 
-enum Msg {
+enum Msg:
+  // Global messages
   case NoOp
   case LogMessage(msg: String)
   case NavigateTo(page: Page)
@@ -16,43 +16,33 @@ enum Msg {
   case UnhandledRoute(path: String)
   case GoToInternet(loc: Location.External)
   case ToggleDarkMode
-
-  // with backend integration only
   case Error(msg: String)
   case SendHttpRequestWithAccessToken(sendWithAccessToken: String => Cmd[Task, Msg])
-  case LoginSuccess(accessToken: String, refreshToken: String)
-  case LoginFailure(message: String)
   case RestoredSession(accessToken: String, refreshToken: String)
-  case UpdateLoginForm(form: LoginForm)
-  case SubmitLogin
-  case NextBackendMessage
-  case GreetingFromBackend(text: String)
-  case GetReconAccounts
-  case GetAccountsForFundFlow(fundFlow: FundFlowPayload)
-  case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
-  case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
-  case FundFlowFormUpdate(fundFlow:FundFlowPayload)
-  case CreateFundFlow(fundFlow:FundFlowPayload)
-  case FundFlowCreated(fundFlow:FundFlowPayload)
-  case SelectFundFlow(fundFlow:FundFlowPayload)
   case Logout
-}
 
-/**
- * All frontend states is stored here
- */
+  // Navigation with context (carry page state to destination)
+  case NavigateToMaintainFundFlow(ff: FundFlowPayload)
+  case NavigateToAccounts(ff: FundFlowPayload)
+
+  // Page message wrappers
+  case LoginMsg(msg: LoginPage.Msg)
+  case HomeMsg(msg: Welcome.Msg)
+  case FundFlowsMsg(msg: FundFlowsView.Msg)
+  case MaintainFundFlowMsg(msg: MaintainFundFlowView.Msg)
+  case AccountsMsg(msg: AccountsView.Msg)
+
 case class Model(
-                  currentPage: Page,
-                  user: Option[User],
-                  loginForm: LoginForm,
-                  homeState: HomeState,
-                  isDarkMode: Boolean,
-                  fundFlows: Seq[FundFlowPayload],
-                  selectedFundFlow : Option[FundFlowPayload] = None,
-                  accounts: Seq[AccountPayload]
-) {
-  def toggleDarkMode: Model =
-    copy(isDarkMode = !isDarkMode)
+  currentPage:           Page,
+  user:                  Option[User],
+  isDarkMode:            Boolean,
+  loginModel:            LoginPage.Model,
+  homeModel:             Welcome.Model,
+  fundFlowsModel:        FundFlowsView.Model,
+  maintainFundFlowModel: MaintainFundFlowView.Model,
+  accountsModel:         AccountsView.Model,
+):
+  def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
 
   def isLoggedIn: Boolean = user.isDefined
 
@@ -60,37 +50,21 @@ case class Model(
 
   def loginSuccess(accessToken: String, refreshToken: String): Model =
     JwtHelper.getUnverifiedUserClaim(accessToken).map(claim => User(claim.username, accessToken, refreshToken)) match
-      case Right(user) =>
-        this.copy(user = Some(user), loginForm = emptyLoginForm)
-      case Left(_) =>
-        this
+      case Right(u) => this.copy(user = Some(u))
+      case Left(_)  => this
+
   def logout: Model = copy(user = None)
-}
 
-object Model {
-  case class User(username: String, accessToken: String, refreshToken: String)
-
-  /**
-   * Store Login page state
-   */
-  case class LoginForm(username: String, password: String, error: Option[String], isLoading: Boolean) {
-    def isSubmitDisabled: Boolean = username.isBlank() || password.isBlank()
-  }
-
-  /**
-   * Store Home page state
-   */
-  case class HomeState(serverMessage: Option[String])
-
-  val emptyLoginForm = LoginForm("Scala", "nopassword", None, false)
-  val emptyHomeState = HomeState(None)
+object Model:
   val init: Model = Model(
-    Page.Login,
-    user = None,
-    emptyLoginForm,
-    emptyHomeState,
-    isDarkMode = false,
-    fundFlows = Seq(),
-    accounts = Seq()
+    currentPage           = Page.Login,
+    user                  = None,
+    isDarkMode            = false,
+    loginModel            = LoginPage.Model.init,
+    homeModel             = Welcome.Model(),
+    fundFlowsModel        = FundFlowsView.Model(),
+    maintainFundFlowModel = MaintainFundFlowView.Model(),
+    accountsModel         = AccountsView.Model()
   )
-}
+
+  case class User(username: String, accessToken: String, refreshToken: String)
