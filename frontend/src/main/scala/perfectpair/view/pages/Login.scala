@@ -30,16 +30,16 @@ object LoginPage {
   object Model:
     val init: Model = Model("Scala", "nopassword", None, false)
 
-  def update(model: Model, msg: Msg): (Model, tyrian.Cmd[zio.Task, perfectpair.model.Msg]) =
+  def update(model: Model, msg: Msg): (Model, tyrian.Cmd[Task, AppMsg]) =
     msg match
       case Msg.UpdateUsername(v) =>
         (model.copy(username = v), tyrian.Cmd.None)
       case Msg.UpdatePassword(v) =>
         (model.copy(password = v), tyrian.Cmd.None)
       case Msg.Submit =>
-        (model.copy(isLoading = true), perfectpair.util.HttpHelper.login(model.username, model.password))
+        (model.copy(isLoading = true), HttpHelper.login(model.username, model.password))
       case Msg.LoginSuccess(at, rt) =>
-        (Model.init, perfectpair.util.LocalStorageHelper.storeSession(at, rt) |+| tyrian.Cmd.Emit(perfectpair.model.Msg.RestoredSession(at, rt)))
+        (Model.init, LocalStorageHelper.storeSession(at, rt) |+| tyrian.Cmd.Emit(AppMsg.RestoredSession(at, rt)))
       case Msg.LoginFailure(message) =>
         (model.copy(error = Some(message), isLoading = false), tyrian.Cmd.None)
 
