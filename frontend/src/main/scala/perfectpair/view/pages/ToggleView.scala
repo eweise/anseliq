@@ -1,12 +1,21 @@
 package perfectpair.view.pages
 
 import perfectpair.model.Msg
+import tyrian.Cmd
 import tyrian.Html
 import tyrian.Html.*
 import tyrian.Html.{attribute => attr}
 import perfectpair.view.components.Icons
+import zio.Task
 
 object ToggleView:
+
+  enum Msg
+
+  case class Model()
+
+  def update(model: Model, msg: Msg): (Model, Cmd[Task, perfectpair.model.Msg]) =
+    (model, Cmd.None)
 
   def apply(): Html[Msg] =
     val toggles = List(default, checkedToggleSwitch, disabledToggleSwitches, colorfulToggleSwitches, toggleSize).map(toggleBlock)
