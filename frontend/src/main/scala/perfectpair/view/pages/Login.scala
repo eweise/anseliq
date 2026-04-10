@@ -74,8 +74,8 @@ object LoginPage {
       )(
         form(cls := "space-y-6", attr("action", "#"))(
           h5(cls := "text-xl font-medium text-gray-900 dark:text-white")("Just click Login"),
-          formField("Username", state.username, v => Msg.UpdateLoginForm(state.copy(username = v)), "text"),
-          formField("Password", state.password, v => Msg.UpdateLoginForm(state.copy(password = v)), "password"),
+          formField("Username", state.username, v => AppMsg.UpdateLoginForm(state.copy(username = v)), "text"),
+          formField("Password", state.password, v => AppMsg.UpdateLoginForm(state.copy(password = v)), "password"),
           p(cls := "text-red-500")(state.error.getOrElse("")),
           div(cls := "flex items-start")(
             div(cls := "flex items-center h-5")(
@@ -91,7 +91,7 @@ object LoginPage {
             )("Forgot Password?")
           ),
           button(
-            onClick(Msg.SubmitLogin),
+            onClick(AppMsg.SubmitLogin),
             disabled(state.isSubmitDisabled),
             cls := s"w-full text-white bg-purple-700 hover:bg-purple-800 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 ${if state.isSubmitDisabled then "btn-disabled" else ""}"
           )("Login"),
