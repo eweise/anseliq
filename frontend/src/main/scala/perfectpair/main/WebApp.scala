@@ -20,6 +20,7 @@ import perfectpair.page.Page
 import perfectpair.route.Route
 import perfectpair.util.{Flowbite, HttpHelper, LocalStorageHelper, PrettyLogger}
 import perfectpair.view.MainContainer
+import perfectpair.view.pages.{AccountsView, MaintainFundFlowView}
 
 @JSExportTopLevel("TyrianApp")
 object WebApp extends TyrianZIOApp[Msg, Model]:
@@ -59,29 +60,13 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.GoToInternet(loc) =>
       (model, Nav.loadUrl(loc.url))
 
-    case Msg.UpdateLoginForm(form) =>
-      (model.copy(loginForm = form), Cmd.None)
-
-    case Msg.SubmitLogin =>
-      val loginCmd = HttpHelper.login(model.loginForm.username, model.loginForm.password)
-      (model.modify(_.loginForm.isLoading).setTo(true), loginCmd)
-
     case Msg.NavigateTo(page) =>
-//todo implement      val isLoginRequired = page.isSecured && !model.isLoggedIn
       val isLoginRequired = false
-      if (!isLoginRequired) {
-        (model.navigateTo(page), page.doNavigate(model))
-      } else (Model.init, Cmd.Emit(Msg.NavigateTo(Page.Login)))
+      if !isLoginRequired then (model.navigateTo(page), page.doNavigate(model))
+      else (Model.init, Cmd.Emit(Msg.NavigateTo(Page.Login)))
 
     case Msg.RestoredSession(accessToken, refreshToken) =>
       (model.loginSuccess(accessToken, refreshToken), Cmd.Emit(Msg.DoNavigate(Page.Home)))
-
-    case Msg.LoginSuccess(accessToken, refreshToken) =>
-      val saveTokenAndEnterHome = LocalStorageHelper.storeSession(accessToken, refreshToken) |+| Cmd.Emit(Msg.NavigateTo(Page.Home))
-      (model.loginSuccess(accessToken, refreshToken), saveTokenAndEnterHome)
-
-    case Msg.LoginFailure(msg) =>
-      (model.modify(_.loginForm.error).setTo(Some(msg)), Cmd.None)
 
     case Msg.Logout =>
       (model.logout, LocalStorageHelper.cleanStorageWhenLogout |+| Cmd.Emit(Msg.NavigateTo(Page.Login)))
@@ -92,50 +77,24 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.UnhandledRoute(path) =>
       (model, PrettyLogger.error("Unhandled route" + path))
 
-    case Msg.GreetingFromBackend(text) =>
-      (model.modify(_.homeState.serverMessage).setTo(Some(text)), PrettyLogger.info(text))
+    case Msg.SendHttpRequestWithAccessToken(f) =>
+      (model, f(""))
 
-    case Msg.NextBackendMessage =>
-      (model, HttpHelper.fetchServerMessage2 |+| PrettyLogger.info("fetchserverMessage2"))
-
-    case Msg.GetAccountsForFundFlow(fundFlow) =>
+    case Msg.NavigateToMaintainFundFlow(ff) =>
       (
-        model.modify(_.selectedFundFlow).setTo(Some(fundFlow)),
-        HttpHelper.fetchAccountsByFundFlowID(fundFlow.id) |+|
+        model.copy(maintainFundFlowModel = MaintainFundFlowView.Model(ff)),
+        Cmd.Emit(Msg.NavigateTo(Page.MaintainFundFlow))
+      )
+
+    case Msg.NavigateToAccounts(ff) =>
+      (
+        model.copy(accountsModel = AccountsView.Model(fundFlow = ff)),
+        HttpHelper.fetchAccountsByFundFlowID(ff.id) |+|
           Cmd.Emit(Msg.NavigateTo(Page.Accounts)) |+|
           PrettyLogger.info("fetchAccountsByFundFlowID")
       )
 
-    case Msg.GetReconAccounts =>
-      (model, HttpHelper.fetchReconAccounts |+| PrettyLogger.info("fetch recon accounts"))
-
-    case Msg.ReconAccountsFromBackend(reconAccounts) =>
-      (model.modify(_.accounts).setTo(reconAccounts), PrettyLogger.info("updated model with reconAccounts"))
-
-    case Msg.FundFlowsFromBackend(ff) =>
-      (model.modify(_.fundFlows).setTo(ff), PrettyLogger.info("updated model with fund flows"))
-
-    case Msg.FundFlowFormUpdate(ff) =>
-      (model.modify(_.selectedFundFlow).setTo(Some(ff)), PrettyLogger.info(s"fund flow form modified value is $ff"))
-    case Msg.CreateFundFlow(ff) =>
-      (model, HttpHelper.createFundFlow(ff) |+| PrettyLogger.info("creating fund flow"))
-
-    case Msg.FundFlowCreated(ff) =>
-      (model.modify(_.fundFlows).setTo(Seq(ff)), PrettyLogger.info("created model with fund flow"))
-
-    case Msg.SelectFundFlow(ff) =>
-      (
-        model.modify(_.selectedFundFlow).setTo(Some(ff)),
-        Cmd.Emit(Msg.NavigateTo(Page.MaintainFundFlow))
-      )
-
-    case Msg.SendHttpRequestWithAccessToken(f) =>
-//      val cmd = model.user match
-//        case None =>
-//          Cmd.Emit(Msg.DoNavigate(Page.Login))
-//        case Some(User(_, accessToken, _)) =>
-      val cmd = f("")
-      (model, cmd)
+    case msg => model.currentPage.update(model, msg)
 
   def view(model: Model): Html[Msg] =
     val pageContent = model.currentPage.render(model)
