@@ -1,6 +1,6 @@
 package perfectpair.view.pages
 
-import perfectpair.model.Msg
+import perfectpair.model.{Msg as AppMsg}
 import tyrian.Cmd
 import tyrian.Html
 import tyrian.Html.*
@@ -10,20 +10,21 @@ import zio.Task
 
 object ToggleView:
 
-  enum Msg
+  enum Msg:
+    case NoOp
 
   case class Model()
 
-  def update(model: Model, msg: Msg): (Model, Cmd[Task, perfectpair.model.Msg]) =
+  def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     (model, Cmd.None)
 
-  def apply(): Html[Msg] =
+  def apply(model: Model): Html[AppMsg] =
     val toggles = List(default, checkedToggleSwitch, disabledToggleSwitches, colorfulToggleSwitches, toggleSize).map(toggleBlock)
     div(cls := "flex flex-col mt-8")(
       toggles
     )
 
-  private def toggleBlock(toggle: Html[Msg]) =
+  private def toggleBlock(toggle: Html[AppMsg]) =
     div(cls := "flex flex-row max-w-full p-6 my-4 bg-white border border-gray-200 dark:bg-gray-600 rounded-lg shadow")(
       toggle
     )
@@ -45,7 +46,7 @@ object ToggleView:
       )("Toggle me")
     )
 
-  val checkedToggleSwitch: Html[Msg] =
+  val checkedToggleSwitch: Html[AppMsg] =
     label(
       cls := "inline-flex items-center cursor-pointer"
     )(
@@ -62,7 +63,7 @@ object ToggleView:
         cls := "ms-3 text-sm font-medium text-gray-900 dark:text-gray-300"
       )("Checked toggle")
     )
-  val disabledToggleSwitches: Html[Msg] =
+  val disabledToggleSwitches: Html[AppMsg] =
     div(
       cls := "space-y-4" // Optional: Adds spacing between the switches
     )(
@@ -103,7 +104,7 @@ object ToggleView:
       )
     )
 
-  val colorfulToggleSwitches: Html[Msg] =
+  val colorfulToggleSwitches: Html[AppMsg] =
     div(
       cls := "space-y-4" // Optional: Adds spacing between the switches
     )(
@@ -211,7 +212,7 @@ object ToggleView:
       )
     )
 
-  val toggleSize: Html[Msg] =
+  val toggleSize: Html[AppMsg] =
     div(
       cls := "space-y-4" // Optional spacing between switches
     )(

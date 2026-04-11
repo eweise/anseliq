@@ -3,7 +3,7 @@ package perfectpair.model
 import perfectpair.common.model.FundFlowPayload
 import perfectpair.common.util.JwtHelper
 import perfectpair.page.Page
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, ToggleView, Welcome}
 import tyrian.{Cmd, Location}
 import zio.Task
 
@@ -31,6 +31,9 @@ enum Msg:
   case FundFlowsMsg(msg: FundFlowsView.Msg)
   case MaintainFundFlowMsg(msg: MaintainFundFlowView.Msg)
   case AccountsMsg(msg: AccountsView.Msg)
+  case ToggleMsg(msg: ToggleView.Msg)
+
+case class User(username: String, accessToken: String, refreshToken: String)
 
 case class Model(
   currentPage:           Page,
@@ -41,6 +44,7 @@ case class Model(
   fundFlowsModel:        FundFlowsView.Model,
   maintainFundFlowModel: MaintainFundFlowView.Model,
   accountsModel:         AccountsView.Model,
+  toggleModel:           ToggleView.Model = ToggleView.Model(),
 ):
   def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
 
@@ -66,5 +70,3 @@ object Model:
     maintainFundFlowModel = MaintainFundFlowView.Model(),
     accountsModel         = AccountsView.Model()
   )
-
-  case class User(username: String, accessToken: String, refreshToken: String)
