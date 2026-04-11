@@ -29,13 +29,13 @@ object AccountsView:
       case Msg.ReconAccountsFromBackend(accounts) =>
         (model.copy(accounts = accounts), PrettyLogger.info("updated model with reconAccounts"))
 
-  def apply(fundFlowPayload: FundFlowPayload, accounts: Seq[AccountPayload]): Html[AppMsg] =
+  def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
-        span(onClick(AppMsg.NavigateTo(Page.FundFlows)))(text(s"${fundFlowPayload.name}: Accounts View")),
+        span(onClick(AppMsg.NavigateTo(Page.FundFlows)))(text(s"${model.fundFlow.name}: Accounts View")),
         button(
           cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-12 h-12 rounded-full hover:animate-spin mx-6 ml-auto transition-all duration-300 hover:bg-green-500 hover:text-white",
-          onClick(AppMsg.GetReconAccounts)
+          onClick(AppMsg.AccountsMsg(Msg.GetReconAccounts))
         )(Icons.user),
         Table.create(
           Seq(
@@ -43,7 +43,7 @@ object AccountsView:
             "Name",
             "Balance"
           ),
-          accounts.map(account =>
+          model.accounts.map(account =>
             Seq(
               text(account.id),
               text(account.name),

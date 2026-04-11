@@ -3,7 +3,6 @@ package perfectpair.view.pages
 import tyrian.Html.*
 import tyrian.Html
 import tyrian.Cmd
-import perfectpair.model.Model.HomeState
 import perfectpair.model.{Msg as AppMsg}
 import perfectpair.util.{HttpHelper, PrettyLogger}
 import perfectpair.view.components.Icons
@@ -25,7 +24,7 @@ object Welcome:
       case Msg.GreetingFromBackend(text) =>
         (model.copy(serverMessage = Some(text)), PrettyLogger.info(text))
 
-  def apply(state: HomeState): Html[AppMsg] =
+  def apply(model: Model): Html[AppMsg] =
     val tyrianLink =
       a(
         href   := "https://tyrian.indigoengine.io",
@@ -55,13 +54,13 @@ object Welcome:
             div(cls := "flex flex-col space-y-4 w-[50rem]")(
               div(cls := "text-green-400 text-2xl font-semibold")("Message from server"),
               div(cls := "font-mono text-sm italic text-gray-600 dark:text-white break-words whitespace-normal")(
-                if state.serverMessage.isEmpty then "Empty...is Server running ?" else state.serverMessage.get
+                if model.serverMessage.isEmpty then "Empty...is Server running ?" else model.serverMessage.get
               )
             )
           ),
           button(
             cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-12 h-12 rounded-full hover:animate-spin mx-6 ml-auto transition-all duration-300 hover:bg-green-500 hover:text-white",
-            onClick(AppMsg.NextBackendMessage)
+            onClick(AppMsg.HomeMsg(Msg.NextBackendMessage))
           )(
             Icons.refresh
           )
