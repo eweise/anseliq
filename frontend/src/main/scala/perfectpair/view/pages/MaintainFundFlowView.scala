@@ -25,8 +25,7 @@ object MaintainFundFlowView:
       case Msg.FundFlowFormUpdate(ff) =>
         (model.copy(fundFlow = ff), PrettyLogger.info(s"fund flow form modified: $ff"))
       case Msg.CreateFundFlow(ff) =>
-        val validationErrs = ff.validate
-        if validationErrs.nonEmpty then (model, Cmd.emit(AppMsg.Error(validationErrs.toString)))
+        if ff.name.isBlank then (model, Cmd.emit(AppMsg.Error("Name is required")))
         else (model, HttpHelper.createFundFlow(ff) |+| PrettyLogger.info("creating fund flow"))
       case Msg.FundFlowCreated(ff) =>
         (model.copy(fundFlow = ff), PrettyLogger.info("created fund flow"))

@@ -11,7 +11,6 @@ import scala.scalajs.js.annotation.*
 import tyrian.CSS.*
 import tyrian.Routing
 import perfectpair.model.*
-import perfectpair.model.Model.User
 import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.page.*
