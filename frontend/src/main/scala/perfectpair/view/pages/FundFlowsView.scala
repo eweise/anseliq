@@ -31,7 +31,7 @@ object FundFlowsView:
       case Msg.GetAccountsForFundFlow(ff) =>
         (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff)))
 
-  def apply(fundFlows: Seq[FundFlowPayload]): Html[AppMsg] =
+  def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "w-full max-w-4xl px-4")(
         div(cls := "flex justify-between items-center my-8")(
@@ -40,13 +40,13 @@ object FundFlowsView:
         ),
         Table.create(
           Seq("ID", "Name", "Created At", "Updated At", ""),
-          fundFlows.map(ff =>
+          model.fundFlows.map(ff =>
             Seq(
               text(ff.id),
               text(ff.name),
               text(ff.createdAt.get.toString),
               text(ff.updatedAt.get.toString),
-              Buttons.textButton("Edit", AppMsg.SelectFundFlow(ff))
+              Buttons.textButton("Edit", AppMsg.FundFlowsMsg(Msg.SelectFundFlow(ff)))
             )
           )
         )

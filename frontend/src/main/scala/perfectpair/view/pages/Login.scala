@@ -3,7 +3,6 @@ package perfectpair.view.pages
 import tyrian.Html.*
 import tyrian.Html.{attribute => attr}
 import tyrian.*
-import perfectpair.model.Model.LoginForm
 import perfectpair.model.{Msg as AppMsg}
 import perfectpair.util.{ElementIdGenerator, HttpHelper, LocalStorageHelper}
 import perfectpair.view.components.Icons
@@ -46,9 +45,9 @@ object LoginPage {
   private def formField(
     name: String,
     _value: String,
-    _onInput: String => Msg,
+    _onInput: String => AppMsg,
     _type: "password" | "text"
-  ): Html[Msg] =
+  ): Html[AppMsg] =
     val icon         = if _type == "password" then Icons.lock else Icons.user
     val _placeholder = if _type == "password" then "••••••••" else ""
     val _id          = ElementIdGenerator.generate("login-")
@@ -67,16 +66,16 @@ object LoginPage {
       )
     )
 
-  def apply(state: LoginForm): Html[Msg] =
+  def apply(model: Model): Html[AppMsg] =
     div(cls := "h-screen flex justify-center bg-base-150")(
       div(
         cls := "w-full max-w-sm my-auto p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 md:p-8 dark:bg-gray-800 dark:border-gray-700"
       )(
         form(cls := "space-y-6", attr("action", "#"))(
           h5(cls := "text-xl font-medium text-gray-900 dark:text-white")("Just click Login"),
-          formField("Username", state.username, v => AppMsg.UpdateLoginForm(state.copy(username = v)), "text"),
-          formField("Password", state.password, v => AppMsg.UpdateLoginForm(state.copy(password = v)), "password"),
-          p(cls := "text-red-500")(state.error.getOrElse("")),
+          formField("Username", model.username, v => AppMsg.LoginMsg(Msg.UpdateUsername(v)), "text"),
+          formField("Password", model.password, v => AppMsg.LoginMsg(Msg.UpdatePassword(v)), "password"),
+          p(cls := "text-red-500")(model.error.getOrElse("")),
           div(cls := "flex items-start")(
             div(cls := "flex items-center h-5")(
               input(
@@ -91,12 +90,12 @@ object LoginPage {
             )("Forgot Password?")
           ),
           button(
-            onClick(AppMsg.SubmitLogin),
-            disabled(state.isSubmitDisabled),
-            cls := s"w-full text-white bg-purple-700 hover:bg-purple-800 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 ${if state.isSubmitDisabled then "btn-disabled" else ""}"
+            onClick(AppMsg.LoginMsg(Msg.Submit)),
+            disabled(model.isSubmitDisabled),
+            cls := s"w-full text-white bg-purple-700 hover:bg-purple-800 focus:ring-4 focus:outline-none focus:ring-purple-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-purple-600 dark:hover:bg-purple-700 dark:focus:ring-purple-800 ${if model.isSubmitDisabled then "btn-disabled" else ""}"
           )("Login"),
           span(
-            style(if state.isLoading then CSS.display("block") else CSS.display("none")),
+            style(if model.isLoading then CSS.display("block") else CSS.display("none")),
             cls := "loading loading-ring loading-lg text-info"
           )()
         )
