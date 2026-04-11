@@ -100,9 +100,9 @@ object MainContainer:
     )
 
   def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
-    div(cls := (if isDark then "dark" else "not-dark-mode"))(
+    div(cls := (if isDark then "dark bg-gray-900" else "not-dark-mode bg-md-surface-variant"))(
       navbar(isDark, isLoggedIn),
       leftNav(),
-      main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-gray-200 dark:bg-gray-900")(content),
+      main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-md-surface-variant dark:bg-gray-900")(content),
       theFooter
     )

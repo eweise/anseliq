@@ -4,7 +4,7 @@ import perfectpair.common.model.FundFlowPayload
 import perfectpair.model.{Msg as AppMsg}
 import perfectpair.page.Page
 import perfectpair.util.PrettyLogger
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.view.components.Buttons
 import tyrian.Cmd
 import tyrian.Html
 import tyrian.Html.*
@@ -32,23 +32,32 @@ object FundFlowsView:
         (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff)))
 
   def apply(model: Model): Html[AppMsg] =
-    div(cls := "flex flex-col items-center mb-8 pt-20")(
-      div(cls := "w-full max-w-4xl px-4")(
+    div(cls := "flex flex-col mb-8 pt-20")(
+      div(cls := "w-full px-8")(
         div(cls := "flex justify-between items-center my-8")(
           h2(cls := "text-xl font-medium")(text("Fund Flows")),
           Buttons.linkButton("Create", AppMsg.NavigateTo(Page.MaintainFundFlow))
         ),
-        Table.create(
-          Seq("ID", "Name", "Created At", "Updated At", ""),
+        div(cls := "flex items-center px-6 py-2 text-sm font-medium text-gray-500")(
+          span(cls := "w-48")(text("ID")),
+          span(cls := "flex-1")(text("Name")),
+          span(cls := "w-56")(text("Created At")),
+          span(cls := "w-56")(text("Updated At")),
+          span(cls := "w-20")()
+        ),
+        div(cls := "flex flex-col gap-2")(
           model.fundFlows.map(ff =>
-            Seq(
-              text(ff.id),
-              text(ff.name),
-              text(ff.createdAt.get.toString),
-              text(ff.updatedAt.get.toString),
+            div(cls := "flex items-center gap-3")(
+              div(cls := "flex-1 flex items-center bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 text-sm")(
+                span(cls := "w-48 text-gray-500")(text(ff.id)),
+                span(cls := "flex-1 font-medium")(text(ff.name)),
+                span(cls := "w-56 text-gray-500")(text(ff.createdAt.get.toString)),
+                span(cls := "w-56 text-gray-500")(text(ff.updatedAt.get.toString))
+              ),
+              Buttons.textButton("Accounts", AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
               Buttons.textButton("Edit", AppMsg.FundFlowsMsg(Msg.SelectFundFlow(ff)))
             )
-          )
+          )*
         )
       )
     )
