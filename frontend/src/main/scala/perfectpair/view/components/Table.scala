@@ -7,7 +7,7 @@ object Table:
     headers: Seq[String],
     rows: Seq[Seq[Elem[M]]]
   ): Html[M] =
-    div(cls := "relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-base border border-default")(
+    div(cls := "relative overflow-x-visible bg-neutral-primary-soft shadow-xs rounded-base border border-default")(
       table(cls := "w-full text-sm text-left rtl:text-right text-body")(
         thead(cls := "text-sm text-body bg-neutral-secondary-soft border-b rounded-base border-default")(
           tr(
