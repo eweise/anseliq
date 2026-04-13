@@ -1,6 +1,6 @@
 package perfectpair.model
 
-import perfectpair.common.model.FundFlowResponse
+import perfectpair.common.model.FundFlowPayload
 import perfectpair.common.util.JwtHelper
 import perfectpair.page.Page
 import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, ToggleView, Welcome}
@@ -22,9 +22,9 @@ enum Msg:
   case Logout
 
   // Navigation with context (carry page state to destination)
-  case NavigateToMaintainFundFlow(ff: FundFlowResponse)
-  case NavigateToAccounts(ff: FundFlowResponse)
-  case NavigateToMaintainAccount(ff: FundFlowResponse)
+  case NavigateToMaintainFundFlow(ff: FundFlowPayload)
+  case NavigateToAccounts(ff: FundFlowPayload)
+  case NavigateToMaintainAccount(ff: FundFlowPayload)
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)

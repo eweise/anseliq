@@ -37,7 +37,7 @@ object HttpHelper:
   val fetchFundFlows: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(HttpPath.fundFlows), fundFlowsDecoder)
 
-  def createFundFlow(fundFlow: FundFlowResponse): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+  def createFundFlow(fundFlow: FundFlowPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(Request.post(HttpPath.url(HttpPath.createFundFlow), Body.json(write(fundFlow))), fundFlowCreatedDecoder)
 
   def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
@@ -84,7 +84,7 @@ object HttpHelper:
     val fundFlowsDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
-          val ffPayload = read[Seq[FundFlowResponse]](onResponse.body)
+          val ffPayload = read[Seq[FundFlowPayload]](onResponse.body)
           Msg.FundFlowsMsg(FundFlowsView.Msg.FundFlowsFromBackend(ffPayload)),
         error => Msg.Error(error.toString)
       )
@@ -92,7 +92,7 @@ object HttpHelper:
     val fundFlowCreatedDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
-          val ffPayload = read[FundFlowResponse](onResponse.body)
+          val ffPayload = read[FundFlowPayload](onResponse.body)
           Msg.MaintainFundFlowMsg(MaintainFundFlowView.Msg.FundFlowCreated(ffPayload)),
         error => Msg.Error(error.toString)
       )

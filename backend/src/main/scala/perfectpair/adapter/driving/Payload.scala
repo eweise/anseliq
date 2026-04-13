@@ -10,7 +10,7 @@ object Payload:
       name = payload.name
     )
 
-  def fundFlowPayloadFromDomain(ff: FundFlowConfig): FundFlowPayload =
+  def fundFlowResponseFromDomain(ff: FundFlowConfig): FundFlowPayload =
     FundFlowPayload(
       id        = ff.id.toString,
       name      = ff.name,
@@ -27,7 +27,7 @@ object Payload:
       balance    = account.balance
     )
 
-  def movementPayloadfromDomainModel(dmMovement: Movement): MovementPayload =
+  def movementResponsefromDomainModel(dmMovement: Movement): MovementPayload =
     MovementPayload(
       id               = dmMovement.id.toString,
       referenceId      = dmMovement.referenceId.toString,
