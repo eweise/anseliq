@@ -8,6 +8,11 @@ import java.time.format.DateTimeFormatter
 import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 
+type ValidationErrors = Map[String, String]
+
+trait CanValidate:
+  def validate(): ValidationErrors
+
 object InstantRW {
   // Use ISO_INSTANT formatter for standard representation
   val formatter: DateTimeFormatter = DateTimeFormatter.ISO_INSTANT
@@ -84,7 +89,12 @@ case class AccountPayload(
   fundFlowId: ID,
   properties: Properties = Map(),
   balance:    Money
-) derives ReadWriter
+) extends CanValidate
+    derives ReadWriter:
+  override def validate(): ValidationErrors =
+    var errors = Map[String, String]()
+    if name.length < 3 then errors += ("name" -> "name must be at least 3 characters long")
+    errors
 
 case class MovementPayload(
   id:               String,
@@ -95,4 +105,3 @@ case class MovementPayload(
   properties:       Properties,
   reconciliationId: String
 ) derives ReadWriter
-

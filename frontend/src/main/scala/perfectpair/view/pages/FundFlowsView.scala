@@ -1,7 +1,7 @@
 package perfectpair.view.pages
 
 import perfectpair.common.model.FundFlowPayload
-import perfectpair.model.{Msg as AppMsg}
+import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
 import perfectpair.util.PrettyLogger
 import perfectpair.view.components.Buttons

@@ -1,7 +1,7 @@
 package perfectpair.domain.service
 
+import perfectpair.common.model.AccountPayload
 import perfectpair.common.model.model.{ID, Money, Properties}
-import perfectpair.domain.model
 import perfectpair.domain.model.*
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
@@ -41,23 +41,11 @@ class AccountOperations(
     )
     movementRepo.insert(movement)
 
-  private def upsertAccount(
-    accountName: String,
-    amount:      Money,
-    ffConfig:    FundFlowConfig
-  ): Txn[Account] =
-    accountRepo.findByFundFlowAndAccountName(ffConfig.id, accountName) match
-
-      case Some(found) =>
-        accountRepo.update(found.copy(balance = found.balance + amount))
-        found
-
-      case _ =>
-        val newAccount = Account(
-          name       = accountName,
-          fundFlowId = ffConfig.id,
-          balance    = amount,
-          properties = JSONBProps(Map()) // todo
-        )
-        accountRepo.insert(newAccount)
-        newAccount
+  def createAccount(payload: AccountPayload): Txn[Account] =
+    val newAccount = Account(
+      name       = payload.name,
+      fundFlowId = payload.fundFlowId,
+      properties = JSONBProps(payload.properties)
+    )
+    accountRepo.insert(newAccount)
+    newAccount

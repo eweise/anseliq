@@ -17,7 +17,7 @@ object HttpCmd:
   def GET  = Seq("get", "options")
   def POST = Seq("post", "options")
 
-object Example extends cask.MainRoutes:
+object App extends cask.MainRoutes:
   val dataSource         = DbDataSource.create(ConfigFactory.load("application.conf"))
   val transactor         = Transactor(dataSource)
   val fundFlowConfigRepo = FundFlowConfigRepoLive()
@@ -108,7 +108,7 @@ object Example extends cask.MainRoutes:
   def getFundFlows() =
     transact(transactor):
       val fundFlows = fundFlowConfigRepo.findAll
-      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff))
+      val payloads  = fundFlows.map(ff => Payload.fundFlowResponseFromDomain(ff))
       write(payloads)
 
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts", methods = HttpCmd.GET)
@@ -132,7 +132,14 @@ object Example extends cask.MainRoutes:
 
     transact(transactor):
       fundFlowConfigRepo.insert(fundFlow)
-    write(Payload.fundFlowPayloadFromDomain(fundFlow))
+    write(Payload.fundFlowResponseFromDomain(fundFlow))
+
+  @cask.route(s"${HttpPath.maintainAccount}", methods = HttpCmd.POST)
+  def createAccount(request: cask.Request): String =
+    val accountRequest = read[AccountPayload](request.text())
+    transact(transactor):
+      val account = accountOperations.createAccount(accountRequest)
+      write(Payload.accountPayloadFromDomain(account))
 
   @cask.get("/account/:id")
   def account(fundFlowName: String, accountIdStr: String): String =
@@ -162,7 +169,7 @@ object Example extends cask.MainRoutes:
     transact(transactor):
       val adapterMovements = movementRepo
         .findByAccount(accountID)
-        .map(Payload.movementPayloadfromDomainModel)
+        .map(Payload.movementResponsefromDomainModel)
 
       write(adapterMovements.toSeq)
 

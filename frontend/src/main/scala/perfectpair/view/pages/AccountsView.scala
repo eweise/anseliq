@@ -1,6 +1,6 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowResponse}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload}
 import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
 import perfectpair.util.{HttpHelper, PrettyLogger}
@@ -16,7 +16,7 @@ object AccountsView:
     case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
 
   case class Model(
-                    fundFlow: FundFlowResponse       = FundFlowResponse(),
+                    fundFlow: FundFlowPayload       = FundFlowPayload(),
                     accounts: Seq[AccountPayload]   = Seq()
   )
 

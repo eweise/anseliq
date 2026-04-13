@@ -9,6 +9,7 @@ object HttpPath:
   val fundFlows      = s"$prefix/fund-flows"
   val createFundFlow = s"$prefix/fund-flow"
   val accounts       = s"$prefix/accounts"
+  val maintainAccount  = s"$prefix/account"
 
   def url(path: String) = s"http://localhost:8080$path"
 // Get rid of this crap

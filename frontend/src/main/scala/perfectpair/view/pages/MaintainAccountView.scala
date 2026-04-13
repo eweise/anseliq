@@ -1,6 +1,6 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowResponse}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload}
 import perfectpair.model.Msg as AppMsg
 import perfectpair.util.{HttpHelper, PrettyLogger}
 import perfectpair.view.components.{Buttons, Form}
@@ -20,8 +20,8 @@ object MaintainAccountView:
     case AccountCreated(account: AccountPayload)
 
   case class Model(
-    fundFlow: FundFlowResponse = FundFlowResponse(),
-    account:  AccountPayload   = AccountPayload(
+                    fundFlow: FundFlowPayload = FundFlowPayload(),
+                    account:  AccountPayload   = AccountPayload(
       id         = "",
       name       = "",
       fundFlowId = UUID.fromString("00000000-0000-0000-0000-000000000000"),
