@@ -1,15 +1,13 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload}
-import perfectpair.model.{Msg as AppMsg}
+import perfectpair.common.model.{AccountPayload, FundFlowResponse}
+import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
 import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.{Icons, Table}
-import tyrian.Cmd
-import tyrian.Html
+import perfectpair.view.components.{Buttons, Icons, Table}
+import tyrian.{Cmd, Html}
 import tyrian.Html.*
 import zio.Task
-import zio.interop.catz.*
 
 object AccountsView:
 
@@ -18,8 +16,8 @@ object AccountsView:
     case ReconAccountsFromBackend(accounts: Seq[AccountPayload])
 
   case class Model(
-    fundFlow: FundFlowPayload       = FundFlowPayload(),
-    accounts: Seq[AccountPayload]   = Seq()
+                    fundFlow: FundFlowResponse       = FundFlowResponse(),
+                    accounts: Seq[AccountPayload]   = Seq()
   )
 
   def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
@@ -37,6 +35,7 @@ object AccountsView:
           cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-12 h-12 rounded-full hover:animate-spin mx-6 ml-auto transition-all duration-300 hover:bg-green-500 hover:text-white",
           onClick(AppMsg.AccountsMsg(Msg.GetReconAccounts))
         )(Icons.user),
+        Buttons.linkButton("Add Account", AppMsg.NavigateToMaintainAccount(model.fundFlow)),
         Table.create(
           Seq(
             "ID",
