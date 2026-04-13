@@ -11,7 +11,6 @@ import scala.scalajs.js.annotation.*
 import tyrian.CSS.*
 import tyrian.Routing
 import perfectpair.model.*
-import perfectpair.common.model.AccountPayload
 import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.page.*
@@ -96,15 +95,7 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
 
     case Msg.NavigateToMaintainAccount(ff) =>
       (
-        model.copy(maintainAccountModel = MaintainAccountView.Model(
-          fundFlow = ff,
-          account  = AccountPayload(
-            id         = "",
-            name       = "",
-            fundFlowId = java.util.UUID.fromString(ff.id),
-            balance    = BigDecimal(0)
-          )
-        )),
+        model.copy(maintainAccountModel = MaintainAccountView.Model(fundFlow = ff)),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainAccount))
       )
 
