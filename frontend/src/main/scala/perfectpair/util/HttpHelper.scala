@@ -5,7 +5,7 @@ import perfectpair.common.model.*
 import HttpHelper.ResponseDecoders.*
 import perfectpair.common.http.{BackendApiUrl, HttpPath}
 import perfectpair.model.Msg
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, Welcome}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -37,8 +37,11 @@ object HttpHelper:
   val fetchFundFlows: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(HttpPath.fundFlows), fundFlowsDecoder)
 
-  def createFundFlow(fundFlow: FundFlowPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+  def createFundFlow(fundFlow: FundFlowResponse): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(Request.post(HttpPath.url(HttpPath.createFundFlow), Body.json(write(fundFlow))), fundFlowCreatedDecoder)
+
+  def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(Request.post(HttpPath.url(HttpPath.maintainAccount), Body.json(write(account))), accountCreatedDecoder)
 
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountDecoder)
@@ -81,7 +84,7 @@ object HttpHelper:
     val fundFlowsDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
-          val ffPayload = read[Seq[FundFlowPayload]](onResponse.body)
+          val ffPayload = read[Seq[FundFlowResponse]](onResponse.body)
           Msg.FundFlowsMsg(FundFlowsView.Msg.FundFlowsFromBackend(ffPayload)),
         error => Msg.Error(error.toString)
       )
@@ -89,7 +92,7 @@ object HttpHelper:
     val fundFlowCreatedDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
-          val ffPayload = read[FundFlowPayload](onResponse.body)
+          val ffPayload = read[FundFlowResponse](onResponse.body)
           Msg.MaintainFundFlowMsg(MaintainFundFlowView.Msg.FundFlowCreated(ffPayload)),
         error => Msg.Error(error.toString)
       )
@@ -99,5 +102,13 @@ object HttpHelper:
         onResponse =>
           val accountsPayload = read[Seq[AccountPayload]](onResponse.body)
           Msg.AccountsMsg(AccountsView.Msg.ReconAccountsFromBackend(accountsPayload)),
+        error => Msg.Error(error.toString)
+      )
+
+    val accountCreatedDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val accountPayload = read[AccountPayload](onResponse.body)
+          Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountCreated(accountPayload)),
         error => Msg.Error(error.toString)
       )
