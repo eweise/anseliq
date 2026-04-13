@@ -11,6 +11,7 @@ import scala.scalajs.js.annotation.*
 import tyrian.CSS.*
 import tyrian.Routing
 import perfectpair.model.*
+import perfectpair.common.model.AccountPayload
 import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.page.*
@@ -19,7 +20,7 @@ import perfectpair.page.Page
 import perfectpair.route.Route
 import perfectpair.util.{Flowbite, HttpHelper, LocalStorageHelper, PrettyLogger}
 import perfectpair.view.MainContainer
-import perfectpair.view.pages.{AccountsView, MaintainFundFlowView}
+import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView}
 
 @JSExportTopLevel("TyrianApp")
 object WebApp extends TyrianZIOApp[Msg, Model]:
@@ -91,6 +92,20 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         HttpHelper.fetchAccountsByFundFlowID(ff.id) |+|
           Cmd.Emit(Msg.NavigateTo(Page.Accounts)) |+|
           PrettyLogger.info("fetchAccountsByFundFlowID")
+      )
+
+    case Msg.NavigateToMaintainAccount(ff) =>
+      (
+        model.copy(maintainAccountModel = MaintainAccountView.Model(
+          fundFlow = ff,
+          account  = AccountPayload(
+            id         = "",
+            name       = "",
+            fundFlowId = java.util.UUID.fromString(ff.id),
+            balance    = BigDecimal(0)
+          )
+        )),
+        Cmd.Emit(Msg.NavigateTo(Page.MaintainAccount))
       )
 
     case msg => model.currentPage.update(model, msg)
