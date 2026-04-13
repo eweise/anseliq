@@ -1,9 +1,9 @@
 package perfectpair.model
 
-import perfectpair.common.model.FundFlowPayload
+import perfectpair.common.model.FundFlowResponse
 import perfectpair.common.util.JwtHelper
 import perfectpair.page.Page
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, ToggleView, Welcome}
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, ToggleView, Welcome}
 import tyrian.{Cmd, Location}
 import zio.Task
 
@@ -22,8 +22,9 @@ enum Msg:
   case Logout
 
   // Navigation with context (carry page state to destination)
-  case NavigateToMaintainFundFlow(ff: FundFlowPayload)
-  case NavigateToAccounts(ff: FundFlowPayload)
+  case NavigateToMaintainFundFlow(ff: FundFlowResponse)
+  case NavigateToAccounts(ff: FundFlowResponse)
+  case NavigateToMaintainAccount(ff: FundFlowResponse)
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -31,6 +32,7 @@ enum Msg:
   case FundFlowsMsg(msg: FundFlowsView.Msg)
   case MaintainFundFlowMsg(msg: MaintainFundFlowView.Msg)
   case AccountsMsg(msg: AccountsView.Msg)
+  case MaintainAccountMsg(msg: MaintainAccountView.Msg)
   case ToggleMsg(msg: ToggleView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
@@ -44,6 +46,7 @@ case class Model(
   fundFlowsModel:        FundFlowsView.Model,
   maintainFundFlowModel: MaintainFundFlowView.Model,
   accountsModel:         AccountsView.Model,
+  maintainAccountModel:  MaintainAccountView.Model,
   toggleModel:           ToggleView.Model = ToggleView.Model(),
 ):
   def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
@@ -68,5 +71,6 @@ object Model:
     homeModel             = Welcome.Model(),
     fundFlowsModel        = FundFlowsView.Model(),
     maintainFundFlowModel = MaintainFundFlowView.Model(),
-    accountsModel         = AccountsView.Model()
+    accountsModel         = AccountsView.Model(),
+    maintainAccountModel  = MaintainAccountView.Model()
   )
