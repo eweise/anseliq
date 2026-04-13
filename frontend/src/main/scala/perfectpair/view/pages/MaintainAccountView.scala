@@ -35,7 +35,9 @@ object MaintainAccountView:
         (model.copy(account = account), PrettyLogger.info(s"account form modified: $account"))
       case Msg.CreateAccount(account) =>
         if account.name.isBlank then (model, Cmd.emit(AppMsg.Error("Name is required")))
-        else (model, HttpHelper.createAccount(account) |+| PrettyLogger.info("creating account"))
+        else
+          val accountToCreate = account.copy(fundFlowId = UUID.fromString(model.fundFlow.id))
+          (model, HttpHelper.createAccount(accountToCreate) |+| PrettyLogger.info("creating account"))
       case Msg.AccountCreated(account) =>
         (model.copy(account = account), PrettyLogger.info("created account"))
 
