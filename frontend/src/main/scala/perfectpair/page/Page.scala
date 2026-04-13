@@ -78,6 +78,18 @@ object Page {
       case _ => (model, Cmd.None)
   }
 
+  object MaintainAccount extends Page {
+    val path: String = "/components/maintain-account"
+    val render: Model => Html[Msg] = m => MaintainAccountView(m.maintainAccountModel)
+    override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
+      PrettyLogger.info("Entering Maintain Account page")
+    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
+      case Msg.MaintainAccountMsg(sub) =>
+        val (sub2, cmd) = MaintainAccountView.update(model.maintainAccountModel, sub)
+        (model.copy(maintainAccountModel = sub2), cmd)
+      case _ => (model, Cmd.None)
+  }
+
   object Toggle extends Page {
     val path: String = "/components/toggle"
     val render: Model => Html[Msg] = m => ToggleView(m.toggleModel)
