@@ -1,10 +1,13 @@
 package perfectpair.domain.service
 
+import perfectpair.adapter.driving.Payload
 import perfectpair.common.model.AccountPayload
 import perfectpair.common.model.model.{ID, Money, Properties}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
+
+import java.util.UUID
 
 class AccountOperations(
   val accountRepo:        AccountRepo,
@@ -41,11 +44,25 @@ class AccountOperations(
     )
     movementRepo.insert(movement)
 
-  def createAccount(payload: AccountPayload): Txn[Account] =
+  def createAccount(payload: AccountPayload): Txn[AccountPayload] =
     val newAccount = Account(
       name       = payload.name,
-      fundFlowId = payload.fundFlowId,
+      fundFlowId = UUID.fromString(payload.fundFlowId),
       properties = JSONBProps(payload.properties)
     )
     accountRepo.insert(newAccount)
-    newAccount
+    Payload.accountPayloadFromDomain(newAccount)
+
+  def updateAccount(idStr:String, payload: AccountPayload): Txn[AccountPayload] =
+    if idStr.trim == "" then  IllegalArgumentException("Account ID is required")
+
+    val accountID = UUID.fromString(idStr)
+
+    var existingAccount = accountRepo.findById(accountID).ErrIfNotFound("account", accountID)
+    existingAccount = existingAccount.copy(
+      name = payload.name,
+      properties = JSONBProps(payload.properties)
+    )
+    accountRepo.update(existingAccount)
+    Payload.accountPayloadFromDomain(existingAccount)
+

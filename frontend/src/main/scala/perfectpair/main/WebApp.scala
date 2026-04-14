@@ -1,25 +1,20 @@
 package perfectpair.main
 
-import tyrian.Html.*
+import com.softwaremill.quicklens.*
+import perfectpair.model.*
+import perfectpair.page.*
+import perfectpair.route.*
+import perfectpair.util.*
+import perfectpair.view.MainContainer
+import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView}
 import tyrian.*
+import tyrian.CSS.*
+import tyrian.Html.*
 import zio.*
 import zio.interop.catz.*
-import com.softwaremill.quicklens.*
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.*
-import tyrian.CSS.*
-import tyrian.Routing
-import perfectpair.model.*
-import perfectpair.route.*
-import perfectpair.util.*
-import perfectpair.page.*
-import perfectpair.model.{Model, Msg}
-import perfectpair.page.Page
-import perfectpair.route.Route
-import perfectpair.util.{Flowbite, HttpHelper, LocalStorageHelper, PrettyLogger}
-import perfectpair.view.MainContainer
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView}
 
 @JSExportTopLevel("TyrianApp")
 object WebApp extends TyrianZIOApp[Msg, Model]:
@@ -85,17 +80,17 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         Cmd.Emit(Msg.NavigateTo(Page.MaintainFundFlow))
       )
 
-    case Msg.NavigateToAccounts(ff) =>
+    case Msg.NavigateToAccounts(ffID) =>
       (
-        model.copy(accountsModel = AccountsView.Model(fundFlow = ff)),
-        HttpHelper.fetchAccountsByFundFlowID(ff.id.get) |+|
+        model.copy(accountsModel = AccountsView.Model()),
+        HttpHelper.fetchAccountsByFundFlowID(ffID) |+|
           Cmd.Emit(Msg.NavigateTo(Page.Accounts)) |+|
           PrettyLogger.info("fetchAccountsByFundFlowID")
       )
 
-    case Msg.NavigateToMaintainAccount(ff) =>
+    case Msg.NavigateToMaintainAccount(account) =>
       (
-        model.copy(maintainAccountModel = MaintainAccountView.Model(fundFlow = ff)),
+        model.copy(maintainAccountModel = MaintainAccountView.Model(account = account.get)),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainAccount))
       )
 

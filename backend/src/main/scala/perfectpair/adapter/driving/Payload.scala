@@ -20,8 +20,8 @@ object Payload:
 
   def accountPayloadFromDomain(account: Account): AccountPayload =
     AccountPayload(
-      fundFlowId = account.fundFlowId,
-      id         = account.id.toString,
+      fundFlowId = account.fundFlowId.toString,
+      id         = Some(account.id.toString),
       name       = account.name,
       properties = account.properties.props,
       balance    = account.balance

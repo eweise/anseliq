@@ -132,14 +132,12 @@ object App extends cask.MainRoutes:
   @cask.route(s"${HttpPath.fundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())
-
     transact(transactor):
       write(fundFlowOperations.createFundFlow(payload))
 
   @cask.route(s"${HttpPath.fundFlow}/:id", methods = HttpCmd.PUT)
   def updateFundFlow(id: String, request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())
-
     transact(transactor):
       write(fundFlowOperations.updateFundFlow(payload))
 
@@ -147,8 +145,13 @@ object App extends cask.MainRoutes:
   def createAccount(request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      val account = accountOperations.createAccount(accountRequest)
-      write(Payload.accountPayloadFromDomain(account))
+      write(accountOperations.createAccount(accountRequest))
+
+  @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)
+  def updateAccount(accountID: String, request: cask.Request): String =
+    val accountRequest = read[AccountPayload](request.text())
+    transact(transactor):
+      write(accountOperations.updateAccount(accountID, accountRequest))
 
   @cask.get("/account/:id")
   def account(fundFlowName: String, accountIdStr: String): String =

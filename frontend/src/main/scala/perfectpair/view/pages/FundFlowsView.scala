@@ -18,7 +18,7 @@ object FundFlowsView:
       case Msg.SelectFundFlow(ff) =>
         (model, Cmd.Emit(AppMsg.NavigateToMaintainFundFlow(ff)))
       case Msg.GetAccountsForFundFlow(ff) =>
-        (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff)))
+        (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff.id.get)))
 
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col mb-8 pt-20")(

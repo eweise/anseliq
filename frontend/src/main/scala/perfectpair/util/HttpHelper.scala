@@ -5,9 +5,8 @@ import perfectpair.common.http.{BackendApiUrl, HttpPath}
 import perfectpair.common.model.*
 import perfectpair.model.Msg
 import perfectpair.util.HttpHelper.ResponseDecoders.*
+import perfectpair.util.PayloadAction.{Created, Updated}
 import perfectpair.view.pages.*
-import perfectpair.view.pages.MaintainFundFlowView.Action
-import perfectpair.view.pages.MaintainFundFlowView.Action.{Created, Updated}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -40,16 +39,19 @@ object HttpHelper:
 
   def updateFundFlow(fundFlow: FundFlowPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(
-      Request(
-        method = Method.Put,
-        url    = HttpPath.url(s"${HttpPath.fundFlow}/${fundFlow.id.get}"),
-        body   = Body.json(write(fundFlow))
-      ),
+      put(HttpPath.url(s"${HttpPath.fundFlow}/${fundFlow.id.get}"), Body.json(write(fundFlow))),
       fundFlowDecoder(Updated)
     )
 
+  private def put[A](url: String, body: Body): Request[A] =
+    Request(
+      method = Method.Put,
+      url    = url,
+      body   = body
+    )
+
   def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    sendWithAuthToken(Request.post(HttpPath.url(HttpPath.account), Body.json(write(account))), accountCreatedDecoder)
+    sendWithAuthToken(Request.post(HttpPath.url(HttpPath.account), Body.json(write(account))), accountDecoder(Created))
 
   private def sendWithAuthToken[A](
     request:         Request[A],
@@ -57,6 +59,15 @@ object HttpHelper:
   ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
       Msg.SendHttpRequestWithAccessToken(_ => Http.send(request, resultToMessage))
+    )
+
+  def updateAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      put(
+        HttpPath.url(s"${HttpPath.account}/${account.id.get}"),
+        Body.json(write(account))
+      ),
+      accountDecoder(Updated)
     )
 
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
@@ -105,6 +116,7 @@ object HttpHelper:
         ,
         error => Msg.Error(error.toString)
       )
+
     val accountDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
@@ -113,16 +125,26 @@ object HttpHelper:
         ,
         error => Msg.Error(error.toString)
       )
+
     val accountCreatedDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
           val accountPayload = read[AccountPayload](onResponse.body)
-          Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountCreated(accountPayload))
+          Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountAction(accountPayload, Created))
         ,
         error => Msg.Error(error.toString)
       )
 
-    def fundFlowDecoder(action: Action): Decoder[Msg] =
+    def accountDecoder(action: PayloadAction): Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val accountPayload = read[AccountPayload](onResponse.body)
+          Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountAction(accountPayload, action))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    def fundFlowDecoder(action: PayloadAction): Decoder[Msg] =
       Decoder(
         onResponse =>
           val ffPayload = read[FundFlowPayload](onResponse.body)
