@@ -31,7 +31,7 @@ object Form:
       id := fieldID,
       if !enabled then attribute("disabled", "") else EmptyAttribute,
       cls := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
-      //      onChangFn.map(f => onChange(f)).getOrElse(EmptyAttribute),
+      onChangFn.map(f => onChange(f)).getOrElse(EmptyAttribute),
       required
     )
 

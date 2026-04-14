@@ -5,22 +5,11 @@ import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
 import perfectpair.util.PrettyLogger
 import perfectpair.view.components.Buttons
-import tyrian.Cmd
-import tyrian.Html
+import tyrian.{Cmd, Html}
 import tyrian.Html.*
 import zio.Task
-import zio.interop.catz.*
-
-import java.time.format.DateTimeFormatter
 
 object FundFlowsView:
-
-  enum Msg:
-    case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
-    case SelectFundFlow(fundFlow: FundFlowPayload)
-    case GetAccountsForFundFlow(fundFlow: FundFlowPayload)
-
-  case class Model(fundFlows: Seq[FundFlowPayload] = Seq())
 
   def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     msg match
@@ -48,8 +37,10 @@ object FundFlowsView:
         div(cls := "flex flex-col gap-2")(
           model.fundFlows.map(ff =>
             div(cls := "flex items-center gap-3")(
-              div(cls := "flex-1 flex items-center bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 text-sm")(
-                span(cls := "w-48 text-gray-500")(text(ff.id)),
+              div(
+                cls := "flex-1 flex items-center bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 text-sm"
+              )(
+                span(cls := "w-48 text-gray-500")(text(ff.id.getOrElse(""))),
                 span(cls := "flex-1 font-medium")(text(ff.name)),
                 span(cls := "w-56 text-gray-500")(text(ff.createdAt.get.toString)),
                 span(cls := "w-56 text-gray-500")(text(ff.updatedAt.get.toString))
@@ -61,3 +52,10 @@ object FundFlowsView:
         )
       )
     )
+
+  enum Msg:
+    case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
+    case SelectFundFlow(fundFlow: FundFlowPayload)
+    case GetAccountsForFundFlow(fundFlow: FundFlowPayload)
+
+  case class Model(fundFlows: Seq[FundFlowPayload] = Seq())
