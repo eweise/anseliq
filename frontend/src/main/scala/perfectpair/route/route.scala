@@ -1,7 +1,6 @@
 package perfectpair.route
 
 import perfectpair.page.*
-import perfectpair.page.Page
 
 import scala.util.Try
 
@@ -12,7 +11,7 @@ object Route {
   object ComponentDemo:
     def unapply(path: String): Option[Page] = Try {
       path.split("/components/")(1) match {
-        case "toggle"     => Page.Toggle
+        case "toggle" => Page.Toggle
       }
     }.toOption
 

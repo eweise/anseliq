@@ -1,9 +1,9 @@
 package perfectpair.util
 
+import perfectpair.model.Msg
 import tyrian.Cmd
 import tyrian.cmds.*
 import zio.*
-import perfectpair.model.Msg
 
 object Authentication {
 

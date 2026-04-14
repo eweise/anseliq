@@ -1,16 +1,13 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload}
+import perfectpair.common.model.AccountPayload
 import perfectpair.model.Msg as AppMsg
+import perfectpair.util.PayloadAction.*
 import perfectpair.util.{HttpHelper, PayloadAction, PrettyLogger}
 import perfectpair.view.components.{Buttons, Form}
-import perfectpair.util.PayloadAction.*
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
-import zio.interop.catz.*
-
-import java.util.UUID
 
 object MaintainAccountView:
 
@@ -52,5 +49,5 @@ object MaintainAccountView:
     case AccountAction(account: AccountPayload, action: PayloadAction)
 
   case class Model(
-    account: AccountPayload 
+    account: AccountPayload
   )

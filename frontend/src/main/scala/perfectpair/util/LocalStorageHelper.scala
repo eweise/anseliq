@@ -1,14 +1,13 @@
 package perfectpair.util
 
-import org.scalajs.dom
-import tyrian.Cmd
-import zio.Task
-import zio.ZIO
-import zio.interop.catz.*
 import cats.implicits
-import tyrian.cmds.LocalStorage
+import org.scalajs.dom
 import perfectpair.model.Msg
 import perfectpair.page.Page
+import tyrian.Cmd
+import tyrian.cmds.LocalStorage
+import zio.interop.catz.*
+import zio.{Task, ZIO}
 
 object LocalStorageHelper:
 
@@ -16,6 +15,8 @@ object LocalStorageHelper:
     case LocalStorage.Result.Success => Msg.NoOp
     case e                           => Msg.Error(e.toString)
   }
+  val cleanStorageWhenLogout: Cmd[Task, Msg] =
+    LocalStorage.removeItem("accessToken")(handler) |+| LocalStorage.removeItem("refreshToken")(handler)
 
   def storeSession(accessToken: String, refreshToken: String): Cmd[Task, Msg] =
     Cmd.Batch(
@@ -40,6 +41,3 @@ object LocalStorageHelper:
     }
 
     Cmd.Run(tryLoginFromLocalStorage)
-
-  val cleanStorageWhenLogout: Cmd[Task, Msg] =
-    LocalStorage.removeItem("accessToken")(handler) |+| LocalStorage.removeItem("refreshToken")(handler)

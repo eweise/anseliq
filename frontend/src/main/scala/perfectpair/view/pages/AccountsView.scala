@@ -2,10 +2,8 @@ package perfectpair.view.pages
 
 import perfectpair.common.model.{AccountPayload, FundFlowPayload}
 import perfectpair.model.Msg as AppMsg
-import perfectpair.page.Page
 import perfectpair.util.{HttpHelper, PrettyLogger}
 import perfectpair.view.components.{Buttons, Icons, Table}
-import perfectpair.view.pages.FundFlowsView.Msg
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -16,7 +14,7 @@ object AccountsView:
     msg match
       case Msg.GetReconAccounts =>
         (model, HttpHelper.fetchReconAccounts |+| PrettyLogger.info("fetch recon accounts"))
-      case Msg.SelectAccount(account) => 
+      case Msg.SelectAccount(account) =>
         (model, Cmd.Emit(AppMsg.NavigateToMaintainAccount(Some(account))))
       case Msg.ReconAccountsFromBackend(accounts) =>
         (model.copy(accounts = accounts), PrettyLogger.info("updated model with reconAccounts"))
