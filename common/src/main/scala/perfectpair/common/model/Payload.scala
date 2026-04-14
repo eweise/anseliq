@@ -1,6 +1,6 @@
 package perfectpair.common.model
 
-import perfectpair.common.model.model.{ID, Money, Properties}
+import perfectpair.common.model.model.{Money, Properties}
 import upickle.default.*
 import zio.json.*
 
@@ -84,11 +84,11 @@ case class ReconciliationAccountPayload(
 )
 
 case class AccountPayload(
-  id:         String,
-  name:       String,
-  fundFlowId: ID,
-  properties: Properties = Map(),
-  balance:    Money
+  id:         Option[String] = None,
+  name:       String         = "",
+  fundFlowId: String         = "",
+  properties: Properties     = Map(),
+  balance:    Money          = 0
 ) extends CanValidate
     derives ReadWriter:
   override def validate(): ValidationErrors =

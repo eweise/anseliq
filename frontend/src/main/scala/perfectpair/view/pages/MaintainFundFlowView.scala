@@ -3,9 +3,9 @@ package perfectpair.view.pages
 import perfectpair.common.model.FundFlowPayload
 import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
-import perfectpair.util.{HttpHelper, PrettyLogger}
+import perfectpair.util.{HttpHelper, PayloadAction, PrettyLogger}
 import perfectpair.view.components.{Buttons, Form}
-import perfectpair.view.pages.MaintainFundFlowView.Action.{Create, Created, Update, Updated}
+import perfectpair.util.PayloadAction.*
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -57,14 +57,8 @@ object MaintainFundFlowView:
       )
     )
 
-  enum Action:
-    case Update
-    case Updated
-    case Create
-    case Created
-
   enum Msg:
-    case MaintainFundFlow(fundFlow: FundFlowPayload, action: Action)
+    case MaintainFundFlow(fundFlow: FundFlowPayload, action: PayloadAction)
     case FundFlowFieldChanged(fundFlow: FundFlowPayload)
 
   case class Model(fundFlow: FundFlowPayload = FundFlowPayload())
