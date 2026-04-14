@@ -1,9 +1,9 @@
 package perfectpair.view
 
-import tyrian.Html.*
-import tyrian.Html
 import perfectpair.model.Msg
 import perfectpair.util.ElementIdGenerator
+import tyrian.Html
+import tyrian.Html.*
 
 object Tooltip:
 

@@ -5,8 +5,8 @@ import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
 import perfectpair.util.PrettyLogger
 import perfectpair.view.components.Buttons
-import tyrian.{Cmd, Html}
 import tyrian.Html.*
+import tyrian.{Cmd, Html}
 import zio.Task
 
 object FundFlowsView:

@@ -1,21 +1,14 @@
 package perfectpair.view.pages
 
-import tyrian.Html.*
-import tyrian.Html
-import tyrian.Cmd
-import perfectpair.model.{Msg as AppMsg}
+import perfectpair.model.Msg as AppMsg
 import perfectpair.util.{HttpHelper, PrettyLogger}
 import perfectpair.view.components.Icons
+import tyrian.Html.*
+import tyrian.{Cmd, Html}
 import zio.Task
 import zio.interop.catz.*
 
 object Welcome:
-
-  enum Msg:
-    case NextBackendMessage
-    case GreetingFromBackend(text: String)
-
-  case class Model(serverMessage: Option[String] = None)
 
   def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     msg match
@@ -34,7 +27,12 @@ object Welcome:
       )(
         "Tyrian"
       )
-    val flowbiteLink = a(href := "https://flowbite.com", rel := "noopener noreferrer", target := "_blank", cls := "text-blue-700 hover:underline")(
+    val flowbiteLink = a(
+      href   := "https://flowbite.com",
+      rel    := "noopener noreferrer",
+      target := "_blank",
+      cls    := "text-blue-700 hover:underline"
+    )(
       "Flowbite"
     )
 
@@ -65,5 +63,11 @@ object Welcome:
             Icons.refresh
           )
         )
-      ),
+      )
     )
+
+  enum Msg:
+    case NextBackendMessage
+    case GreetingFromBackend(text: String)
+
+  case class Model(serverMessage: Option[String] = None)

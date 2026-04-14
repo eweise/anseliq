@@ -3,9 +3,9 @@ package perfectpair.view.pages
 import perfectpair.common.model.FundFlowPayload
 import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
+import perfectpair.util.PayloadAction.*
 import perfectpair.util.{HttpHelper, PayloadAction, PrettyLogger}
 import perfectpair.view.components.{Buttons, Form}
-import perfectpair.util.PayloadAction.*
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task

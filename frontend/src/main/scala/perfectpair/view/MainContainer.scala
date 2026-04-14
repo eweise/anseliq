@@ -1,29 +1,12 @@
 package perfectpair.view
 
-import tyrian.Html.{text, *}
-import tyrian.Html
 import perfectpair.model.Msg
 import perfectpair.page.Page
 import perfectpair.view.components.Icons
-import tyrian.Elem
+import tyrian.Html.*
+import tyrian.{Elem, Html}
 
 object MainContainer:
-
-  def navbar(isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
-    nav(cls := "bg-purple-600 dark:bg-purple-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-700")(
-      div(cls := "flex flex-wrap items-center justify-between p-4")(
-        a(href := "/", cls := "flex items-center")(
-          img(
-            src := "assets/images/perfectpair.png",
-            width := "100px"
-          )
-        ),
-        div(cls := "flex")(
-          darkModeSwitchButton(isDark),
-          if isLoggedIn then controlButton(Msg.Logout, Icons.logout) else div()
-        )
-      )
-    )
 
   private val theFooter =
     footer(cls := "w-full bg-purple-600 dark:bg-purple-900 border-t dark:border-gray-700 text-white py-4")(
@@ -36,6 +19,32 @@ object MainContainer:
           href := "https://github.com/linux-root/tyrian-flowbite.g8",
           cls  := "text-blue-400 hover:underline ml-2 flex items-center justify-center space-x-1 inline-flex"
         )(Icons.github)
+      )
+    )
+
+  def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
+    div(cls := (if isDark then "dark bg-gray-900" else "not-dark-mode bg-md-surface-variant"))(
+      navbar(isDark, isLoggedIn),
+      leftNav(),
+      main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-md-surface-variant dark:bg-gray-900")(content),
+      theFooter
+    )
+
+  def navbar(isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
+    nav(
+      cls := "bg-purple-600 dark:bg-purple-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-700"
+    )(
+      div(cls := "flex flex-wrap items-center justify-between p-4")(
+        a(href := "/", cls := "flex items-center")(
+          img(
+            src   := "assets/images/perfectpair.png",
+            width := "100px"
+          )
+        ),
+        div(cls := "flex")(
+          darkModeSwitchButton(isDark),
+          if isLoggedIn then controlButton(Msg.Logout, Icons.logout) else div()
+        )
       )
     )
 
@@ -52,7 +61,9 @@ object MainContainer:
     controlButton(Msg.ToggleDarkMode, icon)
 
   private def leftNav(): Html[Msg] =
-    aside(cls := "fixed left-0 top-20 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto")(
+    aside(
+      cls := "fixed left-0 top-20 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto"
+    )(
       nav(cls := "p-4")(
         ul(cls := "space-y-2")(
           navItem("Home", Page.Home, Icons.home),
@@ -87,7 +98,7 @@ object MainContainer:
     li()(
       a(
         href := linkHref,
-        cls := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200"
+        cls  := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200"
       )(
         span(cls := "w-5 h-5")(icon),
         span()(text(label))
@@ -97,12 +108,4 @@ object MainContainer:
   private def navSeparator(): Html[Msg] =
     li(cls := "py-2")(
       hr(cls := "border-gray-300 dark:border-gray-600")
-    )
-
-  def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
-    div(cls := (if isDark then "dark bg-gray-900" else "not-dark-mode bg-md-surface-variant"))(
-      navbar(isDark, isLoggedIn),
-      leftNav(),
-      main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-md-surface-variant dark:bg-gray-900")(content),
-      theFooter
     )

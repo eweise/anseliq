@@ -8,12 +8,9 @@ import perfectpair.util.*
 import perfectpair.view.MainContainer
 import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView}
 import tyrian.*
-import tyrian.CSS.*
-import tyrian.Html.*
 import zio.*
 import zio.interop.catz.*
 
-import scala.scalajs.js
 import scala.scalajs.js.annotation.*
 
 @JSExportTopLevel("TyrianApp")
