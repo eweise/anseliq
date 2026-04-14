@@ -1,11 +1,13 @@
 package perfectpair.util
 
 import perfectpair.common.BuildInfo
-import perfectpair.common.model.*
-import HttpHelper.ResponseDecoders.*
 import perfectpair.common.http.{BackendApiUrl, HttpPath}
+import perfectpair.common.model.*
 import perfectpair.model.Msg
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, Welcome}
+import perfectpair.util.HttpHelper.ResponseDecoders.*
+import perfectpair.view.pages.*
+import perfectpair.view.pages.MaintainFundFlowView.Action
+import perfectpair.view.pages.MaintainFundFlowView.Action.{Created, Updated}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -15,12 +17,14 @@ import zio.json.*
 
 object HttpHelper:
 
-  private def sendWithAuthToken[A](request: Request[A], resultToMessage: Decoder[Msg]): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
-      Msg.SendHttpRequestWithAccessToken(_ =>
-        Http.send(request, resultToMessage)
-      )
-    )
+  val fetchServerMessage: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(BackendApiUrl.randomMessage, greetDecoder)
+  val fetchServerMessage2: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(BackendApiUrl.randomMessage2, greetDecoder)
+  val fetchFundFlows: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(HttpPath.url(HttpPath.fundFlows), fundFlowsDecoder)
+  val fetchReconAccounts: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(HttpPath.url(HttpPath.accounts), accountDecoder)
 
   def login(username: String, password: String): Cmd[Task, Msg] = {
     val body    = LoginRequest(username, password)
@@ -28,26 +32,35 @@ object HttpHelper:
     Http.send(request, loginDecoder)
   }
 
-  val fetchServerMessage: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(BackendApiUrl.randomMessage, greetDecoder)
-
-  val fetchServerMessage2: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(BackendApiUrl.randomMessage2, greetDecoder)
-
-  val fetchFundFlows: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(HttpPath.url(HttpPath.fundFlows), fundFlowsDecoder)
-
   def createFundFlow(fundFlow: FundFlowPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    sendWithAuthToken(Request.post(HttpPath.url(HttpPath.createFundFlow), Body.json(write(fundFlow))), fundFlowCreatedDecoder)
+    sendWithAuthToken(
+      Request.post(HttpPath.url(HttpPath.fundFlow), Body.json(write(fundFlow))),
+      fundFlowDecoder(Created)
+    )
+
+  def updateFundFlow(fundFlow: FundFlowPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      Request(
+        method = Method.Put,
+        url    = HttpPath.url(s"${HttpPath.fundFlow}/${fundFlow.id.get}"),
+        body   = Body.json(write(fundFlow))
+      ),
+      fundFlowDecoder(Updated)
+    )
 
   def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    sendWithAuthToken(Request.post(HttpPath.url(HttpPath.maintainAccount), Body.json(write(account))), accountCreatedDecoder)
+    sendWithAuthToken(Request.post(HttpPath.url(HttpPath.account), Body.json(write(account))), accountCreatedDecoder)
+
+  private def sendWithAuthToken[A](
+    request:         Request[A],
+    resultToMessage: Decoder[Msg]
+  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
+      Msg.SendHttpRequestWithAccessToken(_ => Http.send(request, resultToMessage))
+    )
 
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountDecoder)
-
-  val fetchReconAccounts: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(HttpPath.url(HttpPath.accounts), accountDecoder)
 
   private def fetchServerMessageCmd(
     apiUrl:          String,
@@ -69,7 +82,10 @@ object HttpHelper:
           case _ =>
             Msg.LoginMsg(LoginPage.Msg.LoginFailure("Failed to parse login response"))
         },
-        error => Msg.LoginMsg(LoginPage.Msg.LoginFailure(s"Server error. Make sure server is running on ${BuildInfo.backendBaseUrl}"))
+        error =>
+          Msg.LoginMsg(
+            LoginPage.Msg.LoginFailure(s"Server error. Make sure server is running on ${BuildInfo.backendBaseUrl}")
+          )
       )
 
     val greetDecoder: Decoder[Msg] = Decoder(
@@ -85,30 +101,32 @@ object HttpHelper:
       Decoder(
         onResponse =>
           val ffPayload = read[Seq[FundFlowPayload]](onResponse.body)
-          Msg.FundFlowsMsg(FundFlowsView.Msg.FundFlowsFromBackend(ffPayload)),
+          Msg.FundFlowsMsg(FundFlowsView.Msg.FundFlowsFromBackend(ffPayload))
+        ,
         error => Msg.Error(error.toString)
       )
-
-    val fundFlowCreatedDecoder: Decoder[Msg] =
-      Decoder(
-        onResponse =>
-          val ffPayload = read[FundFlowPayload](onResponse.body)
-          Msg.MaintainFundFlowMsg(MaintainFundFlowView.Msg.FundFlowCreated(ffPayload)),
-        error => Msg.Error(error.toString)
-      )
-
     val accountDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
           val accountsPayload = read[Seq[AccountPayload]](onResponse.body)
-          Msg.AccountsMsg(AccountsView.Msg.ReconAccountsFromBackend(accountsPayload)),
+          Msg.AccountsMsg(AccountsView.Msg.ReconAccountsFromBackend(accountsPayload))
+        ,
         error => Msg.Error(error.toString)
       )
-
     val accountCreatedDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
           val accountPayload = read[AccountPayload](onResponse.body)
-          Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountCreated(accountPayload)),
+          Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountCreated(accountPayload))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    def fundFlowDecoder(action: Action): Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val ffPayload = read[FundFlowPayload](onResponse.body)
+          Msg.MaintainFundFlowMsg(MaintainFundFlowView.Msg.MaintainFundFlow(ffPayload, action))
+        ,
         error => Msg.Error(error.toString)
       )

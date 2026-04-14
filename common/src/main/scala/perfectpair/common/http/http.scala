@@ -5,11 +5,11 @@ import zio.http.codec.PathCodec.*
 import zio.http.{Root, Scheme, URL}
 
 object HttpPath:
-  val prefix         = "/api/v1"
-  val fundFlows      = s"$prefix/fund-flows"
-  val createFundFlow = s"$prefix/fund-flow"
-  val accounts       = s"$prefix/accounts"
-  val maintainAccount  = s"$prefix/account"
+  val prefix    = "/api/v1"
+  val fundFlows = s"$prefix/fund-flows"
+  val fundFlow  = s"$prefix/fund-flow"
+  val accounts  = s"$prefix/accounts"
+  val account   = s"$prefix/account"
 
   def url(path: String) = s"http://localhost:8080$path"
 // Get rid of this crap

@@ -10,9 +10,9 @@ object Payload:
       name = payload.name
     )
 
-  def fundFlowResponseFromDomain(ff: FundFlowConfig): FundFlowPayload =
+  def fundFlowPayloadFromDomain(ff: FundFlowConfig): FundFlowPayload =
     FundFlowPayload(
-      id        = ff.id.toString,
+      id        = Some(ff.id.toString),
       name      = ff.name,
       createdAt = ff.createdAt,
       updatedAt = ff.updatedAt

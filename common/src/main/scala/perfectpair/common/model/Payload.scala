@@ -65,7 +65,7 @@ enum MovementStatus:
   case Reconciled, WithinSLA, OutOfSLA
 
 case class FundFlowPayload(
-  id:        String                 = "",
+  id:        Option[String]         = None,
   name:      String                 = "",
   accounts:  Seq[AccountPayload]    = Seq(),
   createdAt: Option[OffsetDateTime] = None,

@@ -7,7 +7,7 @@ import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, RandomMessage}
 import perfectpair.domain.model.*
-import perfectpair.domain.service.{AccountOperations, Reconciler}
+import perfectpair.domain.service.{AccountOperations, FundFlowOperations, Reconciler}
 import upickle.default.*
 
 import java.util.UUID
@@ -16,6 +16,7 @@ import scala.util.Try
 object HttpCmd:
   def GET  = Seq("get", "options")
   def POST = Seq("post", "options")
+  def PUT  = Seq("put", "options")
 
 object App extends cask.MainRoutes:
   val dataSource         = DbDataSource.create(ConfigFactory.load("application.conf"))
@@ -26,6 +27,9 @@ object App extends cask.MainRoutes:
   val movementSpecRepo   = MovementSpecRepoLive()
   val reconRepo          = ReconciliationRepoLive()
   val reconSpecRepo      = ReconciliationSpecRepoLive()
+  val fundFlowOperations = FundFlowOperations(
+    fundFlowConfigRepo = fundFlowConfigRepo
+  )
   val reconciler = Reconciler(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
@@ -108,7 +112,7 @@ object App extends cask.MainRoutes:
   def getFundFlows() =
     transact(transactor):
       val fundFlows = fundFlowConfigRepo.findAll
-      val payloads  = fundFlows.map(ff => Payload.fundFlowResponseFromDomain(ff))
+      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff))
       write(payloads)
 
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts", methods = HttpCmd.GET)
@@ -125,16 +129,21 @@ object App extends cask.MainRoutes:
       val payload  = accounts.map(Payload.accountPayloadFromDomain)
       write(payload)
 
-  @cask.route(s"${HttpPath.createFundFlow}", methods = HttpCmd.POST)
+  @cask.route(s"${HttpPath.fundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
-    val payload  = read[FundFlowPayload](request.text())
-    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
+    val payload = read[FundFlowPayload](request.text())
 
     transact(transactor):
-      fundFlowConfigRepo.insert(fundFlow)
-    write(Payload.fundFlowResponseFromDomain(fundFlow))
+      write(fundFlowOperations.createFundFlow(payload))
 
-  @cask.route(s"${HttpPath.maintainAccount}", methods = HttpCmd.POST)
+  @cask.route(s"${HttpPath.fundFlow}/:id", methods = HttpCmd.PUT)
+  def updateFundFlow(id: String, request: cask.Request): String =
+    val payload = read[FundFlowPayload](request.text())
+
+    transact(transactor):
+      write(fundFlowOperations.updateFundFlow(payload))
+
+  @cask.route(s"${HttpPath.account}", methods = HttpCmd.POST)
   def createAccount(request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
@@ -177,7 +186,7 @@ object App extends cask.MainRoutes:
     def wrapFunction(ctx: cask.model.Request, delegate: Delegate) =
       val corsHeaders = Seq(
         "Access-Control-Allow-Origin"  -> "*",
-        "Access-Control-Allow-Methods" -> "GET, POST, DELETE, OPTIONS, HEAD",
+        "Access-Control-Allow-Methods" -> "GET, POST, DELETE, PUT, OPTIONS, HEAD",
         "Access-Control-Allow-Headers" -> "Authorization, Content-Type, Accept",
         "Access-Control-Max-Age"       -> "86400"
       )
