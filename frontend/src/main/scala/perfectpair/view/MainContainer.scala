@@ -48,6 +48,10 @@ object MainContainer:
       )
     )
 
+  private def darkModeSwitchButton(isDark: Boolean) =
+    val icon = if isDark then Icons.sun else Icons.moon
+    controlButton(Msg.ToggleDarkMode, icon)
+
   private def controlButton(clickMsg: Msg, child: Elem[Msg]) =
     val dark   = "dark:text-white dark:hover:bg-purple-700 dark:focus:ring-purple-200"
     val normal = "text-white hover:bg-purple-700 focus:ring-purple-100"
@@ -55,10 +59,6 @@ object MainContainer:
       onClick(clickMsg),
       cls := s"transition-transform duration-300 ease-in-out hover:scale-105 p-4 me-2 mb-2 rounded-full focus:outline-none $normal $dark"
     )(child)
-
-  private def darkModeSwitchButton(isDark: Boolean) =
-    val icon = if isDark then Icons.sun else Icons.moon
-    controlButton(Msg.ToggleDarkMode, icon)
 
   private def leftNav(): Html[Msg] =
     aside(
@@ -70,7 +70,6 @@ object MainContainer:
           navItem("Components", Page.Toggle, Icons.component),
           navItem("Fund Flows", Page.FundFlows, Icons.component),
           navItem("Create Fund Flow", Page.MaintainFundFlow, Icons.component),
-          navItem("Accounts", Page.Accounts, Icons.component),
           navSeparator(),
           navItemExternal("Dashboard", "#", Icons.dashboard),
           navItemExternal("Profile", "#", Icons.user),

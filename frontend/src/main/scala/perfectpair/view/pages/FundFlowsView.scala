@@ -18,7 +18,7 @@ object FundFlowsView:
       case Msg.SelectFundFlow(ff) =>
         (model, Cmd.Emit(AppMsg.NavigateToMaintainFundFlow(ff)))
       case Msg.GetAccountsForFundFlow(ff) =>
-        (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff.id.get)))
+        (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff)))
 
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col mb-8 pt-20")(
@@ -35,20 +35,23 @@ object FundFlowsView:
           span(cls := "w-20")()
         ),
         div(cls := "flex flex-col gap-2")(
-          model.fundFlows.map(ff =>
-            div(cls := "flex items-center gap-3")(
-              div(
-                cls := "flex-1 flex items-center bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 text-sm"
-              )(
-                span(cls := "w-48 text-gray-500")(text(ff.id.getOrElse(""))),
-                span(cls := "flex-1 font-medium")(text(ff.name)),
-                span(cls := "w-56 text-gray-500")(text(ff.createdAt.get.toString)),
-                span(cls := "w-56 text-gray-500")(text(ff.updatedAt.get.toString))
-              ),
-              Buttons.textButton("Accounts", AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
-              Buttons.textButton("Edit", AppMsg.FundFlowsMsg(Msg.SelectFundFlow(ff)))
-            )
-          )*
+          model.fundFlows
+            .sortBy(_.createdAt)
+            .reverse
+            .map(ff =>
+              div(cls := "flex items-center gap-3")(
+                div(
+                  cls := "flex-1 flex items-center bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 text-sm"
+                )(
+                  span(cls := "w-48 text-gray-500")(text(ff.id.getOrElse(""))),
+                  span(cls := "flex-1 font-medium")(text(ff.name)),
+                  span(cls := "w-56 text-gray-500")(text(ff.createdAt.get.toString)),
+                  span(cls := "w-56 text-gray-500")(text(ff.updatedAt.get.toString))
+                ),
+                Buttons.textButton("Accounts", AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
+                Buttons.textButton("Edit", AppMsg.FundFlowsMsg(Msg.SelectFundFlow(ff)))
+              )
+            )*
         )
       )
     )

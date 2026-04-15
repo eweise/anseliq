@@ -77,17 +77,18 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         Cmd.Emit(Msg.NavigateTo(Page.MaintainFundFlow))
       )
 
-    case Msg.NavigateToAccounts(ffID) =>
+    case Msg.NavigateToAccounts(fundFlow) =>
       (
-        model.copy(accountsModel = AccountsView.Model()),
-        HttpHelper.fetchAccountsByFundFlowID(ffID) |+|
+        model.copy(accountsModel = AccountsView.Model(fundFlow = fundFlow)),
+        HttpHelper.fetchAccountsByFundFlowID(fundFlow.id.get) |+|
           Cmd.Emit(Msg.NavigateTo(Page.Accounts)) |+|
           PrettyLogger.info("fetchAccountsByFundFlowID")
       )
 
-    case Msg.NavigateToMaintainAccount(account) =>
+    case Msg.NavigateToMaintainAccount(fundFlow, account) =>
+      println(s"Msg.NavigateToMaintainAccount fundflow: $fundFlow, account:$account")
       (
-        model.copy(maintainAccountModel = MaintainAccountView.Model(account = account.get)),
+        model.copy(maintainAccountModel = MaintainAccountView.Model(fundFlow, account)),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainAccount))
       )
 
