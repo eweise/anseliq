@@ -5,18 +5,19 @@ import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, RandomMessage}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, RandomMessage}
 import perfectpair.domain.model.*
-import perfectpair.domain.service.{AccountOperations, FundFlowOperations, Reconciler}
+import perfectpair.domain.service.{AccountOperations, FundFlowOperations, MovementSpecOperations, Reconciler}
 import upickle.default.*
 
 import java.util.UUID
 import scala.util.Try
 
 object HttpCmd:
-  def GET  = Seq("get", "options")
-  def POST = Seq("post", "options")
-  def PUT  = Seq("put", "options")
+  def GET    = Seq("get", "options")
+  def POST   = Seq("post", "options")
+  def PUT    = Seq("put", "options")
+  def DELETE = Seq("delete", "options")
 
 object App extends cask.MainRoutes:
   val dataSource         = DbDataSource.create(ConfigFactory.load("application.conf"))
@@ -43,6 +44,9 @@ object App extends cask.MainRoutes:
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
+  )
+  val movementSpecOperations = MovementSpecOperations(
+    movementSpecRepo = movementSpecRepo
   )
   val prefixPath = "/api/v1"
   val loginPath  = s"$prefixPath / login"
@@ -152,6 +156,24 @@ object App extends cask.MainRoutes:
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
       write(accountOperations.updateAccount(id, accountRequest))
+
+  @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
+  def createMovementSpec(request: cask.Request): String =
+    val payload = read[MovementSpecPayload](request.text())
+    transact(transactor):
+      write(movementSpecOperations.createMovementSpec(payload))
+
+  @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
+  def updateMovementSpec(id: String, request: cask.Request): String =
+    val payload = read[MovementSpecPayload](request.text())
+    transact(transactor):
+      write(movementSpecOperations.updateMovementSpec(id, payload))
+
+  @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.DELETE)
+  def deleteMovementSpec(id: String): String =
+    transact(transactor):
+      movementSpecOperations.deleteMovementSpec(id)
+    write("deleted")
 
   @cask.get("/account/:id")
   def account(fundFlowName: String, accountIdStr: String): String =

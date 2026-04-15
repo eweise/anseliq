@@ -14,6 +14,6 @@ case class MovementSpec(
   outAccountId:   ID,
   dataSourceJson: String                 = "",
   var createdAt:  Option[OffsetDateTime] = None,
-  var updatedAt:   Option[OffsetDateTime] = None
+  var updatedAt:  Option[OffsetDateTime] = None
 ) derives DbCodec:
   def dataSourceConfig(): DataSourceConfig = upickle.read(dataSourceJson)
