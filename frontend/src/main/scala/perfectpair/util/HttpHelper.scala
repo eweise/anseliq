@@ -64,6 +64,7 @@ object HttpHelper:
     )
 
   private def put[A](url: String, body: Body): Request[A] =
+    println(s"put url=${url}; body=${body}")
     Request(
       method = Method.Put,
       url    = url,

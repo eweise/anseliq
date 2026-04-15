@@ -43,7 +43,6 @@ object MaintainAccountView:
           onChangFn    = Some(value => AppMsg.MaintainAccountMsg(Msg.AccountFormUpdate(account.copy(name = value))))
         ),
         div(cls := "flex justify-end gap-2 mt-6")(
-//          Buttons.textButton("Cancel", AppMsg.NavigateToAccounts(account.fundFlowId)),
           Buttons.linkButton("Save", AppMsg.MaintainAccountMsg(Msg.AccountAction(account, action)))
         )
       )
