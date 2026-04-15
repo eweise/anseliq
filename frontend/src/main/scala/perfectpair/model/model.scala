@@ -17,6 +17,7 @@ enum Msg:
   case GoToInternet(loc: Location.External)
   case ToggleDarkMode
   case Error(msg: String)
+  case DismissError
   case SendHttpRequestWithAccessToken(sendWithAccessToken: String => Cmd[Task, Msg])
   case RestoredSession(accessToken: String, refreshToken: String)
   case Logout
@@ -47,7 +48,8 @@ case class Model(
   maintainFundFlowModel: MaintainFundFlowView.Model,
   accountsModel:         AccountsView.Model,
   maintainAccountModel:  MaintainAccountView.Model,
-  toggleModel:           ToggleView.Model = ToggleView.Model()
+  toggleModel:           ToggleView.Model = ToggleView.Model(),
+  error:                 Option[String]   = None
 ):
   def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
 

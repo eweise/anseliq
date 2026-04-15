@@ -43,7 +43,10 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
       (model, PrettyLogger.info(msg))
 
     case Msg.Error(msg) =>
-      (model, PrettyLogger.error(msg))
+      (model.copy(error = Some(msg)), PrettyLogger.error(msg))
+
+    case Msg.DismissError =>
+      (model.copy(error = None), Cmd.None)
 
     case Msg.ToggleDarkMode =>
       (model.toggleDarkMode, Cmd.None)
@@ -53,7 +56,7 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
 
     case Msg.NavigateTo(page) =>
       val isLoginRequired = false
-      if !isLoginRequired then (model.navigateTo(page), page.doNavigate(model))
+      if !isLoginRequired then (model.navigateTo(page).copy(error = None), page.doNavigate(model))
       else (Model.init, Cmd.Emit(Msg.NavigateTo(Page.Login)))
 
     case Msg.RestoredSession(accessToken, refreshToken) =>
@@ -96,6 +99,6 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
 
   def view(model: Model): Html[Msg] =
     val pageContent = model.currentPage.render(model)
-    MainContainer(pageContent, model.isDarkMode, model.isLoggedIn)
+    MainContainer(pageContent, model.isDarkMode, model.isLoggedIn, model.error)
 
   def subscriptions(model: Model): Sub[Task, Msg] = Sub.None
