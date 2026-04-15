@@ -23,7 +23,7 @@ object HttpHelper:
   val fetchFundFlows: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(HttpPath.fundFlows), fundFlowsDecoder)
   val fetchReconAccounts: Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(HttpPath.url(HttpPath.accounts), accountDecoder)
+    fetchServerMessageCmd(HttpPath.url(HttpPath.accounts), accountsDecoder)
 
   def login(username: String, password: String): Cmd[Task, Msg] = {
     val body    = LoginRequest(username, password)
@@ -41,13 +41,6 @@ object HttpHelper:
     sendWithAuthToken(
       put(HttpPath.url(s"${HttpPath.fundFlow}/${fundFlow.id.get}"), Body.json(write(fundFlow))),
       fundFlowDecoder(Updated)
-    )
-
-  private def put[A](url: String, body: Body): Request[A] =
-    Request(
-      method = Method.Put,
-      url    = url,
-      body   = body
     )
 
   def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
@@ -70,8 +63,15 @@ object HttpHelper:
       accountDecoder(Updated)
     )
 
+  private def put[A](url: String, body: Body): Request[A] =
+    Request(
+      method = Method.Put,
+      url    = url,
+      body   = body
+    )
+
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountDecoder)
+    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountsDecoder)
 
   private def fetchServerMessageCmd(
     apiUrl:          String,
@@ -117,13 +117,17 @@ object HttpHelper:
         error => Msg.Error(error.toString)
       )
 
-    val accountDecoder: Decoder[Msg] =
+    val accountsDecoder: Decoder[Msg] =
       Decoder(
         onResponse =>
+          println("accountsDecoder. response.status = " + onResponse.status)
           val accountsPayload = read[Seq[AccountPayload]](onResponse.body)
-          Msg.AccountsMsg(AccountsView.Msg.ReconAccountsFromBackend(accountsPayload))
+          println("accountsDecoder accountPayload = " + accountsPayload)
+          Msg.AccountsMsg(AccountsView.Msg.AccountsFromBackend(accountsPayload))
         ,
-        error => Msg.Error(error.toString)
+        error =>
+          println("AccountDecoder error " + error)
+          Msg.Error(error.toString)
       )
 
     val accountCreatedDecoder: Decoder[Msg] =

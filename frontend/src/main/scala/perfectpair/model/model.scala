@@ -23,8 +23,8 @@ enum Msg:
 
   // Navigation with context (carry page state to destination)
   case NavigateToMaintainFundFlow(ff: FundFlowPayload)
-  case NavigateToAccounts(ffID: String)
-  case NavigateToMaintainAccount(account: Option[AccountPayload])
+  case NavigateToAccounts(fundFlow: FundFlowPayload)
+  case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload])
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -72,5 +72,6 @@ object Model:
     fundFlowsModel        = FundFlowsView.Model(),
     maintainFundFlowModel = MaintainFundFlowView.Model(),
     accountsModel         = AccountsView.Model(),
-    maintainAccountModel  = MaintainAccountView.Model(account = AccountPayload())
+    maintainAccountModel =
+      MaintainAccountView.Model() // fixme. I don't think these models should be initialized with default payloads
   )

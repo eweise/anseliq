@@ -77,6 +77,7 @@ object Page {
 
     def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
       case Msg.AccountsMsg(sub) =>
+        println("Page.update AccountsMsg = " + sub)
         val (sub2, cmd) = AccountsView.update(model.accountsModel, sub)
         (model.copy(accountsModel = sub2), cmd)
       case _ => (model, Cmd.None)
@@ -86,8 +87,10 @@ object Page {
   }
 
   object MaintainAccount extends Page {
-    val path:   String             = "/components/maintain-account"
-    val render: Model => Html[Msg] = m => MaintainAccountView(m.maintainAccountModel)
+    val path: String = "/components/maintain-account"
+    val render: Model => Html[Msg] = m =>
+      println(s"render = ${m.maintainAccountModel}")
+      MaintainAccountView(m.maintainAccountModel)
 
     def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
       case Msg.MaintainAccountMsg(sub) =>
