@@ -1,6 +1,6 @@
 package perfectpair.adapter.driven
 
-import com.augustnagro.magnum.{Repo, sql}
+import com.augustnagro.magnum.{DbCon, Repo, sql}
 import perfectpair.common.model.model.ID
 import perfectpair.domain.model
 import perfectpair.domain.model.Account
@@ -10,6 +10,13 @@ import java.util.UUID
 
 class AccountRepoLive extends Repo[Account, Account, UUID] with AccountRepo:
   val a = Account.Table
+
+  override def findById(id: UUID)(using DbCon): Option[Account] =
+    sql"""
+      SELECT ${a.all}, balance, created_at, updated_at
+      FROM $a AS a
+      WHERE id = $id
+    """.query[Account].run().headOption
 
   def findNominalWithNonZeroBalance(fundFlowID: ID): Txn[Vector[Account]] =
     sql"""

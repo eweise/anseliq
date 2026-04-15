@@ -148,10 +148,10 @@ object App extends cask.MainRoutes:
       write(accountOperations.createAccount(accountRequest))
 
   @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)
-  def updateAccount(accountID: String, request: cask.Request): String =
+  def updateAccount(id: String, request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      write(accountOperations.updateAccount(accountID, accountRequest))
+      write(accountOperations.updateAccount(id, accountRequest))
 
   @cask.get("/account/:id")
   def account(fundFlowName: String, accountIdStr: String): String =

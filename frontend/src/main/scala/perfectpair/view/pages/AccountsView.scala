@@ -22,7 +22,6 @@ object AccountsView:
     println("AccountView.apply fundFlow = " + model.fundFlow)
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
-//        span(onClick(AppMsg.NavigateTo(Page.FundFlows)))(text(s"${model.fundFlow.name}: Accounts View")),
         Buttons.linkButton("Add Account", AppMsg.NavigateToMaintainAccount(model.fundFlow, None)),
         Table.create(
           Seq(
@@ -30,14 +29,16 @@ object AccountsView:
             "Name",
             "Balance"
           ),
-          model.accounts.map(account =>
-            Seq(
-              text(account.id.getOrElse("")),
-              text(account.name),
-              text(account.balance.toString),
-              Buttons.textButton("Edit", AppMsg.AccountsMsg(Msg.SelectAccount(account)))
+          model.accounts
+            .sortBy(_.name)
+            .map(account =>
+              Seq(
+                text(account.id.getOrElse("")),
+                text(account.name),
+                text(account.balance.toString),
+                Buttons.textButton("Edit", AppMsg.AccountsMsg(Msg.SelectAccount(account)))
+              )
             )
-          )
         )
       )
     )
