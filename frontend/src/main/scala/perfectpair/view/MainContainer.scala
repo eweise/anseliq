@@ -22,12 +22,27 @@ object MainContainer:
       )
     )
 
-  def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
+  def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean, error: Option[String] = None): Html[Msg] =
     div(cls := (if isDark then "dark bg-gray-900" else "not-dark-mode bg-md-surface-variant"))(
       navbar(isDark, isLoggedIn),
       leftNav(),
+      error.map(errorBanner).getOrElse(div()()),
       main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-md-surface-variant dark:bg-gray-900")(content),
       theFooter
+    )
+
+  private def errorBanner(message: String): Html[Msg] =
+    div(
+      cls := "fixed top-20 left-64 right-0 z-10 flex items-center justify-between px-6 py-3 bg-red-100 border-b border-red-300 text-red-800"
+    )(
+      div(cls := "flex items-center gap-2")(
+        span(cls := "font-medium")("Error:"),
+        span()(text(message))
+      ),
+      button(
+        onClick(Msg.DismissError),
+        cls := "ml-4 text-red-600 hover:text-red-900 font-bold text-lg leading-none"
+      )(text("×"))
     )
 
   def navbar(isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
