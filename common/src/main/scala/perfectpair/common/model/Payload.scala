@@ -72,16 +72,19 @@ case class FundFlowPayload(
   updatedAt: Option[OffsetDateTime] = None
 ) derives ReadWriter
 
-case class ReconciliationAccountPayload(
-  name:              String,
-  inMovementSpecID:  UUID = UUID.randomUUID(),
-  outMovementSpecID: UUID = UUID.randomUUID(),
-  rule: Rule = StringAttributeMatchRule(
+case class ReconciliationSpecPayload(
+  id:                Option[String] = None,
+  accountId:         Option[String] = None,
+  description:       String         = "",
+  agingLimit:        Int            = 0,
+  relationship:      String         = "OneToOne",
+  inMovementSpecId:  String         = "",
+  outMovementSpecId: String         = "",
+  rule:              Rule           = StringAttributeMatchRule(
     inKey  = StringAttribute(key = "id"),
     outKey = StringAttribute(key = "id")
-  ),
-  agingLimit: String = ""
-)
+  )
+) derives ReadWriter
 
 case class AccountPayload(
   id:         Option[String] = None,
@@ -95,6 +98,14 @@ case class AccountPayload(
     var errors = Map[String, String]()
     if name.length < 3 then errors += ("name" -> "name must be at least 3 characters long")
     errors
+
+case class MovementSpecPayload(
+  id:             Option[String] = None,
+  name:           String         = "",
+  inAccountId:    String         = "",
+  outAccountId:   String         = "",
+  dataSourceJson: String         = ""
+) derives ReadWriter
 
 case class MovementPayload(
   id:               String,
