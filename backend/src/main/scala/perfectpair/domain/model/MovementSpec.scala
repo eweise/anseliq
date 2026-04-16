@@ -5,6 +5,7 @@ import perfectpair.common.model.DataSourceConfig
 import perfectpair.common.model.model.ID
 
 import java.time.OffsetDateTime
+import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class MovementSpec(
@@ -17,3 +18,6 @@ case class MovementSpec(
   var updatedAt:  Option[OffsetDateTime] = None
 ) derives DbCodec:
   def dataSourceConfig(): DataSourceConfig = upickle.read(dataSourceJson)
+
+object MovementSpec:
+  val Table = TableInfo[MovementSpec, MovementSpec, UUID]

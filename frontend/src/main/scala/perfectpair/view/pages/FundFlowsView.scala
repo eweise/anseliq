@@ -1,6 +1,6 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.FundFlowPayload
+import perfectpair.common.model.{DisplayName, FundFlowPayload}
 import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
 import perfectpair.util.PrettyLogger
@@ -19,6 +19,8 @@ object FundFlowsView:
         (model, Cmd.Emit(AppMsg.NavigateToMaintainFundFlow(ff)))
       case Msg.GetAccountsForFundFlow(ff) =>
         (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff)))
+      case Msg.GetMovementSpecsForFundFlow(ff) =>
+        (model, Cmd.Emit(AppMsg.NavigateToMovementSpecs(ff)))
 
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col mb-8 pt-20")(
@@ -48,7 +50,8 @@ object FundFlowsView:
                   span(cls := "w-56 text-gray-500")(text(ff.createdAt.get.toString)),
                   span(cls := "w-56 text-gray-500")(text(ff.updatedAt.get.toString))
                 ),
-                Buttons.textButton("Accounts", AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
+                Buttons.textButton(DisplayName.account, AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
+                Buttons.textButton(DisplayName.movementSpecs, AppMsg.FundFlowsMsg(Msg.GetMovementSpecsForFundFlow(ff))),
                 Buttons.textButton("Edit", AppMsg.FundFlowsMsg(Msg.SelectFundFlow(ff)))
               )
             )*
@@ -60,5 +63,6 @@ object FundFlowsView:
     case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
     case SelectFundFlow(fundFlow: FundFlowPayload)
     case GetAccountsForFundFlow(fundFlow: FundFlowPayload)
+    case GetMovementSpecsForFundFlow(fundFlow: FundFlowPayload)
 
   case class Model(fundFlows: Seq[FundFlowPayload] = Seq())
