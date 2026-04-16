@@ -157,6 +157,13 @@ object App extends cask.MainRoutes:
     transact(transactor):
       write(accountOperations.updateAccount(id, accountRequest))
 
+  @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/movement-specs", methods = HttpCmd.GET)
+  def movementSpecsByFundFlowID(fundFlowID: String): String =
+    transact(transactor):
+      val specs   = movementSpecRepo.findByFundFlowId(UUID.fromString(fundFlowID))
+      val payload = specs.map(Payload.movementSpecPayloadFromDomain)
+      write(payload)
+
   @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
@@ -169,7 +176,7 @@ object App extends cask.MainRoutes:
     transact(transactor):
       write(movementSpecOperations.updateMovementSpec(id, payload))
 
-  @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.DELETE)
+  @cask.route(s"${HttpPath.movementSpec}/:id", methods = Seq("delete"))
   def deleteMovementSpec(id: String): String =
     transact(transactor):
       movementSpecOperations.deleteMovementSpec(id)

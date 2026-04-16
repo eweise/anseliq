@@ -1,6 +1,6 @@
 package perfectpair.model
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
 import perfectpair.common.util.JwtHelper
 import perfectpair.page.Page
 import perfectpair.view.pages.*
@@ -25,6 +25,7 @@ enum Msg:
   // Navigation with context (carry page state to destination)
   case NavigateToMaintainFundFlow(ff: FundFlowPayload)
   case NavigateToAccounts(fundFlow: FundFlowPayload)
+  case NavigateToMovementSpecs(fundFlow: FundFlowPayload)
   case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload])
 
   // Page message wrappers
@@ -34,6 +35,7 @@ enum Msg:
   case MaintainFundFlowMsg(msg: MaintainFundFlowView.Msg)
   case AccountsMsg(msg: AccountsView.Msg)
   case MaintainAccountMsg(msg: MaintainAccountView.Msg)
+  case MovementSpecsMsg(msg: MovementSpecsView.Msg)
   case ToggleMsg(msg: ToggleView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
@@ -48,6 +50,7 @@ case class Model(
   maintainFundFlowModel: MaintainFundFlowView.Model,
   accountsModel:         AccountsView.Model,
   maintainAccountModel:  MaintainAccountView.Model,
+  movementSpecsModel:    MovementSpecsView.Model,
   toggleModel:           ToggleView.Model = ToggleView.Model(),
   error:                 Option[String]   = None
 ):
@@ -75,5 +78,6 @@ object Model:
     maintainFundFlowModel = MaintainFundFlowView.Model(),
     accountsModel         = AccountsView.Model(),
     maintainAccountModel =
-      MaintainAccountView.Model() // fixme. I don't think these models should be initialized with default payloads
+      MaintainAccountView.Model(), // fixme. I don't think these models should be initialized with default payloads
+    movementSpecsModel    = MovementSpecsView.Model()
   )

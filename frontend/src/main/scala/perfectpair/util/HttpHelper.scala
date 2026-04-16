@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.model.Msg
 import perfectpair.util.HttpHelper.ResponseDecoders.*
 import perfectpair.util.PayloadAction.{Created, Updated}
-import perfectpair.view.pages.*
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MovementSpecsView, Welcome}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -73,6 +73,9 @@ object HttpHelper:
 
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountsDecoder)
+
+  def fetchMovementSpecsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/movement-specs"), movementSpecsDecoder)
 
   private def fetchServerMessageCmd(
     apiUrl:          String,
@@ -145,6 +148,15 @@ object HttpHelper:
         onResponse =>
           val accountPayload = read[AccountPayload](onResponse.body)
           Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountAction(accountPayload, action))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    val movementSpecsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val specs = read[Seq[MovementSpecPayload]](onResponse.body)
+          Msg.MovementSpecsMsg(MovementSpecsView.Msg.MovementSpecsFromBackend(specs))
         ,
         error => Msg.Error(error.toString)
       )
