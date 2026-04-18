@@ -1,6 +1,6 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecAndAccounts, MovementSpecPayload, zipAccountsAndMovementSpecs}
+import perfectpair.common.model.*
 import perfectpair.model.Msg as AppMsg
 import perfectpair.util.{HttpHelper, PrettyLogger}
 import perfectpair.view.components.{Buttons, Table}
@@ -20,7 +20,10 @@ object MovementSpecsView:
         )
       case Msg.AccountsFromBackend(accounts) =>
         val combined = zipAccountsAndMovementSpecs(accounts, model.movementSpecs)
-        (model.copy(accounts = accounts, movementSpecAndAccounts = combined), PrettyLogger.info("zipped accounts and movement specs"))
+        (
+          model.copy(accounts = accounts, movementSpecAndAccounts = combined),
+          PrettyLogger.info("zipped accounts and movement specs")
+        )
       case Msg.SelectMovementSpec(msa) =>
         val spec = msa.map(_.spec)
         (model, Cmd.emit(AppMsg.NavigateToMaintainMovementSpec(model.fundFlow, model.accounts, spec)))
@@ -30,12 +33,11 @@ object MovementSpecsView:
       div(cls := "my-8 text-center")(
         Buttons.linkButton("Add Movement Spec", AppMsg.MovementSpecsMsg(Msg.SelectMovementSpec(None))),
         Table.create(
-          Seq("ID", "Name", "In Account", "Out Account", ""),
+          Seq("Name", "In Account", "Out Account", ""),
           model.movementSpecAndAccounts
             .sortBy(_.spec.name)
             .map(msa =>
               Seq(
-                text(msa.spec.id.getOrElse("")),
                 text(msa.spec.name),
                 text(msa.inAccount.name),
                 text(msa.outAccount.name),
