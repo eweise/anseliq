@@ -6,7 +6,7 @@ import perfectpair.page.*
 import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.view.MainContainer
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MovementSpecsView}
+import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView}
 import tyrian.*
 import zio.*
 import zio.interop.catz.*
@@ -94,6 +94,12 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         HttpHelper.fetchMovementSpecsByFundFlowID(fundFlow.id.get) |+|
           Cmd.Emit(Msg.NavigateTo(Page.MovementSpecs)) |+|
           PrettyLogger.info("fetchMovementSpecsByFundFlowID")
+      )
+
+    case Msg.NavigateToMaintainMovementSpec(fundFlow, accounts, movementSpec) =>
+      (
+        model.copy(maintainMovementSpecModel = MaintainMovementSpecsView.Model(fundFlow, accounts, movementSpec)),
+        Cmd.Emit(Msg.NavigateTo(Page.MaintainMovementSpec))
       )
 
     case Msg.NavigateToMaintainAccount(fundFlow, account) =>

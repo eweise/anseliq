@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.model.Msg
 import perfectpair.util.HttpHelper.ResponseDecoders.*
 import perfectpair.util.PayloadAction.{Created, Updated}
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MovementSpecsView, Welcome}
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, Welcome}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -79,6 +79,18 @@ object HttpHelper:
 
   def fetchAccountsForMovementSpecs(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), movementSpecsAccountsDecoder)
+
+  def createMovementSpec(spec: MovementSpecPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      Request.post(HttpPath.url(HttpPath.movementSpec), Body.json(write(spec))),
+      movementSpecDecoder(Created)
+    )
+
+  def updateMovementSpec(spec: MovementSpecPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      put(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), Body.json(write(spec))),
+      movementSpecDecoder(Updated)
+    )
 
   private def fetchServerMessageCmd(
     apiUrl:          String,
@@ -169,6 +181,15 @@ object HttpHelper:
         onResponse =>
           val accounts = read[Seq[AccountPayload]](onResponse.body)
           Msg.MovementSpecsMsg(MovementSpecsView.Msg.AccountsFromBackend(accounts))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    def movementSpecDecoder(action: PayloadAction): Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val spec = read[MovementSpecPayload](onResponse.body)
+          Msg.MaintainMovementSpecsMsg(MaintainMovementSpecsView.Msg.MovementSpecAction(spec, action))
         ,
         error => Msg.Error(error.toString)
       )
