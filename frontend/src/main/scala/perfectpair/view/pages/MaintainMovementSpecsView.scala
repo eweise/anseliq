@@ -84,6 +84,7 @@ object MaintainMovementSpecsView:
           onChangFn    = Some(value => AppMsg.MaintainMovementSpecsMsg(Msg.FormUpdate(spec.copy(dataSourceJson = value))))
         ),
         div(cls := "flex justify-end gap-2 mt-6")(
+          Buttons.textButton("Cancel", AppMsg.NavigateToMovementSpecs(model.fundFlow)),
           Buttons.linkButton("Save", AppMsg.MaintainMovementSpecsMsg(Msg.MovementSpecAction(spec, action)))
         )
       )
