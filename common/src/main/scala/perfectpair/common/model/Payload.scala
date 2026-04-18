@@ -6,7 +6,6 @@ import zio.json.*
 
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, OffsetDateTime}
-import java.util.UUID
 
 type ValidationErrors = Map[String, String]
 
@@ -80,7 +79,7 @@ case class ReconciliationSpecPayload(
   relationship:      String         = "OneToOne",
   inMovementSpecId:  String         = "",
   outMovementSpecId: String         = "",
-  rule:              Rule           = StringAttributeMatchRule(
+  rule: Rule = StringAttributeMatchRule(
     inKey  = StringAttribute(key = "id"),
     outKey = StringAttribute(key = "id")
   )
@@ -100,11 +99,11 @@ case class AccountPayload(
     errors
 
 case class MovementSpecPayload(
-  id:             Option[String] = None,
-  name:           String         = "",
-  inAccountId:    String         = "",
-  outAccountId:   String         = "",
-  dataSourceJson: String         = ""
+  id:               Option[String]            = None,
+  name:             String                    = "",
+  inAccountId:      String                    = "",
+  outAccountId:     String                    = "",
+  dataSourceConfig: Option[DataSourceConfig]  = None
 ) derives ReadWriter
 
 case class MovementPayload(
@@ -116,3 +115,26 @@ case class MovementPayload(
   properties:       Properties,
   reconciliationId: String
 ) derives ReadWriter
+
+case class MovementSpecAndAccounts(
+  spec:       MovementSpecPayload,
+  inAccount:  AccountPayload,
+  outAccount: AccountPayload
+) derives ReadWriter
+
+def zipAccountsAndMovementSpecs(
+  accounts:      Seq[AccountPayload],
+  movementSpecs: Seq[MovementSpecPayload]
+): Seq[MovementSpecAndAccounts] =
+  val accountMap = accounts.map(a => a.id.get -> a).toMap
+  movementSpecs.map(ms =>
+    MovementSpecAndAccounts(
+      spec = ms,
+      inAccount = accountMap
+        .getOrElse(ms.inAccountId, throw IllegalStateException(s"could not find inAccount ${ms.inAccountId}")),
+      outAccount = accountMap.getOrElse(
+        ms.outAccountId,
+        throw IllegalStateException(s"could not find outAccount ${ms.outAccountId}")
+      )
+    )
+  )

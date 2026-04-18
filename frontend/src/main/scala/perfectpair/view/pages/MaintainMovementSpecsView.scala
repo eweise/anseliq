@@ -78,12 +78,6 @@ object MaintainMovementSpecsView:
           accounts   = model.accounts,
           onSelect   = value => AppMsg.MaintainMovementSpecsMsg(Msg.FormUpdate(spec.copy(outAccountId = value)))
         ),
-        Form.field[AppMsg](
-          fieldID      = "dataSourceJson",
-          labelName    = "Data Source JSON",
-          defaultValue = Some(spec.dataSourceJson),
-          onChangFn    = Some(value => AppMsg.MaintainMovementSpecsMsg(Msg.FormUpdate(spec.copy(dataSourceJson = value))))
-        ),
         div(cls := "flex justify-end gap-2 mt-6")(
           Buttons.textButton("Cancel", AppMsg.NavigateToMovementSpecs(model.fundFlow)),
           Buttons.linkButton("Save", AppMsg.MaintainMovementSpecsMsg(Msg.MovementSpecAction(spec, action)))

@@ -2,7 +2,7 @@ package perfectpair.adapter.driving
 
 import perfectpair.common.model.*
 import perfectpair.domain.model.*
-import upickle.default.write as upickleWrite
+import upickle.default.{read as upickleRead, write as upickleWrite}
 
 object Payload:
 
@@ -34,7 +34,7 @@ object Payload:
       name           = spec.name,
       inAccountId    = spec.inAccountId.toString,
       outAccountId   = spec.outAccountId.toString,
-      dataSourceJson = spec.dataSourceJson
+      dataSourceConfig = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s))
     )
 
   def reconSpecPayloadFromDomain(spec: ReconciliationSpec): ReconciliationSpecPayload =
