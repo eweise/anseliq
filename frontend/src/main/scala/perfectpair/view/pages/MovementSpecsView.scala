@@ -1,9 +1,9 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{FundFlowPayload, MovementSpecPayload}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecAndAccounts, MovementSpecPayload, zipAccountsAndMovementSpecs}
 import perfectpair.model.Msg as AppMsg
-import perfectpair.util.PrettyLogger
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.util.{HttpHelper, PrettyLogger}
+import perfectpair.view.components.Table
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -13,21 +13,28 @@ object MovementSpecsView:
   def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     msg match
       case Msg.MovementSpecsFromBackend(specs) =>
-        (model.copy(movementSpecs = specs), PrettyLogger.info("updated model with movement specs"))
+        (
+          model.copy(movementSpecs = specs),
+          HttpHelper.fetchAccountsForMovementSpecs(model.fundFlow.id.get) |+|
+            PrettyLogger.info("fetching accounts for movement specs")
+        )
+      case Msg.AccountsFromBackend(accounts) =>
+        val combined = zipAccountsAndMovementSpecs(accounts, model.movementSpecs)
+        (model.copy(movementSpecAndAccounts = combined), PrettyLogger.info("zipped accounts and movement specs"))
 
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
         Table.create(
           Seq("ID", "Name", "In Account", "Out Account"),
-          model.movementSpecs
-            .sortBy(_.name)
-            .map(spec =>
+          model.movementSpecAndAccounts
+            .sortBy(_.spec.name)
+            .map(msa =>
               Seq(
-                text(spec.id.getOrElse("")),
-                text(spec.name),
-                text(spec.inAccountId),
-                text(spec.outAccountId)
+                text(msa.spec.id.getOrElse("")),
+                text(msa.spec.name),
+                text(msa.inAccount.name),
+                text(msa.outAccount.name)
               )
             )
         )
@@ -36,8 +43,10 @@ object MovementSpecsView:
 
   enum Msg:
     case MovementSpecsFromBackend(specs: Seq[MovementSpecPayload])
+    case AccountsFromBackend(accounts: Seq[AccountPayload])
 
   case class Model(
-    fundFlow:      FundFlowPayload          = FundFlowPayload(),
-    movementSpecs: Seq[MovementSpecPayload] = Seq()
+    fundFlow:                FundFlowPayload              = FundFlowPayload(),
+    movementSpecs:           Seq[MovementSpecPayload]     = Seq(),
+    movementSpecAndAccounts: Seq[MovementSpecAndAccounts] = Seq()
   )
