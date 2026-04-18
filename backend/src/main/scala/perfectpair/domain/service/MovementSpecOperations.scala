@@ -2,6 +2,7 @@ package perfectpair.domain.service
 
 import perfectpair.adapter.driving.Payload
 import perfectpair.common.model.MovementSpecPayload
+import upickle.default.write as upickleWrite
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 
@@ -16,7 +17,7 @@ class MovementSpecOperations(
       name           = payload.name,
       inAccountId    = UUID.fromString(payload.inAccountId),
       outAccountId   = UUID.fromString(payload.outAccountId),
-      dataSourceJson = payload.dataSourceJson
+      dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
     )
     movementSpecRepo.insert(spec)
     Payload.movementSpecPayloadFromDomain(spec)
@@ -28,7 +29,7 @@ class MovementSpecOperations(
       name           = payload.name,
       inAccountId    = UUID.fromString(payload.inAccountId),
       outAccountId   = UUID.fromString(payload.outAccountId),
-      dataSourceJson = payload.dataSourceJson
+      dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
     )
     movementSpecRepo.update(existing)
     Payload.movementSpecPayloadFromDomain(existing)
