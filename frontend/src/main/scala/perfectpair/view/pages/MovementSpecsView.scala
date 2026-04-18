@@ -3,7 +3,7 @@ package perfectpair.view.pages
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecAndAccounts, MovementSpecPayload, zipAccountsAndMovementSpecs}
 import perfectpair.model.Msg as AppMsg
 import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.Table
+import perfectpair.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -20,13 +20,17 @@ object MovementSpecsView:
         )
       case Msg.AccountsFromBackend(accounts) =>
         val combined = zipAccountsAndMovementSpecs(accounts, model.movementSpecs)
-        (model.copy(movementSpecAndAccounts = combined), PrettyLogger.info("zipped accounts and movement specs"))
+        (model.copy(accounts = accounts, movementSpecAndAccounts = combined), PrettyLogger.info("zipped accounts and movement specs"))
+      case Msg.SelectMovementSpec(msa) =>
+        val spec = msa.map(_.spec)
+        (model, Cmd.emit(AppMsg.NavigateToMaintainMovementSpec(model.fundFlow, model.accounts, spec)))
 
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
+        Buttons.linkButton("Add Movement Spec", AppMsg.MovementSpecsMsg(Msg.SelectMovementSpec(None))),
         Table.create(
-          Seq("ID", "Name", "In Account", "Out Account"),
+          Seq("ID", "Name", "In Account", "Out Account", ""),
           model.movementSpecAndAccounts
             .sortBy(_.spec.name)
             .map(msa =>
@@ -34,7 +38,8 @@ object MovementSpecsView:
                 text(msa.spec.id.getOrElse("")),
                 text(msa.spec.name),
                 text(msa.inAccount.name),
-                text(msa.outAccount.name)
+                text(msa.outAccount.name),
+                Buttons.textButton("Edit", AppMsg.MovementSpecsMsg(Msg.SelectMovementSpec(Some(msa))))
               )
             )
         )
@@ -44,9 +49,11 @@ object MovementSpecsView:
   enum Msg:
     case MovementSpecsFromBackend(specs: Seq[MovementSpecPayload])
     case AccountsFromBackend(accounts: Seq[AccountPayload])
+    case SelectMovementSpec(msa: Option[MovementSpecAndAccounts])
 
   case class Model(
     fundFlow:                FundFlowPayload              = FundFlowPayload(),
+    accounts:                Seq[AccountPayload]          = Seq(),
     movementSpecs:           Seq[MovementSpecPayload]     = Seq(),
     movementSpecAndAccounts: Seq[MovementSpecAndAccounts] = Seq()
   )

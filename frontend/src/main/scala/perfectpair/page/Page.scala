@@ -116,6 +116,20 @@ object Page {
       PrettyLogger.info("Entering Movement Specs page")
   }
 
+  object MaintainMovementSpec extends Page {
+    val path:   String             = "/components/maintain-movement-spec"
+    val render: Model => Html[Msg] = m => MaintainMovementSpecsView(m.maintainMovementSpecModel)
+
+    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
+      case Msg.MaintainMovementSpecsMsg(sub) =>
+        val (sub2, cmd) = MaintainMovementSpecsView.update(model.maintainMovementSpecModel, sub)
+        (model.copy(maintainMovementSpecModel = sub2), cmd)
+      case _ => (model, Cmd.None)
+
+    override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
+      PrettyLogger.info("Entering Maintain Movement Spec page")
+  }
+
   object Toggle extends Page {
     val path:   String             = "/components/toggle"
     val render: Model => Html[Msg] = m => ToggleView(m.toggleModel)
