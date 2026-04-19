@@ -27,7 +27,9 @@ object AccountsView:
           Seq(
             "ID",
             "Name",
-            "Balance"
+            "Balance",
+            "",
+            ""
           ),
           model.accounts
             .sortBy(_.name)
@@ -36,7 +38,8 @@ object AccountsView:
                 text(account.id.getOrElse("")),
                 text(account.name),
                 text(account.balance.toString),
-                Buttons.textButton("Edit", AppMsg.AccountsMsg(Msg.SelectAccount(account)))
+                Buttons.textButton("Edit", AppMsg.AccountsMsg(Msg.SelectAccount(account))),
+                Buttons.textButton("Recon Specs", AppMsg.NavigateToReconSpecs(account))
               )
             )
         )
