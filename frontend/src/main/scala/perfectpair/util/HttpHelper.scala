@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.model.Msg
 import perfectpair.util.HttpHelper.ResponseDecoders.*
 import perfectpair.util.PayloadAction.{Created, Updated}
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, Welcome}
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView, Welcome}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -79,6 +79,12 @@ object HttpHelper:
 
   def fetchAccountsForMovementSpecs(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), movementSpecsAccountsDecoder)
+
+  def fetchReconSpecsByAccountID(accountID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.account}/$accountID/recon-specs"), reconSpecsDecoder)
+
+  def fetchMovementSpecsForReconView(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/movement-specs"), reconSpecsMovementSpecsDecoder)
 
   def createMovementSpec(spec: MovementSpecPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(
@@ -190,6 +196,24 @@ object HttpHelper:
         onResponse =>
           val spec = read[MovementSpecPayload](onResponse.body)
           Msg.MaintainMovementSpecsMsg(MaintainMovementSpecsView.Msg.MovementSpecAction(spec, action))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    val reconSpecsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val specs = read[Seq[ReconciliationSpecPayload]](onResponse.body)
+          Msg.ReconSpecsMsg(ReconSpecsView.Msg.ReconSpecsFromBackend(specs))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    val reconSpecsMovementSpecsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val specs = read[Seq[MovementSpecPayload]](onResponse.body)
+          Msg.ReconSpecsMsg(ReconSpecsView.Msg.MovementSpecsFromBackend(specs))
         ,
         error => Msg.Error(error.toString)
       )

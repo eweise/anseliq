@@ -28,6 +28,7 @@ enum Msg:
   case NavigateToMovementSpecs(fundFlow: FundFlowPayload)
   case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload])
   case NavigateToMaintainMovementSpec(fundFlow: FundFlowPayload, accounts: Seq[AccountPayload], movementSpec: Option[MovementSpecPayload])
+  case NavigateToReconSpecs(account: AccountPayload)
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -38,6 +39,7 @@ enum Msg:
   case MaintainAccountMsg(msg: MaintainAccountView.Msg)
   case MovementSpecsMsg(msg: MovementSpecsView.Msg)
   case MaintainMovementSpecsMsg(msg: MaintainMovementSpecsView.Msg)
+  case ReconSpecsMsg(msg: ReconSpecsView.Msg)
   case ToggleMsg(msg: ToggleView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
@@ -54,6 +56,7 @@ case class Model(
   maintainAccountModel:  MaintainAccountView.Model,
   movementSpecsModel:          MovementSpecsView.Model,
   maintainMovementSpecModel:   MaintainMovementSpecsView.Model = MaintainMovementSpecsView.Model(),
+  reconSpecsModel:             ReconSpecsView.Model            = ReconSpecsView.Model(),
   toggleModel:           ToggleView.Model = ToggleView.Model(),
   error:                 Option[String]   = None
 ):
@@ -83,5 +86,6 @@ object Model:
     maintainAccountModel =
       MaintainAccountView.Model(), // fixme. I don't think these models should be initialized with default payloads
     movementSpecsModel         = MovementSpecsView.Model(),
-    maintainMovementSpecModel  = MaintainMovementSpecsView.Model()
+    maintainMovementSpecModel  = MaintainMovementSpecsView.Model(),
+    reconSpecsModel            = ReconSpecsView.Model()
   )
