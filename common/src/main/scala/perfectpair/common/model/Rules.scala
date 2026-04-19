@@ -3,7 +3,6 @@ package perfectpair.common.model
 import perfectpair.common.model.model.Properties
 import upickle.default.ReadWriter
 
-import java.text.DateFormat
 import java.time.{LocalDate, OffsetDateTime}
 
 enum Direction:
@@ -114,8 +113,7 @@ case class DateAttribute(
     modifier.map(_.apply(dateValue)).getOrElse(dateValue)
 
   override def compare(x: String, y: String): Int =
-    val df = DateFormat.getInstance()
-    df.parse(x).compareTo(df.parse(y))
+    LocalDate.parse(x).compareTo(LocalDate.parse(y))
 
 //todo make a datetime modifier
 sealed trait DateModifier derives ReadWriter:
