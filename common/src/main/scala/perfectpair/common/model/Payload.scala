@@ -99,11 +99,11 @@ case class AccountPayload(
     errors
 
 case class MovementSpecPayload(
-  id:               Option[String]            = None,
-  name:             String                    = "",
-  inAccountId:      String                    = "",
-  outAccountId:     String                    = "",
-  dataSourceConfig: Option[DataSourceConfig]  = None
+  id:               Option[String]           = None,
+  name:             String                   = "",
+  inAccountId:      String                   = "",
+  outAccountId:     String                   = "",
+  dataSourceConfig: Option[DataSourceConfig] = None
 ) derives ReadWriter
 
 case class MovementPayload(
@@ -122,10 +122,27 @@ case class MovementSpecAndAccounts(
   outAccount: AccountPayload
 ) derives ReadWriter
 
-def zipAccountsAndMovementSpecs(
+def combineAccountsAndMovementSpecs(
   accounts:      Seq[AccountPayload],
   movementSpecs: Seq[MovementSpecPayload]
 ): Seq[MovementSpecAndAccounts] =
+  val accountMap = accounts.map(a => a.id.get -> a).toMap
+  movementSpecs.map(ms =>
+    MovementSpecAndAccounts(
+      spec = ms,
+      inAccount = accountMap
+        .getOrElse(ms.inAccountId, throw IllegalStateException(s"could not find inAccount ${ms.inAccountId}")),
+      outAccount = accountMap.getOrElse(
+        ms.outAccountId,
+        throw IllegalStateException(s"could not find outAccount ${ms.outAccountId}")
+      )
+    )
+  )
+
+def combineReconAndMovementSpecs(
+                                 accounts:      Seq[AccountPayload],
+                                 movementSpecs: Seq[MovementSpecPayload]
+                               ): Seq[MovementSpecAndAccounts] =
   val accountMap = accounts.map(a => a.id.get -> a).toMap
   movementSpecs.map(ms =>
     MovementSpecAndAccounts(
