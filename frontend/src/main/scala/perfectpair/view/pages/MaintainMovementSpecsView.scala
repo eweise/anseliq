@@ -2,6 +2,7 @@ package perfectpair.view.pages
 
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
 import perfectpair.model.Msg as AppMsg
+import perfectpair.view.components.DataSourceConfigWidget
 import perfectpair.util.PayloadAction.*
 import perfectpair.util.{HttpHelper, PayloadAction, PrettyLogger}
 import perfectpair.view.components.{Buttons, Form}
@@ -16,12 +17,16 @@ object MaintainMovementSpecsView:
     msg match
       case Msg.FormUpdate(spec) =>
         (model.copy(movementSpec = Some(spec)), PrettyLogger.info("movement spec form modified"))
+      case Msg.DataSourceMsg(widgetMsg) =>
+        (model.copy(dataSourceWidget = DataSourceConfigWidget.update(model.dataSourceWidget, widgetMsg)), Cmd.None)
       case Msg.MovementSpecAction(spec, Create) =>
-        (model, HttpHelper.createMovementSpec(spec) |+| PrettyLogger.info("creating movement spec"))
+        val toSave = spec.copy(dataSourceConfig = DataSourceConfigWidget.toDataSourceConfig(model.dataSourceWidget))
+        (model, HttpHelper.createMovementSpec(toSave) |+| PrettyLogger.info("creating movement spec"))
       case Msg.MovementSpecAction(spec, Created) =>
         (model.copy(movementSpec = Some(spec)), PrettyLogger.info("created movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow)))
       case Msg.MovementSpecAction(spec, Update) =>
-        (model, HttpHelper.updateMovementSpec(spec) |+| PrettyLogger.info("updating movement spec"))
+        val toSave = spec.copy(dataSourceConfig = DataSourceConfigWidget.toDataSourceConfig(model.dataSourceWidget))
+        (model, HttpHelper.updateMovementSpec(toSave) |+| PrettyLogger.info("updating movement spec"))
       case Msg.MovementSpecAction(spec, Updated) =>
         (model.copy(movementSpec = Some(spec)), PrettyLogger.info("updated movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow)))
 
@@ -78,6 +83,7 @@ object MaintainMovementSpecsView:
           accounts   = model.accounts,
           onSelect   = value => AppMsg.MaintainMovementSpecsMsg(Msg.FormUpdate(spec.copy(outAccountId = value)))
         ),
+        DataSourceConfigWidget(model.dataSourceWidget, msg => AppMsg.MaintainMovementSpecsMsg(Msg.DataSourceMsg(msg))),
         div(cls := "flex justify-end gap-2 mt-6")(
           Buttons.textButton("Cancel", AppMsg.NavigateToMovementSpecs(model.fundFlow)),
           Buttons.linkButton("Save", AppMsg.MaintainMovementSpecsMsg(Msg.MovementSpecAction(spec, action)))
@@ -88,9 +94,11 @@ object MaintainMovementSpecsView:
   enum Msg:
     case FormUpdate(spec: MovementSpecPayload)
     case MovementSpecAction(spec: MovementSpecPayload, action: PayloadAction)
+    case DataSourceMsg(msg: DataSourceConfigWidget.Msg)
 
   case class Model(
-    fundFlow:     FundFlowPayload             = FundFlowPayload(),
-    accounts:     Seq[AccountPayload]         = Seq(),
-    movementSpec: Option[MovementSpecPayload] = None
+    fundFlow:         FundFlowPayload              = FundFlowPayload(),
+    accounts:         Seq[AccountPayload]          = Seq(),
+    movementSpec:     Option[MovementSpecPayload]  = None,
+    dataSourceWidget: DataSourceConfigWidget.Model = DataSourceConfigWidget.Model()
   )
