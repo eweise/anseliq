@@ -198,7 +198,6 @@ object App extends cask.MainRoutes:
 
       write(Payload.accountPayloadFromDomain(account))
 
-  // todo this should just pass in an account ID
   @cask.get("/account/:id/movements")
   def movements(fundFlowName: String, accountIdStr: String): String =
     val accountID = Try {
