@@ -6,6 +6,7 @@ import perfectpair.page.*
 import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.view.MainContainer
+import perfectpair.view.components.DataSourceConfigWidget
 import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView}
 import tyrian.*
 import zio.*
@@ -98,7 +99,12 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
 
     case Msg.NavigateToMaintainMovementSpec(fundFlow, accounts, movementSpec) =>
       (
-        model.copy(maintainMovementSpecModel = MaintainMovementSpecsView.Model(fundFlow, accounts, movementSpec)),
+        model.copy(maintainMovementSpecModel = MaintainMovementSpecsView.Model(
+          fundFlow         = fundFlow,
+          accounts         = accounts,
+          movementSpec     = movementSpec,
+          dataSourceWidget = DataSourceConfigWidget.fromDataSourceConfig(movementSpec.flatMap(_.dataSourceConfig))
+        )),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainMovementSpec))
       )
 
