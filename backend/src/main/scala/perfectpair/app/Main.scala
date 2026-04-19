@@ -5,9 +5,9 @@ import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, RandomMessage}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, RandomMessage, ReconciliationSpecPayload}
 import perfectpair.domain.model.*
-import perfectpair.domain.service.{AccountOperations, FundFlowOperations, MovementSpecOperations, Reconciler}
+import perfectpair.domain.service.*
 import upickle.default.*
 
 import java.util.UUID
@@ -47,6 +47,9 @@ object App extends cask.MainRoutes:
   )
   val movementSpecOperations = MovementSpecOperations(
     movementSpecRepo = movementSpecRepo
+  )
+  val reconSpecOperations = ReconciliationSpecOperations(
+    reconSpecRepo = reconSpecRepo
   )
   val prefixPath = "/api/v1"
   val loginPath  = s"$prefixPath / login"
@@ -157,6 +160,7 @@ object App extends cask.MainRoutes:
     transact(transactor):
       write(accountOperations.updateAccount(id, accountRequest))
 
+  // MovementSpec
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/movement-specs", methods = HttpCmd.GET)
   def movementSpecsByFundFlowID(fundFlowID: String): String =
     transact(transactor):
@@ -178,6 +182,32 @@ object App extends cask.MainRoutes:
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = Seq("delete"))
   def deleteMovementSpec(id: String): String =
+    transact(transactor):
+      movementSpecOperations.deleteMovementSpec(id)
+    write("deleted")
+
+  // ReconSpec
+  @cask.route(s"${HttpPath.account}/:accountID/${HttpPath.reconSpecs}", methods = HttpCmd.GET)
+  def reconSpecsByaccountID(accountID: String): String =
+    transact(transactor):
+      val specs   = reconSpecRepo.findByAccountID(UUID.fromString(accountID))
+      val payload = specs.map(Payload.reconSpecPayloadFromDomain)
+      write(payload)
+
+  @cask.route(s"${HttpPath.reconSpec}", methods = HttpCmd.POST)
+  def createReconSpec(request: cask.Request): String =
+    val payload = read[ReconciliationSpecPayload](request.text())
+    transact(transactor):
+      write(reconSpecOperations.createReconSpec(payload))
+
+  @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
+  def updateReconSpec(id: String, request: cask.Request): String =
+    val payload = read[MovementSpecPayload](request.text())
+    transact(transactor):
+      write(movementSpecOperations.updateMovementSpec(id, payload))
+
+  @cask.route(s"${HttpPath.reconSpec}/:id", methods = Seq("delete"))
+  def deleteReconSpec(id: String): String =
     transact(transactor):
       movementSpecOperations.deleteMovementSpec(id)
     write("deleted")

@@ -19,9 +19,8 @@ object MovementSpecsView:
             PrettyLogger.info("fetching accounts for movement specs")
         )
       case Msg.AccountsFromBackend(accounts) =>
-        val combined = zipAccountsAndMovementSpecs(accounts, model.movementSpecs)
         (
-          model.copy(accounts = accounts, movementSpecAndAccounts = combined),
+          model.copy(accounts = accounts),
           PrettyLogger.info("zipped accounts and movement specs")
         )
       case Msg.SelectMovementSpec(msa) =>
@@ -29,12 +28,16 @@ object MovementSpecsView:
         (model, Cmd.emit(AppMsg.NavigateToMaintainMovementSpec(model.fundFlow, model.accounts, spec)))
 
   def apply(model: Model): Html[AppMsg] =
+    val combined =
+      if model.accounts.isEmpty || model.movementSpecs.isEmpty then Seq[MovementSpecAndAccounts]()
+      else combineAccountsAndMovementSpecs(model.accounts, model.movementSpecs)
+    println("MovementSpecsView after combined")
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
         Buttons.linkButton("Add Movement Spec", AppMsg.MovementSpecsMsg(Msg.SelectMovementSpec(None))),
         Table.create(
           Seq("Name", "In Account", "Out Account", ""),
-          model.movementSpecAndAccounts
+          combined
             .sortBy(_.spec.name)
             .map(msa =>
               Seq(
@@ -54,8 +57,7 @@ object MovementSpecsView:
     case SelectMovementSpec(msa: Option[MovementSpecAndAccounts])
 
   case class Model(
-    fundFlow:                FundFlowPayload              = FundFlowPayload(),
-    accounts:                Seq[AccountPayload]          = Seq(),
-    movementSpecs:           Seq[MovementSpecPayload]     = Seq(),
-    movementSpecAndAccounts: Seq[MovementSpecAndAccounts] = Seq()
+    fundFlow:      FundFlowPayload          = FundFlowPayload(),
+    accounts:      Seq[AccountPayload]      = Seq(),
+    movementSpecs: Seq[MovementSpecPayload] = Seq()
   )
