@@ -1,6 +1,6 @@
 package perfectpair.model
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
 import perfectpair.common.util.JwtHelper
 import perfectpair.page.Page
 import perfectpair.view.pages.*
@@ -29,6 +29,7 @@ enum Msg:
   case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload])
   case NavigateToMaintainMovementSpec(fundFlow: FundFlowPayload, accounts: Seq[AccountPayload], movementSpec: Option[MovementSpecPayload])
   case NavigateToReconSpecs(account: AccountPayload)
+  case NavigateToMaintainReconSpec(account: AccountPayload, movementSpecs: Seq[MovementSpecPayload], reconSpec: Option[ReconciliationSpecPayload])
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -40,6 +41,7 @@ enum Msg:
   case MovementSpecsMsg(msg: MovementSpecsView.Msg)
   case MaintainMovementSpecsMsg(msg: MaintainMovementSpecsView.Msg)
   case ReconSpecsMsg(msg: ReconSpecsView.Msg)
+  case MaintainReconSpecMsg(msg: MaintainReconSpecView.Msg)
   case ToggleMsg(msg: ToggleView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
@@ -57,6 +59,7 @@ case class Model(
   movementSpecsModel:          MovementSpecsView.Model,
   maintainMovementSpecModel:   MaintainMovementSpecsView.Model = MaintainMovementSpecsView.Model(),
   reconSpecsModel:             ReconSpecsView.Model            = ReconSpecsView.Model(),
+  maintainReconSpecModel:      MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
   toggleModel:           ToggleView.Model = ToggleView.Model(),
   error:                 Option[String]   = None
 ):
@@ -87,5 +90,6 @@ object Model:
       MaintainAccountView.Model(), // fixme. I don't think these models should be initialized with default payloads
     movementSpecsModel         = MovementSpecsView.Model(),
     maintainMovementSpecModel  = MaintainMovementSpecsView.Model(),
-    reconSpecsModel            = ReconSpecsView.Model()
+    reconSpecsModel            = ReconSpecsView.Model(),
+    maintainReconSpecModel     = MaintainReconSpecView.Model()
   )

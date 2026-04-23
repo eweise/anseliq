@@ -5,3 +5,5 @@ enum PayloadAction:
   case Updated
   case Create
   case Created
+  case Delete
+  case Deleted

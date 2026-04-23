@@ -5,8 +5,9 @@ import perfectpair.common.http.{BackendApiUrl, HttpPath}
 import perfectpair.common.model.*
 import perfectpair.model.Msg
 import perfectpair.util.HttpHelper.ResponseDecoders.*
-import perfectpair.util.PayloadAction.{Created, Updated}
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView, Welcome}
+import perfectpair.util.PayloadAction
+import perfectpair.util.PayloadAction.{Created, Deleted, Updated}
+import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView, Welcome}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -63,6 +64,13 @@ object HttpHelper:
       accountDecoder(Updated)
     )
 
+  private def delete[A](url: String): Request[A] =
+    Request(
+      method = Method.Delete,
+      url    = url,
+      body   = Body.Empty
+    )
+
   private def put[A](url: String, body: Body): Request[A] =
     println(s"put url=${url}; body=${body}")
     Request(
@@ -96,6 +104,24 @@ object HttpHelper:
     sendWithAuthToken(
       put(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), Body.json(write(spec))),
       movementSpecDecoder(Updated)
+    )
+
+  def createReconSpec(spec: ReconciliationSpecPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      Request.post(HttpPath.url(HttpPath.reconSpec), Body.json(write(spec))),
+      reconSpecDecoder(Created)
+    )
+
+  def updateReconSpec(spec: ReconciliationSpecPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      put(HttpPath.url(s"${HttpPath.reconSpec}/${spec.id.get}"), Body.json(write(spec))),
+      reconSpecDecoder(Updated)
+    )
+
+  def deleteReconSpec(id: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      delete(HttpPath.url(s"${HttpPath.reconSpec}/$id")),
+      reconSpecDeletedDecoder
     )
 
   private def fetchServerMessageCmd(
@@ -215,6 +241,21 @@ object HttpHelper:
           val specs = read[Seq[MovementSpecPayload]](onResponse.body)
           Msg.ReconSpecsMsg(ReconSpecsView.Msg.MovementSpecsFromBackend(specs))
         ,
+        error => Msg.Error(error.toString)
+      )
+
+    def reconSpecDecoder(action: PayloadAction): Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val spec = read[ReconciliationSpecPayload](onResponse.body)
+          Msg.MaintainReconSpecMsg(MaintainReconSpecView.Msg.ReconSpecAction(spec, action))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    val reconSpecDeletedDecoder: Decoder[Msg] =
+      Decoder(
+        _ => Msg.MaintainReconSpecMsg(MaintainReconSpecView.Msg.ReconSpecAction(ReconciliationSpecPayload(), Deleted)),
         error => Msg.Error(error.toString)
       )
 
