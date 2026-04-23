@@ -2,11 +2,12 @@ package perfectpair.main
 
 import com.softwaremill.quicklens.*
 import perfectpair.model.*
+import perfectpair.common.model.NoOpRule
 import perfectpair.page.*
 import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.view.MainContainer
-import perfectpair.view.components.DataSourceConfigWidget
+import perfectpair.view.components.{DataSourceConfigWidget, RuleWidget}
 import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView}
 import tyrian.*
 import zio.*
@@ -111,7 +112,8 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         model.copy(maintainReconSpecModel = MaintainReconSpecView.Model(
           account       = account,
           movementSpecs = movementSpecs,
-          reconSpec     = reconSpec
+          reconSpec     = reconSpec,
+          ruleWidget    = RuleWidget.fromRule(reconSpec.map(_.rule).getOrElse(NoOpRule))
         )),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainReconSpec))
       )
