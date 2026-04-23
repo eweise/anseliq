@@ -4,7 +4,7 @@ import perfectpair.common.model.{AccountPayload, MovementSpecPayload, Reconcilia
 import perfectpair.model.Msg as AppMsg
 import perfectpair.util.PayloadAction.*
 import perfectpair.util.{HttpHelper, PayloadAction}
-import perfectpair.view.components.{Buttons, Form}
+import perfectpair.view.components.{Buttons, Form, RuleWidget}
 import tyrian.EmptyAttribute
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
@@ -16,12 +16,16 @@ object MaintainReconSpecView:
     msg match
       case Msg.FormUpdate(spec) =>
         (model.copy(reconSpec = Some(spec)), Cmd.None)
+      case Msg.RuleWidgetMsg(widgetMsg) =>
+        (model.copy(ruleWidget = RuleWidget.update(model.ruleWidget, widgetMsg)), Cmd.None)
       case Msg.ReconSpecAction(spec, Create) =>
-        (model, HttpHelper.createReconSpec(spec))
+        val toSave = spec.copy(rule = RuleWidget.toRule(model.ruleWidget))
+        (model, HttpHelper.createReconSpec(toSave))
       case Msg.ReconSpecAction(spec, Created) =>
         (model.copy(reconSpec = Some(spec)), Cmd.emit(AppMsg.NavigateToReconSpecs(model.account)))
       case Msg.ReconSpecAction(spec, Update) =>
-        (model, HttpHelper.updateReconSpec(spec))
+        val toSave = spec.copy(rule = RuleWidget.toRule(model.ruleWidget))
+        (model, HttpHelper.updateReconSpec(toSave))
       case Msg.ReconSpecAction(spec, Updated) =>
         (model.copy(reconSpec = Some(spec)), Cmd.emit(AppMsg.NavigateToReconSpecs(model.account)))
       case Msg.ReconSpecAction(_, Delete) =>
@@ -101,6 +105,13 @@ object MaintainReconSpecView:
           specs      = model.movementSpecs,
           onSelect   = value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(outMovementSpecId = value)))
         ),
+        RuleWidget(
+          model.ruleWidget,
+          model.movementSpecs,
+          spec.inMovementSpecId,
+          spec.outMovementSpecId,
+          msg => AppMsg.MaintainReconSpecMsg(Msg.RuleWidgetMsg(msg))
+        ),
         div(cls := "flex justify-between mt-6")(
           if spec.id.isDefined then
             Buttons.textButton("Delete", AppMsg.MaintainReconSpecMsg(Msg.ReconSpecAction(spec, Delete)))
@@ -117,9 +128,11 @@ object MaintainReconSpecView:
   enum Msg:
     case FormUpdate(spec: ReconciliationSpecPayload)
     case ReconSpecAction(spec: ReconciliationSpecPayload, action: PayloadAction)
+    case RuleWidgetMsg(msg: RuleWidget.Msg)
 
   case class Model(
     account:       AccountPayload                    = AccountPayload(),
     movementSpecs: Seq[MovementSpecPayload]          = Seq(),
-    reconSpec:     Option[ReconciliationSpecPayload] = None
+    reconSpec:     Option[ReconciliationSpecPayload] = None,
+    ruleWidget:    RuleWidget.Model                  = RuleWidget.Model()
   )
