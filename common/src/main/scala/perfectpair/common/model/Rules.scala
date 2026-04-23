@@ -40,6 +40,10 @@ trait AttributeMatcher:
   def inKey:  CanCompareProperties
   def outKey: CanCompareProperties
 
+case object NoOpRule extends Rule:
+  def sql: String = ""
+
+
 case class StringAttributeMatchRule(
   inKey:  StringAttribute,
   outKey: StringAttribute

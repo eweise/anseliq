@@ -25,7 +25,6 @@ object AccountsView:
         Buttons.linkButton("Add Account", AppMsg.NavigateToMaintainAccount(model.fundFlow, None)),
         Table.create(
           Seq(
-            "ID",
             "Name",
             "Balance",
             "",
@@ -35,7 +34,6 @@ object AccountsView:
             .sortBy(_.name)
             .map(account =>
               Seq(
-                text(account.id.getOrElse("")),
                 text(account.name),
                 text(account.balance.toString),
                 Buttons.textButton("Edit", AppMsg.AccountsMsg(Msg.SelectAccount(account))),

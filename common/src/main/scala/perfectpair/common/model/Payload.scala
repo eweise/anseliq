@@ -79,10 +79,7 @@ case class ReconciliationSpecPayload(
   relationship:      String         = "OneToOne",
   inMovementSpecId:  String         = "",
   outMovementSpecId: String         = "",
-  rule: Rule = StringAttributeMatchRule(
-    inKey  = StringAttribute(key = "id"),
-    outKey = StringAttribute(key = "id")
-  )
+  rule:              Rule           = NoOpRule
 ) derives ReadWriter
 
 case class AccountPayload(
@@ -140,9 +137,9 @@ def combineAccountsAndMovementSpecs(
   )
 
 def combineReconAndMovementSpecs(
-                                 accounts:      Seq[AccountPayload],
-                                 movementSpecs: Seq[MovementSpecPayload]
-                               ): Seq[MovementSpecAndAccounts] =
+  accounts:      Seq[AccountPayload],
+  movementSpecs: Seq[MovementSpecPayload]
+): Seq[MovementSpecAndAccounts] =
   val accountMap = accounts.map(a => a.id.get -> a).toMap
   movementSpecs.map(ms =>
     MovementSpecAndAccounts(
