@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, RandomMessage, ReconciliationSpecPayload}
+import perfectpair.common.model.*
 import perfectpair.domain.model.*
 import perfectpair.domain.service.*
 import upickle.default.*
@@ -55,7 +55,7 @@ object App extends cask.MainRoutes:
   val loginPath  = s"$prefixPath / login"
 
   transact(transactor) {
-    val testFundFlowConfig = FundFlowConfig(name = s"ACH Recon Fund Flow_${createID().toString}")
+    val testFundFlowConfig = FundFlowConfig(name = s"ACH Recon Fund Flow_${createID().toString.substring(0, 5)}")
     try
       fundFlowConfigRepo.insert(testFundFlowConfig)
     catch {
@@ -187,7 +187,7 @@ object App extends cask.MainRoutes:
     write("deleted")
 
   // ReconSpec
-  @cask.route(s"${HttpPath.account}/:accountID/${HttpPath.reconSpecs}", methods = HttpCmd.GET)
+  @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)
   def reconSpecsByaccountID(accountID: String): String =
     transact(transactor):
       val specs   = reconSpecRepo.findByAccountID(UUID.fromString(accountID))

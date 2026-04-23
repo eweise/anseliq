@@ -4,7 +4,8 @@ import perfectpair.common.model.{DisplayName, FundFlowPayload}
 import perfectpair.model.Msg as AppMsg
 import perfectpair.page.Page
 import perfectpair.util.PrettyLogger
-import perfectpair.view.components.Buttons
+import perfectpair.view.ViewHelper
+import perfectpair.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -29,32 +30,26 @@ object FundFlowsView:
           h2(cls := "text-xl font-medium")(text("Fund Flows")),
           Buttons.linkButton("Create", AppMsg.NavigateTo(Page.MaintainFundFlow))
         ),
-        div(cls := "flex items-center px-6 py-2 text-sm font-medium text-gray-500")(
-          span(cls := "w-48")(text("ID")),
-          span(cls := "flex-1")(text("Name")),
-          span(cls := "w-56")(text("Created At")),
-          span(cls := "w-56")(text("Updated At")),
-          span(cls := "w-20")()
-        ),
-        div(cls := "flex flex-col gap-2")(
+        Table.create(
+          Seq(
+            "Name",
+            "Created At",
+            "Updated At",
+            "",
+            ""
+          ),
           model.fundFlows
-            .sortBy(_.createdAt)
-            .reverse
+            .sortBy(_.name)
             .map(ff =>
-              div(cls := "flex items-center gap-3")(
-                div(
-                  cls := "flex-1 flex items-center bg-white rounded-lg shadow-sm border border-gray-200 px-6 py-4 text-sm"
-                )(
-                  span(cls := "w-48 text-gray-500")(text(ff.id.getOrElse(""))),
-                  span(cls := "flex-1 font-medium")(text(ff.name)),
-                  span(cls := "w-56 text-gray-500")(text(ff.createdAt.get.toString)),
-                  span(cls := "w-56 text-gray-500")(text(ff.updatedAt.get.toString))
-                ),
-                Buttons.textButton(DisplayName.account, AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
+              Seq(
+                text(ff.name),
+                text(ViewHelper.formatDateTime(ff.createdAt.get)),
+                text(ViewHelper.formatDateTime(ff.updatedAt.get)),
+                Buttons.textButton(DisplayName.accounts, AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
                 Buttons.textButton(DisplayName.movementSpecs, AppMsg.FundFlowsMsg(Msg.GetMovementSpecsForFundFlow(ff))),
                 Buttons.textButton("Edit", AppMsg.FundFlowsMsg(Msg.SelectFundFlow(ff)))
               )
-            )*
+            )
         )
       )
     )
