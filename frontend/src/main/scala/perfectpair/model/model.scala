@@ -30,6 +30,7 @@ enum Msg:
   case NavigateToMaintainMovementSpec(fundFlow: FundFlowPayload, accounts: Seq[AccountPayload], movementSpec: Option[MovementSpecPayload])
   case NavigateToReconSpecs(account: AccountPayload)
   case NavigateToMaintainReconSpec(account: AccountPayload, movementSpecs: Seq[MovementSpecPayload], reconSpec: Option[ReconciliationSpecPayload])
+  case NavigateToIngest(account: AccountPayload, reconSpec: ReconciliationSpecPayload, movementSpecs: Seq[MovementSpecPayload])
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -42,6 +43,7 @@ enum Msg:
   case MaintainMovementSpecsMsg(msg: MaintainMovementSpecsView.Msg)
   case ReconSpecsMsg(msg: ReconSpecsView.Msg)
   case MaintainReconSpecMsg(msg: MaintainReconSpecView.Msg)
+  case IngestViewMsg(msg: IngestView.Msg)
   case ToggleMsg(msg: ToggleView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
@@ -60,6 +62,7 @@ case class Model(
   maintainMovementSpecModel:   MaintainMovementSpecsView.Model = MaintainMovementSpecsView.Model(),
   reconSpecsModel:             ReconSpecsView.Model            = ReconSpecsView.Model(),
   maintainReconSpecModel:      MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
+  ingestModel:                 IngestView.Model                = IngestView.Model(),
   toggleModel:           ToggleView.Model = ToggleView.Model(),
   error:                 Option[String]   = None
 ):
@@ -91,5 +94,6 @@ object Model:
     movementSpecsModel         = MovementSpecsView.Model(),
     maintainMovementSpecModel  = MaintainMovementSpecsView.Model(),
     reconSpecsModel            = ReconSpecsView.Model(),
-    maintainReconSpecModel     = MaintainReconSpecView.Model()
+    maintainReconSpecModel     = MaintainReconSpecView.Model(),
+    ingestModel                = IngestView.Model()
   )
