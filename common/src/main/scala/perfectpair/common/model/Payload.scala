@@ -1,5 +1,6 @@
 package perfectpair.common.model
 
+import perfectpair.common.model.ReconRelationship.OneToOne
 import perfectpair.common.model.model.{Money, Properties}
 import upickle.default.*
 import zio.json.*
@@ -71,15 +72,18 @@ case class FundFlowPayload(
   updatedAt: Option[OffsetDateTime] = None
 ) derives ReadWriter
 
+enum ReconRelationship derives ReadWriter:
+  case OneToOne, OneToMany, ManyToOne, ManyToMany
+
 case class ReconciliationSpecPayload(
-  id:                Option[String] = None,
-  accountId:         Option[String] = None,
-  description:       String         = "",
-  agingLimit:        Int            = 0,
-  relationship:      String         = "OneToOne",
-  inMovementSpecId:  String         = "",
-  outMovementSpecId: String         = "",
-  rule:              Rule           = NoOpRule
+  id:                Option[String]    = None,
+  accountId:         Option[String]    = None,
+  description:       String            = "",
+  agingLimit:        Int               = 0,
+  relationship:      ReconRelationship = OneToOne,
+  inMovementSpecId:  String            = "",
+  outMovementSpecId: String            = "",
+  rule:              Rule              = NoOpRule
 ) derives ReadWriter
 
 case class AccountPayload(

@@ -33,7 +33,7 @@ object ReconSpecsView:
               Seq(
                 text(spec.description),
                 text(spec.agingLimit.toString),
-                text(spec.relationship),
+                text(spec.relationship.toString),
                 text(specNameById.getOrElse(spec.inMovementSpecId, spec.inMovementSpecId)),
                 text(specNameById.getOrElse(spec.outMovementSpecId, spec.outMovementSpecId)),
                 div(cls := "flex gap-2")(

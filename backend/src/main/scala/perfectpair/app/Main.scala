@@ -60,48 +60,6 @@ object App extends cask.MainRoutes:
   val prefixPath = "/api/v1"
   val loginPath  = s"$prefixPath / login"
 
-  transact(transactor) {
-    val testFundFlowConfig = FundFlowConfig(name = s"ACH Recon Fund Flow_${createID().toString.substring(0, 5)}")
-    try
-      fundFlowConfigRepo.insert(testFundFlowConfig)
-    catch {
-      case e: SqlException =>
-        println("config already exists")
-    }
-
-    val achAccount = Account(name = "ach", fundFlowId = testFundFlowConfig.id)
-    accountRepo.insert(achAccount)
-
-    val journalAccount = Account(name = "journal", fundFlowId = testFundFlowConfig.id)
-    accountRepo.insert(journalAccount)
-
-    val reconAccount = Account(name = "recon", fundFlowId = testFundFlowConfig.id)
-    accountRepo.insert(reconAccount)
-
-    val achToRecon = MovementSpec(name = "ach-to-recon", inAccountId = reconAccount.id, outAccountId = achAccount.id)
-    movementSpecRepo.insert(achToRecon)
-
-    val reconToJournal =
-      MovementSpec(name = "recon-journal", inAccountId = journalAccount.id, outAccountId = reconAccount.id)
-    movementSpecRepo.insert(reconToJournal)
-
-    // create some account data
-    for (i <- 1 to 5) {
-      val props = Map("id" -> createID().toString)
-      accountOperations.postAmount(
-        movementSpec = achToRecon,
-        amount       = 100d,
-        referenceID  = createID(),
-        properties   = props
-      )
-      accountOperations.postAmount(
-        movementSpec = reconToJournal,
-        amount       = 100d,
-        referenceID  = createID(),
-        properties   = props
-      )
-    }
-  }
   val randomMessagePath          = s"$prefixPath / random-message"
   val randomMessage2Path         = s"$prefixPath / random-message2"
   val pingPath                   = s"$prefixPath / scala"

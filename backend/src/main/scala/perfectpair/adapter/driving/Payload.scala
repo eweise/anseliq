@@ -1,8 +1,8 @@
 package perfectpair.adapter.driving
 
-import perfectpair.common.model.*
-import perfectpair.domain.model.*
-import upickle.default.{read as upickleRead, write as upickleWrite}
+import perfectpair.common.model.{ReconRelationship as ComRel, *}
+import perfectpair.domain.model.{Relationship as Rel, *}
+import upickle.default.read as upickleRead
 
 object Payload:
 
@@ -30,12 +30,26 @@ object Payload:
 
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
     MovementSpecPayload(
-      id             = Some(spec.id.toString),
-      name           = spec.name,
-      inAccountId    = spec.inAccountId.toString,
-      outAccountId   = spec.outAccountId.toString,
+      id               = Some(spec.id.toString),
+      name             = spec.name,
+      inAccountId      = spec.inAccountId.toString,
+      outAccountId     = spec.outAccountId.toString,
       dataSourceConfig = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s))
     )
+
+  def reconRelationshipFromDomain(rel: Rel): ComRel =
+    rel match
+      case Rel.OneToOne   => ComRel.OneToOne
+      case Rel.OneToMany  => ComRel.OneToMany
+      case Rel.ManyToOne  => ComRel.ManyToOne
+      case Rel.ManyToMany => ComRel.ManyToMany
+
+  def reconRelationshipToDomain(comRel: ComRel): Rel =
+    comRel match
+      case ComRel.OneToOne   => Rel.OneToOne
+      case ComRel.OneToMany  => Rel.OneToMany
+      case ComRel.ManyToOne  => Rel.ManyToOne
+      case ComRel.ManyToMany => Rel.ManyToMany
 
   def reconSpecPayloadFromDomain(spec: ReconciliationSpec): ReconciliationSpecPayload =
     ReconciliationSpecPayload(
@@ -43,7 +57,7 @@ object Payload:
       accountId         = Some(spec.accountId.toString),
       description       = spec.description,
       agingLimit        = spec.agingLimit,
-      relationship      = spec.relationship.toString,
+      relationship      = reconRelationshipFromDomain(spec.relationship),
       inMovementSpecId  = spec.inMovementSpecId.toString,
       outMovementSpecId = spec.outMovementSpecId.toString,
       rule              = spec.rule()
