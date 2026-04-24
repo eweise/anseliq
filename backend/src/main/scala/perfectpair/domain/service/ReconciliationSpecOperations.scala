@@ -12,14 +12,15 @@ class ReconciliationSpecOperations(
 ):
 
   def createReconSpec(payload: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
-    val accountId         = UUID.fromString(payload.accountId.getOrElse(throw IllegalArgumentException("Account ID is required")))
+    val accountId =
+      UUID.fromString(payload.accountId.getOrElse(throw IllegalArgumentException("Account ID is required")))
     val inMovementSpecId  = UUID.fromString(payload.inMovementSpecId)
     val outMovementSpecId = UUID.fromString(payload.outMovementSpecId)
     val spec = ReconciliationSpec(
       accountId         = accountId,
       description       = payload.description,
       agingLimit        = payload.agingLimit,
-      relationship      = Relationship.valueOf(payload.relationship),
+      relationship      = Payload.reconRelationshipToDomain(payload.relationship),
       inMovementSpecId  = inMovementSpecId,
       outMovementSpecId = outMovementSpecId,
       ruleJson          = upickle.write(payload.rule)
@@ -28,12 +29,12 @@ class ReconciliationSpecOperations(
     Payload.reconSpecPayloadFromDomain(spec)
 
   def updateReconSpec(idStr: String, payload: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
-    val id = UUID.fromString(idStr)
+    val id       = UUID.fromString(idStr)
     var existing = reconSpecRepo.findById(id).ErrIfNotFound("reconciliation spec", id)
     existing = existing.copy(
       description       = payload.description,
       agingLimit        = payload.agingLimit,
-      relationship      = Relationship.valueOf(payload.relationship),
+      relationship      = Payload.reconRelationshipToDomain(payload.relationship),
       inMovementSpecId  = UUID.fromString(payload.inMovementSpecId),
       outMovementSpecId = UUID.fromString(payload.outMovementSpecId),
       ruleJson          = upickle.write(payload.rule)
