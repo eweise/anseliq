@@ -20,6 +20,7 @@ object Route {
         case "maintain-movement-spec" => Page.MaintainMovementSpec
         case "recon-specs"            => Page.ReconSpecs
         case "maintain-recon-spec"    => Page.MaintainReconSpec
+        case "ingest"                 => Page.Ingest
       }
     }.toOption
 

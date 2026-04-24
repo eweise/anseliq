@@ -51,6 +51,12 @@ object App extends cask.MainRoutes:
   val reconSpecOperations = ReconciliationSpecOperations(
     reconSpecRepo = reconSpecRepo
   )
+
+  val ingestor = Ingestor(
+    movementRepo = movementRepo,
+    accountRepo  = accountRepo
+  )
+
   val prefixPath = "/api/v1"
   val loginPath  = s"$prefixPath / login"
 
@@ -186,6 +192,18 @@ object App extends cask.MainRoutes:
       movementSpecOperations.deleteMovementSpec(id)
     write("deleted")
 
+  @cask.route(s"${HttpPath.movementSpec}/:id/ingest", methods = HttpCmd.POST)
+  def ingestMovementSpec(id: String, request: cask.Request): String =
+    val movementSpecId = UUID.fromString(id)
+    request.exchange.startBlocking()
+    val is = request.exchange.getInputStream
+    transact(transactor):
+      val movementSpec = movementSpecRepo
+        .findById(movementSpecId)
+        .getOrElse(throw NotFoundError(s"MovementSpec $id not found"))
+      ingestor.ingest(movementSpec, is)
+    write("ingested")
+
   // ReconSpec
   @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)
   def reconSpecsByaccountID(accountID: String): String =
@@ -202,14 +220,14 @@ object App extends cask.MainRoutes:
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
   def updateReconSpec(id: String, request: cask.Request): String =
-    val payload = read[MovementSpecPayload](request.text())
+    val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
-      write(movementSpecOperations.updateMovementSpec(id, payload))
+      write(reconSpecOperations.updateReconSpec(id, payload))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = Seq("delete"))
   def deleteReconSpec(id: String): String =
     transact(transactor):
-      movementSpecOperations.deleteMovementSpec(id)
+      reconSpecOperations.deleteReconSpec(id)
     write("deleted")
 
   @cask.get("/account/:id")
