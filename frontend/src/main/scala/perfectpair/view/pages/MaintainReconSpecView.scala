@@ -1,13 +1,12 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import perfectpair.common.model.{AccountPayload, MovementSpecPayload, ReconRelationship, ReconciliationSpecPayload}
 import perfectpair.model.Msg as AppMsg
 import perfectpair.util.PayloadAction.*
 import perfectpair.util.{HttpHelper, PayloadAction}
 import perfectpair.view.components.{Buttons, Form, RuleWidget}
-import tyrian.EmptyAttribute
 import tyrian.Html.*
-import tyrian.{Cmd, Html}
+import tyrian.{Cmd, EmptyAttribute, Html}
 import zio.Task
 
 object MaintainReconSpecView:
@@ -34,32 +33,6 @@ object MaintainReconSpecView:
       case Msg.ReconSpecAction(_, Deleted) =>
         (model, Cmd.emit(AppMsg.NavigateToReconSpecs(model.account)))
 
-  private def movementSpecSelect(
-    fieldID:    String,
-    labelName:  String,
-    selectedId: String,
-    specs:      Seq[MovementSpecPayload],
-    onSelect:   String => AppMsg
-  ): Html[AppMsg] =
-    div(cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded")(
-      label(
-        cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
-        attribute("for", fieldID)
-      )(text(labelName)),
-      select(
-        id  := fieldID,
-        cls := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
-        onChange(onSelect)
-      )(
-        specs.map(spec =>
-          option(
-            value := spec.id.getOrElse(""),
-            if spec.id.getOrElse("") == selectedId then attribute("selected", "selected") else EmptyAttribute
-          )(text(spec.name))
-        )*
-      )
-    )
-
   def apply(model: Model): Html[AppMsg] =
     val firstSpecId = model.movementSpecs.headOption.flatMap(_.id).getOrElse("")
     val spec = model.reconSpec.getOrElse(
@@ -83,13 +56,16 @@ object MaintainReconSpecView:
           fieldID      = "agingLimit",
           labelName    = "Aging Limit",
           defaultValue = Some(spec.agingLimit.toString),
-          onChangFn    = Some(value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(agingLimit = value.toIntOption.getOrElse(0)))))
+          onChangFn = Some(value =>
+            AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(agingLimit = value.toIntOption.getOrElse(0))))
+          )
         ),
-        Form.field[AppMsg](
-          fieldID      = "relationship",
-          labelName    = "Relationship",
-          defaultValue = Some(spec.relationship),
-          onChangFn    = Some(value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(relationship = value))))
+        Form.select[AppMsg](
+          fieldID       = "relationship",
+          labelName     = "Relationship",
+          options       = ReconRelationship.values.toSeq.map(r => (r.toString, r.toString)),
+          selectedValue = spec.relationship.toString,
+          onChangeFn    = value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(relationship = ReconRelationship.valueOf(value))))
         ),
         movementSpecSelect(
           fieldID    = "inMovementSpecId",
@@ -115,13 +91,38 @@ object MaintainReconSpecView:
         div(cls := "flex justify-between mt-6")(
           if spec.id.isDefined then
             Buttons.textButton("Delete", AppMsg.MaintainReconSpecMsg(Msg.ReconSpecAction(spec, Delete)))
-          else
-            div()(),
+          else div()(),
           div(cls := "flex gap-2")(
             Buttons.textButton("Cancel", AppMsg.NavigateToReconSpecs(model.account)),
             Buttons.linkButton("Save", AppMsg.MaintainReconSpecMsg(Msg.ReconSpecAction(spec, action)))
           )
         )
+      )
+    )
+
+  private def movementSpecSelect(
+    fieldID:    String,
+    labelName:  String,
+    selectedId: String,
+    specs:      Seq[MovementSpecPayload],
+    onSelect:   String => AppMsg
+  ): Html[AppMsg] =
+    div(cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded")(
+      label(
+        cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
+        attribute("for", fieldID)
+      )(text(labelName)),
+      select(
+        id  := fieldID,
+        cls := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
+        onChange(onSelect)
+      )(
+        specs.map(spec =>
+          option(
+            value := spec.id.getOrElse(""),
+            if spec.id.getOrElse("") == selectedId then attribute("selected", "selected") else EmptyAttribute
+          )(text(spec.name))
+        )*
       )
     )
 
