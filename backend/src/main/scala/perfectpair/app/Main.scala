@@ -6,6 +6,7 @@ import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
 import perfectpair.common.model.*
+import perfectpair.common.model.IngestionDataSource.Manual
 import perfectpair.domain.model.*
 import perfectpair.domain.service.*
 import upickle.default.*
@@ -29,6 +30,9 @@ object App extends cask.MainRoutes:
   val reconRepo          = ReconciliationRepoLive()
   val reconSpecRepo      = ReconciliationSpecRepoLive()
   val jobRepo            = JobRepoLive()
+  val jobManager = JobManager(
+    jobRepo = jobRepo
+  )
   val fundFlowOperations = FundFlowOperations(
     fundFlowConfigRepo = fundFlowConfigRepo
   )
@@ -160,7 +164,15 @@ object App extends cask.MainRoutes:
       val movementSpec = movementSpecRepo
         .findById(movementSpecId)
         .getOrElse(throw NotFoundError(s"MovementSpec $id not found"))
-      ingestor.ingest(movementSpec, is)
+      jobManager.submitAndProcessJob(JobType.Ingestion, movementSpec.id) { job =>
+        val result = ingestor.ingest(movementSpec, is)
+        IngestionInfo(
+          movementSpecId          = id,
+          dataSource              = Manual,
+          numberOfRecordsIngested = result.recordCount,
+          processingTimeSeconds   = result.ingestionTimeSeconds
+        )
+      }
     write("ingested")
 
   // Jobs

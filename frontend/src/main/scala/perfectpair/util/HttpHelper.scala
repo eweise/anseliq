@@ -131,6 +131,9 @@ object HttpHelper:
       body   = Body.Empty
     )
 
+  def fetchJobsByType(jobType: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.jobs}/$jobType"), ResponseDecoders.jobsDecoder)
+
   def ingestFile(movementSpecId: String, content: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(
       Request.post(
@@ -269,6 +272,15 @@ object HttpHelper:
         onResponse =>
           val ffPayload = read[FundFlowPayload](onResponse.body)
           Msg.MaintainFundFlowMsg(MaintainFundFlowView.Msg.MaintainFundFlow(ffPayload, action))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    val jobsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val jobs = read[Seq[JobInfoPayload]](onResponse.body)
+          Msg.JobsMsg(JobsView.Msg.JobsFromBackend(jobs))
         ,
         error => Msg.Error(error.toString)
       )

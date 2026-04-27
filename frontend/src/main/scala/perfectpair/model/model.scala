@@ -44,6 +44,7 @@ enum Msg:
   case ReconSpecsMsg(msg: ReconSpecsView.Msg)
   case MaintainReconSpecMsg(msg: MaintainReconSpecView.Msg)
   case IngestViewMsg(msg: IngestView.Msg)
+  case JobsMsg(msg: JobsView.Msg)
   case ToggleMsg(msg: ToggleView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
@@ -63,6 +64,7 @@ case class Model(
   reconSpecsModel:             ReconSpecsView.Model            = ReconSpecsView.Model(),
   maintainReconSpecModel:      MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
   ingestModel:                 IngestView.Model                = IngestView.Model(),
+  jobsModel:                   JobsView.Model                  = JobsView.Model(),
   toggleModel:           ToggleView.Model = ToggleView.Model(),
   error:                 Option[String]   = None
 ):
@@ -95,5 +97,6 @@ object Model:
     maintainMovementSpecModel  = MaintainMovementSpecsView.Model(),
     reconSpecsModel            = ReconSpecsView.Model(),
     maintainReconSpecModel     = MaintainReconSpecView.Model(),
-    ingestModel                = IngestView.Model()
+    ingestModel                = IngestView.Model(),
+    jobsModel                  = JobsView.Model()
   )
