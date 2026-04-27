@@ -18,9 +18,10 @@ enum JobStatus derives DbCodec:
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Job(
   @Id id:        ID                     = createID(),
+  referenceId:   ID,
   jobType:       JobType,
   jobStatus:     JobStatus              = Submitted,
-  referenceId:   ID,
+  errorMessage:  Option[String]         = None,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec
