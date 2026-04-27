@@ -10,6 +10,9 @@ class NotFoundError(val msg: String) extends NonRetryableError(msg)
 
 class IllegalStateError(val msg: String) extends NonRetryableError(msg)
 
+class IllegalArgumentError(val argumentName: String, val msg: String)
+    extends NonRetryableError(s"${argumentName}: $msg")
+
 class DBError(msg: String) extends ReconError(msg)
 
 extension [A](maybeEntity: Option[A])

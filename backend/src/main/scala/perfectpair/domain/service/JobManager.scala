@@ -1,6 +1,7 @@
 package perfectpair.domain.service
 
 import perfectpair.common.model.model.ID
+import perfectpair.common.model.{IngestionInfo, JobInfo, ReconciliationInfo}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.JobStatus.{Complete, InProgress, Submitted}
 import perfectpair.domain.port.driven.{JobRepo, Txn}
@@ -32,7 +33,17 @@ class JobManager(
         job
       )
 
-  def completeJob(jobType: JobType, referenceID: ID): Txn[Unit] =
+  def completeJob(jobType: JobType, referenceID: ID, jobInfo: JobInfo): Txn[Unit] =
+    // validate that the right type of job info is associate its job type
+    jobType match
+      case JobType.Reconciliation =>
+        if !jobInfo.isInstanceOf[ReconciliationInfo] then
+          throw IllegalArgumentError(jobType.toString, "wrong jobInfo associated with job type")
+
+      case JobType.Ingestion =>
+        if !jobInfo.isInstanceOf[IngestionInfo] then
+          throw IllegalArgumentError(jobType.toString, "wrong jobInfo associated with job type")
+
     jobRepo
       .findByJobTypeAndReferenceId(jobType, referenceID)
       .map(job =>
@@ -42,8 +53,9 @@ class JobManager(
           )
         jobRepo.update(
           job.copy(
-            jobStatus = Complete,
-            updatedAt = Some(OffsetDateTime.now())
+            jobStatus   = Complete,
+            jobInfoJson = Some(upickle.write(jobInfo)),
+            updatedAt   = Some(OffsetDateTime.now())
           )
         )
       ) match
