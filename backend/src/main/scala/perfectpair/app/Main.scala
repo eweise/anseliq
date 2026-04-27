@@ -28,6 +28,7 @@ object App extends cask.MainRoutes:
   val movementSpecRepo   = MovementSpecRepoLive()
   val reconRepo          = ReconciliationRepoLive()
   val reconSpecRepo      = ReconciliationSpecRepoLive()
+  val jobRepo            = JobRepoLive()
   val fundFlowOperations = FundFlowOperations(
     fundFlowConfigRepo = fundFlowConfigRepo
   )
@@ -161,6 +162,17 @@ object App extends cask.MainRoutes:
         .getOrElse(throw NotFoundError(s"MovementSpec $id not found"))
       ingestor.ingest(movementSpec, is)
     write("ingested")
+
+  // Jobs
+  @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)
+  def jobsByType(jobType: String): String =
+    val jobTypeInfo = jobType match
+      case "reconciliation" => JobTypeInfo.Reconciliation
+      case "ingestion"      => JobTypeInfo.Ingestion
+      case _                => throw IllegalArgumentError("jobType", s"incorrect value $jobType")
+    transact(transactor):
+      val jobs = jobRepo.findByJobType(JobType.valueOf(jobTypeInfo.toString))
+      write(jobs.map(Payload.jobPayloadFromDomain))
 
   // ReconSpec
   @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)

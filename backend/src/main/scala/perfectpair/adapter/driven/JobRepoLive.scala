@@ -18,6 +18,13 @@ class JobRepoLive extends Repo[Job, Job, UUID] with JobRepo:
         AND j.job_type = $jobtype
       """.query[Job].run().headOption
 
+  override def findByJobType(jobtype: JobType): Txn[Vector[Job]] =
+    sql"""
+        SELECT ${j.all}
+        FROM $j AS j
+        WHERE j.job_type = $jobtype
+      """.query[Job].run()
+
   override def getNextJob(jobType: JobType): Txn[Option[Job]] =
     sql"""
         SELECT ${j.all}

@@ -29,3 +29,5 @@ class JobRepoLiveSuite extends munit.FunSuite:
         jobRepo.insert(job)
         val foundJob = jobRepo.findByJobTypeAndReferenceId(Ingestion, referenceId)
         assert(foundJob.nonEmpty)
+        val foundJobsByType = jobRepo.findByJobType(Ingestion)
+        assertEquals(foundJobsByType.size, 1)
