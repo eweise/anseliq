@@ -10,11 +10,10 @@ import perfectpair.testing
 import java.util.UUID
 
 class JobManagerSuite extends munit.FunSuite:
-  val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-
-  val transactor: Transactor = Transactor(dataSource)
-  val jobRepo    = JobRepoLive()
-  val jobManager = JobManager(jobRepo)
+  private val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  private val transactor: Transactor = Transactor(dataSource)
+  private val jobRepo    = JobRepoLive()
+  private val jobManager = JobManager(jobRepo)
 
   test("submit and complete job"):
     transact(transactor):
@@ -28,7 +27,7 @@ class JobManagerSuite extends munit.FunSuite:
         jobManager.completeJob(foundNextJob.jobType, foundNextJob.referenceId)
         assert(jobManager.getNextAvailableJob(Reconciliation).isEmpty)
 
-  test("submit and complete job"):
+  test("submit and create error job"):
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
