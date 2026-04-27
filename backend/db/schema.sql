@@ -93,9 +93,10 @@ create table recon.job
 (
     id            uuid primary key,
     job_type      text                                  not null,
+    job_status    text                                  not null,
+    job_info_json text,
     reference_id  uuid                                  not null UNIQUE,
     error_message text,
-    job_status    text                                  not null,
     created_at    timestamptz default CURRENT_TIMESTAMP not null,
     updated_at    timestamptz default CURRENT_TIMESTAMP not null
 );

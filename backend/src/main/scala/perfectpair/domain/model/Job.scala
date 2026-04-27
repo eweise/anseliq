@@ -2,7 +2,9 @@ package perfectpair.domain.model
 
 import com.augustnagro.magnum.*
 import perfectpair.common.model.model.ID
+import perfectpair.common.model.{JobInfo, ReconciliationInfo}
 import perfectpair.domain.model.JobStatus.Submitted
+import ujson.Arr.from
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -21,10 +23,13 @@ case class Job(
   referenceId:   ID,
   jobType:       JobType,
   jobStatus:     JobStatus              = Submitted,
+  jobInfoJson:   Option[String]         = None,
   errorMessage:  Option[String]         = None,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
-) derives DbCodec
+) derives DbCodec:
+
+  def jobInfo(): JobInfo = upickle.read(jobInfoJson)
 
 object Job:
   val Table = TableInfo[Job, Job, UUID]
