@@ -64,6 +64,24 @@ object RandomMessage {
 enum MovementStatus:
   case Reconciled, WithinSLA, OutOfSLA
 
+enum JobTypeInfo derives ReadWriter:
+  case Ingestion, Reconciliation
+
+enum JobInfoStatus derives ReadWriter:
+  case Submitted, InProgress, Complete, Error
+
+case class JobInfoPayload(
+  id:           Option[String]         = None,
+  referenceId:  String                 = "",
+  jobType:      JobTypeInfo,
+  jobStatus:    JobInfoStatus,
+  jobInfoJson:  Option[String],
+  jobInfo:      Option[JobInfo]        = None,
+  errorMessage: Option[String]         = None,
+  createdAt:    Option[OffsetDateTime] = None,
+  updatedAt:    Option[OffsetDateTime] = None
+) derives ReadWriter
+
 case class FundFlowPayload(
   id:        Option[String]         = None,
   name:      String                 = "",

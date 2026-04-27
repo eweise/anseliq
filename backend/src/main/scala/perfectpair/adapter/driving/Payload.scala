@@ -1,10 +1,33 @@
 package perfectpair.adapter.driving
 
+import com.augustnagro.magnum.Id
+import perfectpair.common.model.model.ID
 import perfectpair.common.model.{ReconRelationship as ComRel, *}
 import perfectpair.domain.model.{Relationship as Rel, *}
 import upickle.default.read as upickleRead
 
+import java.util.UUID
+
 object Payload:
+
+  def jobPayloadToDomain(payload: JobInfoPayload): Job =
+    Job(
+      referenceId  = UUID.fromString(payload.referenceId),
+      jobType      = JobType.valueOf(payload.jobType.toString),
+      jobStatus    = JobStatus.valueOf(JobInfoStatus.toString),
+      jobInfoJson  = Some(upickle.write(payload.jobInfo)),
+      errorMessage = payload.errorMessage
+    )
+
+  def jobPayloadFromDomain(job: Job): JobInfoPayload =
+    JobInfoPayload(
+      id           = Some(job.id.toString),
+      referenceId  = job.referenceId.toString,
+      jobType      = JobTypeInfo.valueOf(job.jobType.toString),
+      jobStatus    = JobInfoStatus.valueOf(job.jobStatus.toString),
+      jobInfoJson  = job.jobInfoJson,
+      errorMessage = job.errorMessage
+    )
 
   def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
     FundFlowConfig(
@@ -37,13 +60,6 @@ object Payload:
       dataSourceConfig = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s))
     )
 
-  def reconRelationshipFromDomain(rel: Rel): ComRel =
-    rel match
-      case Rel.OneToOne   => ComRel.OneToOne
-      case Rel.OneToMany  => ComRel.OneToMany
-      case Rel.ManyToOne  => ComRel.ManyToOne
-      case Rel.ManyToMany => ComRel.ManyToMany
-
   def reconRelationshipToDomain(comRel: ComRel): Rel =
     comRel match
       case ComRel.OneToOne   => Rel.OneToOne
@@ -62,6 +78,13 @@ object Payload:
       outMovementSpecId = spec.outMovementSpecId.toString,
       rule              = spec.rule()
     )
+
+  def reconRelationshipFromDomain(rel: Rel): ComRel =
+    rel match
+      case Rel.OneToOne   => ComRel.OneToOne
+      case Rel.OneToMany  => ComRel.OneToMany
+      case Rel.ManyToOne  => ComRel.ManyToOne
+      case Rel.ManyToMany => ComRel.ManyToMany
 
   def movementResponsefromDomainModel(dmMovement: Movement): MovementPayload =
     MovementPayload(
