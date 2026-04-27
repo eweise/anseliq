@@ -11,6 +11,26 @@ import java.time.OffsetDateTime
 class JobManager(
   jobRepo: JobRepo
 ):
+
+  def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
+    submitJob(jobType, referenceID)
+    val submittedJob = jobRepo
+      .findByJobTypeAndReferenceId(jobType, referenceID)
+      .ErrIfNotFound("internal error. could not find job after submitting", referenceID)
+
+    val processedJob = submittedJob.copy(
+      jobStatus = JobStatus.InProgress,
+      updatedAt = Some(OffsetDateTime.now())
+    )
+    jobRepo.update(processedJob)
+
+    try {
+      val jobInfo = processFn(processedJob)
+      completeJob(jobType, referenceID, jobInfo)
+    } catch
+      case ex: Exception => // todo I think the txn is rolled back at this point :(
+        markJobInError(jobType, referenceID, ex)
+
   // todo need to handle idempotency (in all services actually)
   def submitJob(jobType: JobType, referenceID: ID): Txn[Unit] =
     val submittedJob = Job(
@@ -19,19 +39,6 @@ class JobManager(
       jobStatus   = Submitted
     )
     jobRepo.insert(submittedJob)
-
-  def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =
-    jobRepo
-      .getNextJob(jobType)
-      .map(job =>
-        jobRepo.update(
-          job.copy(
-            jobStatus = InProgress,
-            updatedAt = Some(OffsetDateTime.now())
-          )
-        )
-        job
-      )
 
   def completeJob(jobType: JobType, referenceID: ID, jobInfo: JobInfo): Txn[Unit] =
     // validate that the right type of job info is associate its job type
@@ -77,4 +84,17 @@ class JobManager(
             updatedAt    = Some(OffsetDateTime.now())
           )
         )
+      )
+
+  def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =
+    jobRepo
+      .getNextJob(jobType)
+      .map(job =>
+        jobRepo.update(
+          job.copy(
+            jobStatus = InProgress,
+            updatedAt = Some(OffsetDateTime.now())
+          )
+        )
+        job
       )

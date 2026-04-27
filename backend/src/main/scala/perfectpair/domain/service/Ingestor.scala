@@ -8,6 +8,7 @@ import perfectpair.domain.model.{Movement, MovementSpec, NotFoundError}
 import perfectpair.domain.port.driven.{AccountRepo, MovementRepo, Txn}
 
 import java.io.InputStream
+import java.time.Instant.now
 
 case class ParsedLine(props: Properties, maybeAmount: Option[BigDecimal])
 
@@ -45,13 +46,19 @@ case class CSVParser(
         )
       )
 
+case class IngestionResult(
+  recordCount:          Int,
+  ingestionTimeSeconds: Long
+)
+
 class Ingestor(
   val movementRepo: MovementRepo,
   val accountRepo:  AccountRepo
 ):
 
-  def ingest(movementSpec: MovementSpec, is: InputStream): Txn[Unit] =
+  def ingest(movementSpec: MovementSpec, is: InputStream): Txn[IngestionResult] =
     var lineCounter = 0
+    val beginTime   = now()
     val parser      = Parser(movementSpec.dataSourceConfig().parserConfig)
     val inAccount = accountRepo
       .findById(movementSpec.inAccountId)
@@ -84,7 +91,12 @@ class Ingestor(
       )
       .grouped(100)
       .runForeach { movements =>
+        lineCounter += movements.size
         movementRepo.insertAll(movements)
         accountRepo.update(inAccount)
         accountRepo.update(outAccount)
       }
+    IngestionResult(
+      recordCount          = lineCounter,
+      ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond
+    )

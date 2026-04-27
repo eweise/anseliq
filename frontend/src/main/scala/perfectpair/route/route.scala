@@ -21,6 +21,7 @@ object Route {
         case "recon-specs"            => Page.ReconSpecs
         case "maintain-recon-spec"    => Page.MaintainReconSpec
         case "ingest"                 => Page.Ingest
+        case "jobs"                   => Page.Jobs
       }
     }.toOption
 

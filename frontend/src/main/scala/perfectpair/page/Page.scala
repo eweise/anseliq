@@ -172,6 +172,20 @@ object Page {
       PrettyLogger.info("Entering Ingest page")
   }
 
+  object Jobs extends Page {
+    val path:   String             = "/components/jobs"
+    val render: Model => Html[Msg] = m => JobsView(m.jobsModel)
+
+    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
+      case Msg.JobsMsg(sub) =>
+        val (sub2, cmd) = JobsView.update(model.jobsModel, sub)
+        (model.copy(jobsModel = sub2), cmd)
+      case _ => (model, Cmd.None)
+
+    override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
+      PrettyLogger.info("Entering Jobs page") |+| HttpHelper.fetchJobsByType(model.jobsModel.selectedJobType)
+  }
+
   object Toggle extends Page {
     val path:   String             = "/components/toggle"
     val render: Model => Html[Msg] = m => ToggleView(m.toggleModel)
