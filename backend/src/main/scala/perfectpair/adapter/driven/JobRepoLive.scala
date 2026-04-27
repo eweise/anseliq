@@ -15,7 +15,7 @@ class JobRepoLive extends Repo[Job, Job, UUID] with JobRepo:
         SELECT ${j.all}
         FROM $j AS j
         WHERE j.reference_id = $referenceID
-        and j.job_type = $jobtype
+        AND j.job_type = $jobtype
       """.query[Job].run().headOption
 
   override def getNextJob(jobType: JobType): Txn[Option[Job]] =
