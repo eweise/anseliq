@@ -89,6 +89,18 @@ CREATE INDEX movement_props_index
         USING GIN (properties jsonb_path_ops);
 
 
+create table recon.job
+(
+    id           uuid primary key,
+    job_type     text                                  not null,
+    reference_id uuid                                  not null UNIQUE,
+    job_status   text                                  not null,
+    created_at   timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at   timestamptz default CURRENT_TIMESTAMP not null
+);
+
+CREATE INDEX job_reference_id_fk ON recon.job (reference_id);
+
 CREATE FUNCTION update_audit_fields_task()
     RETURNS TRIGGER AS
 $$
@@ -140,5 +152,12 @@ CREATE TRIGGER update_reconciliation_spec
     BEFORE INSERT OR UPDATE
     ON
         recon.reconciliation_spec
+    FOR EACH ROW
+EXECUTE PROCEDURE update_audit_fields_task();
+
+CREATE TRIGGER update_job
+    BEFORE INSERT OR UPDATE
+    ON
+        recon.job
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
