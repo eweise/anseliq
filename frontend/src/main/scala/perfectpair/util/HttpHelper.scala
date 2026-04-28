@@ -149,6 +149,12 @@ object HttpHelper:
       ResponseDecoders.ingestDecoder(movementSpecId)
     )
 
+  def reconcileAccount(accountId: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      Request.post(HttpPath.url(s"${HttpPath.account}/$accountId/reconcile"), Body.Empty),
+      ResponseDecoders.reconcileDecoder(accountId)
+    )
+
   object ResponseDecoders:
 
     val loginDecoder: Decoder[Msg] =
@@ -302,4 +308,10 @@ object HttpHelper:
       Decoder(
         _ => Msg.IngestViewMsg(IngestView.Msg.IngestComplete(movementSpecId)),
         error => Msg.IngestViewMsg(IngestView.Msg.IngestError(movementSpecId, error.toString))
+      )
+
+    def reconcileDecoder(accountId: String): Decoder[Msg] =
+      Decoder(
+        _ => Msg.AccountsMsg(AccountsView.Msg.ReconcileResult(accountId, isSuccess = true)),
+        error => Msg.AccountsMsg(AccountsView.Msg.ReconcileResult(accountId, isSuccess = false))
       )
