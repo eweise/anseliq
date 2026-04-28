@@ -22,7 +22,14 @@ object JobsView:
   def apply(model: Model): Html[AppMsg] =
     val isRecon      = model.selectedJobType == "reconciliation"
     val extraHeaders = if isRecon then reconExtraHeaders else ingestionExtraHeaders
-    val headers      = Seq("ID", "Reference ID", "Status", "Error", "Created At", "Updated At") ++ extraHeaders
+    val headers = Seq(
+      "ID",
+      if isRecon then "Reconciliation ID" else "Movement Spec ID",
+      "Status",
+      "Error",
+      "Created At",
+      "Updated At"
+    ) ++ extraHeaders
 
     val rows = model.jobs.map { job =>
       val baseCells: Seq[Elem[AppMsg]] = Seq(
@@ -63,9 +70,6 @@ object JobsView:
       case Some(ri: ReconciliationInfo) => Seq(text(ri.reconciliationId))
       case _                            => Seq(text("-"))
 
-  private def parseJobInfo(json: String): Option[JobInfo] =
-    scala.util.Try(read[JobInfo](json)).toOption
-
   private def ingestionExtraCells(job: JobInfoPayload): Seq[Elem[AppMsg]] =
     job.jobInfoJson.flatMap(parseJobInfo) match
       case Some(ii: IngestionInfo) =>
@@ -76,6 +80,9 @@ object JobsView:
           text(ii.processingTimeSeconds.toString)
         )
       case _ => Seq.fill(5)(text("-"))
+
+  private def parseJobInfo(json: String): Option[JobInfo] =
+    scala.util.Try(read[JobInfo](json)).toOption
 
   enum Msg:
     case SelectJobType(jobType: String)
