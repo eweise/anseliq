@@ -86,7 +86,7 @@ object Payload:
       case Rel.ManyToOne  => ComRel.ManyToOne
       case Rel.ManyToMany => ComRel.ManyToMany
 
-  def movementResponsefromDomainModel(dmMovement: Movement): MovementPayload =
+  def movementfromDomainModel(dmMovement: Movement): MovementPayload =
     MovementPayload(
       id               = dmMovement.id.toString,
       referenceId      = dmMovement.referenceId.toString,

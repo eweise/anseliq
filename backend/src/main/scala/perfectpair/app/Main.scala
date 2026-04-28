@@ -137,6 +137,14 @@ object App extends cask.MainRoutes:
       val payload = specs.map(Payload.movementSpecPayloadFromDomain)
       write(payload)
 
+  @cask.route(s"${HttpPath.movements}/:movementSpecID/unreconciled", methods = HttpCmd.GET)
+  def movementsBySpecID(movementSpecID: String): String =
+    val specID = UUID.fromString(movementSpecID)
+    transact(transactor):
+      val movements = movementRepo.findUnReconciledByMovementSpec(specID)
+      val payload   = movements.map(Payload.movementfromDomainModel)
+      write(payload)
+
   @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
@@ -239,7 +247,7 @@ object App extends cask.MainRoutes:
     transact(transactor):
       val adapterMovements = movementRepo
         .findByAccount(accountID)
-        .map(Payload.movementResponsefromDomainModel)
+        .map(Payload.movementfromDomainModel)
 
       write(adapterMovements.toSeq)
 
