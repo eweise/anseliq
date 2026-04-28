@@ -20,14 +20,13 @@ class JobManagerSuite extends munit.FunSuite:
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
-        jobManager.submitJob(Reconciliation, referenceID)
+        val jobId = jobManager.submitJob(Reconciliation, referenceID)
         val foundJob = jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID)
         assert(foundJob.nonEmpty)
 
         val foundNextJob = jobManager.getNextAvailableJob(Reconciliation).get
         jobManager.completeJob(
-          foundNextJob.jobType,
-          foundNextJob.referenceId,
+          jobId,
           ReconciliationInfo(reconciliationId = referenceID.toString)
         )
         assert(jobManager.getNextAvailableJob(Reconciliation).isEmpty)
@@ -36,23 +35,22 @@ class JobManagerSuite extends munit.FunSuite:
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
-        jobManager.submitJob(Reconciliation, referenceID)
+        val jobId = jobManager.submitJob(Reconciliation, referenceID)
         val foundNextJob = jobManager.getNextAvailableJob(Reconciliation).get
-        jobManager.markJobInError(foundNextJob.jobType, foundNextJob.referenceId, new IllegalStateError("boom"))
+        jobManager.markJobInError(jobId, new IllegalStateError("boom"))
         assert(jobManager.getNextAvailableJob(Reconciliation).isEmpty)
-        val foundErrorJob = jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).get
+        val foundErrorJob = jobRepo.findById(jobId).get
         assertEquals(foundErrorJob.errorMessage.get, "boom")
 
   test("complete with the wrong Job Info type"):
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
-        jobManager.submitJob(JobType.Ingestion, referenceID)
+        val jobId = jobManager.submitJob(JobType.Ingestion, referenceID)
         val foundNextJob = jobManager.getNextAvailableJob(JobType.Ingestion).get
 
         intercept[IllegalArgumentError]:
           jobManager.completeJob(
-            foundNextJob.jobType,
-            foundNextJob.referenceId,
+            jobId,
             ReconciliationInfo(reconciliationId = referenceID.toString)
           )

@@ -13,10 +13,10 @@ class JobManager(
 ):
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
-    submitJob(jobType, referenceID)
+    val jobId = submitJob(jobType, referenceID)
     val submittedJob = jobRepo
-      .findByJobTypeAndReferenceId(jobType, referenceID)
-      .ErrIfNotFound("internal error. could not find job after submitting", referenceID)
+      .findById(jobId)
+      .ErrIfNotFound("internal error. could not find job after submitting", jobId)
 
     val processedJob = submittedJob.copy(
       jobStatus = JobStatus.InProgress,
@@ -26,38 +26,41 @@ class JobManager(
 
     try {
       val jobInfo = processFn(processedJob)
-      completeJob(jobType, referenceID, jobInfo)
+      completeJob(processedJob.id, jobInfo)
     } catch
       case ex: Exception => // todo I think the txn is rolled back at this point :(
-        markJobInError(jobType, referenceID, ex)
+        markJobInError(processedJob.id, ex)
 
   // todo need to handle idempotency (in all services actually)
-  def submitJob(jobType: JobType, referenceID: ID): Txn[Unit] =
+  def submitJob(jobType: JobType, referenceID: ID): Txn[ID] =
     val submittedJob = Job(
       jobType     = jobType,
       referenceId = referenceID,
       jobStatus   = Submitted
     )
     jobRepo.insert(submittedJob)
+    submittedJob.id
 
-  def completeJob(jobType: JobType, referenceID: ID, jobInfo: JobInfo): Txn[Unit] =
+  def completeJob(jobId: ID, jobInfo: JobInfo): Txn[Unit] =
     // validate that the right type of job info is associate its job type
-    jobType match
-      case JobType.Reconciliation =>
-        if !jobInfo.isInstanceOf[ReconciliationInfo] then
-          throw IllegalArgumentError(jobType.toString, "wrong jobInfo associated with job type")
-
-      case JobType.Ingestion =>
-        if !jobInfo.isInstanceOf[IngestionInfo] then
-          throw IllegalArgumentError(jobType.toString, "wrong jobInfo associated with job type")
 
     jobRepo
-      .findByJobTypeAndReferenceId(jobType, referenceID)
+      .findById(jobId)
       .map(job =>
         if job.jobStatus != InProgress then
           throw IllegalStateError(
-            s" cannot move job with referenceID: $referenceID to status ${JobStatus.Complete}. Job currently in status ${job.jobStatus}"
+            s" cannot move job with referenceID: $jobId to status ${JobStatus.Complete}. Job currently in status ${job.jobStatus}"
           )
+
+        job.jobType match
+          case JobType.Reconciliation =>
+            if !jobInfo.isInstanceOf[ReconciliationInfo] then
+              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
+
+          case JobType.Ingestion =>
+            if !jobInfo.isInstanceOf[IngestionInfo] then
+              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
+
         jobRepo.update(
           job.copy(
             jobStatus   = Complete,
@@ -66,16 +69,16 @@ class JobManager(
           )
         )
       ) match
-      case None => throw NotFoundError(s"Could not find job with referenceID: $referenceID")
+      case None => throw NotFoundError(s"Could not find job with jobID: $jobId")
       case _    => ()
 
-  def markJobInError(jobType: JobType, referenceID: ID, ex: Exception): Txn[Unit] =
+  def markJobInError(jobId: ID, ex: Exception): Txn[Unit] =
     jobRepo
-      .findByJobTypeAndReferenceId(jobType, referenceID)
+      .findById(jobId)
       .map(job =>
         if job.jobStatus != InProgress then
           throw IllegalStateError(
-            s" cannot move job with referenceID: $referenceID to status ${JobStatus.Error}. Job currently in status ${job.jobStatus}"
+            s" cannot move job with jobID: $jobId to status ${JobStatus.Error}. Job currently in status ${job.jobStatus}"
           )
         jobRepo.update(
           job.copy(

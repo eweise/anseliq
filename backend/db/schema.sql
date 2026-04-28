@@ -95,13 +95,13 @@ create table recon.job
     job_type      text                                  not null,
     job_status    text                                  not null,
     job_info_json text,
-    reference_id  uuid                                  not null UNIQUE,
+    reference_id  uuid                                  not null,
     error_message text,
     created_at    timestamptz default CURRENT_TIMESTAMP not null,
     updated_at    timestamptz default CURRENT_TIMESTAMP not null
 );
 
-CREATE INDEX job_reference_id_fk ON recon.job (reference_id);
+CREATE INDEX job_reference_id_fk ON recon.job (reference_id, created_at);
 CREATE INDEX job_job_status_create_at_fk ON recon.job (job_status, created_at);
 
 CREATE FUNCTION update_audit_fields_task()

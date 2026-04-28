@@ -13,6 +13,7 @@ enum IngestionDataSource derives ReadWriter:
 
 case class IngestionInfo(
   movementSpecId:          String,
+  movementSpecName:        String = "",
   dataSource:              IngestionDataSource,
   filePath:                String = "",
   numberOfRecordsIngested: Int,

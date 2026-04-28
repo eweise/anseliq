@@ -24,7 +24,6 @@ object JobsView:
     val extraHeaders = if isRecon then reconExtraHeaders else ingestionExtraHeaders
     val headers = Seq(
       "ID",
-      if isRecon then "Reconciliation ID" else "Movement Spec ID",
       "Status",
       "Error",
       "Created At",
@@ -34,7 +33,6 @@ object JobsView:
     val rows = model.jobs.map { job =>
       val baseCells: Seq[Elem[AppMsg]] = Seq(
         text(job.id.getOrElse("-")),
-        text(job.referenceId),
         text(job.jobStatus.toString),
         text(job.errorMessage.getOrElse("-")),
         text(job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-")),
@@ -63,7 +61,7 @@ object JobsView:
     Seq("Reconciliation ID")
 
   private def ingestionExtraHeaders: Seq[String] =
-    Seq("Data Source", "File Path", "Records Ingested", "Processing Time (Seconds)")
+    Seq("Spec Name", "Data Source", "File Path", "Records Ingested", "Processing Time (Seconds)")
 
   private def reconExtraCells(job: JobInfoPayload): Seq[Elem[AppMsg]] =
     job.jobInfoJson.flatMap(parseJobInfo) match
@@ -77,6 +75,7 @@ object JobsView:
     job.jobInfoJson.flatMap(parseJobInfo) match
       case Some(ii: IngestionInfo) =>
         Seq(
+          text(ii.movementSpecName),
           text(ii.dataSource.toString),
           text(ii.filePath),
           text(ii.numberOfRecordsIngested.toString),
