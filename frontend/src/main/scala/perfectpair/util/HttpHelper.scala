@@ -155,6 +155,12 @@ object HttpHelper:
       ResponseDecoders.reconcileDecoder(accountId)
     )
 
+  def fetchReconciliationsByReconSpecID(reconSpecId: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(
+      HttpPath.url(s"${HttpPath.reconSpec}/$reconSpecId/reconciliations"),
+      ResponseDecoders.reconciliationsDecoder
+    )
+
   object ResponseDecoders:
 
     val loginDecoder: Decoder[Msg] =
@@ -314,4 +320,13 @@ object HttpHelper:
       Decoder(
         _ => Msg.AccountsMsg(AccountsView.Msg.ReconcileResult(accountId, isSuccess = true)),
         error => Msg.AccountsMsg(AccountsView.Msg.ReconcileResult(accountId, isSuccess = false))
+      )
+
+    val reconciliationsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val reconciliations = read[Seq[ReconciliationPayload]](onResponse.body)
+          Msg.ReconciliationsMsg(ReconciliationsView.Msg.ReconciliationsFromBackend(reconciliations))
+        ,
+        error => Msg.Error(error.toString)
       )
