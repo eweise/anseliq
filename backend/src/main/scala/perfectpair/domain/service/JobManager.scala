@@ -28,7 +28,8 @@ class JobManager(
       val jobInfo = processFn(processedJob)
       completeJob(processedJob.id, jobInfo)
     } catch
-      case ex: Exception => // todo I think the txn is rolled back at this point :(
+      case ex: Exception =>
+        ex.printStackTrace() // todo I think the txn is rolled back at this point :(
         markJobInError(processedJob.id, ex)
 
   // todo need to handle idempotency (in all services actually)

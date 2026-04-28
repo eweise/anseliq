@@ -5,7 +5,10 @@ import upickle.ReadWriter
 sealed trait JobInfo derives ReadWriter
 
 case class ReconciliationInfo(
-  reconciliationId: String
+  accountId:                   String,
+  accountName:                 String,
+  reconciliationsCreatedCount: Int,
+  processingTimeSeconds:       Long
 ) extends JobInfo
 
 enum IngestionDataSource derives ReadWriter:

@@ -65,7 +65,7 @@ object JobsView:
 
   private def reconExtraCells(job: JobInfoPayload): Seq[Elem[AppMsg]] =
     job.jobInfoJson.flatMap(parseJobInfo) match
-      case Some(ri: ReconciliationInfo) => Seq(text(ri.reconciliationId))
+      case Some(ri: ReconciliationInfo) => Seq(text(ri.accountId))
       case _                            => Seq(text("-"))
 
   private def parseJobInfo(json: String): Option[JobInfo] =

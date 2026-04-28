@@ -36,7 +36,7 @@ object App extends cask.MainRoutes:
   val fundFlowOperations = FundFlowOperations(
     fundFlowConfigRepo = fundFlowConfigRepo
   )
-  val reconciler = Reconciler(
+  val reconciler = InMemoryReconciler(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
@@ -183,6 +183,22 @@ object App extends cask.MainRoutes:
         )
       }
     write("ingested")
+
+  @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
+  def reoncileAccount(id: String, request: cask.Request): String =
+    val accountId = UUID.fromString(id)
+    transact(transactor):
+      val account = accountRepo.findById(accountId).getOrElse(throw NotFoundError(s"Account $id not found"))
+      jobManager.submitAndProcessJob(JobType.Reconciliation, accountId) { job =>
+        val reconcilationResult = reconciler.reconcileAccount(account)
+        ReconciliationInfo(
+          accountId                   = account.id.toString,
+          accountName                 = account.name,
+          reconciliationsCreatedCount = reconcilationResult.totalCount,
+          processingTimeSeconds       = reconcilationResult.processingTimeSeconds
+        )
+      }
+    write("reconciled")
 
   // Jobs
   @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)
