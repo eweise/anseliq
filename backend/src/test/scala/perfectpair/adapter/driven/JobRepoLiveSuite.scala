@@ -18,7 +18,7 @@ class JobRepoLiveSuite extends munit.FunSuite:
     dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
     transactor = Transactor(dataSource)
 
-  test("insertAndfindByReferenceID"):
+  test("insertAndfindByID"):
     val jobRepo = JobRepoLive()
     transact(transactor):
       rollBackOnly:

@@ -176,6 +176,7 @@ object App extends cask.MainRoutes:
         val result = ingestor.ingest(movementSpec, is)
         IngestionInfo(
           movementSpecId          = id,
+          movementSpecName        = movementSpec.name,
           dataSource              = Manual,
           numberOfRecordsIngested = result.recordCount,
           processingTimeSeconds   = result.ingestionTimeSeconds

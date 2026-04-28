@@ -10,13 +10,13 @@ import java.util.UUID
 class JobRepoLive extends Repo[Job, Job, UUID] with JobRepo:
   val j = Job.Table
 
-  override def findByJobTypeAndReferenceId(jobtype: JobType, referenceID: ID): Txn[Option[Job]] =
+  override def findByJobTypeAndReferenceId(jobtype: JobType, referenceID: ID): Txn[Vector[Job]] =
     sql"""
         SELECT ${j.all}
         FROM $j AS j
         WHERE j.reference_id = $referenceID
         AND j.job_type = $jobtype
-      """.query[Job].run().headOption
+      """.query[Job].run()
 
   override def findByJobType(jobtype: JobType): Txn[Vector[Job]] =
     sql"""
