@@ -2,13 +2,11 @@ package perfectpair.view.pages
 
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
 import perfectpair.model.Msg as AppMsg
-import perfectpair.view.components.DataSourceConfigWidget
 import perfectpair.util.PayloadAction.*
 import perfectpair.util.{HttpHelper, PayloadAction, PrettyLogger}
-import perfectpair.view.components.{Buttons, Form}
-import tyrian.EmptyAttribute
+import perfectpair.view.components.{Buttons, DataSourceConfigWidget, Form}
 import tyrian.Html.*
-import tyrian.{Cmd, Html}
+import tyrian.{Cmd, EmptyAttribute, Html}
 import zio.Task
 
 object MaintainMovementSpecsView:
@@ -23,42 +21,23 @@ object MaintainMovementSpecsView:
         val toSave = spec.copy(dataSourceConfig = DataSourceConfigWidget.toDataSourceConfig(model.dataSourceWidget))
         (model, HttpHelper.createMovementSpec(toSave) |+| PrettyLogger.info("creating movement spec"))
       case Msg.MovementSpecAction(spec, Created) =>
-        (model.copy(movementSpec = Some(spec)), PrettyLogger.info("created movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow)))
+        (
+          model.copy(movementSpec = Some(spec)),
+          PrettyLogger.info("created movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow))
+        )
       case Msg.MovementSpecAction(spec, Update) =>
         val toSave = spec.copy(dataSourceConfig = DataSourceConfigWidget.toDataSourceConfig(model.dataSourceWidget))
         (model, HttpHelper.updateMovementSpec(toSave) |+| PrettyLogger.info("updating movement spec"))
       case Msg.MovementSpecAction(spec, Updated) =>
-        (model.copy(movementSpec = Some(spec)), PrettyLogger.info("updated movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow)))
-
-  private def accountSelect(
-    fieldID:    String,
-    labelName:  String,
-    selectedId: String,
-    accounts:   Seq[AccountPayload],
-    onSelect:   String => AppMsg
-  ): Html[AppMsg] =
-    div(cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded")(
-      label(
-        cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
-        attribute("for", fieldID)
-      )(text(labelName)),
-      select(
-        id  := fieldID,
-        cls := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
-        onChange(onSelect)
-      )(
-        accounts.map(account =>
-          option(
-            value := account.id.getOrElse(""),
-            if account.id.getOrElse("") == selectedId then attribute("selected", "selected") else EmptyAttribute
-          )(text(account.name))
-        )*
-      )
-    )
+        (
+          model.copy(movementSpec = Some(spec)),
+          PrettyLogger.info("updated movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow))
+        )
 
   def apply(model: Model): Html[AppMsg] =
     val firstAccountId = model.accounts.headOption.flatMap(_.id).getOrElse("")
-    val spec   = model.movementSpec.getOrElse(MovementSpecPayload(inAccountId = firstAccountId, outAccountId = firstAccountId))
+    val spec =
+      model.movementSpec.getOrElse(MovementSpecPayload(inAccountId = firstAccountId, outAccountId = firstAccountId))
     val action = if spec.id.isEmpty then Create else Update
     div(cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4")(
       div(cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8")(
@@ -88,6 +67,32 @@ object MaintainMovementSpecsView:
           Buttons.textButton("Cancel", AppMsg.NavigateToMovementSpecs(model.fundFlow)),
           Buttons.linkButton("Save", AppMsg.MaintainMovementSpecsMsg(Msg.MovementSpecAction(spec, action)))
         )
+      )
+    )
+
+  private def accountSelect(
+    fieldID:    String,
+    labelName:  String,
+    selectedId: String,
+    accounts:   Seq[AccountPayload],
+    onSelect:   String => AppMsg
+  ): Html[AppMsg] =
+    div(cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded")(
+      label(
+        cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
+        attribute("for", fieldID)
+      )(text(labelName)),
+      select(
+        id  := fieldID,
+        cls := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
+        onChange(onSelect)
+      )(
+        accounts.map(account =>
+          option(
+            value := account.id.getOrElse(""),
+            if account.id.getOrElse("") == selectedId then attribute("selected", "selected") else EmptyAttribute
+          )(text(account.name))
+        )*
       )
     )
 

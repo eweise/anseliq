@@ -42,16 +42,16 @@ object HttpHelper:
       fundFlowDecoder(Updated)
     )
 
-  private def put[A](url: String, body: Body): Request[A] =
-    println(s"put url=${url}; body=${body}")
-    Request(
-      method = Method.Put,
-      url    = url,
-      body   = body
-    )
-
   def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(Request.post(HttpPath.url(HttpPath.account), Body.json(write(account))), accountDecoder(Created))
+
+  private def sendWithAuthToken[A](
+    request:         Request[A],
+    resultToMessage: Decoder[Msg]
+  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
+      Msg.SendHttpRequestWithAccessToken(_ => Http.send(request, resultToMessage))
+    )
 
   def updateAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(
@@ -70,20 +70,6 @@ object HttpHelper:
 
   def fetchAccountsForMovementSpecs(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), movementSpecsAccountsDecoder)
-
-  private def fetchServerMessageCmd(
-    apiUrl:          String,
-    resultToDecoder: Decoder[Msg]
-  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    sendWithAuthToken(Request.get(apiUrl), resultToDecoder) |+| PrettyLogger.info("http.send")
-
-  private def sendWithAuthToken[A](
-    request:         Request[A],
-    resultToMessage: Decoder[Msg]
-  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
-      Msg.SendHttpRequestWithAccessToken(_ => Http.send(request, resultToMessage))
-    )
 
   def fetchReconSpecsByAccountID(accountID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.account}/$accountID/recon-specs"), reconSpecsDecoder)
@@ -104,6 +90,14 @@ object HttpHelper:
     sendWithAuthToken(
       put(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), Body.json(write(spec))),
       movementSpecDecoder(Updated)
+    )
+
+  private def put[A](url: String, body: Body): Request[A] =
+    println(s"put url=${url}; body=${body}")
+    Request(
+      method = Method.Put,
+      url    = url,
+      body   = body
     )
 
   def createReconSpec(spec: ReconciliationSpecPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
@@ -133,6 +127,12 @@ object HttpHelper:
 
   def fetchJobsByType(jobType: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.jobs}/$jobType"), ResponseDecoders.jobsDecoder)
+
+  private def fetchServerMessageCmd(
+    apiUrl:          String,
+    resultToDecoder: Decoder[Msg]
+  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(Request.get(apiUrl), resultToDecoder) |+| PrettyLogger.info("http.send")
 
   def fetchUnreconciledMovements(movementSpecId: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(
@@ -245,6 +245,22 @@ object HttpHelper:
         _ => Msg.MaintainReconSpecMsg(MaintainReconSpecView.Msg.ReconSpecAction(ReconciliationSpecPayload(), Deleted)),
         error => Msg.Error(error.toString)
       )
+    val jobsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val jobs = read[Seq[JobInfoPayload]](onResponse.body)
+          Msg.JobsMsg(JobsView.Msg.JobsFromBackend(jobs))
+        ,
+        error => Msg.Error(error.toString)
+      )
+    val unreconciledMovementsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val movements = read[Seq[MovementPayload]](onResponse.body)
+          Msg.UnreconciledMovementsMsg(UnreconciledMovementsView.Msg.MovementsFromBackend(movements))
+        ,
+        error => Msg.Error(error.toString)
+      )
 
     def accountDecoder(action: PayloadAction): Decoder[Msg] =
       Decoder(
@@ -278,24 +294,6 @@ object HttpHelper:
         onResponse =>
           val ffPayload = read[FundFlowPayload](onResponse.body)
           Msg.MaintainFundFlowMsg(MaintainFundFlowView.Msg.MaintainFundFlow(ffPayload, action))
-        ,
-        error => Msg.Error(error.toString)
-      )
-
-    val jobsDecoder: Decoder[Msg] =
-      Decoder(
-        onResponse =>
-          val jobs = read[Seq[JobInfoPayload]](onResponse.body)
-          Msg.JobsMsg(JobsView.Msg.JobsFromBackend(jobs))
-        ,
-        error => Msg.Error(error.toString)
-      )
-
-    val unreconciledMovementsDecoder: Decoder[Msg] =
-      Decoder(
-        onResponse =>
-          val movements = read[Seq[MovementPayload]](onResponse.body)
-          Msg.UnreconciledMovementsMsg(UnreconciledMovementsView.Msg.MovementsFromBackend(movements))
         ,
         error => Msg.Error(error.toString)
       )
