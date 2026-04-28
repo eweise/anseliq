@@ -19,6 +19,8 @@ object ReconSpecsView:
         (model, Cmd.emit(AppMsg.NavigateToMaintainReconSpec(model.account, model.movementSpecs, reconSpec)))
       case Msg.RunReconSpec(reconSpec) =>
         (model, Cmd.emit(AppMsg.NavigateToIngest(model.account, reconSpec, model.movementSpecs)))
+      case Msg.ViewReconciliations(reconSpec) =>
+        (model, Cmd.Emit(AppMsg.NavigateToReconciliations(reconSpec, model.account)))
 
   def apply(model: Model): Html[AppMsg] =
     val specNameById = model.movementSpecs.flatMap(ms => ms.id.map(_ -> ms.name)).toMap
@@ -38,7 +40,8 @@ object ReconSpecsView:
                 text(specNameById.getOrElse(spec.outMovementSpecId, spec.outMovementSpecId)),
                 div(cls := "flex gap-2")(
                   Buttons.textButton("Ingest Files", AppMsg.ReconSpecsMsg(Msg.RunReconSpec(spec))),
-                  Buttons.textButton("Edit", AppMsg.ReconSpecsMsg(Msg.SelectReconSpec(Some(spec))))
+                  Buttons.textButton("Edit", AppMsg.ReconSpecsMsg(Msg.SelectReconSpec(Some(spec)))),
+                  Buttons.textButton("Reconciliations", AppMsg.ReconSpecsMsg(Msg.ViewReconciliations(spec)))
                 )
               )
             )
@@ -51,6 +54,7 @@ object ReconSpecsView:
     case MovementSpecsFromBackend(specs: Seq[MovementSpecPayload])
     case SelectReconSpec(reconSpec: Option[ReconciliationSpecPayload])
     case RunReconSpec(reconSpec: ReconciliationSpecPayload)
+    case ViewReconciliations(reconSpec: ReconciliationSpecPayload)
 
   case class Model(
     account:       AccountPayload                 = AccountPayload(),
