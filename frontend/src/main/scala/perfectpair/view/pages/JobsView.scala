@@ -23,20 +23,16 @@ object JobsView:
     val isRecon      = model.selectedJobType == "reconciliation"
     val extraHeaders = if isRecon then reconExtraHeaders else ingestionExtraHeaders
     val headers = Seq(
-      "ID",
       "Status",
       "Error",
-      "Created At",
-      "Updated At"
+      "Created At"
     ) ++ extraHeaders
 
     val rows = model.jobs.map { job =>
       val baseCells: Seq[Elem[AppMsg]] = Seq(
-        text(job.id.getOrElse("-")),
         text(job.jobStatus.toString),
         text(job.errorMessage.getOrElse("-")),
-        text(job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-")),
-        text(job.updatedAt.map(ViewHelper.formatDateTime).getOrElse("-"))
+        text(job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"))
       )
       baseCells ++ (if isRecon then reconExtraCells(job) else ingestionExtraCells(job))
     }
