@@ -105,6 +105,13 @@ object App extends cask.MainRoutes:
       val payload  = accounts.map(Payload.accountPayloadFromDomain)
       write(payload)
 
+  @cask.route(s"${HttpPath.reconSpec}/:reconSpecID/reconciliations", methods = HttpCmd.GET)
+  def movementsByReconciliationSpec(reconSpecID: String): String =
+    transact(transactor):
+      val reconciliations = reconRepo.findByReconSpecID(UUID.fromString(reconSpecID))
+      val payload         = reconciliations.map(Payload.reconFromDomain)
+      write(payload)
+
   @cask.route(s"${HttpPath.fundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())

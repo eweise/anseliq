@@ -104,6 +104,16 @@ case class ReconciliationSpecPayload(
   rule:              Rule              = NoOpRule
 ) derives ReadWriter
 
+case class ReconciliationPayload(
+  id:            String,
+  reconSpecId:   String,
+  appliedRules:  String,
+  description:   String,
+  status:        String,
+  var createdAt: OffsetDateTime,
+  var updatedAt: OffsetDateTime
+) derives ReadWriter
+
 case class AccountPayload(
   id:         Option[String] = None,
   name:       String         = "",
