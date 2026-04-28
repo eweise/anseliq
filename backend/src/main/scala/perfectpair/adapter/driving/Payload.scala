@@ -79,6 +79,17 @@ object Payload:
       rule              = spec.rule()
     )
 
+  def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
+    ReconciliationPayload(
+      id           = recon.id.toString,
+      reconSpecId  = recon.specId.toString,
+      appliedRules = recon.appliedRules,
+      description  = recon.description,
+      status       = recon.status.toString,
+      createdAt    = recon.createdAt.get,
+      updatedAt    = recon.updatedAt.get
+    )
+
   def reconRelationshipFromDomain(rel: Rel): ComRel =
     rel match
       case Rel.OneToOne   => ComRel.OneToOne
