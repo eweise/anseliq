@@ -23,6 +23,7 @@ class JobRepoLive extends Repo[Job, Job, UUID] with JobRepo:
         SELECT ${j.all}
         FROM $j AS j
         WHERE j.job_type = $jobtype
+        ORDER BY created_at DESC
       """.query[Job].run()
 
   override def getNextJob(jobType: JobType): Txn[Option[Job]] =
