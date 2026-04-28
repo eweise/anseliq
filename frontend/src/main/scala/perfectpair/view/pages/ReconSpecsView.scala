@@ -37,7 +37,7 @@ object ReconSpecsView:
                 text(specNameById.getOrElse(spec.inMovementSpecId, spec.inMovementSpecId)),
                 text(specNameById.getOrElse(spec.outMovementSpecId, spec.outMovementSpecId)),
                 div(cls := "flex gap-2")(
-                  Buttons.textButton("Run", AppMsg.ReconSpecsMsg(Msg.RunReconSpec(spec))),
+                  Buttons.textButton("Ingest Files", AppMsg.ReconSpecsMsg(Msg.RunReconSpec(spec))),
                   Buttons.textButton("Edit", AppMsg.ReconSpecsMsg(Msg.SelectReconSpec(Some(spec))))
                 )
               )

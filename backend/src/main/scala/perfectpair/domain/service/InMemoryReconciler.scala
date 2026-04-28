@@ -7,11 +7,18 @@ import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
 import perfectpair.domain.port.driven.*
 
+import java.time.Instant
 import java.util.UUID
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.boundary
 import scala.util.boundary.break
+
+case class ReconciliationResult(
+  reconciliationSpecInsertCount: Map[ID, Int],
+  processingTimeSeconds:         Long
+):
+  def totalCount: Int = reconciliationSpecInsertCount.values.sum
 
 class InMemoryReconciler(
   val accountRepo:        AccountRepo,
@@ -25,7 +32,9 @@ class InMemoryReconciler(
   /**
    * Main reconciliation method
    */
-  def reconcileAccount(account: Account): Txn[Unit] =
+  def reconcileAccount(account: Account): Txn[ReconciliationResult] =
+    val beginTime                     = Instant.now()
+    val reconciliationSpecInsertCount = scala.collection.mutable.Map[ID, Int]()
 
     val reconSpecs = reconSpecRepo.findByAccountID(account.id)
     for reconSpec <- reconSpecs
@@ -99,6 +108,7 @@ class InMemoryReconciler(
         case ManyToMany =>
 
       // Create reconciliations from matches
+      var reconInsertCount = 0
       for aMatch <- groupedMatches
       do
         val reconciliation = Reconciliation(
@@ -107,6 +117,7 @@ class InMemoryReconciler(
           description  = "need a description. probably equality matcher"
         )
         reconRepo.insert(reconciliation)
+        reconInsertCount += 1
 
         for inMatch <- aMatch._1
         do
@@ -127,6 +138,12 @@ class InMemoryReconciler(
             )
           outMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(outMovement)
+          reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
+
+    ReconciliationResult(
+      reconciliationSpecInsertCount = reconciliationSpecInsertCount.toMap,
+      processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond
+    )
 
   /**
    * Compares two movements based on the rule argument. If the rule is a collection (AND, OR) then
