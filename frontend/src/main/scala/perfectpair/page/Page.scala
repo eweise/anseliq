@@ -186,6 +186,21 @@ object Page {
       PrettyLogger.info("Entering Jobs page") |+| HttpHelper.fetchJobsByType(model.jobsModel.selectedJobType)
   }
 
+  object UnreconciledMovements extends Page {
+    val path:   String             = "/components/unreconciled-movements"
+    val render: Model => Html[Msg] = m => UnreconciledMovementsView(m.unreconciledMovementsModel)
+
+    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
+      case Msg.UnreconciledMovementsMsg(sub) =>
+        val (sub2, cmd) = UnreconciledMovementsView.update(model.unreconciledMovementsModel, sub)
+        (model.copy(unreconciledMovementsModel = sub2), cmd)
+      case _ => (model, Cmd.None)
+
+    override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
+      PrettyLogger.info("Entering Unreconciled Movements page") |+|
+        HttpHelper.fetchUnreconciledMovements(model.unreconciledMovementsModel.movementSpec.id.get)
+  }
+
   object Toggle extends Page {
     val path:   String             = "/components/toggle"
     val render: Model => Html[Msg] = m => ToggleView(m.toggleModel)

@@ -134,6 +134,12 @@ object HttpHelper:
   def fetchJobsByType(jobType: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.jobs}/$jobType"), ResponseDecoders.jobsDecoder)
 
+  def fetchUnreconciledMovements(movementSpecId: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(
+      HttpPath.url(s"${HttpPath.movements}/$movementSpecId/unreconciled"),
+      ResponseDecoders.unreconciledMovementsDecoder
+    )
+
   def ingestFile(movementSpecId: String, content: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(
       Request.post(
@@ -281,6 +287,15 @@ object HttpHelper:
         onResponse =>
           val jobs = read[Seq[JobInfoPayload]](onResponse.body)
           Msg.JobsMsg(JobsView.Msg.JobsFromBackend(jobs))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    val unreconciledMovementsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val movements = read[Seq[MovementPayload]](onResponse.body)
+          Msg.UnreconciledMovementsMsg(UnreconciledMovementsView.Msg.MovementsFromBackend(movements))
         ,
         error => Msg.Error(error.toString)
       )

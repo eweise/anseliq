@@ -26,6 +26,8 @@ object MovementSpecsView:
       case Msg.SelectMovementSpec(msa) =>
         val spec = msa.map(_.spec)
         (model, Cmd.emit(AppMsg.NavigateToMaintainMovementSpec(model.fundFlow, model.accounts, spec)))
+      case Msg.ViewUnreconciled(msa) =>
+        (model, Cmd.emit(AppMsg.NavigateToUnreconciledMovements(msa.spec, model.accounts, model.fundFlow)))
 
   def apply(model: Model): Html[AppMsg] =
     val combined =
@@ -44,7 +46,10 @@ object MovementSpecsView:
                 text(msa.spec.name),
                 text(msa.inAccount.name),
                 text(msa.outAccount.name),
-                Buttons.textButton("Edit", AppMsg.MovementSpecsMsg(Msg.SelectMovementSpec(Some(msa))))
+                div(cls := "flex gap-2")(
+                  Buttons.textButton("View Unreconciled", AppMsg.MovementSpecsMsg(Msg.ViewUnreconciled(msa))),
+                  Buttons.textButton("Edit", AppMsg.MovementSpecsMsg(Msg.SelectMovementSpec(Some(msa))))
+                )
               )
             )
         )
@@ -55,6 +60,7 @@ object MovementSpecsView:
     case MovementSpecsFromBackend(specs: Seq[MovementSpecPayload])
     case AccountsFromBackend(accounts: Seq[AccountPayload])
     case SelectMovementSpec(msa: Option[MovementSpecAndAccounts])
+    case ViewUnreconciled(msa: MovementSpecAndAccounts)
 
   case class Model(
     fundFlow:      FundFlowPayload          = FundFlowPayload(),
