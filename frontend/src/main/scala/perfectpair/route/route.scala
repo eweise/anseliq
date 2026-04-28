@@ -22,6 +22,7 @@ object Route {
         case "maintain-recon-spec"    => Page.MaintainReconSpec
         case "ingest"                 => Page.Ingest
         case "jobs"                   => Page.Jobs
+        case "unreconciled-movements" => Page.UnreconciledMovements
       }
     }.toOption
 

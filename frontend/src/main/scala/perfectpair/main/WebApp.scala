@@ -8,7 +8,7 @@ import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.view.MainContainer
 import perfectpair.view.components.{DataSourceConfigWidget, RuleWidget}
-import perfectpair.view.pages.{AccountsView, IngestView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView}
+import perfectpair.view.pages.{AccountsView, IngestView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView, UnreconciledMovementsView}
 import tyrian.*
 import zio.*
 import zio.interop.catz.*
@@ -137,6 +137,16 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
           movementSpecs = movementSpecs
         )),
         Cmd.Emit(Msg.NavigateTo(Page.Ingest))
+      )
+
+    case Msg.NavigateToUnreconciledMovements(movementSpec, accounts, fundFlow) =>
+      (
+        model.copy(unreconciledMovementsModel = UnreconciledMovementsView.Model(
+          fundFlow     = fundFlow,
+          movementSpec = movementSpec,
+          accounts     = accounts
+        )),
+        Cmd.Emit(Msg.NavigateTo(Page.UnreconciledMovements))
       )
 
     case Msg.NavigateToMaintainAccount(fundFlow, account) =>
