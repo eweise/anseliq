@@ -58,15 +58,20 @@ object JobsView:
     )
 
   private def reconExtraHeaders: Seq[String] =
-    Seq("Reconciliation ID")
+    Seq("Account Name", "Record Count", "Processing Time (seconds)")
 
   private def ingestionExtraHeaders: Seq[String] =
     Seq("Spec Name", "Data Source", "File Path", "Records Ingested", "Processing Time (Seconds)")
 
   private def reconExtraCells(job: JobInfoPayload): Seq[Elem[AppMsg]] =
     job.jobInfoJson.flatMap(parseJobInfo) match
-      case Some(ri: ReconciliationInfo) => Seq(text(ri.accountId))
-      case _                            => Seq(text("-"))
+      case Some(ri: ReconciliationInfo) =>
+        Seq(
+          text(ri.accountName),
+          text(ri.reconciliationsCreatedCount.toString),
+          text(ri.processingTimeSeconds.toString)
+        )
+      case _ => Seq(text("-"))
 
   private def parseJobInfo(json: String): Option[JobInfo] =
     scala.util.Try(read[JobInfo](json)).toOption
