@@ -1,7 +1,5 @@
 package perfectpair.adapter.driving
 
-import com.augustnagro.magnum.Id
-import perfectpair.common.model.model.ID
 import perfectpair.common.model.{ReconRelationship as ComRel, *}
 import perfectpair.domain.model.{Relationship as Rel, *}
 import upickle.default.read as upickleRead
@@ -26,7 +24,9 @@ object Payload:
       jobType      = JobTypeInfo.valueOf(job.jobType.toString),
       jobStatus    = JobInfoStatus.valueOf(job.jobStatus.toString),
       jobInfoJson  = job.jobInfoJson,
-      errorMessage = job.errorMessage
+      errorMessage = job.errorMessage,
+      createdAt    = job.createdAt,
+      updatedAt    = job.updatedAt
     )
 
   def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
