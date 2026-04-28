@@ -18,11 +18,17 @@ object MaintainAccountView:
       case Msg.AccountAction(account, Create) =>
         (model, HttpHelper.createAccount(account) |+| PrettyLogger.info("creating account"))
       case Msg.AccountAction(account, Created) =>
-        (model.copy(account = Some(account)), PrettyLogger.info("created account") |+| Cmd.emit(AppMsg.NavigateToAccounts(model.fundFlow)))
+        (
+          model.copy(account = Some(account)),
+          PrettyLogger.info("created account") |+| Cmd.emit(AppMsg.NavigateToAccounts(model.fundFlow))
+        )
       case Msg.AccountAction(account, Update) =>
         (model, HttpHelper.updateAccount(account) |+| PrettyLogger.info("updating account"))
       case Msg.AccountAction(account, Updated) =>
-        (model.copy(account = Some(account)), PrettyLogger.info("updated account") |+| Cmd.emit(AppMsg.NavigateToAccounts(model.fundFlow)))
+        (
+          model.copy(account = Some(account)),
+          PrettyLogger.info("updated account") |+| Cmd.emit(AppMsg.NavigateToAccounts(model.fundFlow))
+        )
 
   def apply(model: Model): Html[AppMsg] =
     println(s"MaintainAccountView.apply")

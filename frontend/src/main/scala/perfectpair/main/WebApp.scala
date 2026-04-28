@@ -1,14 +1,14 @@
 package perfectpair.main
 
 import com.softwaremill.quicklens.*
-import perfectpair.model.*
 import perfectpair.common.model.NoOpRule
+import perfectpair.model.*
 import perfectpair.page.*
 import perfectpair.route.*
 import perfectpair.util.*
 import perfectpair.view.MainContainer
 import perfectpair.view.components.{DataSourceConfigWidget, RuleWidget}
-import perfectpair.view.pages.{AccountsView, IngestView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView, UnreconciledMovementsView}
+import perfectpair.view.pages.*
 import tyrian.*
 import zio.*
 import zio.interop.catz.*
@@ -89,7 +89,7 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
           Cmd.Emit(Msg.NavigateTo(Page.Accounts)) |+|
           PrettyLogger.info("fetchAccountsByFundFlowID")
       )
-      
+
     case Msg.NavigateToMovementSpecs(fundFlow) =>
       (
         model.copy(movementSpecsModel = MovementSpecsView.Model(fundFlow = fundFlow)),
@@ -109,43 +109,51 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
 
     case Msg.NavigateToMaintainReconSpec(account, movementSpecs, reconSpec) =>
       (
-        model.copy(maintainReconSpecModel = MaintainReconSpecView.Model(
-          account       = account,
-          movementSpecs = movementSpecs,
-          reconSpec     = reconSpec,
-          ruleWidget    = RuleWidget.fromRule(reconSpec.map(_.rule).getOrElse(NoOpRule))
-        )),
+        model.copy(maintainReconSpecModel =
+          MaintainReconSpecView.Model(
+            account       = account,
+            movementSpecs = movementSpecs,
+            reconSpec     = reconSpec,
+            ruleWidget    = RuleWidget.fromRule(reconSpec.map(_.rule).getOrElse(NoOpRule))
+          )
+        ),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainReconSpec))
       )
 
     case Msg.NavigateToMaintainMovementSpec(fundFlow, accounts, movementSpec) =>
       (
-        model.copy(maintainMovementSpecModel = MaintainMovementSpecsView.Model(
-          fundFlow         = fundFlow,
-          accounts         = accounts,
-          movementSpec     = movementSpec,
-          dataSourceWidget = DataSourceConfigWidget.fromDataSourceConfig(movementSpec.flatMap(_.dataSourceConfig))
-        )),
+        model.copy(maintainMovementSpecModel =
+          MaintainMovementSpecsView.Model(
+            fundFlow         = fundFlow,
+            accounts         = accounts,
+            movementSpec     = movementSpec,
+            dataSourceWidget = DataSourceConfigWidget.fromDataSourceConfig(movementSpec.flatMap(_.dataSourceConfig))
+          )
+        ),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainMovementSpec))
       )
 
     case Msg.NavigateToIngest(account, reconSpec, movementSpecs) =>
       (
-        model.copy(ingestModel = IngestView.Model(
-          account       = account,
-          reconSpec     = reconSpec,
-          movementSpecs = movementSpecs
-        )),
+        model.copy(ingestModel =
+          IngestView.Model(
+            account       = account,
+            reconSpec     = reconSpec,
+            movementSpecs = movementSpecs
+          )
+        ),
         Cmd.Emit(Msg.NavigateTo(Page.Ingest))
       )
 
     case Msg.NavigateToUnreconciledMovements(movementSpec, accounts, fundFlow) =>
       (
-        model.copy(unreconciledMovementsModel = UnreconciledMovementsView.Model(
-          fundFlow     = fundFlow,
-          movementSpec = movementSpec,
-          accounts     = accounts
-        )),
+        model.copy(unreconciledMovementsModel =
+          UnreconciledMovementsView.Model(
+            fundFlow     = fundFlow,
+            movementSpec = movementSpec,
+            accounts     = accounts
+          )
+        ),
         Cmd.Emit(Msg.NavigateTo(Page.UnreconciledMovements))
       )
 

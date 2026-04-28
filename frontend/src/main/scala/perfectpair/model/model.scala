@@ -27,11 +27,27 @@ enum Msg:
   case NavigateToAccounts(fundFlow: FundFlowPayload)
   case NavigateToMovementSpecs(fundFlow: FundFlowPayload)
   case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload])
-  case NavigateToMaintainMovementSpec(fundFlow: FundFlowPayload, accounts: Seq[AccountPayload], movementSpec: Option[MovementSpecPayload])
+  case NavigateToMaintainMovementSpec(
+    fundFlow:     FundFlowPayload,
+    accounts:     Seq[AccountPayload],
+    movementSpec: Option[MovementSpecPayload]
+  )
   case NavigateToReconSpecs(account: AccountPayload)
-  case NavigateToMaintainReconSpec(account: AccountPayload, movementSpecs: Seq[MovementSpecPayload], reconSpec: Option[ReconciliationSpecPayload])
-  case NavigateToIngest(account: AccountPayload, reconSpec: ReconciliationSpecPayload, movementSpecs: Seq[MovementSpecPayload])
-  case NavigateToUnreconciledMovements(movementSpec: MovementSpecPayload, accounts: Seq[AccountPayload], fundFlow: FundFlowPayload)
+  case NavigateToMaintainReconSpec(
+    account:       AccountPayload,
+    movementSpecs: Seq[MovementSpecPayload],
+    reconSpec:     Option[ReconciliationSpecPayload]
+  )
+  case NavigateToIngest(
+    account:       AccountPayload,
+    reconSpec:     ReconciliationSpecPayload,
+    movementSpecs: Seq[MovementSpecPayload]
+  )
+  case NavigateToUnreconciledMovements(
+    movementSpec: MovementSpecPayload,
+    accounts:     Seq[AccountPayload],
+    fundFlow:     FundFlowPayload
+  )
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -52,24 +68,24 @@ enum Msg:
 case class User(username: String, accessToken: String, refreshToken: String)
 
 case class Model(
-  currentPage:           Page,
-  user:                  Option[User],
-  isDarkMode:            Boolean,
-  loginModel:            LoginPage.Model,
-  homeModel:             Welcome.Model,
-  fundFlowsModel:        FundFlowsView.Model,
-  maintainFundFlowModel: MaintainFundFlowView.Model,
-  accountsModel:         AccountsView.Model,
-  maintainAccountModel:  MaintainAccountView.Model,
-  movementSpecsModel:          MovementSpecsView.Model,
-  maintainMovementSpecModel:   MaintainMovementSpecsView.Model = MaintainMovementSpecsView.Model(),
-  reconSpecsModel:             ReconSpecsView.Model            = ReconSpecsView.Model(),
-  maintainReconSpecModel:      MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
-  ingestModel:                 IngestView.Model                = IngestView.Model(),
-  jobsModel:                   JobsView.Model                  = JobsView.Model(),
-  unreconciledMovementsModel:  UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
-  toggleModel:           ToggleView.Model = ToggleView.Model(),
-  error:                 Option[String]   = None
+  currentPage:                Page,
+  user:                       Option[User],
+  isDarkMode:                 Boolean,
+  loginModel:                 LoginPage.Model,
+  homeModel:                  Welcome.Model,
+  fundFlowsModel:             FundFlowsView.Model,
+  maintainFundFlowModel:      MaintainFundFlowView.Model,
+  accountsModel:              AccountsView.Model,
+  maintainAccountModel:       MaintainAccountView.Model,
+  movementSpecsModel:         MovementSpecsView.Model,
+  maintainMovementSpecModel:  MaintainMovementSpecsView.Model = MaintainMovementSpecsView.Model(),
+  reconSpecsModel:            ReconSpecsView.Model            = ReconSpecsView.Model(),
+  maintainReconSpecModel:     MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
+  ingestModel:                IngestView.Model                = IngestView.Model(),
+  jobsModel:                  JobsView.Model                  = JobsView.Model(),
+  unreconciledMovementsModel: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
+  toggleModel:                ToggleView.Model                = ToggleView.Model(),
+  error:                      Option[String]                  = None
 ):
   def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
 

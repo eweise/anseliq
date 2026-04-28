@@ -65,7 +65,8 @@ object MaintainReconSpecView:
           labelName     = "Relationship",
           options       = ReconRelationship.values.toSeq.map(r => (r.toString, r.toString)),
           selectedValue = spec.relationship.toString,
-          onChangeFn    = value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(relationship = ReconRelationship.valueOf(value))))
+          onChangeFn = value =>
+            AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(relationship = ReconRelationship.valueOf(value))))
         ),
         movementSpecSelect(
           fieldID    = "inMovementSpecId",

@@ -1,26 +1,10 @@
 package perfectpair.view.components
 
 import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
-import tyrian.EmptyAttribute
 import tyrian.Html.*
-import tyrian.Html
+import tyrian.{EmptyAttribute, Html}
 
 object DataSourceConfigWidget:
-
-  case class Model(
-    enabled:        Boolean      = false,
-    hasHeader:      Boolean      = true,
-    columns:        List[String] = List(),
-    amountColIndex: Option[Int]  = None
-  )
-
-  enum Msg:
-    case Toggle(enabled: Boolean)
-    case SetHasHeader(value: Boolean)
-    case AddColumn
-    case UpdateColumn(index: Int, name: String)
-    case RemoveColumn(index: Int)
-    case SetAmountCol(index: Int)
 
   def update(model: Model, msg: Msg): Model =
     msg match
@@ -30,9 +14,9 @@ object DataSourceConfigWidget:
       case Msg.AddColumn          => model.copy(columns = model.columns :+ "")
       case Msg.UpdateColumn(i, v) => model.copy(columns = model.columns.updated(i, v))
       case Msg.SetAmountCol(i)    => model.copy(amountColIndex = Some(i))
-      case Msg.RemoveColumn(i)    =>
+      case Msg.RemoveColumn(i) =>
         val newCols = model.columns.patch(i, Nil, 1)
-        val newAmt  = model.amountColIndex.flatMap { idx =>
+        val newAmt = model.amountColIndex.flatMap { idx =>
           if idx == i then None
           else if idx > i then Some(idx - 1)
           else Some(idx)
@@ -41,13 +25,16 @@ object DataSourceConfigWidget:
 
   def toDataSourceConfig(m: Model): Option[DataSourceConfig] =
     if !m.enabled then None
-    else Some(DataSourceConfig(
-      parserConfig = CSVParserConfig(
-        hasHeader         = m.hasHeader,
-        columnDefinitions = m.columns.zipWithIndex.map((name, i) => i -> name).toMap,
-        amountField       = m.amountColIndex
+    else
+      Some(
+        DataSourceConfig(
+          parserConfig = CSVParserConfig(
+            hasHeader         = m.hasHeader,
+            columnDefinitions = m.columns.zipWithIndex.map((name, i) => i -> name).toMap,
+            amountField       = m.amountColIndex
+          )
+        )
       )
-    ))
 
   def fromDataSourceConfig(cfg: Option[DataSourceConfig]): Model =
     cfg match
@@ -68,11 +55,15 @@ object DataSourceConfigWidget:
           text("CSV Data Source")
         ),
         div(
-          cls     := "flex items-center gap-2 cursor-pointer",
+          cls := "flex items-center gap-2 cursor-pointer",
           onClick(lift(Msg.Toggle(!model.enabled)))
         )(
-          div(cls := s"w-9 h-5 rounded-full relative transition-colors ${if model.enabled then "bg-md-primary" else "bg-gray-300"}")(
-            div(cls := s"w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${if model.enabled then "right-0.5" else "left-0.5"}")()
+          div(cls := s"w-9 h-5 rounded-full relative transition-colors ${
+              if model.enabled then "bg-md-primary" else "bg-gray-300"
+            }")(
+            div(cls := s"w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${
+                if model.enabled then "right-0.5" else "left-0.5"
+              }")()
           ),
           span(cls := s"text-xs font-medium ${if model.enabled then "text-md-primary" else "text-gray-400"}")(
             text(if model.enabled then "On" else "Off")
@@ -82,10 +73,12 @@ object DataSourceConfigWidget:
       if model.enabled then
         div()(
           div(
-            cls     := "flex items-center gap-2 mb-4 cursor-pointer",
+            cls := "flex items-center gap-2 mb-4 cursor-pointer",
             onClick(lift(Msg.SetHasHeader(!model.hasHeader)))
           )(
-            div(cls := s"w-4 h-4 rounded border flex items-center justify-center ${if model.hasHeader then "bg-md-primary border-md-primary" else "border-gray-400"}")(
+            div(cls := s"w-4 h-4 rounded border flex items-center justify-center ${
+                if model.hasHeader then "bg-md-primary border-md-primary" else "border-gray-400"
+              }")(
               if model.hasHeader then span(cls := "text-white text-xs leading-none")(text("✓")) else span()()
             ),
             span(cls := "text-sm text-md-on-surface")(text("Has Header Row"))
@@ -107,8 +100,8 @@ object DataSourceConfigWidget:
                       td(cls := "px-2 py-1.5 text-md-on-surface-variant font-medium")(text(idx.toString)),
                       td(cls := "px-2 py-1.5")(
                         input(
-                          tpe   := "text",
-                          cls   := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
+                          tpe := "text",
+                          cls := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
                           attribute("value", colName),
                           onChange(v => lift(Msg.UpdateColumn(idx, v)))
                         )
@@ -118,7 +111,8 @@ object DataSourceConfigWidget:
                           tpe  := "radio",
                           name := "amountCol",
                           cls  := "accent-md-primary",
-                          if model.amountColIndex.contains(idx) then attribute("checked", "checked") else EmptyAttribute,
+                          if model.amountColIndex.contains(idx) then attribute("checked", "checked")
+                          else EmptyAttribute,
                           onChange(_ => lift(Msg.SetAmountCol(idx)))
                         )
                       ),
@@ -143,3 +137,18 @@ object DataSourceConfigWidget:
         )
       else div()()
     )
+
+  case class Model(
+    enabled:        Boolean      = false,
+    hasHeader:      Boolean      = true,
+    columns:        List[String] = List(),
+    amountColIndex: Option[Int]  = None
+  )
+
+  enum Msg:
+    case Toggle(enabled: Boolean)
+    case SetHasHeader(value: Boolean)
+    case AddColumn
+    case UpdateColumn(index: Int, name: String)
+    case RemoveColumn(index: Int)
+    case SetAmountCol(index: Int)

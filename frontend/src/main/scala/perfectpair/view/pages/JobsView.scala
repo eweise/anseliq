@@ -70,6 +70,9 @@ object JobsView:
       case Some(ri: ReconciliationInfo) => Seq(text(ri.reconciliationId))
       case _                            => Seq(text("-"))
 
+  private def parseJobInfo(json: String): Option[JobInfo] =
+    scala.util.Try(read[JobInfo](json)).toOption
+
   private def ingestionExtraCells(job: JobInfoPayload): Seq[Elem[AppMsg]] =
     job.jobInfoJson.flatMap(parseJobInfo) match
       case Some(ii: IngestionInfo) =>
@@ -80,9 +83,6 @@ object JobsView:
           text(ii.processingTimeSeconds.toString)
         )
       case _ => Seq.fill(5)(text("-"))
-
-  private def parseJobInfo(json: String): Option[JobInfo] =
-    scala.util.Try(read[JobInfo](json)).toOption
 
   enum Msg:
     case SelectJobType(jobType: String)

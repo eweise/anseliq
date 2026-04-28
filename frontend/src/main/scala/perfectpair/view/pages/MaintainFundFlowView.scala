@@ -20,12 +20,18 @@ object MaintainFundFlowView:
         if ff.name.isBlank then (model, Cmd.emit(AppMsg.Error("Name is required")))
         else (model, HttpHelper.updateFundFlow(ff) |+| PrettyLogger.info("updating fund flow"))
       case Msg.MaintainFundFlow(ff, Updated) =>
-        (model.copy(fundFlow = ff), PrettyLogger.info(s"fund flow updated: $ff") |+| Cmd.emit(AppMsg.NavigateTo(Page.FundFlows)))
+        (
+          model.copy(fundFlow = ff),
+          PrettyLogger.info(s"fund flow updated: $ff") |+| Cmd.emit(AppMsg.NavigateTo(Page.FundFlows))
+        )
       case Msg.MaintainFundFlow(ff, Create) =>
         if ff.name.isBlank then (model, Cmd.emit(AppMsg.Error("Name is required")))
         else (model, HttpHelper.createFundFlow(ff) |+| PrettyLogger.info("creating fund flow"))
       case Msg.MaintainFundFlow(ff, Created) =>
-        (model.copy(fundFlow = ff), PrettyLogger.info("created fund flow") |+| Cmd.emit(AppMsg.NavigateTo(Page.FundFlows)))
+        (
+          model.copy(fundFlow = ff),
+          PrettyLogger.info("created fund flow") |+| Cmd.emit(AppMsg.NavigateTo(Page.FundFlows))
+        )
 
   def apply(model: Model): Html[AppMsg] =
     val ff     = model.fundFlow

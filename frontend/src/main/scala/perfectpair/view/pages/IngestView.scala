@@ -8,33 +8,10 @@ import perfectpair.util.HttpHelper
 import perfectpair.view.components.Buttons
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
-import zio.{Task, ZIO}
 import zio.interop.catz.*
+import zio.{Task, ZIO}
 
 object IngestView:
-
-  enum UploadStatus:
-    case Idle
-    case Reading
-    case Uploading
-    case Done
-    case Failed(msg: String)
-
-  enum Msg:
-    case FileSelected(movementSpecId: String)
-    case FileContent(movementSpecId: String, content: String)
-    case IngestComplete(movementSpecId: String)
-    case IngestError(movementSpecId: String, err: String)
-
-  case class Model(
-    account:       AccountPayload            = AccountPayload(),
-    reconSpec:     ReconciliationSpecPayload = ReconciliationSpecPayload(),
-    movementSpecs: Seq[MovementSpecPayload]  = Seq(),
-    uploads:       Map[String, UploadStatus] = Map()
-  ):
-    def relevantSpecs: Seq[MovementSpecPayload] =
-      val ids = Set(reconSpec.inMovementSpecId, reconSpec.outMovementSpecId)
-      movementSpecs.filter(ms => ms.id.exists(ids.contains)).distinctBy(_.id)
 
   def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     msg match
@@ -61,19 +38,11 @@ object IngestView:
         val reader = new FileReader()
         reader.onload = _ =>
           cb(ZIO.succeed(AppMsg.IngestViewMsg(Msg.FileContent(movementSpecId, reader.result.asInstanceOf[String]))))
-        reader.onerror = _ =>
-          cb(ZIO.succeed(AppMsg.IngestViewMsg(Msg.IngestError(movementSpecId, "Failed to read file"))))
+        reader.onerror =
+          _ => cb(ZIO.succeed(AppMsg.IngestViewMsg(Msg.IngestError(movementSpecId, "Failed to read file"))))
         reader.readAsText(file)
       }
     )
-
-  private def statusBadge(status: UploadStatus): Html[AppMsg] =
-    status match
-      case UploadStatus.Idle        => span()(text(""))
-      case UploadStatus.Reading     => span(cls := "text-xs text-blue-500")(text("Reading..."))
-      case UploadStatus.Uploading   => span(cls := "text-xs text-blue-500")(text("Uploading..."))
-      case UploadStatus.Done        => span(cls := "text-xs text-green-600 font-medium")(text("Done"))
-      case UploadStatus.Failed(err) => span(cls := "text-xs text-red-500")(text(s"Error: $err"))
 
   def apply(model: Model): Html[AppMsg] =
     div(cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4")(
@@ -103,3 +72,34 @@ object IngestView:
         )
       )
     )
+
+  private def statusBadge(status: UploadStatus): Html[AppMsg] =
+    status match
+      case UploadStatus.Idle        => span()(text(""))
+      case UploadStatus.Reading     => span(cls := "text-xs text-blue-500")(text("Reading..."))
+      case UploadStatus.Uploading   => span(cls := "text-xs text-blue-500")(text("Uploading..."))
+      case UploadStatus.Done        => span(cls := "text-xs text-green-600 font-medium")(text("Done"))
+      case UploadStatus.Failed(err) => span(cls := "text-xs text-red-500")(text(s"Error: $err"))
+
+  enum UploadStatus:
+    case Idle
+    case Reading
+    case Uploading
+    case Done
+    case Failed(msg: String)
+
+  enum Msg:
+    case FileSelected(movementSpecId: String)
+    case FileContent(movementSpecId: String, content: String)
+    case IngestComplete(movementSpecId: String)
+    case IngestError(movementSpecId: String, err: String)
+
+  case class Model(
+    account:       AccountPayload            = AccountPayload(),
+    reconSpec:     ReconciliationSpecPayload = ReconciliationSpecPayload(),
+    movementSpecs: Seq[MovementSpecPayload]  = Seq(),
+    uploads:       Map[String, UploadStatus] = Map()
+  ):
+    def relevantSpecs: Seq[MovementSpecPayload] =
+      val ids = Set(reconSpec.inMovementSpecId, reconSpec.outMovementSpecId)
+      movementSpecs.filter(ms => ms.id.exists(ids.contains)).distinctBy(_.id)
