@@ -214,4 +214,19 @@ object Page {
     override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
       PrettyLogger.info("Entering Toggle page")
   }
+
+  object Reconciliations extends Page {
+    val path:   String             = "/components/reconciliations"
+    val render: Model => Html[Msg] = m => ReconciliationsView(m.reconciliationsModel)
+
+    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
+      case Msg.ReconciliationsMsg(sub) =>
+        val (sub2, cmd) = ReconciliationsView.update(model.reconciliationsModel, sub)
+        (model.copy(reconciliationsModel = sub2), cmd)
+      case _ => (model, Cmd.None)
+
+    override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
+      PrettyLogger.info("Entering Reconciliations page") |+|
+        HttpHelper.fetchReconciliationsByReconSpecID(model.reconciliationsModel.reconSpec.id.get)
+  }
 }

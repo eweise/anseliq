@@ -48,6 +48,7 @@ enum Msg:
     accounts:     Seq[AccountPayload],
     fundFlow:     FundFlowPayload
   )
+  case NavigateToReconciliations(reconSpec: ReconciliationSpecPayload, account: AccountPayload)
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -64,6 +65,7 @@ enum Msg:
   case JobsMsg(msg: JobsView.Msg)
   case UnreconciledMovementsMsg(msg: UnreconciledMovementsView.Msg)
   case ToggleMsg(msg: ToggleView.Msg)
+  case ReconciliationsMsg(msg: ReconciliationsView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
 
@@ -85,6 +87,7 @@ case class Model(
   jobsModel:                  JobsView.Model                  = JobsView.Model(),
   unreconciledMovementsModel: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
   toggleModel:                ToggleView.Model                = ToggleView.Model(),
+  reconciliationsModel:       ReconciliationsView.Model       = ReconciliationsView.Model(),
   error:                      Option[String]                  = None
 ):
   def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)

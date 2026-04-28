@@ -157,6 +157,12 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         Cmd.Emit(Msg.NavigateTo(Page.UnreconciledMovements))
       )
 
+    case Msg.NavigateToReconciliations(reconSpec, account) =>
+      (
+        model.copy(reconciliationsModel = ReconciliationsView.Model(account = account, reconSpec = reconSpec)),
+        Cmd.Emit(Msg.NavigateTo(Page.Reconciliations))
+      )
+
     case Msg.NavigateToMaintainAccount(fundFlow, account) =>
       println(s"Msg.NavigateToMaintainAccount fundflow: $fundFlow, account:$account")
       (
