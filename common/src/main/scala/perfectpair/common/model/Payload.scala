@@ -114,6 +114,17 @@ case class ReconciliationPayload(
   var updatedAt: OffsetDateTime
 ) derives ReadWriter
 
+case class FundFlowSummaryViewPayload(
+  fundFlow: FundFlowPayload,
+  accounts: Seq[AccountSummaryViewPayload]
+) derives ReadWriter
+
+case class AccountSummaryViewPayload(
+  account:           AccountPayload,
+  isReconAccount:    Boolean,
+  unreconciledCount: Int
+) derives ReadWriter
+
 case class AccountPayload(
   id:         Option[String] = None,
   name:       String         = "",

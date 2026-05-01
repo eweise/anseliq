@@ -99,6 +99,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         data.movementRepo.insert(inReconMovement)
 
         assertEquals(movementRepo.findUnReconciledByAccount(data.reconAccount.id).size, 1)
+        assertEquals(movementRepo.countUnreconciledByAccount(data.reconAccount.id), 1)
 
   test("findUnreconciledByMovementSpecID"):
     val movementRepo = MovementRepoLive()
