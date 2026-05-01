@@ -49,6 +49,8 @@ enum Msg:
     fundFlow:     FundFlowPayload
   )
   case NavigateToReconciliations(reconSpec: ReconciliationSpecPayload, account: AccountPayload)
+  case ToggleFundFlowNav
+  case NavigateToFundFlow(ff: FundFlowPayload)
 
   // Page message wrappers
   case LoginMsg(msg: LoginPage.Msg)
@@ -88,7 +90,9 @@ case class Model(
   unreconciledMovementsModel: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
   toggleModel:                ToggleView.Model                = ToggleView.Model(),
   reconciliationsModel:       ReconciliationsView.Model       = ReconciliationsView.Model(),
-  error:                      Option[String]                  = None
+  error:                      Option[String]                  = None,
+  fundFlowNavOpen:            Boolean                         = false,
+  fundFlowViewModel:          FundFlowView.Model              = FundFlowView.Model()
 ):
   def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
 
