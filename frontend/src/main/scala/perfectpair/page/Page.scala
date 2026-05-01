@@ -201,20 +201,6 @@ object Page {
         HttpHelper.fetchUnreconciledMovements(model.unreconciledMovementsModel.movementSpec.id.get)
   }
 
-  object Toggle extends Page {
-    val path:   String             = "/components/toggle"
-    val render: Model => Html[Msg] = m => ToggleView(m.toggleModel)
-
-    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
-      case Msg.ToggleMsg(sub) =>
-        val (sub2, cmd) = ToggleView.update(model.toggleModel, sub)
-        (model.copy(toggleModel = sub2), cmd)
-      case _ => (model, Cmd.None)
-
-    override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
-      PrettyLogger.info("Entering Toggle page")
-  }
-
   object Reconciliations extends Page {
     val path:   String             = "/components/reconciliations"
     val render: Model => Html[Msg] = m => ReconciliationsView(m.reconciliationsModel)
