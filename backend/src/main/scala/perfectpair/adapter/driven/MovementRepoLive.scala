@@ -70,6 +70,14 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       ORDER BY created_at
     """.query[Movement].run()
 
+  def countUnreconciledByAccount(accountID: ID): Txn[Int] =
+    sql"""
+      SELECT count(*)
+      FROM $m AS a
+      WHERE (in_account_id = $accountID OR out_account_id = $accountID)
+      AND reconciliation_id IS NULL
+    """.query[Int].run().head
+
   def findEqualityMatches(
     sqlCriteria:  String,
     relationship: Relationship = OneToOne

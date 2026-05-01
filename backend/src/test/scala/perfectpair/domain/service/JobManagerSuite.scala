@@ -20,22 +20,27 @@ class JobManagerSuite extends munit.FunSuite:
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
-        val jobId = jobManager.submitJob(Reconciliation, referenceID)
-        val foundJob = jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID)
+        val jobId       = jobManager.submitJob(Reconciliation, referenceID)
+        val foundJob    = jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID)
         assert(foundJob.nonEmpty)
 
         val foundNextJob = jobManager.getNextAvailableJob(Reconciliation).get
         jobManager.completeJob(
           jobId,
-          ReconciliationInfo(reconciliationId = referenceID.toString)
+          ReconciliationInfo(
+            accountId                   = UUID.randomUUID().toString,
+            accountName                 = "test",
+            reconciliationsCreatedCount = 1,
+            processingTimeSeconds       = 1
+          )
         )
         assert(jobManager.getNextAvailableJob(Reconciliation).isEmpty)
 
   test("submit and create error job"):
     transact(transactor):
       testing.rollBackOnly:
-        val referenceID = UUID.randomUUID()
-        val jobId = jobManager.submitJob(Reconciliation, referenceID)
+        val referenceID  = UUID.randomUUID()
+        val jobId        = jobManager.submitJob(Reconciliation, referenceID)
         val foundNextJob = jobManager.getNextAvailableJob(Reconciliation).get
         jobManager.markJobInError(jobId, new IllegalStateError("boom"))
         assert(jobManager.getNextAvailableJob(Reconciliation).isEmpty)
@@ -45,12 +50,17 @@ class JobManagerSuite extends munit.FunSuite:
   test("complete with the wrong Job Info type"):
     transact(transactor):
       testing.rollBackOnly:
-        val referenceID = UUID.randomUUID()
-        val jobId = jobManager.submitJob(JobType.Ingestion, referenceID)
+        val referenceID  = UUID.randomUUID()
+        val jobId        = jobManager.submitJob(JobType.Ingestion, referenceID)
         val foundNextJob = jobManager.getNextAvailableJob(JobType.Ingestion).get
 
         intercept[IllegalArgumentError]:
           jobManager.completeJob(
             jobId,
-            ReconciliationInfo(reconciliationId = referenceID.toString)
+            ReconciliationInfo(
+              accountId                   = UUID.randomUUID().toString,
+              accountName                 = "test",
+              reconciliationsCreatedCount = 1,
+              processingTimeSeconds       = 1
+            )
           )

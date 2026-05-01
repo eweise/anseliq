@@ -84,13 +84,6 @@ object App extends cask.MainRoutes:
       data = write(RandomMessage("next random message"))
     )
 
-  @cask.route(HttpPath.fundFlows, methods = HttpCmd.GET)
-  def getFundFlows() =
-    transact(transactor):
-      val fundFlows = fundFlowConfigRepo.findAll
-      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff))
-      write(payloads)
-
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts", methods = HttpCmd.GET)
   def accountsByFundFlowID(fundFlowID: String): String =
     transact(transactor):
@@ -111,6 +104,43 @@ object App extends cask.MainRoutes:
       val reconciliations = reconRepo.findByReconSpecID(UUID.fromString(reconSpecID))
       val payload         = reconciliations.map(Payload.reconFromDomain)
       write(payload)
+
+  // Fund Flows
+  @cask.route(HttpPath.fundFlows, methods = HttpCmd.GET)
+  def getFundFlows() =
+    transact(transactor):
+      val fundFlows = fundFlowConfigRepo.findAll
+      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff))
+      write(payloads)
+
+  @cask.route(s"${HttpPath.fundFlow}/:id/summary", methods = HttpCmd.GET)
+  def getFundFlowMainView(id: String) =
+    transact(transactor):
+      val fundFlowId    = UUID.fromString(id)
+      val fundFlow      = fundFlowConfigRepo.findById(fundFlowId).ErrIfNotFound("fund flow", fundFlowId)
+      val accounts      = accountRepo.findByFundFlow(fundFlowId)
+      val movementSpecs = movementSpecRepo.findByFundFlowId(fundFlowId)
+
+      // determine which account is a recon account. must have an in and out
+      // movement spec
+      val accountSummaryViews = accounts.map(account =>
+        val hasInSpec  = movementSpecs.exists(spec => spec.inAccountId == account.id)
+        val hasOutSpec = movementSpecs.exists(spec => spec.outAccountId == account.id)
+
+        val isReconAccount    = hasInSpec && hasOutSpec
+        val unreconciledCount = if isReconAccount then movementRepo.countUnreconciledByAccount(account.id) else 0
+
+        AccountSummaryViewPayload(
+          Payload.accountPayloadFromDomain(account),
+          isReconAccount    = isReconAccount,
+          unreconciledCount = unreconciledCount
+        )
+      )
+      val fundFlowSummaryView = FundFlowSummaryViewPayload(
+        fundFlow = Payload.fundFlowPayloadFromDomain(fundFlow),
+        accounts = accountSummaryViews
+      )
+      write(fundFlowSummaryView)
 
   @cask.route(s"${HttpPath.fundFlow}", methods = HttpCmd.POST)
   def createFundFlow(request: cask.Request): String =
