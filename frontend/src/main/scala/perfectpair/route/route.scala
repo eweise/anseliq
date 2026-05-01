@@ -24,6 +24,7 @@ object Route {
         case "jobs"                   => Page.Jobs
         case "unreconciled-movements" => Page.UnreconciledMovements
         case "reconciliations"        => Page.Reconciliations
+        case "fund-flow"              => Page.FundFlow
       }
     }.toOption
 
