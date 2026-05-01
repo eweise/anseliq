@@ -1,5 +1,6 @@
 package perfectpair.view
 
+import perfectpair.common.model.FundFlowPayload
 import perfectpair.model.Msg
 import perfectpair.page.Page
 import perfectpair.view.components.Icons
@@ -22,10 +23,10 @@ object MainContainer:
       )
     )
 
-  def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean, error: Option[String] = None): Html[Msg] =
+  def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean, error: Option[String] = None, fundFlows: Seq[FundFlowPayload] = Seq(), fundFlowNavOpen: Boolean = false): Html[Msg] =
     div(cls := (if isDark then "dark bg-gray-900" else "not-dark-mode bg-md-surface-variant"))(
       navbar(isDark, isLoggedIn),
-      leftNav(),
+      leftNav(fundFlows, fundFlowNavOpen),
       error.map(errorBanner).getOrElse(div()()),
       main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-md-surface-variant dark:bg-gray-900")(content),
       theFooter
@@ -75,7 +76,7 @@ object MainContainer:
       cls := s"transition-transform duration-300 ease-in-out hover:scale-105 p-4 me-2 mb-2 rounded-full focus:outline-none $normal $dark"
     )(child)
 
-  private def leftNav(): Html[Msg] =
+  private def leftNav(fundFlows: Seq[FundFlowPayload], fundFlowNavOpen: Boolean): Html[Msg] =
     aside(
       cls := "fixed left-0 top-20 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto"
     )(
@@ -83,7 +84,7 @@ object MainContainer:
         ul(cls := "space-y-2")(
           navItem("Home", Page.Home, Icons.home),
           navItem("Components", Page.Toggle, Icons.component),
-          navItem("Fund Flows", Page.FundFlows, Icons.component),
+          fundFlowNavSection(fundFlows, fundFlowNavOpen),
           navItem("Create Fund Flow", Page.MaintainFundFlow, Icons.component),
           navItem("Jobs", Page.Jobs, Icons.document),
           navSeparator(),
@@ -123,4 +124,38 @@ object MainContainer:
   private def navSeparator(): Html[Msg] =
     li(cls := "py-2")(
       hr(cls := "border-gray-300 dark:border-gray-600")
+    )
+
+  private def fundFlowNavSection(fundFlows: Seq[FundFlowPayload], isOpen: Boolean): Html[Msg] =
+    li()(
+      div(cls := "flex items-center justify-between rounded-lg text-gray-700 dark:text-gray-200")(
+        a(
+          href    := Page.FundFlows.path,
+          onClick(Msg.NavigateTo(Page.FundFlows)),
+          cls     := "flex items-center space-x-3 flex-1 px-4 py-3 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200 rounded-lg"
+        )(
+          span(cls := "w-5 h-5")(Icons.component),
+          span()(text("Fund Flows"))
+        ),
+        button(
+          onClick(Msg.ToggleFundFlowNav),
+          cls := "px-3 py-3 rounded hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200 text-gray-500 dark:text-gray-400"
+        )(
+          text(if isOpen then "▼" else "▶")
+        )
+      ),
+      if isOpen then
+        ul(cls := "ml-6 mt-1 space-y-1")(
+          fundFlows.map(ff =>
+            li()(
+              a(
+                href    := Page.FundFlow.path,
+                onClick(Msg.NavigateToFundFlow(ff)),
+                cls     := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors duration-200"
+              )(text(ff.name))
+            )
+          )*
+        )
+      else
+        ul()()
     )
