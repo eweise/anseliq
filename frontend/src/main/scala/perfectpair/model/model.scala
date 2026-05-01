@@ -66,7 +66,6 @@ enum Msg:
   case IngestViewMsg(msg: IngestView.Msg)
   case JobsMsg(msg: JobsView.Msg)
   case UnreconciledMovementsMsg(msg: UnreconciledMovementsView.Msg)
-  case ToggleMsg(msg: ToggleView.Msg)
   case ReconciliationsMsg(msg: ReconciliationsView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
@@ -88,7 +87,6 @@ case class Model(
   ingestModel:                IngestView.Model                = IngestView.Model(),
   jobsModel:                  JobsView.Model                  = JobsView.Model(),
   unreconciledMovementsModel: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
-  toggleModel:                ToggleView.Model                = ToggleView.Model(),
   reconciliationsModel:       ReconciliationsView.Model       = ReconciliationsView.Model(),
   error:                      Option[String]                  = None,
   fundFlowNavOpen:            Boolean                         = false,

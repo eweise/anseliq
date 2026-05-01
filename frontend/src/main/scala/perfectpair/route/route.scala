@@ -11,7 +11,6 @@ object Route {
   object ComponentDemo:
     def unapply(path: String): Option[Page] = Try {
       path.split("/components/")(1) match {
-        case "toggle"                 => Page.Toggle
         case "fund-flows"             => Page.FundFlows
         case "maintain-fund-flow"     => Page.MaintainFundFlow
         case "accounts"               => Page.Accounts

@@ -23,7 +23,14 @@ object MainContainer:
       )
     )
 
-  def apply(content: Html[Msg], isDark: Boolean, isLoggedIn: Boolean, error: Option[String] = None, fundFlows: Seq[FundFlowPayload] = Seq(), fundFlowNavOpen: Boolean = false): Html[Msg] =
+  def apply(
+    content:         Html[Msg],
+    isDark:          Boolean,
+    isLoggedIn:      Boolean,
+    error:           Option[String]       = None,
+    fundFlows:       Seq[FundFlowPayload] = Seq(),
+    fundFlowNavOpen: Boolean              = false
+  ): Html[Msg] =
     div(cls := (if isDark then "dark bg-gray-900" else "not-dark-mode bg-md-surface-variant"))(
       navbar(isDark, isLoggedIn),
       leftNav(fundFlows, fundFlowNavOpen),
@@ -83,7 +90,6 @@ object MainContainer:
       nav(cls := "p-4")(
         ul(cls := "space-y-2")(
           navItem("Home", Page.Home, Icons.home),
-          navItem("Components", Page.Toggle, Icons.component),
           fundFlowNavSection(fundFlows, fundFlowNavOpen),
           navItem("Create Fund Flow", Page.MaintainFundFlow, Icons.component),
           navItem("Jobs", Page.Jobs, Icons.document),
@@ -130,9 +136,9 @@ object MainContainer:
     li()(
       div(cls := "flex items-center justify-between rounded-lg text-gray-700 dark:text-gray-200")(
         a(
-          href    := Page.FundFlows.path,
+          href := Page.FundFlows.path,
           onClick(Msg.NavigateTo(Page.FundFlows)),
-          cls     := "flex items-center space-x-3 flex-1 px-4 py-3 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200 rounded-lg"
+          cls := "flex items-center space-x-3 flex-1 px-4 py-3 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200 rounded-lg"
         )(
           span(cls := "w-5 h-5")(Icons.component),
           span()(text("Fund Flows"))
@@ -149,13 +155,12 @@ object MainContainer:
           fundFlows.map(ff =>
             li()(
               a(
-                href    := Page.FundFlow.path,
+                href := Page.FundFlow.path,
                 onClick(Msg.NavigateToFundFlow(ff)),
-                cls     := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors duration-200"
+                cls := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors duration-200"
               )(text(ff.name))
             )
           )*
         )
-      else
-        ul()()
+      else ul()()
     )
