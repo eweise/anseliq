@@ -62,10 +62,16 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
       else (Model.init, Cmd.Emit(Msg.NavigateTo(Page.Login)))
 
     case Msg.RestoredSession(accessToken, refreshToken) =>
-      (model.loginSuccess(accessToken, refreshToken), Cmd.Emit(Msg.DoNavigate(Page.Home)))
+      (
+        model.loginSuccess(accessToken, refreshToken),
+        HttpHelper.fetchFundFlows |+| Cmd.Emit(Msg.DoNavigate(Page.Home))
+      )
 
     case Msg.Logout =>
       (model.logout, LocalStorageHelper.cleanStorageWhenLogout |+| Cmd.Emit(Msg.NavigateTo(Page.Login)))
+
+    case Msg.ToggleFundFlowNav =>
+      (model.copy(fundFlowNavOpen = !model.fundFlowNavOpen), Cmd.None)
 
     case Msg.DoNavigate(page) =>
       (model.modify(_.currentPage).setTo(page), Nav.pushUrl[Task](page.path) |+| Flowbite.initCmd)
@@ -80,6 +86,12 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
       (
         model.copy(maintainFundFlowModel = MaintainFundFlowView.Model(ff)),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainFundFlow))
+      )
+
+    case Msg.NavigateToFundFlow(ff) =>
+      (
+        model.copy(fundFlowViewModel = FundFlowView.Model(ff)),
+        Cmd.Emit(Msg.NavigateTo(Page.FundFlow))
       )
 
     case Msg.NavigateToAccounts(fundFlow) =>
@@ -174,6 +186,6 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
 
   def view(model: Model): Html[Msg] =
     val pageContent = model.currentPage.render(model)
-    MainContainer(pageContent, model.isDarkMode, model.isLoggedIn, model.error)
+    MainContainer(pageContent, model.isDarkMode, model.isLoggedIn, model.error, model.fundFlowsModel.fundFlows, model.fundFlowNavOpen)
 
   def subscriptions(model: Model): Sub[Task, Msg] = Sub.None
