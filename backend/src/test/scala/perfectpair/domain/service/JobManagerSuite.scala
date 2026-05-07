@@ -47,6 +47,17 @@ class JobManagerSuite extends munit.FunSuite:
         val foundErrorJob = jobRepo.findById(jobId).get
         assertEquals(foundErrorJob.errorMessage.get, "boom")
 
+  test("submitAndProcessJob marks job in error when processFn throws"):
+    transact(transactor):
+      testing.rollBackOnly:
+        val referenceID = UUID.randomUUID()
+        val errorMsg    = "processing failed"
+        jobManager.submitAndProcessJob(Reconciliation, referenceID): job =>
+          throw new RuntimeException(errorMsg)
+        val foundJob = jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).head
+        assertEquals(foundJob.jobStatus, perfectpair.domain.model.JobStatus.Error)
+        assertEquals(foundJob.errorMessage.get, errorMsg)
+
   test("complete with the wrong Job Info type"):
     transact(transactor):
       testing.rollBackOnly:
