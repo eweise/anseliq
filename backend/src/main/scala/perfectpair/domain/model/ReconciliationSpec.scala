@@ -23,7 +23,7 @@ case class ReconciliationSpec(
   outMovementSpecId: ID,
   ruleJson:          String                 = "{}",
   var createdAt:     Option[OffsetDateTime] = None,
-  var updatedAt:      Option[OffsetDateTime] = None
+  var updatedAt:     Option[OffsetDateTime] = None
 ) derives DbCodec:
   def rule(): Rule = upickle.read(ruleJson)
 

@@ -186,6 +186,13 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
 
   def view(model: Model): Html[Msg] =
     val pageContent = model.currentPage.render(model)
-    MainContainer(pageContent, model.isDarkMode, model.isLoggedIn, model.error, model.fundFlowsModel.fundFlows, model.fundFlowNavOpen)
+    MainContainer(
+      pageContent,
+      model.isDarkMode,
+      model.isLoggedIn,
+      model.error,
+      model.fundFlowsModel.fundFlows,
+      model.fundFlowNavOpen
+    )
 
   def subscriptions(model: Model): Sub[Task, Msg] = Sub.None

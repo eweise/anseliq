@@ -18,7 +18,7 @@ case class Movement(
   movementSpecId:       ID,
   var reconciliationId: Option[ID]             = None,
   var createdAt:        Option[OffsetDateTime] = None,
-  var updatedAt:         Option[OffsetDateTime] = None
+  var updatedAt:        Option[OffsetDateTime] = None
 ) derives DbCodec:
 
   def props = this.properties.props

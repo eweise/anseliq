@@ -53,16 +53,15 @@ class AccountOperations(
     accountRepo.insert(newAccount)
     Payload.accountPayloadFromDomain(newAccount)
 
-  def updateAccount(idStr:String, payload: AccountPayload): Txn[AccountPayload] =
-    if idStr.trim == "" then  IllegalArgumentException("Account ID is required")
+  def updateAccount(idStr: String, payload: AccountPayload): Txn[AccountPayload] =
+    if idStr.trim == "" then IllegalArgumentException("Account ID is required")
 
     val accountID = UUID.fromString(idStr)
 
     var existingAccount = accountRepo.findById(accountID).ErrIfNotFound("account", accountID)
     existingAccount = existingAccount.copy(
-      name = payload.name,
+      name       = payload.name,
       properties = JSONBProps(payload.properties)
     )
     accountRepo.update(existingAccount)
     Payload.accountPayloadFromDomain(existingAccount)
-

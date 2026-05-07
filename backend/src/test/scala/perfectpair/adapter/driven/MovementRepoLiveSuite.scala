@@ -173,7 +173,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 //        mSpecID2 = data.reportToRecon.id.toString
 //    print(mSpecID1)
 
-  test("findMatches".ignore): //ignored because relies on old sql matching
+  test("findMatches".ignore): // ignored because relies on old sql matching
     val movementRepo = MovementRepoLive()
     val reconRepo    = ReconciliationRepoLive()
 

@@ -2,9 +2,9 @@ package perfectpair.domain.service
 
 import perfectpair.adapter.driving.Payload
 import perfectpair.common.model.MovementSpecPayload
-import upickle.default.write as upickleWrite
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
+import upickle.default.write as upickleWrite
 
 import java.util.UUID
 

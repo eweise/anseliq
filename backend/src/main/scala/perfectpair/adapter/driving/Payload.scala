@@ -79,6 +79,13 @@ object Payload:
       rule              = spec.rule()
     )
 
+  def reconRelationshipFromDomain(rel: Rel): ComRel =
+    rel match
+      case Rel.OneToOne   => ComRel.OneToOne
+      case Rel.OneToMany  => ComRel.OneToMany
+      case Rel.ManyToOne  => ComRel.ManyToOne
+      case Rel.ManyToMany => ComRel.ManyToMany
+
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
     ReconciliationPayload(
       id           = recon.id.toString,
@@ -89,13 +96,6 @@ object Payload:
       createdAt    = recon.createdAt.get,
       updatedAt    = recon.updatedAt.get
     )
-
-  def reconRelationshipFromDomain(rel: Rel): ComRel =
-    rel match
-      case Rel.OneToOne   => ComRel.OneToOne
-      case Rel.OneToMany  => ComRel.OneToMany
-      case Rel.ManyToOne  => ComRel.ManyToOne
-      case Rel.ManyToMany => ComRel.ManyToMany
 
   def movementfromDomainModel(dmMovement: Movement): MovementPayload =
     MovementPayload(

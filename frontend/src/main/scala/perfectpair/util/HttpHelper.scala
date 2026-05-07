@@ -45,14 +45,6 @@ object HttpHelper:
   def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(Request.post(HttpPath.url(HttpPath.account), Body.json(write(account))), accountDecoder(Created))
 
-  private def sendWithAuthToken[A](
-    request:         Request[A],
-    resultToMessage: Decoder[Msg]
-  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
-      Msg.SendHttpRequestWithAccessToken(_ => Http.send(request, resultToMessage))
-    )
-
   def updateAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     sendWithAuthToken(
       put(
@@ -60,6 +52,14 @@ object HttpHelper:
         Body.json(write(account))
       ),
       accountDecoder(Updated)
+    )
+
+  private def put[A](url: String, body: Body): Request[A] =
+    println(s"put url=${url}; body=${body}")
+    Request(
+      method = Method.Put,
+      url    = url,
+      body   = body
     )
 
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
@@ -70,6 +70,20 @@ object HttpHelper:
 
   def fetchAccountsForMovementSpecs(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), movementSpecsAccountsDecoder)
+
+  private def fetchServerMessageCmd(
+    apiUrl:          String,
+    resultToDecoder: Decoder[Msg]
+  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(Request.get(apiUrl), resultToDecoder) |+| PrettyLogger.info("http.send")
+
+  private def sendWithAuthToken[A](
+    request:         Request[A],
+    resultToMessage: Decoder[Msg]
+  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    PrettyLogger.info("Cmd.Emit") |+| Cmd.Emit(
+      Msg.SendHttpRequestWithAccessToken(_ => Http.send(request, resultToMessage))
+    )
 
   def fetchReconSpecsByAccountID(accountID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.account}/$accountID/recon-specs"), reconSpecsDecoder)
@@ -90,14 +104,6 @@ object HttpHelper:
     sendWithAuthToken(
       put(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), Body.json(write(spec))),
       movementSpecDecoder(Updated)
-    )
-
-  private def put[A](url: String, body: Body): Request[A] =
-    println(s"put url=${url}; body=${body}")
-    Request(
-      method = Method.Put,
-      url    = url,
-      body   = body
     )
 
   def createReconSpec(spec: ReconciliationSpecPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
@@ -127,12 +133,6 @@ object HttpHelper:
 
   def fetchJobsByType(jobType: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.jobs}/$jobType"), ResponseDecoders.jobsDecoder)
-
-  private def fetchServerMessageCmd(
-    apiUrl:          String,
-    resultToDecoder: Decoder[Msg]
-  ): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    sendWithAuthToken(Request.get(apiUrl), resultToDecoder) |+| PrettyLogger.info("http.send")
 
   def fetchUnreconciledMovements(movementSpecId: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(
@@ -273,6 +273,14 @@ object HttpHelper:
         ,
         error => Msg.Error(error.toString)
       )
+    val reconciliationsDecoder: Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val reconciliations = read[Seq[ReconciliationPayload]](onResponse.body)
+          Msg.ReconciliationsMsg(ReconciliationsView.Msg.ReconciliationsFromBackend(reconciliations))
+        ,
+        error => Msg.Error(error.toString)
+      )
 
     def accountDecoder(action: PayloadAction): Decoder[Msg] =
       Decoder(
@@ -320,13 +328,4 @@ object HttpHelper:
       Decoder(
         _ => Msg.AccountsMsg(AccountsView.Msg.ReconcileResult(accountId, isSuccess = true)),
         error => Msg.AccountsMsg(AccountsView.Msg.ReconcileResult(accountId, isSuccess = false))
-      )
-
-    val reconciliationsDecoder: Decoder[Msg] =
-      Decoder(
-        onResponse =>
-          val reconciliations = read[Seq[ReconciliationPayload]](onResponse.body)
-          Msg.ReconciliationsMsg(ReconciliationsView.Msg.ReconciliationsFromBackend(reconciliations))
-        ,
-        error => Msg.Error(error.toString)
       )
