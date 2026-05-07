@@ -101,7 +101,8 @@ class SubsetSum:
 
           // Paths that include set(i-1)
           val included =
-            if set(i - 1) <= remaining && dp(i - 1)(remaining - set(i - 1)) then backtrack(i - 1, remaining - set(i - 1)).map(set(i - 1) :: _)
+            if set(i - 1) <= remaining && dp(i - 1)(remaining - set(i - 1)) then
+              backtrack(i - 1, remaining - set(i - 1)).map(set(i - 1) :: _)
             else List.empty
 
           excluded ++ included

@@ -19,7 +19,7 @@ case class Reconciliation(
   description:   String                 = "",
   status:        ReconciliationStatus   = Final,
   var createdAt: Option[OffsetDateTime] = None,
-  var updatedAt:  Option[OffsetDateTime] = None
+  var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object Reconciliation:

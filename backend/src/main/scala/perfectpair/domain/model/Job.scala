@@ -1,8 +1,8 @@
 package perfectpair.domain.model
 
 import com.augustnagro.magnum.*
+import perfectpair.common.model.JobInfo
 import perfectpair.common.model.model.ID
-import perfectpair.common.model.{JobInfo, ReconciliationInfo}
 import perfectpair.domain.model.JobStatus.Submitted
 import ujson.Arr.from
 

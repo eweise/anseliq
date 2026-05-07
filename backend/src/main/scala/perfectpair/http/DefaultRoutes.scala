@@ -42,12 +42,15 @@ object DefaultRoutes {
     Handler.fromFunctionZIO(parseBody[LoginRequest](_))
   private val processLogin: Handler[JWTIssuer, Nothing, LoginRequest, Response] =
     val verifyUserLogic =
-      (username: String, password: String) => username.equalsIgnoreCase("Scala") && password == "nopassword" // TODO: Create your own verify logic
+      (username: String, password: String) =>
+        username.equalsIgnoreCase("Scala") && password == "nopassword" // TODO: Create your own verify logic
     Handler.fromFunctionZIO { loginRequest =>
       val valid = verifyUserLogic(loginRequest.username, loginRequest.password)
       if (valid) {
         val user = JWTIssuer.User(loginRequest.username)
-        JWTIssuer.issueToken(user).map(issuedToken => Response.json(LoginSuccess(issuedToken, "not-implemented").toJson))
+        JWTIssuer
+          .issueToken(user)
+          .map(issuedToken => Response.json(LoginSuccess(issuedToken, "not-implemented").toJson))
       } else {
         ZIO.succeed(Response.json(LoginFailure("Username or Password is not correct").toJson))
       }
@@ -65,25 +68,30 @@ object DefaultRoutes {
 
   private def parseBody[T: JsonDecoder: ClassTag](request: Request): IO[Response, T] =
     for {
-      bodyStr <- request.body.asString(Charsets.Utf8).orElseFail(Response.text("Not supported request body format").status(Status.BadRequest))
+      bodyStr <- request.body
+                   .asString(Charsets.Utf8)
+                   .orElseFail(Response.text("Not supported request body format").status(Status.BadRequest))
       result <- ZIO
                   .fromEither[String, T](JsonDecoder[T].decodeJson(bodyStr))
-                  .orElseFail(Response.text(s"Cannot parse body as ${classTag[T].runtimeClass.getName}").status(Status.BadRequest))
+                  .orElseFail(
+                    Response.text(s"Cannot parse body as ${classTag[T].runtimeClass.getName}").status(Status.BadRequest)
+                  )
     } yield result
 
   private def withAuthMiddleware[R](routes: Routes[R, Nothing]): Routes[JWTVerifier & R, Nothing] = {
-    val authMiddleware: HandlerAspect[JWTVerifier, UserClaim] = Middleware.customAuthProvidingZIO[JWTVerifier, UserClaim](
-      request =>
-        request.header(Header.Authorization) match {
-          case Some(Header.Authorization.Bearer(token)) =>
-            JWTVerifier.decode(token.value.asString).map(Some(_)).mapError { case message =>
-              Response.text(message).status(Status.Unauthorized)
-            }
+    val authMiddleware: HandlerAspect[JWTVerifier, UserClaim] =
+      Middleware.customAuthProvidingZIO[JWTVerifier, UserClaim](
+        request =>
+          request.header(Header.Authorization) match {
+            case Some(Header.Authorization.Bearer(token)) =>
+              JWTVerifier.decode(token.value.asString).map(Some(_)).mapError { case message =>
+                Response.text(message).status(Status.Unauthorized)
+              }
 
-          case _ => ZIO.none
-        },
-      Headers(Header.WWWAuthenticate.Bearer(realm = "Access"))
-    )
+            case _ => ZIO.none
+          },
+        Headers(Header.WWWAuthenticate.Bearer(realm = "Access"))
+      )
     routes.@@[JWTVerifier & R](authMiddleware)
   }
 
