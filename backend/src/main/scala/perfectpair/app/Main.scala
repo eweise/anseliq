@@ -30,8 +30,10 @@ object App extends cask.MainRoutes:
   val reconRepo          = ReconciliationRepoLive()
   val reconSpecRepo      = ReconciliationSpecRepoLive()
   val jobRepo            = JobRepoLive()
+  val clock              = ClockService()
   val jobManager = JobManager(
-    jobRepo = jobRepo
+    jobRepo = jobRepo,
+    clock   = clock
   )
   val fundFlowOperations = FundFlowOperations(
     fundFlowConfigRepo = fundFlowConfigRepo

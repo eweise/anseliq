@@ -6,10 +6,9 @@ import perfectpair.domain.model.*
 import perfectpair.domain.model.JobStatus.{Complete, InProgress, Submitted}
 import perfectpair.domain.port.driven.{JobRepo, Txn}
 
-import java.time.OffsetDateTime
-
 class JobManager(
-  jobRepo: JobRepo
+  jobRepo: JobRepo,
+  clock:   ClockService
 ):
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
@@ -20,7 +19,7 @@ class JobManager(
 
     val processedJob = submittedJob.copy(
       jobStatus = JobStatus.InProgress,
-      updatedAt = Some(OffsetDateTime.now())
+      updatedAt = Some(clock.now)
     )
     jobRepo.update(processedJob)
 
@@ -66,7 +65,7 @@ class JobManager(
           job.copy(
             jobStatus   = Complete,
             jobInfoJson = Some(upickle.write(jobInfo)),
-            updatedAt   = Some(OffsetDateTime.now())
+            updatedAt   = Some(clock.now)
           )
         )
       ) match
@@ -85,7 +84,7 @@ class JobManager(
           job.copy(
             jobStatus    = JobStatus.Error,
             errorMessage = Some(ex.getMessage),
-            updatedAt    = Some(OffsetDateTime.now())
+            updatedAt    = Some(clock.now)
           )
         )
       )
@@ -97,7 +96,7 @@ class JobManager(
         jobRepo.update(
           job.copy(
             jobStatus = InProgress,
-            updatedAt = Some(OffsetDateTime.now())
+            updatedAt = Some(clock.now)
           )
         )
         job
