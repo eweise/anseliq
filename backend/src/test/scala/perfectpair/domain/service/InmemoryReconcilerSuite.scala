@@ -45,7 +45,8 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
           movementSpecRepo   = data.movementSpecRepo,
           reconSpecRepo      = data.reconSpecRepo,
           reconRepo          = data.reconRepo,
-          fundFlowConfigRepo = data.fundFlowConfigRepo
+          fundFlowConfigRepo = data.fundFlowConfigRepo,
+          clock              = ClockService()
         )
 
         for _ <- 1 to 3

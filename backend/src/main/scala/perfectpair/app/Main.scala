@@ -32,8 +32,9 @@ object App extends cask.MainRoutes:
   val jobRepo            = JobRepoLive()
   val clock              = ClockService()
   val jobManager = JobManager(
-    jobRepo = jobRepo,
-    clock   = clock
+    jobRepo    = jobRepo,
+    clock      = clock,
+    dataSource = dataSource
   )
   val fundFlowOperations = FundFlowOperations(
     fundFlowConfigRepo = fundFlowConfigRepo
@@ -44,7 +45,8 @@ object App extends cask.MainRoutes:
     movementSpecRepo   = movementSpecRepo,
     reconSpecRepo      = reconSpecRepo,
     reconRepo          = reconRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo
+    fundFlowConfigRepo = fundFlowConfigRepo,
+    clock              = clock
   )
   val accountOperations = AccountOperations(
     accountRepo        = accountRepo,
