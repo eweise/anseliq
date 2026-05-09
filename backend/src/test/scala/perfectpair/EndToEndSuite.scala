@@ -8,7 +8,7 @@ import perfectpair.common.model.Interval.Day
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.OneToMany
 import perfectpair.domain.port.driven.*
-import perfectpair.domain.service.{InMemoryReconciler, Ingestor}
+import perfectpair.domain.service.{ClockService, InMemoryReconciler, Ingestor}
 import perfectpair.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.sql.DataSource
 
 class EndToEndSuite extends munit.FunSuite {
+  val clock:              ClockService           = ClockService()
   val fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
   val movementRepo:       MovementRepo           = MovementRepoLive()
   val movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
@@ -29,11 +30,12 @@ class EndToEndSuite extends munit.FunSuite {
     reconSpecRepo      = reconSpecRepo,
     movementSpecRepo   = movementSpecRepo,
     reconRepo          = reconRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo
+    fundFlowConfigRepo = fundFlowConfigRepo,
+    clock              = clock
   )
 
-  given transactor: Transactor = Transactor(dataSource)
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given transactor: Transactor = Transactor(dataSource)
 
   test("1 to 1 attribute test") {
     val journalFile1 =

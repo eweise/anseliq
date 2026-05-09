@@ -144,12 +144,12 @@ CREATE TRIGGER update_movement
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
 
-CREATE TRIGGER update_reconciliation
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.reconciliation
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
+-- CREATE TRIGGER update_reconciliation
+--     BEFORE INSERT OR UPDATE
+--     ON
+--         recon.reconciliation
+--     FOR EACH ROW
+-- EXECUTE PROCEDURE update_audit_fields_task();
 
 CREATE TRIGGER update_reconciliation_spec
     BEFORE INSERT OR UPDATE

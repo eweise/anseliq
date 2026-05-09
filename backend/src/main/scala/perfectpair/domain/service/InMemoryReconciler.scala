@@ -26,7 +26,8 @@ class InMemoryReconciler(
   val reconSpecRepo:      ReconciliationSpecRepo,
   val movementSpecRepo:   MovementSpecRepo,
   val reconRepo:          ReconciliationRepo,
-  val fundFlowConfigRepo: FundFlowConfigRepo
+  val fundFlowConfigRepo: FundFlowConfigRepo,
+  val clock:              ClockService
 ):
 
   /**
@@ -111,10 +112,13 @@ class InMemoryReconciler(
       var reconInsertCount = 0
       for aMatch <- groupedMatches
       do
+        val now = clock.now
         val reconciliation = Reconciliation(
           specId       = reconSpec.id,
           appliedRules = reconSpec.rule().sql,
-          description  = "need a description. probably equality matcher"
+          description  = "need a description. probably equality matcher",
+          createdAt    = Some(now),
+          updatedAt    = Some(now)
         )
         reconRepo.insert(reconciliation)
         reconInsertCount += 1

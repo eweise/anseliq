@@ -1,14 +1,20 @@
 package perfectpair.domain.service
 
+import com.augustnagro.magnum.{Transactor, transact}
+import ox.scheduling.{Schedule, repeat}
 import perfectpair.common.model.model.ID
 import perfectpair.common.model.{IngestionInfo, JobInfo, ReconciliationInfo}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.JobStatus.{Complete, InProgress, Submitted}
 import perfectpair.domain.port.driven.{JobRepo, Txn}
 
+import javax.sql.DataSource
+import scala.concurrent.duration.DurationInt
+
 class JobManager(
-  jobRepo: JobRepo,
-  clock:   ClockService
+  jobRepo:    JobRepo,
+  clock:      ClockService,
+  dataSource: DataSource
 ):
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
@@ -101,3 +107,13 @@ class JobManager(
         )
         job
       )
+
+  def pollForJob(jobType: JobType, pollingSeconds: Int)(fn: Job => Unit): Unit =
+    repeat(Schedule.fixedInterval(pollingSeconds.seconds).maxAttempts(3)) {
+      given transactor: Transactor = Transactor(dataSource)
+      transact(transactor) {
+        getNextAvailableJob(jobType).foreach { job =>
+          fn(job)
+        }
+      }
+    }

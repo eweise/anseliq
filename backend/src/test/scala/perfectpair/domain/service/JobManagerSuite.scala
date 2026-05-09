@@ -4,8 +4,9 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.{DbDataSource, JobRepoLive}
 import perfectpair.common.model.ReconciliationInfo
+import perfectpair.domain.model.JobStatus.InProgress
 import perfectpair.domain.model.JobType.Reconciliation
-import perfectpair.domain.model.{IllegalArgumentError, IllegalStateError, JobType}
+import perfectpair.domain.model.{IllegalArgumentError, IllegalStateError, Job, JobType}
 import perfectpair.testing
 
 import java.util.UUID
@@ -13,8 +14,9 @@ import java.util.UUID
 class JobManagerSuite extends munit.FunSuite:
   private val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   private val transactor: Transactor = Transactor(dataSource)
+  private val clock      = ClockService()
   private val jobRepo    = JobRepoLive()
-  private val jobManager = JobManager(jobRepo)
+  private val jobManager = JobManager(jobRepo, clock, dataSource)
 
   test("submit and complete job"):
     transact(transactor):
@@ -91,3 +93,25 @@ class JobManagerSuite extends munit.FunSuite:
               processingTimeSeconds       = 1
             )
           )
+
+  test("pollForJob calls fn with submitted job and marks it InProgress"):
+    // pollForJob creates its own transactions so we commit the job without rollBackOnly
+    val referenceID = UUID.randomUUID()
+    transact(transactor):
+      jobManager.submitJob(Reconciliation, referenceID)
+
+    var processedCount = 0
+
+    jobManager.pollForJob(Reconciliation, 1): job =>
+      if job.referenceId == referenceID then processedCount += 1
+
+    assertEquals(processedCount, 1)
+
+    val foundJob = transact(transactor):
+      jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).headOption
+
+    assertEquals(foundJob.map(_.jobStatus), Some(InProgress))
+
+    // cleanup committed test data
+    transact(transactor):
+      foundJob.foreach(j => jobRepo.deleteById(j.id))
