@@ -12,13 +12,13 @@ import java.util.UUID
 
 class DataSetup(using DbTx) {
 
-  val fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
-  val movementRepo:       MovementRepo           = MovementRepoLive()
-  val movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
-  val reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-  val reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
-  val accountRepo:        AccountRepo            = AccountRepoLive()
-  val fundFlowCache:      FundFlowCache          = FundFlowCache(fundFlowConfigRepo)
+  given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
+  given movementRepo:       MovementRepo           = MovementRepoLive()
+  given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
+  given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
+  given accountRepo:        AccountRepo            = AccountRepoLive()
+  given fundFlowCache:      FundFlowCache          = FundFlowCache(fundFlowConfigRepo)
 
   val reconAccountName   = "recon"
   val unreconAccountName = "unrecon"
@@ -83,7 +83,7 @@ class DataSetup(using DbTx) {
     inKey  = StringAttribute(key = "id"),
     outKey = StringAttribute(key = "id")
   )
-  val accountOperations = AccountOperations(
+  val accountOperations = AccountOperations(using
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,

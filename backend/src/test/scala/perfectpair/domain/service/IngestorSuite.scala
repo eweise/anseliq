@@ -19,7 +19,7 @@ class IngestorSuite extends munit.FunSuite:
     val movementRepo = MovementRepoLive()
     val accountRepo  = AccountRepoLive()
     val parser       = CSVParser(Map(0 -> "field1", 1 -> "field2"), None)
-    val ingestor     = Ingestor(movementRepo = movementRepo, accountRepo = accountRepo)
+    val ingestor     = Ingestor(using movementRepo = movementRepo, accountRepo = accountRepo)
     transact(transactor):
       rollBackOnly:
         val data: DataSetup = DataSetup()

@@ -16,7 +16,7 @@ class AccountOperationsSuite extends munit.FunSuite:
   val accountRepo:      AccountRepo        = AccountRepoLive()
   val movementRepo:     MovementRepo       = MovementRepoLive()
   val movementSpecRepo: MovementSpecRepo   = MovementSpecRepoLive()
-  val accountOperations = AccountOperations(
+  val accountOperations = AccountOperations(using 
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,

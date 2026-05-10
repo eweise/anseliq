@@ -33,21 +33,11 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data: DataSetup = DataSetup()
-        val ops = AccountOperations(
-          accountRepo        = data.accountRepo,
-          movementRepo       = data.movementRepo,
-          movementSpecRepo   = data.movementSpecRepo,
-          fundFlowConfigRepo = data.fundFlowConfigRepo
-        )
-        val reconciler = InMemoryReconciler(
-          accountRepo        = data.accountRepo,
-          movementRepo       = data.movementRepo,
-          movementSpecRepo   = data.movementSpecRepo,
-          reconSpecRepo      = data.reconSpecRepo,
-          reconRepo          = data.reconRepo,
-          fundFlowConfigRepo = data.fundFlowConfigRepo,
-          clock              = ClockService()
-        )
+        import data.given
+        val ops = AccountOperations()
+
+        given clock: ClockService = ClockService()
+        val reconciler = InMemoryReconciler()
 
         for _ <- 1 to 3
         do
@@ -55,7 +45,7 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
           ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> keyID))
           ops.postAmount(data.reportToRecon, 1000, referenceID  = createID(), Map("id" -> keyID))
 
-        reconciler.reconcileAccount(data.reconAccount)
+        reconciler.reconcileAccount(data.reconAccount.id)
         val noUnreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assert(noUnreconciled.isEmpty)
 
@@ -63,6 +53,6 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
         ops.postAmount(data.reportToRecon, 1000, referenceID  = createID(), Map("id" -> createID().toString))
 
-        reconciler.reconcileAccount(data.reconAccount)
+        reconciler.reconcileAccount(data.reconAccount.id)
         val unreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assertEquals(unreconciled.size, 3)

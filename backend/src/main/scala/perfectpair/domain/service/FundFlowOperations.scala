@@ -7,7 +7,7 @@ import perfectpair.domain.port.driven.{FundFlowConfigRepo, Txn}
 
 import java.util.UUID
 
-class FundFlowOperations(
+class FundFlowOperations(using
   val fundFlowConfigRepo: FundFlowConfigRepo
 ):
   def createFundFlow(payload: FundFlowPayload): Txn[FundFlowPayload] =

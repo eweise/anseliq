@@ -3,7 +3,6 @@ package perfectpair.app
 import com.augustnagro.magnum.*
 import com.typesafe.config.ConfigFactory
 import ox.*
-import ox.scheduling.Schedule
 import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
@@ -20,79 +19,52 @@ import scala.util.Try
 
 object HttpCmd:
   def GET    = Seq("get", "options")
-  def POST   = Seq("post", "o2ptions")
+  def POST   = Seq("post", "options")
   def PUT    = Seq("put", "options")
   def DELETE = Seq("delete", "options")
 
 object Main:
+
   val shutdown = java.util.concurrent.CountDownLatch(1)
 
   import scala.concurrent.duration.DurationInt
 
-  given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
-
-  given jobManager: JobManager = JobManager(
-    jobRepo = jobRepo,
-    clock   = clock
-  )
-
-  given jobRepo:          JobRepo                = JobRepoLive()
-
-  given clock:            ClockService           = ClockService()
-
-  given fundFlowOperations: FundFlowOperations = FundFlowOperations(
-    fundFlowConfigRepo = fundFlowConfigRepo
-  )
-
-  given fundFlowConfigRepo: FundFlowConfigRepo = FundFlowConfigRepoLive()
-
-  given reconciler: InMemoryReconciler = InMemoryReconciler(
-    accountRepo        = accountRepo,
-    movementRepo       = movementRepo,
-    movementSpecRepo   = movementSpecRepo,
-    reconSpecRepo      = reconSpecRepo,
-    reconRepo          = reconRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo,
-    clock              = clock
-  )
-
-  given reconRepo:        ReconciliationRepo     = ReconciliationRepoLive()
-
-  given accountOperations: AccountOperations = AccountOperations(
-    accountRepo        = accountRepo,
-    movementRepo       = movementRepo,
-    movementSpecRepo   = movementSpecRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo
-  )
-
-  given movementSpecOperations: MovementSpecOperations = MovementSpecOperations(
-    movementSpecRepo = movementSpecRepo
-  )
-
-  given movementSpecRepo: MovementSpecRepo       = MovementSpecRepoLive()
-
-  given reconSpecOperations: ReconciliationSpecOperations = ReconciliationSpecOperations(
-    reconSpecRepo = reconSpecRepo
-  )
-
-  given reconSpecRepo:    ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-
-  given ingestor: Ingestor = Ingestor(
-    movementRepo = movementRepo,
-    accountRepo  = accountRepo
-  )
-
-  given accountRepo: AccountRepo = AccountRepoLive()
-
-  given movementRepo:     MovementRepo           = MovementRepoLive()
-
   def main(args: Array[String]): Unit =
-    import ox.scheduling.{Schedule, repeat}
+    import ox.scheduling.Schedule
+
+    given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
+    given clock:                  ClockService                 = ClockService()
+    given jobRepo:                JobRepo                      = JobRepoLive()
+    given jobManager:             JobManager                   = JobManager()
+    given fundFlowConfigRepo:     FundFlowConfigRepo           = FundFlowConfigRepoLive()
+    given fundFlowOperations:     FundFlowOperations           = FundFlowOperations()
+    given reconRepo:              ReconciliationRepo           = ReconciliationRepoLive()
+    given movementSpecRepo:       MovementSpecRepo             = MovementSpecRepoLive()
+    given reconSpecRepo:          ReconciliationSpecRepo       = ReconciliationSpecRepoLive()
+    given accountRepo:            AccountRepo                  = AccountRepoLive()
+    given movementRepo:           MovementRepo                 = MovementRepoLive()
+    given accountOperations:      AccountOperations            = AccountOperations()
+    given movementSpecOperations: MovementSpecOperations       = MovementSpecOperations()
+    given reconSpecOperations:    ReconciliationSpecOperations = ReconciliationSpecOperations()
+    given ingestor:               Ingestor                     = Ingestor()
+    given reconciler:             InMemoryReconciler           = InMemoryReconciler()
+
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
     supervised {
       fork {
-        ox.scheduling.repeat(Schedule.fixedInterval(5.seconds)) {
-          // TODO: fill in daemon logic
+        ox.scheduling.repeat(Schedule.fixedInterval(10.seconds)) {
+          println("running schedule")
+          transact(Transactor(dataSource = given_DataSource)):
+            jobManager
+              .getNextAvailableJob(JobType.Reconciliation)
+              .map { job =>
+                println(s"found job $job")
+                val reconJobInfo = job.jobInfo().asInstanceOf[ReconciliationInfo]
+                println(s"found job info $reconJobInfo")
+                val accountID = UUID.fromString(reconJobInfo.accountId)
+                reconciler.reconcileAccount(accountID)
+                println(s"reconciled account $accountID")
+              }
           ()
         }
       }
@@ -284,7 +256,7 @@ class App(using
     transact(transactor):
       val account = accountRepo.findById(accountId).getOrElse(throw NotFoundError(s"Account $id not found"))
       jobManager.submitAndProcessJob(JobType.Reconciliation, accountId) { job =>
-        val reconcilationResult = reconciler.reconcileAccount(account)
+        val reconcilationResult = reconciler.reconcileAccount(account.id)
         ReconciliationInfo(
           accountId                   = account.id.toString,
           accountName                 = account.name,
