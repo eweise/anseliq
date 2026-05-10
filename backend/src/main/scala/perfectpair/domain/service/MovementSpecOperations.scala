@@ -8,7 +8,7 @@ import upickle.default.write as upickleWrite
 
 import java.util.UUID
 
-class MovementSpecOperations(
+class MovementSpecOperations(using 
   val movementSpecRepo: MovementSpecRepo
 ):
 

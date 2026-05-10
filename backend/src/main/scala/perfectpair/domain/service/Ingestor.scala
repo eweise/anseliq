@@ -2,7 +2,7 @@ package perfectpair.domain.service
 
 import ox.flow.Flow
 import perfectpair.common.model.model.Properties
-import perfectpair.common.model.{CSVParserConfig, ParserConfig}
+import perfectpair.common.model.{CSVParserConfig, ParserConfig, ReconciliationInfo}
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.{Movement, MovementSpec, NotFoundError}
 import perfectpair.domain.port.driven.{AccountRepo, MovementRepo, Txn}
@@ -51,7 +51,7 @@ case class IngestionResult(
   ingestionTimeSeconds: Long
 )
 
-class Ingestor(
+class Ingestor(using
   val movementRepo: MovementRepo,
   val accountRepo:  AccountRepo
 ):

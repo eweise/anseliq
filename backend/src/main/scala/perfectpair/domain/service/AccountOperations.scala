@@ -9,7 +9,7 @@ import perfectpair.domain.port.driven.*
 
 import java.util.UUID
 
-class AccountOperations(
+class AccountOperations(using
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,
   val movementSpecRepo:   MovementSpecRepo,

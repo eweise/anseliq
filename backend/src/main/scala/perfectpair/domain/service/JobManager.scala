@@ -11,9 +11,7 @@ import perfectpair.domain.port.driven.{JobRepo, Txn}
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
-class JobManager(jobRepo: JobRepo, clock: ClockService)(using
-  dataSource: DataSource
-):
+class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSource):
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
     val jobId = submitJob(jobType, referenceID)

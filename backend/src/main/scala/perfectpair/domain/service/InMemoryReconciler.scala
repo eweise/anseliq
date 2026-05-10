@@ -20,7 +20,7 @@ case class ReconciliationResult(
 ):
   def totalCount: Int = reconciliationSpecInsertCount.values.sum
 
-class InMemoryReconciler(
+class InMemoryReconciler(using
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,
   val reconSpecRepo:      ReconciliationSpecRepo,
@@ -33,11 +33,11 @@ class InMemoryReconciler(
   /**
    * Main reconciliation method
    */
-  def reconcileAccount(account: Account): Txn[ReconciliationResult] =
+  def reconcileAccount(accountID: ID): Txn[ReconciliationResult] =
     val beginTime                     = Instant.now()
     val reconciliationSpecInsertCount = scala.collection.mutable.Map[ID, Int]()
 
-    val reconSpecs = reconSpecRepo.findByAccountID(account.id)
+    val reconSpecs = reconSpecRepo.findByAccountID(accountID)
     for reconSpec <- reconSpecs
     do
       val movementsMap = getMovementsByRule(Map(), reconSpec)

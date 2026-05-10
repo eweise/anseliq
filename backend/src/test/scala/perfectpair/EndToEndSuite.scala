@@ -16,23 +16,15 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.sql.DataSource
 
 class EndToEndSuite extends munit.FunSuite {
-  val clock:              ClockService           = ClockService()
-  val fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
-  val movementRepo:       MovementRepo           = MovementRepoLive()
-  val movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
-  val reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-  val reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
-  val accountRepo:        AccountRepo            = AccountRepoLive()
-  val ingestor:           Ingestor               = Ingestor(accountRepo = accountRepo, movementRepo = movementRepo)
-  val reconciler: InMemoryReconciler = InMemoryReconciler(
-    accountRepo        = accountRepo,
-    movementRepo       = movementRepo,
-    reconSpecRepo      = reconSpecRepo,
-    movementSpecRepo   = movementSpecRepo,
-    reconRepo          = reconRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo,
-    clock              = clock
-  )
+  given clock:              ClockService           = ClockService()
+  given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
+  given movementRepo:       MovementRepo           = MovementRepoLive()
+  given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
+  given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
+  given accountRepo:        AccountRepo            = AccountRepoLive()
+  given ingestor:           Ingestor               = Ingestor()
+  given reconciler:         InMemoryReconciler     = InMemoryReconciler()
 
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   given transactor: Transactor = Transactor(dataSource)
@@ -127,7 +119,7 @@ class EndToEndSuite extends munit.FunSuite {
         ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile1.getBytes(UTF_8)))
 
         // Reconcile the data
-        reconciler.reconcileAccount(reconAccount)
+        reconciler.reconcileAccount(reconAccount.id)
 
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
@@ -242,7 +234,7 @@ class EndToEndSuite extends munit.FunSuite {
         ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile1.getBytes(UTF_8)))
 
         // Reconcile the data
-        reconciler.reconcileAccount(reconAccount)
+        reconciler.reconcileAccount(reconAccount.id)
 
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
@@ -357,7 +349,7 @@ class EndToEndSuite extends munit.FunSuite {
         ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile.getBytes(UTF_8)))
 
         // Reconcile the data
-        reconciler.reconcileAccount(reconAccount)
+        reconciler.reconcileAccount(reconAccount.id)
         val allReconMovements  = movementRepo.findByAccount(reconAccount.id)
         val updateReconAccount = accountRepo.findById(reconAccount.id).get
         assertEquals(updateReconAccount.balance, BigDecimal(250))

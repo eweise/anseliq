@@ -7,7 +7,7 @@ import perfectpair.domain.port.driven.*
 
 import java.util.UUID
 
-class ReconciliationSpecOperations(
+class ReconciliationSpecOperations(using 
   val reconSpecRepo: ReconciliationSpecRepo
 ):
 

@@ -16,7 +16,7 @@ class JobManagerSuite extends munit.FunSuite:
   private val transactor: Transactor = Transactor(dataSource)
   private val clock      = ClockService()
   private val jobRepo    = JobRepoLive()
-  private val jobManager = JobManager(jobRepo, clock, dataSource)
+  private val jobManager = JobManager(using jobRepo, clock, dataSource)
 
   test("submit and complete job"):
     transact(transactor):
