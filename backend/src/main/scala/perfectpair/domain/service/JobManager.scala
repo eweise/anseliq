@@ -11,9 +11,7 @@ import perfectpair.domain.port.driven.{JobRepo, Txn}
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
-class JobManager(
-  jobRepo:    JobRepo,
-  clock:      ClockService,
+class JobManager(jobRepo: JobRepo, clock: ClockService)(using
   dataSource: DataSource
 ):
 

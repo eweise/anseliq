@@ -2,44 +2,51 @@ package perfectpair.app
 
 import com.augustnagro.magnum.*
 import com.typesafe.config.ConfigFactory
+import ox.*
+import ox.scheduling.Schedule
 import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
 import perfectpair.common.model.*
 import perfectpair.common.model.IngestionDataSource.Manual
 import perfectpair.domain.model.*
+import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.*
 import upickle.default.*
 
 import java.util.UUID
+import javax.sql.DataSource
 import scala.util.Try
 
 object HttpCmd:
   def GET    = Seq("get", "options")
-  def POST   = Seq("post", "options")
+  def POST   = Seq("post", "o2ptions")
   def PUT    = Seq("put", "options")
   def DELETE = Seq("delete", "options")
 
-object App extends cask.MainRoutes:
-  val dataSource         = DbDataSource.create(ConfigFactory.load("application.conf"))
-  val transactor         = Transactor(dataSource)
-  val fundFlowConfigRepo = FundFlowConfigRepoLive()
-  val accountRepo        = AccountRepoLive()
-  val movementRepo       = MovementRepoLive()
-  val movementSpecRepo   = MovementSpecRepoLive()
-  val reconRepo          = ReconciliationRepoLive()
-  val reconSpecRepo      = ReconciliationSpecRepoLive()
-  val jobRepo            = JobRepoLive()
-  val clock              = ClockService()
-  val jobManager = JobManager(
-    jobRepo    = jobRepo,
-    clock      = clock,
-    dataSource = dataSource
+object Main:
+  val shutdown = java.util.concurrent.CountDownLatch(1)
+
+  import scala.concurrent.duration.DurationInt
+
+  given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
+
+  given jobManager: JobManager = JobManager(
+    jobRepo = jobRepo,
+    clock   = clock
   )
-  val fundFlowOperations = FundFlowOperations(
+
+  given jobRepo:          JobRepo                = JobRepoLive()
+
+  given clock:            ClockService           = ClockService()
+
+  given fundFlowOperations: FundFlowOperations = FundFlowOperations(
     fundFlowConfigRepo = fundFlowConfigRepo
   )
-  val reconciler = InMemoryReconciler(
+
+  given fundFlowConfigRepo: FundFlowConfigRepo = FundFlowConfigRepoLive()
+
+  given reconciler: InMemoryReconciler = InMemoryReconciler(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
@@ -48,23 +55,68 @@ object App extends cask.MainRoutes:
     fundFlowConfigRepo = fundFlowConfigRepo,
     clock              = clock
   )
-  val accountOperations = AccountOperations(
+
+  given reconRepo:        ReconciliationRepo     = ReconciliationRepoLive()
+
+  given accountOperations: AccountOperations = AccountOperations(
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
-  val movementSpecOperations = MovementSpecOperations(
+
+  given movementSpecOperations: MovementSpecOperations = MovementSpecOperations(
     movementSpecRepo = movementSpecRepo
   )
-  val reconSpecOperations = ReconciliationSpecOperations(
+
+  given movementSpecRepo: MovementSpecRepo       = MovementSpecRepoLive()
+
+  given reconSpecOperations: ReconciliationSpecOperations = ReconciliationSpecOperations(
     reconSpecRepo = reconSpecRepo
   )
 
-  val ingestor = Ingestor(
+  given reconSpecRepo:    ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+
+  given ingestor: Ingestor = Ingestor(
     movementRepo = movementRepo,
     accountRepo  = accountRepo
   )
+
+  given accountRepo: AccountRepo = AccountRepoLive()
+
+  given movementRepo:     MovementRepo           = MovementRepoLive()
+
+  def main(args: Array[String]): Unit =
+    import ox.scheduling.{Schedule, repeat}
+    Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
+    supervised {
+      fork {
+        ox.scheduling.repeat(Schedule.fixedInterval(5.seconds)) {
+          // TODO: fill in daemon logic
+          ()
+        }
+      }
+      new App().main(args)
+      shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
+    }
+
+class App(using
+  dataSource:             DataSource,
+  accountRepo:            AccountRepo,
+  reconRepo:              ReconciliationRepo,
+  fundFlowConfigRepo:     FundFlowConfigRepo,
+  movementSpecRepo:       MovementSpecRepo,
+  movementRepo:           MovementRepo,
+  fundFlowOperations:     FundFlowOperations,
+  accountOperations:      AccountOperations,
+  movementSpecOperations: MovementSpecOperations,
+  jobManager:             JobManager,
+  ingestor:               Ingestor,
+  reconciler:             InMemoryReconciler,
+  jobRepo:                JobRepo,
+  reconSpecRepo:          ReconciliationSpecRepo,
+  reconSpecOperations:    ReconciliationSpecOperations
+) extends cask.MainRoutes:
 
   val prefixPath = "/api/v1"
   val loginPath  = s"$prefixPath / login"
@@ -73,6 +125,7 @@ object App extends cask.MainRoutes:
   val randomMessage2Path         = s"$prefixPath / random-message2"
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
+  val transactor                 = Transactor(dataSource)
 
   override def mainDecorators = Seq(corsDecorator())
 

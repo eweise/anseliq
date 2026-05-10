@@ -125,7 +125,8 @@ lazy val backend = (project in file("backend"))
       "io.circe"            %% "circe-core"         % "0.14.10",
       "io.circe"            %% "circe-parser"       % "0.14.10"
     ),
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    mainClass          := Some("perfectpair.app.Main")
   )
   .settings(
     dockerBaseImage    := "openjdk:17-slim",
