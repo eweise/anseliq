@@ -164,3 +164,23 @@ CREATE TRIGGER update_job
         recon.job
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
+
+create table recon.event
+(
+    id            uuid primary key,
+    event_type    text                                  not null,
+    payload       text                                  not null,
+    status        text                                  not null default 'Pending',
+    retry_count   int                                   not null default 0,
+    error_message text,
+    created_at    timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at    timestamptz default CURRENT_TIMESTAMP not null
+);
+
+CREATE INDEX event_status_created_at ON recon.event (status, created_at);
+
+CREATE TRIGGER update_event
+    BEFORE INSERT OR UPDATE
+    ON recon.event
+    FOR EACH ROW
+EXECUTE PROCEDURE update_audit_fields_task();
