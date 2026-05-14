@@ -44,3 +44,46 @@ class EventStoreSuite extends munit.FunSuite:
         var called = false
         eventStore.processNextEvent(maxRetries = 3) { _ => called = true }
         assertEquals(called, false)
+
+  test("processNextEvent increments retryCount and keeps Pending on RetryableException"):
+    transact(transactor):
+      rollBackOnly:
+        val event = Event(eventType = "OrderPlaced", payload = "{}")
+        eventStore.publishEvent(event)
+
+        eventStore.processNextEvent(maxRetries = 3) { _ =>
+          throw RetryableException("temporary failure")
+        }
+
+        val found = eventRepo.findById(event.id).get
+        assertEquals(found.status, EventStatus.Pending)
+        assertEquals(found.retryCount, 1)
+
+  test("processNextEvent marks Error when retryCount reaches maxRetries on RetryableException"):
+    transact(transactor):
+      rollBackOnly:
+        val maxRetries = 3
+        val event      = Event(eventType = "OrderPlaced", payload = "{}", retryCount = maxRetries - 1)
+        eventRepo.insert(event)
+
+        eventStore.processNextEvent(maxRetries = maxRetries) { _ =>
+          throw RetryableException("still failing")
+        }
+
+        val found = eventRepo.findById(event.id).get
+        assertEquals(found.status, EventStatus.Error)
+        assertEquals(found.errorMessage, Some("still failing"))
+
+  test("processNextEvent marks Error on non-retryable exception"):
+    transact(transactor):
+      rollBackOnly:
+        val event = Event(eventType = "OrderPlaced", payload = "{}")
+        eventStore.publishEvent(event)
+
+        eventStore.processNextEvent(maxRetries = 3) { _ =>
+          throw RuntimeException("fatal failure")
+        }
+
+        val found = eventRepo.findById(event.id).get
+        assertEquals(found.status, EventStatus.Error)
+        assertEquals(found.errorMessage, Some("fatal failure"))
