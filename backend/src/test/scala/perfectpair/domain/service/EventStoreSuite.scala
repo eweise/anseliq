@@ -24,3 +24,23 @@ class EventStoreSuite extends munit.FunSuite:
         assert(found.isDefined)
         assertEquals(found.get.status, EventStatus.Pending)
         assertEquals(found.get.retryCount, 0)
+
+  test("processNextEvent calls consumer and marks event Consumed"):
+    transact(transactor):
+      rollBackOnly:
+        val event = Event(eventType = "OrderPlaced", payload = """{"orderId":"456"}""")
+        eventStore.publishEvent(event)
+
+        var consumed = false
+        eventStore.processNextEvent(maxRetries = 3) { _ => consumed = true }
+
+        assertEquals(consumed, true)
+        val found = eventRepo.findById(event.id).get
+        assertEquals(found.status, EventStatus.Consumed)
+
+  test("processNextEvent does nothing when no pending events"):
+    transact(transactor):
+      rollBackOnly:
+        var called = false
+        eventStore.processNextEvent(maxRetries = 3) { _ => called = true }
+        assertEquals(called, false)
