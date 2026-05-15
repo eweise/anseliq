@@ -51,3 +51,20 @@ class AccountRepoLive extends Repo[Account, Account, UUID] with AccountRepo:
       SELECT ${a.all}
       FROM $a AS a
     """.query[Account].run()
+
+  def isReconAccount(accountID: ID): Txn[Boolean] =
+    sql"""
+      SELECT
+          CASE
+              WHEN EXISTS(
+                SELECT *
+                FROM recon.movement_spec s
+                WHERE s.in_account_id = $accountID)
+              AND EXISTS(
+                SELECT *
+                FROM recon.movement_spec s 
+                WHERE s.out_account_id = $accountID)
+              THEN true
+              ELSE false
+          END AS is_recon_account
+     """.query[Boolean].run().head

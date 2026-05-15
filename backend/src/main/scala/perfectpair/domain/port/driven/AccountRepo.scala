@@ -10,3 +10,4 @@ trait AccountRepo extends DomainRepo[Account, Account]:
   def findByFundFlow(fundFlowID:                ID): Txn[Vector[Account]]
   def findNominalWithNonZeroBalance(fundFlowID: ID): Txn[Vector[Account]]
   def findAll(): Txn[Vector[Account]]
+  def isReconAccount(accountID: ID): Txn[Boolean]

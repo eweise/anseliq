@@ -61,17 +61,21 @@ object Main:
             println(s"reconciled account $accountID")
           }
       }
-//      fork {
-//        transact(Transactor(dataSource = given_DataSource)):
-//          eventStore.receiveEvent(MovementMovementsIngested.getClass.getName, 5, 3) { job =>
-//            println(s"found ingestion job $job")
-//          reconciler.
-//            val reconJobInfo = job..asInstanceOf[ReconciliationInfo]
-//            println(s"found ingestion job info $reconJobInfo")
-//            ingestor.ingest()
+      fork {
+        transact(Transactor(dataSource = given_DataSource)):
+          eventStore.consumeEvent(MoneyMovementsIngested.getClass.getName, 5, 3) { job =>
+            println(s"found ingestion job $job")
+            val ingestionInfo = job.asInstanceOf[IngestionInfo]
+            println(s"found ingestion job info $ingestionInfo")
+            val movementSpecID = UUID.fromString(ingestionInfo.movementSpecId)
+            val movementSpec = movementSpecRepo
+              .findById(movementSpecID)
+              .ErrIfNotFound("movementSpec", movementSpecID)
+            movementSpec.inAccountId
+//            reconciler.reconcileAccount(ingestionInfo.movementSpecId)
 //            println(s"ingest account $accountID")
-//          }
-//      }
+          }
+      }
 
       new App().main(args)
       shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
