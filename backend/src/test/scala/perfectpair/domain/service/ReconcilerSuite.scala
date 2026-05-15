@@ -63,12 +63,8 @@ class ReconcilerSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data: DataSetup = DataSetup()
-        val ops = AccountOperations(using 
-          accountRepo        = data.accountRepo,
-          movementRepo       = data.movementRepo,
-          movementSpecRepo   = data.movementSpecRepo,
-          fundFlowConfigRepo = data.fundFlowConfigRepo
-        )
+        import data.given
+        val ops = FundFlowOperations()
         val reconciler = Reconciler(
           accountRepo        = data.accountRepo,
           movementRepo       = data.movementRepo,

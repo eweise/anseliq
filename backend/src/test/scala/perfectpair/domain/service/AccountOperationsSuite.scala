@@ -5,23 +5,22 @@ import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.*
-import perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo}
+import perfectpair.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo, ReconciliationSpecRepo}
+import perfectpair.domain.service.FundFlowOperations
 import perfectpair.testing
 
 class AccountOperationsSuite extends munit.FunSuite:
   val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
-  val transactor:       Transactor         = Transactor(dataSource)
-  val configRepo:       FundFlowConfigRepo = FundFlowConfigRepoLive()
-  val accountRepo:      AccountRepo        = AccountRepoLive()
-  val movementRepo:     MovementRepo       = MovementRepoLive()
-  val movementSpecRepo: MovementSpecRepo   = MovementSpecRepoLive()
-  val accountOperations = AccountOperations(using 
-    accountRepo        = accountRepo,
-    movementRepo       = movementRepo,
-    movementSpecRepo   = movementSpecRepo,
-    fundFlowConfigRepo = configRepo
-  )
+  val transactor: Transactor = Transactor(dataSource)
+
+  given FundFlowConfigRepo     = FundFlowConfigRepoLive()
+  given AccountRepo            = AccountRepoLive()
+  given MovementRepo           = MovementRepoLive()
+  given MovementSpecRepo       = MovementSpecRepoLive()
+  given ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+
+  val fundFlowOperations = FundFlowOperations()
 
   test("Post Amount balances"):
     transact(transactor):
@@ -29,7 +28,7 @@ class AccountOperationsSuite extends munit.FunSuite:
         val dataSetup  = DataSetup()
         val properties = Map("key" -> "123")
 
-        accountOperations.postAmount(
+        fundFlowOperations.postAmount(
           movementSpec = dataSetup.journalToRecon,
           amount       = 100,
           referenceID  = createID(),
@@ -41,7 +40,7 @@ class AccountOperationsSuite extends munit.FunSuite:
         // make sure the non clearing accounts balance
         assertEquals(BigDecimal(0), fundFlowAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))
 
-        accountOperations.postAmount(
+        fundFlowOperations.postAmount(
           movementSpec = dataSetup.reportToRecon,
           amount       = 100,
           referenceID  = createID(),

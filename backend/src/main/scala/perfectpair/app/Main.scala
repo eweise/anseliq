@@ -33,18 +33,15 @@ object Main:
     given clock:                  ClockService                 = ClockService()
     given jobRepo:                JobRepo                      = JobRepoLive()
     given jobManager:             JobManager                   = JobManager()
-    given fundFlowConfigRepo:     FundFlowConfigRepo           = FundFlowConfigRepoLive()
-    given fundFlowOperations:     FundFlowOperations           = FundFlowOperations()
-    given reconRepo:              ReconciliationRepo           = ReconciliationRepoLive()
-    given movementSpecRepo:       MovementSpecRepo             = MovementSpecRepoLive()
-    given reconSpecRepo:          ReconciliationSpecRepo       = ReconciliationSpecRepoLive()
-    given accountRepo:            AccountRepo                  = AccountRepoLive()
-    given movementRepo:           MovementRepo                 = MovementRepoLive()
-    given eventRepo:              EventRepo                    = EventRepoLive()
-    given accountOperations:      AccountOperations            = AccountOperations()
-    given movementSpecOperations: MovementSpecOperations       = MovementSpecOperations()
-    given reconSpecOperations:    ReconciliationSpecOperations = ReconciliationSpecOperations()
-    given eventStore:             EventStore                   = EventStore()
+    given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
+    given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
+    given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
+    given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+    given accountRepo:        AccountRepo            = AccountRepoLive()
+    given movementRepo:       MovementRepo           = MovementRepoLive()
+    given eventRepo:          EventRepo              = EventRepoLive()
+    given fundFlowOperations: FundFlowOperations     = FundFlowOperations()
+    given eventStore:         EventStore             = EventStore()
     given ingestor:               Ingestor                     = Ingestor()
     given reconciler:             InMemoryReconciler           = InMemoryReconciler()
 
@@ -71,9 +68,12 @@ object Main:
             val movementSpec = movementSpecRepo
               .findById(movementSpecID)
               .ErrIfNotFound("movementSpec", movementSpecID)
-            movementSpec.inAccountId
-//            reconciler.reconcileAccount(ingestionInfo.movementSpecId)
-//            println(s"ingest account $accountID")
+
+            if accountRepo.isReconAccount(movementSpec.inAccountId) then
+              reconciler.reconcileAccount(movementSpec.inAccountId)
+
+            if accountRepo.isReconAccount(movementSpec.outAccountId) then
+              reconciler.reconcileAccount(movementSpec.outAccountId)
           }
       }
 
@@ -82,21 +82,18 @@ object Main:
     }
 
 class App(using
-  dataSource:             DataSource,
-  accountRepo:            AccountRepo,
-  reconRepo:              ReconciliationRepo,
-  fundFlowConfigRepo:     FundFlowConfigRepo,
-  movementSpecRepo:       MovementSpecRepo,
-  movementRepo:           MovementRepo,
-  fundFlowOperations:     FundFlowOperations,
-  accountOperations:      AccountOperations,
-  movementSpecOperations: MovementSpecOperations,
-  jobManager:             JobManager,
-  ingestor:               Ingestor,
-  reconciler:             InMemoryReconciler,
-  jobRepo:                JobRepo,
-  reconSpecRepo:          ReconciliationSpecRepo,
-  reconSpecOperations:    ReconciliationSpecOperations
+  dataSource:         DataSource,
+  accountRepo:        AccountRepo,
+  reconRepo:          ReconciliationRepo,
+  fundFlowConfigRepo: FundFlowConfigRepo,
+  movementSpecRepo:   MovementSpecRepo,
+  movementRepo:       MovementRepo,
+  fundFlowOperations: FundFlowOperations,
+  jobManager:         JobManager,
+  ingestor:           Ingestor,
+  reconciler:         InMemoryReconciler,
+  jobRepo:            JobRepo,
+  reconSpecRepo:      ReconciliationSpecRepo
 ) extends cask.MainRoutes:
 
   val prefixPath = "/api/v1"
@@ -196,13 +193,13 @@ class App(using
   def createAccount(request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      write(accountOperations.createAccount(accountRequest))
+      write(fundFlowOperations.createAccount(accountRequest))
 
   @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)
   def updateAccount(id: String, request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      write(accountOperations.updateAccount(id, accountRequest))
+      write(fundFlowOperations.updateAccount(id, accountRequest))
 
   // MovementSpec
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/movement-specs", methods = HttpCmd.GET)
@@ -224,18 +221,18 @@ class App(using
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
     transact(transactor):
-      write(movementSpecOperations.createMovementSpec(payload))
+      write(fundFlowOperations.createMovementSpec(payload))
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
     transact(transactor):
-      write(movementSpecOperations.updateMovementSpec(id, payload))
+      write(fundFlowOperations.updateMovementSpec(id, payload))
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = Seq("delete"))
   def deleteMovementSpec(id: String): String =
     transact(transactor):
-      movementSpecOperations.deleteMovementSpec(id)
+      fundFlowOperations.deleteMovementSpec(id)
     write("deleted")
 
   @cask.route(s"${HttpPath.movementSpec}/:id/ingest", methods = HttpCmd.POST)
@@ -298,18 +295,18 @@ class App(using
   def createReconSpec(request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
-      write(reconSpecOperations.createReconSpec(payload))
+      write(fundFlowOperations.createReconSpec(payload))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
   def updateReconSpec(id: String, request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
-      write(reconSpecOperations.updateReconSpec(id, payload))
+      write(fundFlowOperations.updateReconSpec(id, payload))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = Seq("delete"))
   def deleteReconSpec(id: String): String =
     transact(transactor):
-      reconSpecOperations.deleteReconSpec(id)
+      fundFlowOperations.deleteReconSpec(id)
     write("deleted")
 
   @cask.get("/account/:id")
