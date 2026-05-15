@@ -2,7 +2,7 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.DbDataSource
+import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.{Movement, MovementSpec, createID}
@@ -17,6 +17,12 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
 
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
+  given clockSvc: ClockService = ClockService()
+  
+  given eventRepo : EventRepoLive()
+
+  given eventStore: EventStore = EventStore()
+
   def createMovement(data: DataSetup, movementSpec: MovementSpec, idValue: String): Txn[Movement] =
     val m = Movement(
       inAccountId    = movementSpec.inAccountId,
@@ -28,6 +34,7 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
 
     data.movementRepo.insert(m)
     m
+
 
   test("Post Amount balances and Reconcile"):
     transact(transactor):

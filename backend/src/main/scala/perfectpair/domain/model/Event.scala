@@ -1,28 +1,17 @@
 package perfectpair.domain.model
 
-import com.augustnagro.magnum.*
 import perfectpair.common.model.model.ID
+import upickle.ReadWriter
 
-import java.time.OffsetDateTime
 import java.util.UUID
 
-@Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-enum EventStatus derives DbCodec:
-  case Pending, InProgress, Consumed, Error
+sealed trait Event derives ReadWriter {
+  val id:        UUID
+  val eventType: String
+}
 
-@Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-case class Event(
-  @Id id:        ID                     = createID(),
-  eventType:     String,
-  payload:       String,
-  status:        EventStatus            = EventStatus.Pending,
-  retryCount:    Int                    = 0,
-  errorMessage:  Option[String]         = None,
-  var createdAt: Option[OffsetDateTime] = None,
-  var updatedAt: Option[OffsetDateTime] = None
-) derives DbCodec
+case class MoneyMovementsIngested(id: UUID = UUID.randomUUID(), movementSpecID: ID) extends Event:
+  override val eventType: String = "MoneyMovementIngested"
 
-object Event:
-  val Table = TableInfo[Event, Event, UUID]
-
-class RetryableException(message: String) extends Exception(message)
+case class AccountReconciled(id: UUID = UUID.randomUUID(), accountID: ID) extends Event:
+  override val eventType: String = "AccountReconciled"

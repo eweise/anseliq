@@ -10,52 +10,33 @@ import perfectpair.domain.service.{AccountOperations, FundFlowCache}
 
 import java.util.UUID
 
-class DataSetup(using DbTx) {
-
-  given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
-  given movementRepo:       MovementRepo           = MovementRepoLive()
-  given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
-  given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
-  given accountRepo:        AccountRepo            = AccountRepoLive()
-  given fundFlowCache:      FundFlowCache          = FundFlowCache(fundFlowConfigRepo)
-
+class DataSetup(using dbTx: DbTx) {
+  dbTx.connection.getMetaData
   val reconAccountName   = "recon"
   val unreconAccountName = "unrecon"
   val journalAccountName = "journal"
   val reportAccountName  = "report"
   val bankReportName     = "bank_report"
-
   val postJournalName = "post_journal"
-
   val fundFlowConfig = FundFlowConfig(
     name = UUID.randomUUID().toString
   )
-
-  fundFlowConfigRepo.insert(fundFlowConfig)
-
   val props = Map("key1" -> "value1", "key2" -> "value2")
   val reconAccount = Account(
     name       = reconAccountName,
     fundFlowId = fundFlowConfig.id,
     properties = JSONBProps(props)
   )
-  accountRepo.insert(reconAccount)
-
   val journalAccount = Account(
     name       = journalAccountName,
     fundFlowId = fundFlowConfig.id,
     properties = JSONBProps(props)
   )
-  accountRepo.insert(journalAccount)
-
   val reportAccount = Account(
     name       = reportAccountName,
     fundFlowId = fundFlowConfig.id,
     properties = JSONBProps(props)
   )
-  accountRepo.insert(reportAccount)
-
   val journalToRecon = MovementSpec(
     name         = "journal to recon",
     inAccountId  = reconAccount.id,
@@ -70,32 +51,48 @@ class DataSetup(using DbTx) {
       )
     )
   )
-  movementSpecRepo.insert(journalToRecon)
-
   val reportToRecon = MovementSpec(
     name         = "report to recon",
     outAccountId = reconAccount.id,
     inAccountId  = reportAccount.id
   )
-  movementSpecRepo.insert(reportToRecon)
-
   val rule = StringAttributeMatchRule(
     inKey  = StringAttribute(key = "id"),
     outKey = StringAttribute(key = "id")
   )
+
+  fundFlowConfigRepo.insert(fundFlowConfig)
   val accountOperations = AccountOperations(using
     accountRepo        = accountRepo,
     movementRepo       = movementRepo,
     movementSpecRepo   = movementSpecRepo,
     fundFlowConfigRepo = fundFlowConfigRepo
   )
-
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
     accountId         = reconAccount.id,
     ruleJson          = upickle.write(rule),
     inMovementSpecId  = journalToRecon.id,
     outMovementSpecId = reportToRecon.id
   )
+  accountRepo.insert(reconAccount)
+
+  given movementRepo:       MovementRepo           = MovementRepoLive()
+  accountRepo.insert(journalAccount)
+
+  given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
+  accountRepo.insert(reportAccount)
+
+  given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+  movementSpecRepo.insert(journalToRecon)
+
+  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
+  movementSpecRepo.insert(reportToRecon)
+
+  given accountRepo:        AccountRepo            = AccountRepoLive()
+
+  given fundFlowCache:      FundFlowCache          = FundFlowCache(fundFlowConfigRepo)
+
+  given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
   reconSpecRepo.insert(reconSpec)
 
 }

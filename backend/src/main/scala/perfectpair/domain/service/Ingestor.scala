@@ -4,7 +4,7 @@ import ox.flow.Flow
 import perfectpair.common.model.model.Properties
 import perfectpair.common.model.{CSVParserConfig, ParserConfig, ReconciliationInfo}
 import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.model.{Movement, MovementSpec, NotFoundError}
+import perfectpair.domain.model.{MoneyMovementsIngested, Movement, MovementSpec, NotFoundError}
 import perfectpair.domain.port.driven.{AccountRepo, MovementRepo, Txn}
 
 import java.io.InputStream
@@ -53,7 +53,8 @@ case class IngestionResult(
 
 class Ingestor(using
   val movementRepo: MovementRepo,
-  val accountRepo:  AccountRepo
+  val accountRepo:  AccountRepo,
+  val eventStore:   EventStore
 ):
 
   def ingest(movementSpec: MovementSpec, is: InputStream): Txn[IngestionResult] =
@@ -96,6 +97,9 @@ class Ingestor(using
         accountRepo.update(inAccount)
         accountRepo.update(outAccount)
       }
+    
+    eventStore.publishEvent(MoneyMovementsIngested(movementSpecID = movementSpec.id))
+    
     IngestionResult(
       recordCount          = lineCounter,
       ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond
