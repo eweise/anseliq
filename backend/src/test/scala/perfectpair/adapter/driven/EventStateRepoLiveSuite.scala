@@ -2,12 +2,12 @@ package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.domain.model.{Event, EventStatus}
+import perfectpair.domain.model.{EventState, EventStatus}
 import perfectpair.testing.rollBackOnly
 
 import javax.sql.DataSource
 
-class EventRepoLiveSuite extends munit.FunSuite:
+class EventStateRepoLiveSuite extends munit.FunSuite:
   var transactor: Transactor = null
   var dataSource: DataSource = null
 
@@ -19,7 +19,7 @@ class EventRepoLiveSuite extends munit.FunSuite:
     val repo = EventRepoLive()
     transact(transactor):
       rollBackOnly:
-        val event = Event(eventType = "TestEvent", payload = """{"key":"value"}""")
+        val event = EventState(eventType = "TestEvent", payload = """{"key":"value"}""")
         repo.insert(event)
         val found = repo.findById(event.id)
         assert(found.isDefined)
@@ -31,27 +31,27 @@ class EventRepoLiveSuite extends munit.FunSuite:
     val repo = EventRepoLive()
     transact(transactor):
       rollBackOnly:
-        val event1 = Event(eventType = "TestEvent", payload = "{}")
-        val event2 = Event(eventType = "TestEvent", payload = "{}")
+        val event1 = EventState(eventType = "TestEvent", payload = "{}")
+        val event2 = EventState(eventType = "TestEvent", payload = "{}")
         repo.insert(event1)
         repo.insert(event2)
-        val found = repo.getNextPendingEvent(maxRetries = 3)
+        val found = repo.getNextPendingEvent("TestEvent", maxRetries = 3)
         assert(found.isDefined)
 
   test("getNextPendingEvent returns None when no pending events exist"):
     val repo = EventRepoLive()
     transact(transactor):
       rollBackOnly:
-        val found = repo.getNextPendingEvent(maxRetries = 3)
+        val found = repo.getNextPendingEvent("TestEvent", maxRetries = 3)
         assert(found.isEmpty)
 
   test("getNextPendingEvent excludes InProgress events"):
     val repo = EventRepoLive()
     transact(transactor):
       rollBackOnly:
-        val event = Event(eventType = "TestEvent", payload = "{}", status = EventStatus.InProgress)
+        val event = EventState(eventType = "TestEvent", payload = "{}", status = EventStatus.InProgress)
         repo.insert(event)
-        val found = repo.getNextPendingEvent(maxRetries = 3)
+        val found = repo.getNextPendingEvent("TestEvent", maxRetries = 3)
         assert(found.isEmpty)
 
   test("getNextPendingEvent excludes events that have reached maxRetries"):
@@ -59,7 +59,7 @@ class EventRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val maxRetries = 3
-        val event      = Event(eventType = "TestEvent", payload = "{}", retryCount = maxRetries)
+        val event      = EventState(eventType = "TestEvent", payload = "{}", retryCount = maxRetries)
         repo.insert(event)
-        val found = repo.getNextPendingEvent(maxRetries = maxRetries)
+        val found = repo.getNextPendingEvent("TestEvent", maxRetries = maxRetries)
         assert(found.isEmpty)

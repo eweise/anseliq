@@ -1,21 +1,22 @@
 package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Repo, sql}
-import perfectpair.domain.model.{Event, EventStatus}
+import perfectpair.domain.model.{EventState, EventStatus}
 import perfectpair.domain.port.driven.{EventRepo, Txn}
 
 import java.util.UUID
 
-class EventRepoLive extends Repo[Event, Event, UUID] with EventRepo:
-  val e = Event.Table
+class EventRepoLive extends Repo[EventState, EventState, UUID] with EventRepo:
+  val e = EventState.Table
 
-  override def getNextPendingEvent(maxRetries: Int): Txn[Option[Event]] =
+  override def getNextPendingEvent(eventType: String, maxRetries: Int): Txn[Option[EventState]] =
     sql"""
       SELECT ${e.all}
       FROM $e
       WHERE status = ${EventStatus.Pending}
+      AND event_type = $eventType
       AND retry_count < $maxRetries
       ORDER BY created_at
       LIMIT 1
       FOR UPDATE SKIP LOCKED
-    """.query[Event].run().headOption
+    """.query[EventState].run().headOption

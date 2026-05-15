@@ -144,12 +144,12 @@ CREATE TRIGGER update_movement
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
 
--- CREATE TRIGGER update_reconciliation
---     BEFORE INSERT OR UPDATE
---     ON
---         recon.reconciliation
---     FOR EACH ROW
--- EXECUTE PROCEDURE update_audit_fields_task();
+CREATE TRIGGER update_reconciliation
+    BEFORE INSERT OR UPDATE
+    ON
+        recon.reconciliation
+    FOR EACH ROW
+EXECUTE PROCEDURE update_audit_fields_task();
 
 CREATE TRIGGER update_reconciliation_spec
     BEFORE INSERT OR UPDATE
@@ -165,22 +165,22 @@ CREATE TRIGGER update_job
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
 
-create table recon.event
+create table recon.event_state
 (
     id            uuid primary key,
-    event_type    text                                  not null,
-    payload       text                                  not null,
-    status        text                                  not null default 'Pending',
-    retry_count   int                                   not null default 0,
+    event_type    text not null,
+    payload       text not null,
+    status        text not null default 'Pending',
+    retry_count   int  not null default 0,
     error_message text,
-    created_at    timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at    timestamptz default CURRENT_TIMESTAMP not null
+    created_at    timestamptz   default CURRENT_TIMESTAMP not null,
+    updated_at    timestamptz   default CURRENT_TIMESTAMP not null
 );
 
-CREATE INDEX event_status_created_at ON recon.event (status, created_at);
+CREATE INDEX event_status_created_at ON recon.event_state (status, created_at);
 
 CREATE TRIGGER update_event
     BEFORE INSERT OR UPDATE
-    ON recon.event
+    ON recon.event_state
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();

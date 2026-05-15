@@ -2,8 +2,9 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{AccountRepoLive, DbDataSource, MovementRepoLive}
+import perfectpair.adapter.driven.{AccountRepoLive, DbDataSource, EventRepoLive, MovementRepoLive}
 import perfectpair.domain.DataSetup
+import perfectpair.domain.port.driven.EventRepo
 import perfectpair.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
@@ -15,11 +16,16 @@ class IngestorSuite extends munit.FunSuite:
 
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
+  given eventRepo : EventRepo = EventRepoLive()
+  
+  given clockService:ClockService = ClockService()
+  
   test("Post Amount balances"):
     val movementRepo = MovementRepoLive()
     val accountRepo  = AccountRepoLive()
     val parser       = CSVParser(Map(0 -> "field1", 1 -> "field2"), None)
-    val ingestor     = Ingestor(using movementRepo = movementRepo, accountRepo = accountRepo)
+    val eventStore   = EventStore()
+    val ingestor     = Ingestor(using movementRepo = movementRepo, accountRepo = accountRepo, eventStore = eventStore)
     transact(transactor):
       rollBackOnly:
         val data: DataSetup = DataSetup()

@@ -1,6 +1,6 @@
 package perfectpair.domain.port.driven
 
-import perfectpair.domain.model.Event
+import perfectpair.domain.model.EventState
 
-trait EventRepo extends DomainRepo[Event, Event]:
-  def getNextPendingEvent(maxRetries: Int): Txn[Option[Event]]
+trait EventRepo extends DomainRepo[EventState, EventState]:
+  def getNextPendingEvent(eventType: String, maxRetries: Int): Txn[Option[EventState]]

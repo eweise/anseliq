@@ -27,10 +27,7 @@ object Main:
 
   val shutdown = java.util.concurrent.CountDownLatch(1)
 
-  import scala.concurrent.duration.DurationInt
-
   def main(args: Array[String]): Unit =
-    import ox.scheduling.Schedule
 
     given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
     given clock:                  ClockService                 = ClockService()
@@ -43,31 +40,39 @@ object Main:
     given reconSpecRepo:          ReconciliationSpecRepo       = ReconciliationSpecRepoLive()
     given accountRepo:            AccountRepo                  = AccountRepoLive()
     given movementRepo:           MovementRepo                 = MovementRepoLive()
+    given eventRepo:              EventRepo                    = EventRepoLive()
     given accountOperations:      AccountOperations            = AccountOperations()
     given movementSpecOperations: MovementSpecOperations       = MovementSpecOperations()
     given reconSpecOperations:    ReconciliationSpecOperations = ReconciliationSpecOperations()
+    given eventStore:             EventStore                   = EventStore()
     given ingestor:               Ingestor                     = Ingestor()
     given reconciler:             InMemoryReconciler           = InMemoryReconciler()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
     supervised {
       fork {
-        ox.scheduling.repeat(Schedule.fixedInterval(10.seconds)) {
-          println("running schedule")
-          transact(Transactor(dataSource = given_DataSource)):
-            jobManager
-              .getNextAvailableJob(JobType.Reconciliation)
-              .map { job =>
-                println(s"found job $job")
-                val reconJobInfo = job.jobInfo().asInstanceOf[ReconciliationInfo]
-                println(s"found job info $reconJobInfo")
-                val accountID = UUID.fromString(reconJobInfo.accountId)
-                reconciler.reconcileAccount(accountID)
-                println(s"reconciled account $accountID")
-              }
-          ()
-        }
+        transact(Transactor(dataSource = given_DataSource)):
+          jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
+            println(s"found job $job")
+            val reconJobInfo = job.jobInfo().asInstanceOf[ReconciliationInfo]
+            println(s"found job info $reconJobInfo")
+            val accountID = UUID.fromString(reconJobInfo.accountId)
+            reconciler.reconcileAccount(accountID)
+            println(s"reconciled account $accountID")
+          }
       }
+//      fork {
+//        transact(Transactor(dataSource = given_DataSource)):
+//          eventStore.receiveEvent(MovementMovementsIngested.getClass.getName, 5, 3) { job =>
+//            println(s"found ingestion job $job")
+//          reconciler.
+//            val reconJobInfo = job..asInstanceOf[ReconciliationInfo]
+//            println(s"found ingestion job info $reconJobInfo")
+//            ingestor.ingest()
+//            println(s"ingest account $accountID")
+//          }
+//      }
+
       new App().main(args)
       shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
     }

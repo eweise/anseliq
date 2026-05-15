@@ -27,6 +27,7 @@ class InMemoryReconciler(using
   val movementSpecRepo:   MovementSpecRepo,
   val reconRepo:          ReconciliationRepo,
   val fundFlowConfigRepo: FundFlowConfigRepo,
+  val eventStore:         EventStore,
   val clock:              ClockService
 ):
 
@@ -144,6 +145,8 @@ class InMemoryReconciler(using
           movementRepo.update(outMovement)
           reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
 
+    eventStore.publishEvent(AccountReconciled(accountID = accountID))
+    
     ReconciliationResult(
       reconciliationSpecInsertCount = reconciliationSpecInsertCount.toMap,
       processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond

@@ -3,22 +3,23 @@ package perfectpair.domain.service
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
-import perfectpair.domain.model.{Event, EventStatus, RetryableException}
+import perfectpair.domain.model.*
 import perfectpair.testing.rollBackOnly
 
+import java.util.UUID
 import javax.sql.DataSource
 
-class EventStoreSuite extends munit.FunSuite:
+class EventStateStoreSuite extends munit.FunSuite:
   private val dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   private val transactor: Transactor = Transactor(dataSource)
-  private val clock                  = ClockService()
-  private val eventRepo              = EventRepoLive()
-  private val eventStore             = EventStore(using eventRepo, clock, dataSource)
+  private val clock      = ClockService()
+  private val eventRepo  = EventRepoLive()
+  private val eventStore = EventStore(using eventRepo, clock, dataSource)
 
   test("publishEvent inserts event with Pending status"):
     transact(transactor):
       rollBackOnly:
-        val event = Event(eventType = "OrderPlaced", payload = """{"orderId":"123"}""")
+        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
         eventStore.publishEvent(event)
         val found = eventRepo.findById(event.id)
         assert(found.isDefined)
@@ -28,11 +29,11 @@ class EventStoreSuite extends munit.FunSuite:
   test("processNextEvent calls consumer and marks event Consumed"):
     transact(transactor):
       rollBackOnly:
-        val event = Event(eventType = "OrderPlaced", payload = """{"orderId":"456"}""")
+        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
         eventStore.publishEvent(event)
 
         var consumed = false
-        eventStore.processNextEvent(maxRetries = 3) { _ => consumed = true }
+        eventStore.processNextEvent(event.eventType, maxRetries = 3)(_ => consumed = true)
 
         assertEquals(consumed, true)
         val found = eventRepo.findById(event.id).get
@@ -42,33 +43,34 @@ class EventStoreSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         var called = false
-        eventStore.processNextEvent(maxRetries = 3) { _ => called = true }
+        eventStore.processNextEvent("OrderPlaced", maxRetries = 3)(_ => called = true)
         assertEquals(called, false)
 
-  test("processNextEvent increments retryCount and keeps Pending on RetryableException"):
+  test("processNextEvent increments retryCount and keeps Pending if Exception"):
     transact(transactor):
       rollBackOnly:
-        val event = Event(eventType = "OrderPlaced", payload = "{}")
+        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
         eventStore.publishEvent(event)
 
-        eventStore.processNextEvent(maxRetries = 3) { _ =>
-          throw RetryableException("temporary failure")
+        eventStore.processNextEvent(event.eventType, maxRetries = 3) { _ =>
+          throw Exception("temporary failure")
         }
 
         val found = eventRepo.findById(event.id).get
         assertEquals(found.status, EventStatus.Pending)
         assertEquals(found.retryCount, 1)
 
-  test("processNextEvent marks Error when retryCount reaches maxRetries on RetryableException"):
+  test("processNextEvent marks Error when retryCount reaches maxRetries on Exception "):
     transact(transactor):
       rollBackOnly:
         val maxRetries = 3
-        val event      = Event(eventType = "OrderPlaced", payload = "{}", retryCount = maxRetries - 1)
-        eventRepo.insert(event)
+        val event      = AccountReconciled(accountID = UUID.randomUUID())
+        eventRepo.insert(EventState.newEventState(event))
 
-        eventStore.processNextEvent(maxRetries = maxRetries) { _ =>
-          throw RetryableException("still failing")
-        }
+        for (i <- 1 to 3)
+          eventStore.processNextEvent(event.eventType, maxRetries = maxRetries) { _ =>
+            throw Exception("still failing")
+          }
 
         val found = eventRepo.findById(event.id).get
         assertEquals(found.status, EventStatus.Error)
@@ -77,11 +79,11 @@ class EventStoreSuite extends munit.FunSuite:
   test("processNextEvent marks Error on non-retryable exception"):
     transact(transactor):
       rollBackOnly:
-        val event = Event(eventType = "OrderPlaced", payload = "{}")
+        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
         eventStore.publishEvent(event)
 
-        eventStore.processNextEvent(maxRetries = 3) { _ =>
-          throw RuntimeException("fatal failure")
+        eventStore.processNextEvent(event.eventType, maxRetries = 3) { _ =>
+          throw NonRetryableError("fatal failure")
         }
 
         val found = eventRepo.findById(event.id).get
