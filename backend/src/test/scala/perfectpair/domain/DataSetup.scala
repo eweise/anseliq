@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.domain.model.*
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
-import perfectpair.domain.service.{AccountOperations, FundFlowCache}
+import perfectpair.domain.service.{FundFlowCache, FundFlowOperations}
 
 import java.util.UUID
 
@@ -62,12 +62,7 @@ class DataSetup(using dbTx: DbTx) {
   )
 
   fundFlowConfigRepo.insert(fundFlowConfig)
-  val accountOperations = AccountOperations(using
-    accountRepo        = accountRepo,
-    movementRepo       = movementRepo,
-    movementSpecRepo   = movementSpecRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo
-  )
+  val fundFlowOperations = FundFlowOperations()
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
     accountId         = reconAccount.id,
     ruleJson          = upickle.write(rule),

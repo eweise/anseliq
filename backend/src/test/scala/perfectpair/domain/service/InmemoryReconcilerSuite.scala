@@ -41,7 +41,7 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
       rollBackOnly:
         val data: DataSetup = DataSetup()
         import data.given
-        val ops = AccountOperations()
+        val ops = FundFlowOperations()
 
         given clock: ClockService = ClockService()
         val reconciler = InMemoryReconciler()
