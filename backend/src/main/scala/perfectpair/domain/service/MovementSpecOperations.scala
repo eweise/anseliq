@@ -8,7 +8,7 @@ import upickle.default.write as upickleWrite
 
 import java.util.UUID
 
-class MovementSpecOperations(using 
+class MovementSpecOperations(using
   val movementSpecRepo: MovementSpecRepo
 ):
 
@@ -20,6 +20,7 @@ class MovementSpecOperations(using
       dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
     )
     movementSpecRepo.insert(spec)
+
     Payload.movementSpecPayloadFromDomain(spec)
 
   def updateMovementSpec(idStr: String, payload: MovementSpecPayload): Txn[MovementSpecPayload] =
