@@ -220,8 +220,11 @@ object Page {
     val path:   String             = "/components/fund-flow"
     val render: Model => Html[Msg] = m => FundFlowView(m.fundFlowViewModel)
 
-    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) =
-      (model, Cmd.None)
+    def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
+      case Msg.FundFlowViewMsg(sub) =>
+        val (sub2, cmd) = FundFlowView.update(model.fundFlowViewModel, sub)
+        (model.copy(fundFlowViewModel = sub2), cmd)
+      case _ => (model, Cmd.None)
 
     override protected def beforeEnter(model: Model): Cmd[Task, Msg] =
       PrettyLogger.info("Entering Fund Flow page")

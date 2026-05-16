@@ -91,7 +91,9 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.NavigateToFundFlow(ff) =>
       (
         model.copy(fundFlowViewModel = FundFlowView.Model(ff)),
-        Cmd.Emit(Msg.NavigateTo(Page.FundFlow))
+        HttpHelper.fetchAccountsForFundFlowView(ff.id.get) |+|
+          HttpHelper.fetchMovementSpecsForFundFlowView(ff.id.get) |+|
+          Cmd.Emit(Msg.NavigateTo(Page.FundFlow))
       )
 
     case Msg.NavigateToAccounts(fundFlow) =>

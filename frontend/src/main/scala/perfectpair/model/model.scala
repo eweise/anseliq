@@ -67,6 +67,7 @@ enum Msg:
   case JobsMsg(msg: JobsView.Msg)
   case UnreconciledMovementsMsg(msg: UnreconciledMovementsView.Msg)
   case ReconciliationsMsg(msg: ReconciliationsView.Msg)
+  case FundFlowViewMsg(msg: FundFlowView.Msg)
 
 case class User(username: String, accessToken: String, refreshToken: String)
 
