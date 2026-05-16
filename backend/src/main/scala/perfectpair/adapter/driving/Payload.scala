@@ -47,6 +47,7 @@ object Payload:
       fundFlowId = account.fundFlowId.toString,
       id         = Some(account.id.toString),
       name       = account.name,
+      isRecon    = account.isRecon,
       properties = account.properties.props,
       balance    = account.balance
     )

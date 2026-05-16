@@ -1,8 +1,8 @@
 package perfectpair.domain.service
 
 import perfectpair.adapter.driving.Payload
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
 import perfectpair.common.model.model.{ID, Money, Properties}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
@@ -85,6 +85,9 @@ class FundFlowOperations(using
       dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
     )
     movementSpecRepo.insert(spec)
+
+    updateAccountIsRecon(spec)
+
     Payload.movementSpecPayloadFromDomain(spec)
 
   def updateMovementSpec(idStr: String, payload: MovementSpecPayload): Txn[MovementSpecPayload] =
@@ -97,7 +100,20 @@ class FundFlowOperations(using
       dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
     )
     movementSpecRepo.update(existing)
+
+    updateAccountIsRecon(existing)
+
     Payload.movementSpecPayloadFromDomain(existing)
+
+  private def updateAccountIsRecon(existing: MovementSpec): Txn[Unit] = {
+    var inAccount = accountRepo.findById(existing.inAccountId).ErrIfNotFound("account", existing.inAccountId)
+    inAccount = inAccount.copy(isRecon = accountRepo.isReconAccount(inAccount.id))
+    accountRepo.update(inAccount)
+
+    var outAccount = accountRepo.findById(existing.outAccountId).ErrIfNotFound("account", existing.outAccountId)
+    outAccount = outAccount.copy(isRecon = accountRepo.isReconAccount(outAccount.id))
+    accountRepo.update(outAccount)
+  }
 
   def deleteMovementSpec(idStr: String): Txn[Unit] =
     val id = UUID.fromString(idStr)

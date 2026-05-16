@@ -130,6 +130,7 @@ case class AccountPayload(
   name:       String         = "",
   fundFlowId: String         = "",
   properties: Properties     = Map(),
+  isRecon:    Boolean        = false,
   balance:    Money          = 0
 ) extends CanValidate
     derives ReadWriter:

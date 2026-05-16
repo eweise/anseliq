@@ -42,8 +42,11 @@ object AccountsView:
                 text(account.name),
                 text(account.balance.toString),
                 Buttons.textButton("Edit", AppMsg.AccountsMsg(Msg.SelectAccount(account))),
-                Buttons.textButton("Recon Specs", AppMsg.NavigateToReconSpecs(account)),
-                Buttons.textButton("Reconcile", AppMsg.AccountsMsg(Msg.ReconcileAccount(accountId))),
+                if account.isRecon then Buttons.textButton("Recon Specs", AppMsg.NavigateToReconSpecs(account))
+                else div(),
+                if account.isRecon then
+                  Buttons.textButton("Reconcile", AppMsg.AccountsMsg(Msg.ReconcileAccount(accountId)))
+                else div(),
                 statusBadge(status)
               )
             )
