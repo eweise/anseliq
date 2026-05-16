@@ -101,7 +101,7 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         model.copy(accountsModel = AccountsView.Model(fundFlow = fundFlow)),
         HttpHelper.fetchAccountsByFundFlowID(fundFlow.id.get) |+|
           Cmd.Emit(Msg.NavigateTo(Page.Accounts)) |+|
-          PrettyLogger.info("fetchAccountsByFundFlowID")
+          PrettyLogger.info(s"fetchAccountsByFundFlowID: ffID = ${fundFlow.id}")
       )
 
     case Msg.NavigateToMovementSpecs(fundFlow) =>
