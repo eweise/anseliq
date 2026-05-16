@@ -1,12 +1,12 @@
 # default postgres user and database are created in the entrypoint with initdb.
 
-PG_DB_ROOT ?= 5400
-PG_DB_USER ?= docker
-PG_DB_PASSWORD ?=mysecretpassword
+PG_DB_ROOT ?= 5432
+PG_DB_USER ?= postgres
+PG_DB_PASSWORD ?=postgres
 PG_DB_HOSTNAME := localhost
 PG_PASSWORD := postgres
 CURRENT_DIR = $(shell pwd)
-POSTGRES_BIN= /Library/PostgreSQL/17/bin
+POSTGRES_BIN= /Library/PostgreSQL/18/bin
 
 
 #start-postgres:
@@ -17,7 +17,7 @@ POSTGRES_BIN= /Library/PostgreSQL/17/bin
 
 create-db: delete-db
 	@echo "$(CURRENT_DIR)"
-	$(POSTGRES_BIN)/psql -p 5433 -Upostgres -f $(CURRENT_DIR)/backend/db/schema.sql
+	$(POSTGRES_BIN)/psql -p 5432 -Upostgres -f $(CURRENT_DIR)/backend/db/schema.sql
 
 delete-db:
-	$(POSTGRES_BIN)/psql -p 5433 -Upostgres -c "drop database if exists recon_db"
+	$(POSTGRES_BIN)/psql -p 5432 -Upostgres -c "drop database if exists recon_db"

@@ -30,9 +30,9 @@ object Main:
   def main(args: Array[String]): Unit =
 
     given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
-    given clock:                  ClockService                 = ClockService()
-    given jobRepo:                JobRepo                      = JobRepoLive()
-    given jobManager:             JobManager                   = JobManager()
+    given clock:              ClockService           = ClockService()
+    given jobRepo:            JobRepo                = JobRepoLive()
+    given jobManager:         JobManager             = JobManager()
     given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
     given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
     given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
@@ -42,8 +42,8 @@ object Main:
     given eventRepo:          EventRepo              = EventRepoLive()
     given fundFlowOperations: FundFlowOperations     = FundFlowOperations()
     given eventStore:         EventStore             = EventStore()
-    given ingestor:               Ingestor                     = Ingestor()
-    given reconciler:             InMemoryReconciler           = InMemoryReconciler()
+    given ingestor:           Ingestor               = Ingestor()
+    given reconciler:         InMemoryReconciler     = InMemoryReconciler()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
     supervised {

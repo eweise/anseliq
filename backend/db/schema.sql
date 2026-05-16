@@ -20,6 +20,7 @@ create table recon.account
     fund_flow_id uuid                                  not null references recon.fund_flow_config (id) ON DELETE CASCADE,
     name         text                                  not null,
     balance      numeric(15, 2),
+    is_recon     bool,
     properties   jsonb,
     created_at   timestamptz default CURRENT_TIMESTAMP not null,
     updated_at   timestamptz default CURRENT_TIMESTAMP not null

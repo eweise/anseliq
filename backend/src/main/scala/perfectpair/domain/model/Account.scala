@@ -15,6 +15,7 @@ case class Account(
   fundFlowId:    ID,
   properties:    JSONBProps             = JSONBProps(Map()),
   var balance:   Money                  = 0,
+  isRecon:       Boolean                = false,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec
