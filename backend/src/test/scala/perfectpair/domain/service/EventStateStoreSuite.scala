@@ -33,7 +33,7 @@ class EventStateStoreSuite extends munit.FunSuite:
         eventStore.publishEvent(event)
 
         var consumed = false
-        eventStore.processNextEvent(event.eventType, maxRetries = 3)(_ => consumed = true)
+        eventStore.processNextEvent(classOf[MoneyMovementsIngested], maxRetries = 3)(_ => consumed = true)
 
         assertEquals(consumed, true)
         val found = eventRepo.findById(event.id).get
@@ -43,7 +43,7 @@ class EventStateStoreSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         var called = false
-        eventStore.processNextEvent("OrderPlaced", maxRetries = 3)(_ => called = true)
+        eventStore.processNextEvent(classOf[AccountReconciled], maxRetries = 3)(_ => called = true)
         assertEquals(called, false)
 
   test("processNextEvent increments retryCount and keeps Pending if Exception"):
@@ -52,7 +52,7 @@ class EventStateStoreSuite extends munit.FunSuite:
         val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
         eventStore.publishEvent(event)
 
-        eventStore.processNextEvent(event.eventType, maxRetries = 3) { _ =>
+        eventStore.processNextEvent(classOf[MoneyMovementsIngested], maxRetries = 3) { _ =>
           throw Exception("temporary failure")
         }
 
@@ -68,7 +68,7 @@ class EventStateStoreSuite extends munit.FunSuite:
         eventRepo.insert(EventState.newEventState(event))
 
         for (i <- 1 to 3)
-          eventStore.processNextEvent(event.eventType, maxRetries = maxRetries) { _ =>
+          eventStore.processNextEvent(classOf[AccountReconciled], maxRetries = maxRetries) { _ =>
             throw Exception("still failing")
           }
 
@@ -82,7 +82,7 @@ class EventStateStoreSuite extends munit.FunSuite:
         val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
         eventStore.publishEvent(event)
 
-        eventStore.processNextEvent(event.eventType, maxRetries = 3) { _ =>
+        eventStore.processNextEvent(classOf[MoneyMovementsIngested], maxRetries = 3) { _ =>
           throw NonRetryableError("fatal failure")
         }
 

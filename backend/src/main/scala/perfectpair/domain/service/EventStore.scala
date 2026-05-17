@@ -14,20 +14,20 @@ class EventStore(using eventRepo: EventRepo, clock: ClockService, dataSource: Da
     val eventState = EventState.newEventState(event)
     eventRepo.insert(eventState)
 
-  def consumeEvent(eventType: String, pollingSeconds: Int, maxRetries: Int)(consumer: Event => Unit): Unit =
+  def consumeEvent[T <: Event](eventClass: Class[T], pollingSeconds: Int, maxRetries: Int)(consumer: T => Txn[Unit]): Unit =
     repeat(Schedule.fixedInterval(pollingSeconds.seconds)) {
       given transactor: Transactor = Transactor(dataSource)
       transact(transactor) {
-        processNextEvent(eventType, maxRetries)(consumer)
+        processNextEvent(eventClass, maxRetries)(consumer)
       }
     }
 
-  def processNextEvent(eventType: String, maxRetries: Int)(consumer: Event => Unit): Txn[Unit] =
-    eventRepo.getNextPendingEvent(eventType, maxRetries).foreach { eventState =>
+  def processNextEvent[T <: Event](eventClass: Class[T], maxRetries: Int)(consumer: T => Txn[Unit]): Txn[Unit] =
+    eventRepo.getNextPendingEvent(eventClass.getSimpleName, maxRetries).foreach { eventState =>
       val inProgress = eventState.copy(status = EventStatus.InProgress, updatedAt = Some(clock.now))
       eventRepo.update(inProgress)
       try {
-        val event: Event = upickle.read(inProgress.payload)
+        val event: T = eventClass.cast(upickle.read[Event](inProgress.payload))
         consumer(event)
         eventRepo.update(inProgress.copy(status = EventStatus.Consumed, updatedAt = Some(clock.now)))
       } catch {

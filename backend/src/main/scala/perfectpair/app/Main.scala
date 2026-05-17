@@ -48,33 +48,44 @@ object Main:
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
     supervised {
       fork {
-        transact(Transactor(dataSource = given_DataSource)):
+        try
           jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
-            println(s"found job $job")
-            val reconJobInfo = job.jobInfo().asInstanceOf[ReconciliationInfo]
-            println(s"found job info $reconJobInfo")
-            val accountID = UUID.fromString(reconJobInfo.accountId)
-            reconciler.reconcileAccount(accountID)
-            println(s"reconciled account $accountID")
+            val account =
+              accountRepo
+                .findById(job.referenceId)
+                .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
+            val reconcilationResult = reconciler.reconcileAccount(account.id)
+
+            val jobInfo = ReconciliationInfo(
+              accountId                   = account.id.toString,
+              accountName                 = account.name,
+              reconciliationsCreatedCount = reconcilationResult.totalCount,
+              processingTimeSeconds       = reconcilationResult.processingTimeSeconds
+            )
+            jobManager.completeJob(job.id, jobInfo)
           }
+        catch {
+          case ex: Exception => ex.printStackTrace()
+        }
       }
       fork {
-        transact(Transactor(dataSource = given_DataSource)):
-          eventStore.consumeEvent(MoneyMovementsIngested.getClass.getName, 5, 3) { job =>
-            println(s"found ingestion job $job")
-            val ingestionInfo = job.asInstanceOf[IngestionInfo]
-            println(s"found ingestion job info $ingestionInfo")
-            val movementSpecID = UUID.fromString(ingestionInfo.movementSpecId)
+        try
+          eventStore.consumeEvent(classOf[MoneyMovementsIngested], 5, 10) { event =>
+            println(s"found ingestion job $event")
             val movementSpec = movementSpecRepo
-              .findById(movementSpecID)
-              .ErrIfNotFound("movementSpec", movementSpecID)
+              .findById(event.movementSpecID)
+              .ErrIfNotFound("movementSpec", event.movementSpecID)
 
-            if accountRepo.isReconAccount(movementSpec.inAccountId) then
-              reconciler.reconcileAccount(movementSpec.inAccountId)
+            transact(Transactor(dataSource = given_DataSource)):
+              if (accountRepo.isReconAccount(movementSpec.inAccountId)) then
+                jobManager.submitJob(JobType.Reconciliation, movementSpec.inAccountId)
 
-            if accountRepo.isReconAccount(movementSpec.outAccountId) then
-              reconciler.reconcileAccount(movementSpec.outAccountId)
+              if (accountRepo.isReconAccount(movementSpec.outAccountId)) then
+                jobManager.submitJob(JobType.Reconciliation, movementSpec.outAccountId)
           }
+        catch {
+          case ex: Exception => ex.printStackTrace()
+        }
       }
 
       new App().main(args)

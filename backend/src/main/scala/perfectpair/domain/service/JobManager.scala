@@ -91,6 +91,16 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
         )
       )
 
+  def pollForJob(jobType: JobType, pollingSeconds: Int)(fn: Job => Txn[Unit]): Unit =
+    repeat(Schedule.fixedInterval(pollingSeconds.seconds)) {
+      given transactor: Transactor = Transactor(dataSource)
+      transact(transactor) {
+        getNextAvailableJob(jobType).foreach { job =>
+          fn(job)
+        }
+      }
+    }
+
   def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =
     jobRepo
       .getNextJob(jobType)
@@ -103,13 +113,3 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
         )
         job
       )
-
-  def pollForJob(jobType: JobType, pollingSeconds: Int)(fn: Job => Unit): Unit =
-    repeat(Schedule.fixedInterval(pollingSeconds.seconds).maxAttempts(3)) {
-      given transactor: Transactor = Transactor(dataSource)
-      transact(transactor) {
-        getNextAvailableJob(jobType).foreach { job =>
-          fn(job)
-        }
-      }
-    }

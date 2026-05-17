@@ -2,6 +2,7 @@ package perfectpair.view.pages
 
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
 import perfectpair.model.Msg as AppMsg
+import perfectpair.view.pages.ReconSpecsView.Msg
 import tyrian.{Cmd, Html}
 import tyrian.Html.*
 import zio.Task
@@ -83,7 +84,7 @@ object FundFlowView:
       )(text("Define Relationships")),
       button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
-        onClick(AppMsg.FundFlowViewMsg(Msg.EditRelationships))
+        onClick(AppMsg.NavigateToReconSpecs(account))
       )(text("Configure Reconciliation"))
     )
 
