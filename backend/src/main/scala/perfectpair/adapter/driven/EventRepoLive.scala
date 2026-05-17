@@ -10,13 +10,14 @@ class EventRepoLive extends Repo[EventState, EventState, UUID] with EventRepo:
   val e = EventState.Table
 
   override def getNextPendingEvent(eventType: String, maxRetries: Int): Txn[Option[EventState]] =
-    sql"""
+    val found = sql"""
       SELECT ${e.all}
       FROM $e
-      WHERE status = ${EventStatus.Pending}
+      WHERE status in(${EventStatus.Pending}, ${EventStatus.Error})
       AND event_type = $eventType
       AND retry_count < $maxRetries
       ORDER BY created_at
       LIMIT 1
       FOR UPDATE SKIP LOCKED
-    """.query[EventState].run().headOption
+    """.query[EventState].run()
+    found.headOption

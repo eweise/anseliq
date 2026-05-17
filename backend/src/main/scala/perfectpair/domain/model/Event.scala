@@ -6,12 +6,10 @@ import upickle.ReadWriter
 import java.util.UUID
 
 sealed trait Event derives ReadWriter {
-  val id:        UUID
-  val eventType: String
+  val id: UUID
+  val eventType: String = this.getClass.getSimpleName
 }
 
-case class MoneyMovementsIngested(id: UUID = UUID.randomUUID(), movementSpecID: ID) extends Event:
-  override val eventType: String = "MoneyMovementIngested"
+case class MoneyMovementsIngested(id: UUID = UUID.randomUUID(), movementSpecID: ID) extends Event
 
-case class AccountReconciled(id: UUID = UUID.randomUUID(), accountID: ID) extends Event:
-  override val eventType: String = "AccountReconciled"
+case class AccountReconciled(id: UUID = UUID.randomUUID(), accountID: ID) extends Event
