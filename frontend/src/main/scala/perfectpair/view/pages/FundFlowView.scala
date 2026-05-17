@@ -2,9 +2,8 @@ package perfectpair.view.pages
 
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
 import perfectpair.model.Msg as AppMsg
-import tyrian.Html
+import tyrian.{Cmd, Html}
 import tyrian.Html.*
-import tyrian.Cmd
 import zio.Task
 
 import scala.collection.mutable
@@ -21,7 +20,7 @@ object FundFlowView:
 
   def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     msg match
-      case Msg.AccountsFromBackend(accounts)  => (model.copy(accounts = accounts), Cmd.None)
+      case Msg.AccountsFromBackend(accounts)   => (model.copy(accounts = accounts), Cmd.None)
       case Msg.MovementSpecsFromBackend(specs) => (model.copy(movementSpecs = specs), Cmd.None)
       case Msg.SelectAccount(account)          => (model.copy(selectedAccount = Some(account)), Cmd.None)
       case Msg.DismissMenu                     => (model.copy(selectedAccount = None), Cmd.None)
@@ -35,10 +34,8 @@ object FundFlowView:
       div(cls := "my-8 text-center")(
         h2(cls := "text-2xl font-medium mb-6")(text(model.fundFlow.name))
       ),
-      if model.accounts.isEmpty then
-        div(cls := "text-gray-500 text-sm")(text("No accounts"))
-      else
-        renderDiagramWithOverlay(model, computePositions(model.accounts, model.movementSpecs))
+      if model.accounts.isEmpty then div(cls := "text-gray-500 text-sm")(text("No accounts"))
+      else renderDiagramWithOverlay(model, computePositions(model.accounts, model.movementSpecs))
     )
 
   private def renderDiagramWithOverlay(model: Model, posOf: Map[String, (Int, Int)]): Html[AppMsg] =
@@ -55,7 +52,7 @@ object FundFlowView:
 
     val menu: Html[AppMsg] = model.selectedAccount.flatMap { selected =>
       selected.id.flatMap { id =>
-        posOf.get(id).map { (x, y) => accountMenu(selected, x, y + boxH + 4) }
+        posOf.get(id).map((x, y) => accountMenu(selected, x, y + boxH + 4))
       }
     }.getOrElse(div()())
 
@@ -77,51 +74,24 @@ object FundFlowView:
       style := s"position:absolute;left:${x}px;top:${y}px;z-index:30;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);min-width:160px;overflow:hidden"
     )(
       button(
-        cls     := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick(AppMsg.FundFlowViewMsg(Msg.EditAccount(account)))
       )(text("Edit")),
       button(
-        cls     := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick(AppMsg.FundFlowViewMsg(Msg.EditRelationships))
-      )(text("Edit Relationships"))
+      )(text("Define Relationships")),
+      button(
+        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+        onClick(AppMsg.FundFlowViewMsg(Msg.EditRelationships))
+      )(text("Configure Reconciliation"))
     )
 
-  private def computePositions(accounts: Seq[AccountPayload], movementSpecs: Seq[MovementSpecPayload]): Map[String, (Int, Int)] = {
-    val columnOf = mutable.Map[String, Int]()
-    val allInIds = movementSpecs.map(_.inAccountId).toSet
-    accounts.foreach { a =>
-      a.id.foreach { id => if (!allInIds.contains(id)) columnOf(id) = 0 }
-    }
-
-    var changed = true
-    while (changed) {
-      changed = false
-      movementSpecs.foreach { ms =>
-        val newInCol = columnOf.getOrElse(ms.outAccountId, 0) + 1
-        if (newInCol > columnOf.getOrElse(ms.inAccountId, -1)) {
-          columnOf(ms.inAccountId) = newInCol
-          changed = true
-        }
-      }
-    }
-
-    accounts.foreach { a =>
-      a.id.foreach { id => if (!columnOf.contains(id)) columnOf(id) = 0 }
-    }
-
-    val byColumn = accounts.groupBy(a => columnOf.getOrElse(a.id.getOrElse(""), 0))
-    val posOf    = mutable.Map[String, (Int, Int)]()
-    byColumn.foreach { (col, accs) =>
-      accs.sortBy(_.name).zipWithIndex.foreach { (acc, row) =>
-        acc.id.foreach { id =>
-          posOf(id) = (margin + col * colStride, margin + row * rowStride)
-        }
-      }
-    }
-    posOf.toMap
-  }
-
-  private def buildSvg(accounts: Seq[AccountPayload], movementSpecs: Seq[MovementSpecPayload], posOf: Map[String, (Int, Int)]): String = {
+  private def buildSvg(
+    accounts:      Seq[AccountPayload],
+    movementSpecs: Seq[MovementSpecPayload],
+    posOf:         Map[String, (Int, Int)]
+  ): String = {
     val svgW = posOf.values.map(_._1).maxOption.fold(margin * 2)(_ + boxW + margin)
     val svgH = posOf.values.map(_._2).maxOption.fold(margin * 2)(_ + boxH + margin)
 
@@ -147,7 +117,9 @@ object FundFlowView:
         posOf.get(id).foreach { (x, y) =>
           val fill   = if (acc.isRecon) "#f3f0ff" else "white"
           val stroke = if (acc.isRecon) "#7c3aed" else "#d1d5db"
-          sb.append(s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />""")
+          sb.append(
+            s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />"""
+          )
           sb.append(
             s"""<text x="${x + boxW / 2}" y="${y + boxH / 2}" text-anchor="middle" dominant-baseline="middle" """ +
               s"""fill="#374151" font-size="13" font-family="sans-serif">${xmlEscape(acc.name)}</text>"""
@@ -162,6 +134,44 @@ object FundFlowView:
 
   private def xmlEscape(str: String): String =
     str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+  private def computePositions(
+    accounts:      Seq[AccountPayload],
+    movementSpecs: Seq[MovementSpecPayload]
+  ): Map[String, (Int, Int)] = {
+    val columnOf = mutable.Map[String, Int]()
+    val allInIds = movementSpecs.map(_.inAccountId).toSet
+    accounts.foreach { a =>
+      a.id.foreach(id => if (!allInIds.contains(id)) columnOf(id) = 0)
+    }
+
+    var changed = true
+    while (changed) {
+      changed = false
+      movementSpecs.foreach { ms =>
+        val newInCol = columnOf.getOrElse(ms.outAccountId, 0) + 1
+        if (newInCol > columnOf.getOrElse(ms.inAccountId, -1)) {
+          columnOf(ms.inAccountId) = newInCol
+          changed                  = true
+        }
+      }
+    }
+
+    accounts.foreach { a =>
+      a.id.foreach(id => if (!columnOf.contains(id)) columnOf(id) = 0)
+    }
+
+    val byColumn = accounts.groupBy(a => columnOf.getOrElse(a.id.getOrElse(""), 0))
+    val posOf    = mutable.Map[String, (Int, Int)]()
+    byColumn.foreach { (col, accs) =>
+      accs.sortBy(_.name).zipWithIndex.foreach { (acc, row) =>
+        acc.id.foreach { id =>
+          posOf(id) = (margin + col * colStride, margin + row * rowStride)
+        }
+      }
+    }
+    posOf.toMap
+  }
 
   enum Msg:
     case AccountsFromBackend(accounts: Seq[AccountPayload])
