@@ -72,14 +72,14 @@ object MaintainReconSpecView:
           fieldID    = "inMovementSpecId",
           labelName  = "In Movement Spec",
           selectedId = spec.inMovementSpecId,
-          specs      = model.movementSpecs,
+          specs      = model.movementSpecs.filter(spec => spec.inAccountId == model.account.id.get),
           onSelect   = value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(inMovementSpecId = value)))
         ),
         movementSpecSelect(
           fieldID    = "outMovementSpecId",
           labelName  = "Out Movement Spec",
           selectedId = spec.outMovementSpecId,
-          specs      = model.movementSpecs,
+          specs      = model.movementSpecs.filter(spec => spec.outAccountId == model.account.id.get),
           onSelect   = value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(outMovementSpecId = value)))
         ),
         RuleWidget(
