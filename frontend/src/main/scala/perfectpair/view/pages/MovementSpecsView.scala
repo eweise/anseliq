@@ -25,7 +25,7 @@ object MovementSpecsView:
         )
       case Msg.SelectMovementSpec(msa) =>
         val spec = msa.map(_.spec)
-        (model, Cmd.emit(AppMsg.NavigateToMaintainMovementSpec(model.fundFlow, model.accounts, spec)))
+        (model, Cmd.emit(AppMsg.NavigateToMaintainMovementSpec(model.fundFlow, model.accounts, spec, AppMsg.NavigateToMovementSpecs(model.fundFlow))))
       case Msg.ViewUnreconciled(msa) =>
         (model, Cmd.emit(AppMsg.NavigateToUnreconciledMovements(msa.spec, model.accounts, model.fundFlow)))
 
