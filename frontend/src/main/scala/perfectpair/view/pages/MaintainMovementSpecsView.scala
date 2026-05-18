@@ -23,7 +23,7 @@ object MaintainMovementSpecsView:
       case Msg.MovementSpecAction(spec, Created) =>
         (
           model.copy(movementSpec = Some(spec)),
-          PrettyLogger.info("created movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow))
+          PrettyLogger.info("created movement spec") |+| Cmd.emit(model.returnTo)
         )
       case Msg.MovementSpecAction(spec, Update) =>
         val toSave = spec.copy(dataSourceConfig = DataSourceConfigWidget.toDataSourceConfig(model.dataSourceWidget))
@@ -31,7 +31,7 @@ object MaintainMovementSpecsView:
       case Msg.MovementSpecAction(spec, Updated) =>
         (
           model.copy(movementSpec = Some(spec)),
-          PrettyLogger.info("updated movement spec") |+| Cmd.emit(AppMsg.NavigateToMovementSpecs(model.fundFlow))
+          PrettyLogger.info("updated movement spec") |+| Cmd.emit(model.returnTo)
         )
 
   def apply(model: Model): Html[AppMsg] =
@@ -64,7 +64,7 @@ object MaintainMovementSpecsView:
         ),
         DataSourceConfigWidget(model.dataSourceWidget, msg => AppMsg.MaintainMovementSpecsMsg(Msg.DataSourceMsg(msg))),
         div(cls := "flex justify-end gap-2 mt-6")(
-          Buttons.textButton("Cancel", AppMsg.NavigateToMovementSpecs(model.fundFlow)),
+          Buttons.textButton("Cancel", model.returnTo),
           Buttons.linkButton("Save", AppMsg.MaintainMovementSpecsMsg(Msg.MovementSpecAction(spec, action)))
         )
       )
@@ -105,5 +105,6 @@ object MaintainMovementSpecsView:
     fundFlow:         FundFlowPayload              = FundFlowPayload(),
     accounts:         Seq[AccountPayload]          = Seq(),
     movementSpec:     Option[MovementSpecPayload]  = None,
-    dataSourceWidget: DataSourceConfigWidget.Model = DataSourceConfigWidget.Model()
+    dataSourceWidget: DataSourceConfigWidget.Model = DataSourceConfigWidget.Model(),
+    returnTo:         AppMsg                       = AppMsg.NoOp
   )

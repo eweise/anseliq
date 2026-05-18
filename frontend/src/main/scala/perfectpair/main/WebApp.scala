@@ -134,14 +134,15 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         Cmd.Emit(Msg.NavigateTo(Page.MaintainReconSpec))
       )
 
-    case Msg.NavigateToMaintainMovementSpec(fundFlow, accounts, movementSpec) =>
+    case Msg.NavigateToMaintainMovementSpec(fundFlow, accounts, movementSpec, returnTo) =>
       (
         model.copy(maintainMovementSpecModel =
           MaintainMovementSpecsView.Model(
             fundFlow         = fundFlow,
             accounts         = accounts,
             movementSpec     = movementSpec,
-            dataSourceWidget = DataSourceConfigWidget.fromDataSourceConfig(movementSpec.flatMap(_.dataSourceConfig))
+            dataSourceWidget = DataSourceConfigWidget.fromDataSourceConfig(movementSpec.flatMap(_.dataSourceConfig)),
+            returnTo         = returnTo
           )
         ),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainMovementSpec))

@@ -30,7 +30,8 @@ enum Msg:
   case NavigateToMaintainMovementSpec(
     fundFlow:     FundFlowPayload,
     accounts:     Seq[AccountPayload],
-    movementSpec: Option[MovementSpecPayload]
+    movementSpec: Option[MovementSpecPayload],
+    returnTo:     Msg = Msg.NoOp
   )
   case NavigateToReconSpecs(account: AccountPayload)
   case NavigateToMaintainReconSpec(
