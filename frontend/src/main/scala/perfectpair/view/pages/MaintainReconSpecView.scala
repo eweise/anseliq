@@ -94,7 +94,7 @@ object MaintainReconSpecView:
             Buttons.textButton("Delete", AppMsg.MaintainReconSpecMsg(Msg.ReconSpecAction(spec, Delete)))
           else div()(),
           div(cls := "flex gap-2")(
-            Buttons.textButton("Cancel", AppMsg.NavigateToReconSpecs(model.account)),
+            Buttons.textButton("Cancel", model.returnTo),
             Buttons.linkButton("Save", AppMsg.MaintainReconSpecMsg(Msg.ReconSpecAction(spec, action)))
           )
         )
@@ -136,5 +136,6 @@ object MaintainReconSpecView:
     account:       AccountPayload                    = AccountPayload(),
     movementSpecs: Seq[MovementSpecPayload]          = Seq(),
     reconSpec:     Option[ReconciliationSpecPayload] = None,
-    ruleWidget:    RuleWidget.Model                  = RuleWidget.Model()
+    ruleWidget:    RuleWidget.Model                  = RuleWidget.Model(),
+    returnTo:      AppMsg                            = AppMsg.NoOp
   )
