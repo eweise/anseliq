@@ -20,8 +20,6 @@ object FundFlowsView:
         (model, Cmd.Emit(AppMsg.NavigateToMaintainFundFlow(ff)))
       case Msg.GetAccountsForFundFlow(ff) =>
         (model, Cmd.Emit(AppMsg.NavigateToAccounts(ff)))
-      case Msg.GetMovementSpecsForFundFlow(ff) =>
-        (model, Cmd.Emit(AppMsg.NavigateToMovementSpecs(ff)))
 
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col mb-8 pt-20")(
@@ -46,7 +44,6 @@ object FundFlowsView:
                 text(ViewHelper.formatDateTime(ff.createdAt.get)),
                 text(ViewHelper.formatDateTime(ff.updatedAt.get)),
                 Buttons.textButton(DisplayName.accounts, AppMsg.FundFlowsMsg(Msg.GetAccountsForFundFlow(ff))),
-                Buttons.textButton(DisplayName.movementSpecs, AppMsg.FundFlowsMsg(Msg.GetMovementSpecsForFundFlow(ff))),
                 Buttons.textButton("Edit", AppMsg.FundFlowsMsg(Msg.SelectFundFlow(ff)))
               )
             )
@@ -58,6 +55,5 @@ object FundFlowsView:
     case FundFlowsFromBackend(fundFlows: Seq[FundFlowPayload])
     case SelectFundFlow(fundFlow: FundFlowPayload)
     case GetAccountsForFundFlow(fundFlow: FundFlowPayload)
-    case GetMovementSpecsForFundFlow(fundFlow: FundFlowPayload)
 
   case class Model(fundFlows: Seq[FundFlowPayload] = Seq())

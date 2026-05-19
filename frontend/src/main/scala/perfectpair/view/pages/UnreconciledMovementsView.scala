@@ -21,7 +21,7 @@ object UnreconciledMovementsView:
         h2(cls := "text-2xl font-medium mb-6")(
           text(s"${model.movementSpec.name} — Unreconciled Movements")
         ),
-        Buttons.linkButton("Back to Movement Specs", AppMsg.NavigateToMovementSpecs(model.fundFlow)),
+        Buttons.linkButton("Back", AppMsg.NavigateToFundFlow(model.fundFlow)),
         Table.create(
           Seq("Reference ID", "Amount", "In Account", "Out Account"),
           model.movements.map(m =>
