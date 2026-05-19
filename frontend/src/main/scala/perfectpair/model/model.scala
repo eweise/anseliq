@@ -37,7 +37,8 @@ enum Msg:
   case NavigateToMaintainReconSpec(
     account:       AccountPayload,
     movementSpecs: Seq[MovementSpecPayload],
-    reconSpec:     Option[ReconciliationSpecPayload]
+    reconSpec:     Option[ReconciliationSpecPayload],
+    returnTo:      Msg = Msg.NoOp
   )
   case NavigateToIngest(
     account:       AccountPayload,

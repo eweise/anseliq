@@ -16,7 +16,7 @@ object ReconSpecsView:
       case Msg.MovementSpecsFromBackend(specs) =>
         (model.copy(movementSpecs = specs), Cmd.None)
       case Msg.SelectReconSpec(reconSpec) =>
-        (model, Cmd.emit(AppMsg.NavigateToMaintainReconSpec(model.account, model.movementSpecs, reconSpec)))
+        (model, Cmd.emit(AppMsg.NavigateToMaintainReconSpec(model.account, model.movementSpecs, reconSpec, AppMsg.NavigateToReconSpecs(model.account))))
       case Msg.RunReconSpec(reconSpec) =>
         (model, Cmd.emit(AppMsg.NavigateToIngest(model.account, reconSpec, model.movementSpecs)))
       case Msg.ViewReconciliations(reconSpec) =>

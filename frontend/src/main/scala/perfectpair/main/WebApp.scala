@@ -121,14 +121,15 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
           PrettyLogger.info("NavigateToReconSpecs")
       )
 
-    case Msg.NavigateToMaintainReconSpec(account, movementSpecs, reconSpec) =>
+    case Msg.NavigateToMaintainReconSpec(account, movementSpecs, reconSpec, returnTo) =>
       (
         model.copy(maintainReconSpecModel =
           MaintainReconSpecView.Model(
             account       = account,
             movementSpecs = movementSpecs,
             reconSpec     = reconSpec,
-            ruleWidget    = RuleWidget.fromRule(reconSpec.map(_.rule).getOrElse(NoOpRule))
+            ruleWidget    = RuleWidget.fromRule(reconSpec.map(_.rule).getOrElse(NoOpRule)),
+            returnTo      = returnTo
           )
         ),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainReconSpec))
