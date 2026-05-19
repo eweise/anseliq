@@ -25,7 +25,6 @@ enum Msg:
   // Navigation with context (carry page state to destination)
   case NavigateToMaintainFundFlow(ff: FundFlowPayload)
   case NavigateToAccounts(fundFlow: FundFlowPayload)
-  case NavigateToMovementSpecs(fundFlow: FundFlowPayload)
   case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload])
   case NavigateToMaintainMovementSpec(
     fundFlow:     FundFlowPayload,
@@ -61,7 +60,6 @@ enum Msg:
   case MaintainFundFlowMsg(msg: MaintainFundFlowView.Msg)
   case AccountsMsg(msg: AccountsView.Msg)
   case MaintainAccountMsg(msg: MaintainAccountView.Msg)
-  case MovementSpecsMsg(msg: MovementSpecsView.Msg)
   case MaintainMovementSpecsMsg(msg: MaintainMovementSpecsView.Msg)
   case ReconSpecsMsg(msg: ReconSpecsView.Msg)
   case MaintainReconSpecMsg(msg: MaintainReconSpecView.Msg)
@@ -83,7 +81,6 @@ case class Model(
   maintainFundFlowModel:      MaintainFundFlowView.Model,
   accountsModel:              AccountsView.Model,
   maintainAccountModel:       MaintainAccountView.Model,
-  movementSpecsModel:         MovementSpecsView.Model,
   maintainMovementSpecModel:  MaintainMovementSpecsView.Model = MaintainMovementSpecsView.Model(),
   reconSpecsModel:            ReconSpecsView.Model            = ReconSpecsView.Model(),
   maintainReconSpecModel:     MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
@@ -120,7 +117,6 @@ object Model:
     accountsModel         = AccountsView.Model(),
     maintainAccountModel =
       MaintainAccountView.Model(), // fixme. I don't think these models should be initialized with default payloads
-    movementSpecsModel         = MovementSpecsView.Model(),
     maintainMovementSpecModel  = MaintainMovementSpecsView.Model(),
     reconSpecsModel            = ReconSpecsView.Model(),
     maintainReconSpecModel     = MaintainReconSpecView.Model(),

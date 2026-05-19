@@ -33,8 +33,6 @@ object FundFlowView:
             model.copy(selectedAccount = None),
             Cmd.Emit(AppMsg.NavigateToMaintainAccount(model.fundFlow, Some(account)))
           )
-        case Msg.EditRelationships =>
-          (model.copy(selectedAccount = None), Cmd.Emit(AppMsg.NavigateToMovementSpecs(model.fundFlow)))
         case Msg.EditRelationship(spec) =>
           (
             model.copy(selectedMovementSpec = None),
@@ -133,10 +131,6 @@ object FundFlowView:
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick(AppMsg.FundFlowViewMsg(Msg.EditAccount(account)))
       )(text("Edit")),
-      button(
-        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
-        onClick(AppMsg.FundFlowViewMsg(Msg.EditRelationships))
-      )(text("Define Relationships")),
       button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick(AppMsg.NavigateToMaintainReconSpec(account, movementSpecs, None, AppMsg.NavigateToFundFlow(fundFlow)))
@@ -246,7 +240,6 @@ object FundFlowView:
     case SelectMovementSpec(spec: MovementSpecPayload)
     case DismissMenu
     case EditAccount(account: AccountPayload)
-    case EditRelationships
     case EditRelationship(spec: MovementSpecPayload)
 
   case class Model(

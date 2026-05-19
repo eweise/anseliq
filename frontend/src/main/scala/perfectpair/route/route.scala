@@ -15,7 +15,6 @@ object Route {
         case "maintain-fund-flow"     => Page.MaintainFundFlow
         case "accounts"               => Page.Accounts
         case "maintain-account"       => Page.MaintainAccount
-        case "movement-specs"         => Page.MovementSpecs
         case "maintain-movement-spec" => Page.MaintainMovementSpec
         case "recon-specs"            => Page.ReconSpecs
         case "maintain-recon-spec"    => Page.MaintainReconSpec

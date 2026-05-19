@@ -65,12 +65,6 @@ object HttpHelper:
   def fetchAccountsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), accountsDecoder)
 
-  def fetchMovementSpecsByFundFlowID(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/movement-specs"), movementSpecsDecoder)
-
-  def fetchAccountsForMovementSpecs(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
-    fetchServerMessageCmd(HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/accounts"), movementSpecsAccountsDecoder)
-
   private def fetchServerMessageCmd(
     apiUrl:          String,
     resultToDecoder: Decoder[Msg]
@@ -223,22 +217,6 @@ object HttpHelper:
         onResponse =>
           val accountPayload = read[AccountPayload](onResponse.body)
           Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountAction(accountPayload, Created))
-        ,
-        error => Msg.Error(error.toString)
-      )
-    val movementSpecsDecoder: Decoder[Msg] =
-      Decoder(
-        onResponse =>
-          val specs = read[Seq[MovementSpecPayload]](onResponse.body)
-          Msg.MovementSpecsMsg(MovementSpecsView.Msg.MovementSpecsFromBackend(specs))
-        ,
-        error => Msg.Error(error.toString)
-      )
-    val movementSpecsAccountsDecoder: Decoder[Msg] =
-      Decoder(
-        onResponse =>
-          val accounts = read[Seq[AccountPayload]](onResponse.body)
-          Msg.MovementSpecsMsg(MovementSpecsView.Msg.AccountsFromBackend(accounts))
         ,
         error => Msg.Error(error.toString)
       )
