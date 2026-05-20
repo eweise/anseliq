@@ -47,12 +47,6 @@ object MaintainReconSpecView:
       div(cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8")(
         h2(cls := "text-xl font-medium text-md-on-surface mb-7")(text("Recon Spec")),
         Form.field[AppMsg](
-          fieldID      = "description",
-          labelName    = "Description",
-          defaultValue = Some(spec.description),
-          onChangFn    = Some(value => AppMsg.MaintainReconSpecMsg(Msg.FormUpdate(spec.copy(description = value))))
-        ),
-        Form.field[AppMsg](
           fieldID      = "agingLimit",
           labelName    = "Aging Limit",
           defaultValue = Some(spec.agingLimit.toString),
@@ -122,7 +116,7 @@ object MaintainReconSpecView:
           option(
             value := spec.id.getOrElse(""),
             if spec.id.getOrElse("") == selectedId then attribute("selected", "selected") else EmptyAttribute
-          )(text(spec.name))
+          )(text("spec.name"))
         )*
       )
     )

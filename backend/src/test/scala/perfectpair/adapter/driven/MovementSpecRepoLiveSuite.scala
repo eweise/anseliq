@@ -30,12 +30,11 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         accountRepo.insert(inAccount)
         accountRepo.insert(outAccount)
 
-        val spec = MovementSpec(name = "test-spec", inAccountId = inAccount.id, outAccountId = outAccount.id)
+        val spec = MovementSpec(inAccountId = inAccount.id, outAccountId = outAccount.id)
         movementSpecRepo.insert(spec)
 
         val results = movementSpecRepo.findByFundFlowId(fundFlow.id)
         assertEquals(results.size, 1)
-        assertEquals(results.head.name, "test-spec")
 
   test("findByFundFlowId does not return movement specs from other fund flows"):
     val movementSpecRepo = MovementSpecRepoLive()
@@ -55,9 +54,8 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         accountRepo.insert(inA); accountRepo.insert(outA)
         accountRepo.insert(inB); accountRepo.insert(outB)
 
-        movementSpecRepo.insert(MovementSpec(name = "spec-a", inAccountId = inA.id, outAccountId = outA.id))
-        movementSpecRepo.insert(MovementSpec(name = "spec-b", inAccountId = inB.id, outAccountId = outB.id))
+        movementSpecRepo.insert(MovementSpec(inAccountId = inA.id, outAccountId = outA.id))
+        movementSpecRepo.insert(MovementSpec(inAccountId = inB.id, outAccountId = outB.id))
 
         val results = movementSpecRepo.findByFundFlowId(fundFlowA.id)
         assertEquals(results.size, 1)
-        assertEquals(results.head.name, "spec-a")

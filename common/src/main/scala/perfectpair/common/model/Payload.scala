@@ -96,7 +96,6 @@ enum ReconRelationship derives ReadWriter:
 case class ReconciliationSpecPayload(
   id:                Option[String]    = None,
   accountId:         Option[String]    = None,
-  description:       String            = "",
   agingLimit:        Int               = 0,
   relationship:      ReconRelationship = OneToOne,
   inMovementSpecId:  String            = "",
@@ -141,7 +140,6 @@ case class AccountPayload(
 
 case class MovementSpecPayload(
   id:               Option[String]           = None,
-  name:             String                   = "",
   inAccountId:      String                   = "",
   outAccountId:     String                   = "",
   dataSourceConfig: Option[DataSourceConfig] = None

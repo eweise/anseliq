@@ -19,7 +19,7 @@ object UnreconciledMovementsView:
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
         h2(cls := "text-2xl font-medium mb-6")(
-          text(s"${model.movementSpec.name} — Unreconciled Movements")
+          text(s"model.movementSpec.name — Unreconciled Movements")
         ),
         Buttons.linkButton("Back", AppMsg.NavigateToFundFlow(model.fundFlow)),
         Table.create(

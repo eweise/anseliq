@@ -16,7 +16,6 @@ enum Relationship derives DbCodec:
 case class ReconciliationSpec(
   @Id id:            ID                     = createID(),
   @Id accountId:     ID,
-  description:       String                 = "",
   agingLimit:        Int                    = 0,
   relationship:      Relationship           = OneToOne,
   inMovementSpecId:  ID,

@@ -55,7 +55,6 @@ object Payload:
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
     MovementSpecPayload(
       id               = Some(spec.id.toString),
-      name             = spec.name,
       inAccountId      = spec.inAccountId.toString,
       outAccountId     = spec.outAccountId.toString,
       dataSourceConfig = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s))
@@ -72,7 +71,6 @@ object Payload:
     ReconciliationSpecPayload(
       id                = Some(spec.id.toString),
       accountId         = Some(spec.accountId.toString),
-      description       = spec.description,
       agingLimit        = spec.agingLimit,
       relationship      = reconRelationshipFromDomain(spec.relationship),
       inMovementSpecId  = spec.inMovementSpecId.toString,

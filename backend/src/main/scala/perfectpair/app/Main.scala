@@ -259,7 +259,6 @@ class App(using
         val result = ingestor.ingest(movementSpec, is)
         IngestionInfo(
           movementSpecId          = id,
-          movementSpecName        = movementSpec.name,
           dataSource              = Manual,
           numberOfRecordsIngested = result.recordCount,
           processingTimeSeconds   = result.ingestionTimeSeconds

@@ -171,10 +171,10 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         Cmd.Emit(Msg.NavigateTo(Page.Reconciliations))
       )
 
-    case Msg.NavigateToMaintainAccount(fundFlow, account) =>
+    case Msg.NavigateToMaintainAccount(fundFlow, account, returnTo) =>
       println(s"Msg.NavigateToMaintainAccount fundflow: $fundFlow, account:$account")
       (
-        model.copy(maintainAccountModel = MaintainAccountView.Model(fundFlow, account)),
+        model.copy(maintainAccountModel = MaintainAccountView.Model(fundFlow, account, returnTo)),
         Cmd.Emit(Msg.NavigateTo(Page.MaintainAccount))
       )
 

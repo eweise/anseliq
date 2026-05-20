@@ -38,7 +38,6 @@ class DataSetup(using dbTx: DbTx) {
     properties = JSONBProps(props)
   )
   val journalToRecon = MovementSpec(
-    name         = "journal to recon",
     inAccountId  = reconAccount.id,
     outAccountId = journalAccount.id,
     dataSourceJson = upickle.write(
@@ -52,7 +51,6 @@ class DataSetup(using dbTx: DbTx) {
     )
   )
   val reportToRecon = MovementSpec(
-    name         = "report to recon",
     outAccountId = reconAccount.id,
     inAccountId  = reportAccount.id
   )

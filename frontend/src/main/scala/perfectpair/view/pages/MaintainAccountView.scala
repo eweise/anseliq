@@ -18,16 +18,18 @@ object MaintainAccountView:
       case Msg.AccountAction(account, Create) =>
         (model, HttpHelper.createAccount(account) |+| PrettyLogger.info("creating account"))
       case Msg.AccountAction(account, Created) =>
+        val nav = if model.returnTo == AppMsg.NoOp then AppMsg.NavigateToAccounts(model.fundFlow) else model.returnTo
         (
           model.copy(account = Some(account)),
-          PrettyLogger.info("created account") |+| Cmd.emit(AppMsg.NavigateToAccounts(model.fundFlow))
+          PrettyLogger.info("created account") |+| Cmd.emit(nav)
         )
       case Msg.AccountAction(account, Update) =>
         (model, HttpHelper.updateAccount(account) |+| PrettyLogger.info("updating account"))
       case Msg.AccountAction(account, Updated) =>
+        val nav = if model.returnTo == AppMsg.NoOp then AppMsg.NavigateToAccounts(model.fundFlow) else model.returnTo
         (
           model.copy(account = Some(account)),
-          PrettyLogger.info("updated account") |+| Cmd.emit(AppMsg.NavigateToAccounts(model.fundFlow))
+          PrettyLogger.info("updated account") |+| Cmd.emit(nav)
         )
 
   def apply(model: Model): Html[AppMsg] =
@@ -49,6 +51,7 @@ object MaintainAccountView:
           onChangFn    = Some(value => AppMsg.MaintainAccountMsg(Msg.AccountFormUpdate(account.copy(name = value))))
         ),
         div(cls := "flex justify-end gap-2 mt-6")(
+          Buttons.textButton("Cancel", model.returnTo),
           Buttons.linkButton("Save", AppMsg.MaintainAccountMsg(Msg.AccountAction(account, action)))
         )
       )
@@ -60,5 +63,6 @@ object MaintainAccountView:
 
   case class Model(
     fundFlow: FundFlowPayload        = FundFlowPayload(),
-    account:  Option[AccountPayload] = None
+    account:  Option[AccountPayload] = None,
+    returnTo: AppMsg                 = AppMsg.NoOp
   )

@@ -79,7 +79,6 @@ class FundFlowOperations(using
 
   def createMovementSpec(payload: MovementSpecPayload): Txn[MovementSpecPayload] =
     val spec = MovementSpec(
-      name           = payload.name,
       inAccountId    = UUID.fromString(payload.inAccountId),
       outAccountId   = UUID.fromString(payload.outAccountId),
       dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
@@ -94,7 +93,6 @@ class FundFlowOperations(using
     val id       = UUID.fromString(idStr)
     var existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
     existing = existing.copy(
-      name           = payload.name,
       inAccountId    = UUID.fromString(payload.inAccountId),
       outAccountId   = UUID.fromString(payload.outAccountId),
       dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
@@ -126,7 +124,6 @@ class FundFlowOperations(using
     val outMovementSpecId = UUID.fromString(payload.outMovementSpecId)
     val spec = ReconciliationSpec(
       accountId         = accountId,
-      description       = payload.description,
       agingLimit        = payload.agingLimit,
       relationship      = Payload.reconRelationshipToDomain(payload.relationship),
       inMovementSpecId  = inMovementSpecId,
@@ -140,7 +137,6 @@ class FundFlowOperations(using
     val id       = UUID.fromString(idStr)
     var existing = reconSpecRepo.findById(id).ErrIfNotFound("reconciliation spec", id)
     existing = existing.copy(
-      description       = payload.description,
       agingLimit        = payload.agingLimit,
       relationship      = Payload.reconRelationshipToDomain(payload.relationship),
       inMovementSpecId  = UUID.fromString(payload.inMovementSpecId),
