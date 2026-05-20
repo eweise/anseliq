@@ -32,7 +32,9 @@ object FundFlowView:
         case Msg.EditAccount(account) =>
           (
             model.copy(selectedAccount = None),
-            Cmd.Emit(AppMsg.NavigateToMaintainAccount(model.fundFlow, Some(account), AppMsg.NavigateToFundFlow(model.fundFlow)))
+            Cmd.Emit(
+              AppMsg.NavigateToMaintainAccount(model.fundFlow, Some(account), AppMsg.NavigateToFundFlow(model.fundFlow))
+            )
           )
         case Msg.EditRelationship(spec) =>
           (
@@ -49,7 +51,7 @@ object FundFlowView:
         case Msg.DeleteMovementSpec(spec) =>
           (model.copy(selectedMovementSpec = None), HttpHelper.deleteMovementSpec(spec.id.get))
         case Msg.MovementSpecDeleted(id) =>
-          (model.copy(movementSpecs = model.movementSpecs.filterNot(_.id.contains(id))), Cmd.None)
+          (model, Cmd.Emit(AppMsg.NavigateToFundFlow(model.fundFlow)))
     catch
       case ex: Exception =>
         println(ex)
@@ -164,7 +166,12 @@ object FundFlowView:
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick(
             AppMsg
-              .NavigateToMaintainMovementSpec(fundFlow, Seq(a, selectedAccount), None, AppMsg.NavigateToFundFlow(fundFlow))
+              .NavigateToMaintainMovementSpec(
+                fundFlow,
+                Seq(a, selectedAccount),
+                None,
+                AppMsg.NavigateToFundFlow(fundFlow)
+              )
           )
         )(text(s"Link to ${a.name}"))
       )
