@@ -9,7 +9,7 @@ import tyrian.Html.*
 import tyrian.{Cmd, EmptyAttribute, Html}
 import zio.Task
 
-object MaintainMovementSpecsView:
+object MaintainMovementSpecView:
 
   def update(model: Model, msg: Msg): (Model, Cmd[Task, AppMsg]) =
     msg match

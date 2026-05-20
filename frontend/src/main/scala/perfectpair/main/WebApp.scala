@@ -130,7 +130,7 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
     case Msg.NavigateToMaintainMovementSpec(fundFlow, accounts, movementSpec, returnTo) =>
       (
         model.copy(maintainMovementSpecModel =
-          MaintainMovementSpecsView.Model(
+          MaintainMovementSpecView.Model(
             fundFlow         = fundFlow,
             accounts         = accounts,
             movementSpec     = movementSpec,
