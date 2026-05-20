@@ -2,6 +2,7 @@ package perfectpair.view.pages
 
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
 import perfectpair.model.Msg as AppMsg
+import perfectpair.util.HttpHelper
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -45,6 +46,10 @@ object FundFlowView:
               )
             )
           )
+        case Msg.DeleteMovementSpec(spec) =>
+          (model.copy(selectedMovementSpec = None), HttpHelper.deleteMovementSpec(spec.id.get))
+        case Msg.MovementSpecDeleted(id) =>
+          (model.copy(movementSpecs = model.movementSpecs.filterNot(_.id.contains(id))), Cmd.None)
     catch
       case ex: Exception =>
         println(ex)
@@ -176,7 +181,11 @@ object FundFlowView:
       button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick(AppMsg.FundFlowViewMsg(Msg.EditRelationship(spec)))
-      )(text("Edit Relationship"))
+      )(text("Edit Relationship")),
+      button(
+        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600",
+        onClick(AppMsg.FundFlowViewMsg(Msg.DeleteMovementSpec(spec)))
+      )(text("Delete"))
     )
 
   private def buildSvg(
@@ -273,6 +282,8 @@ object FundFlowView:
     case DismissMenu
     case EditAccount(account: AccountPayload)
     case EditRelationship(spec: MovementSpecPayload)
+    case DeleteMovementSpec(spec: MovementSpecPayload)
+    case MovementSpecDeleted(id: String)
 
   case class Model(
     fundFlow:             FundFlowPayload             = FundFlowPayload(),
