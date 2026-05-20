@@ -19,7 +19,7 @@ object ReconciliationsView:
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
         h2(cls := "text-2xl font-medium mb-6")(
-          text(s"${model.reconSpec.description} — Reconciliations")
+          text(s"Reconciliations")
         ),
         Buttons.linkButton("Back to Recon Specs", AppMsg.NavigateToReconSpecs(model.account)),
         Table.create(

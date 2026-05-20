@@ -25,7 +25,7 @@ enum Msg:
   // Navigation with context (carry page state to destination)
   case NavigateToMaintainFundFlow(ff: FundFlowPayload)
   case NavigateToAccounts(fundFlow: FundFlowPayload)
-  case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload])
+  case NavigateToMaintainAccount(fundFlow: FundFlowPayload, account: Option[AccountPayload], returnTo: Msg = Msg.NoOp)
   case NavigateToMaintainMovementSpec(
     fundFlow:     FundFlowPayload,
     accounts:     Seq[AccountPayload],

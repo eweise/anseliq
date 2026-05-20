@@ -65,7 +65,6 @@ class EndToEndSuite extends munit.FunSuite {
         accountRepo.insert(reportAccount)
 
         val journalToRecon = MovementSpec(
-          name         = "journal to recon",
           inAccountId  = reconAccount.id,
           outAccountId = journalAccount.id,
           dataSourceJson = upickle.write(
@@ -86,7 +85,6 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(journalToRecon)
 
         val reportToRecon = MovementSpec(
-          name         = "report to recon",
           outAccountId = reconAccount.id,
           inAccountId  = reportAccount.id,
           dataSourceJson = upickle.write(
@@ -171,7 +169,6 @@ class EndToEndSuite extends munit.FunSuite {
         accountRepo.insert(reportAccount)
 
         val journalToRecon = MovementSpec(
-          name         = "journal to recon",
           inAccountId  = reconAccount.id,
           outAccountId = journalAccount.id,
           dataSourceJson = upickle.write(
@@ -192,7 +189,6 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(journalToRecon)
 
         val reportToRecon = MovementSpec(
-          name         = "report to recon",
           outAccountId = reconAccount.id,
           inAccountId  = reportAccount.id,
           dataSourceJson = upickle.write(
@@ -286,7 +282,6 @@ class EndToEndSuite extends munit.FunSuite {
         accountRepo.insert(reportAccount)
 
         val journalToRecon = MovementSpec(
-          name         = "journal to recon",
           inAccountId  = reconAccount.id,
           outAccountId = journalAccount.id,
           dataSourceJson = upickle.write(
@@ -306,7 +301,6 @@ class EndToEndSuite extends munit.FunSuite {
         movementSpecRepo.insert(journalToRecon)
 
         val reconToReport = MovementSpec(
-          name         = "report to recon",
           outAccountId = reconAccount.id,
           inAccountId  = reportAccount.id,
           dataSourceJson = upickle.write(

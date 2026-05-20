@@ -48,14 +48,12 @@ object IngestView:
     div(cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4")(
       div(cls := "bg-white rounded-xl shadow-md w-full max-w-lg p-8")(
         h2(cls := "text-xl font-medium text-md-on-surface mb-2")(text("Ingest Files")),
-        p(cls := "text-sm text-md-on-surface-variant mb-7")(text(model.reconSpec.description)),
         div(cls := "space-y-4")(
           model.relevantSpecs.map { spec =>
             val specId = spec.id.getOrElse("")
             val status = model.uploads.getOrElse(specId, UploadStatus.Idle)
             div(cls := "border border-md-outline rounded-lg p-4")(
               div(cls := "flex items-center justify-between mb-3")(
-                span(cls := "text-sm font-medium text-md-on-surface")(text(spec.name)),
                 statusBadge(status)
               ),
               input(

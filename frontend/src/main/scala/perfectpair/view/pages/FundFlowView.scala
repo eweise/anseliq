@@ -31,7 +31,7 @@ object FundFlowView:
         case Msg.EditAccount(account) =>
           (
             model.copy(selectedAccount = None),
-            Cmd.Emit(AppMsg.NavigateToMaintainAccount(model.fundFlow, Some(account)))
+            Cmd.Emit(AppMsg.NavigateToMaintainAccount(model.fundFlow, Some(account), AppMsg.NavigateToFundFlow(model.fundFlow)))
           )
         case Msg.EditRelationship(spec) =>
           (
@@ -53,7 +53,11 @@ object FundFlowView:
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
-        h2(cls := "text-2xl font-medium mb-6")(text(model.fundFlow.name))
+        h2(cls := "text-2xl font-medium mb-6")(text(model.fundFlow.name)),
+        button(
+          cls := "px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700",
+          onClick(AppMsg.NavigateToMaintainAccount(model.fundFlow, None, AppMsg.NavigateToFundFlow(model.fundFlow)))
+        )(text("New Account"))
       ),
       if model.accounts.isEmpty then div(cls := "text-gray-500 text-sm")(text("No accounts"))
       else renderDiagramWithOverlay(model, computePositions(model.accounts, model.movementSpecs))
