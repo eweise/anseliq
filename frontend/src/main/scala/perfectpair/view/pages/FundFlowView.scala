@@ -60,7 +60,9 @@ object FundFlowView:
   def apply(model: Model): Html[AppMsg] =
     div(cls := "flex flex-col items-center mb-8 pt-20")(
       div(cls := "my-8 text-center")(
-        h2(cls := "text-2xl font-medium mb-6")(text(model.fundFlow.name)),
+        h2(cls := "text-2xl font-medium mb-6")(text(model.fundFlow.name))
+      ),
+      div(cls := "self-start mb-4 pl-8")(
         button(
           cls := "px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700",
           onClick(AppMsg.NavigateToMaintainAccount(model.fundFlow, None, AppMsg.NavigateToFundFlow(model.fundFlow)))
