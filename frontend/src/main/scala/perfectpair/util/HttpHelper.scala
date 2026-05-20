@@ -118,6 +118,12 @@ object HttpHelper:
       reconSpecDeletedDecoder
     )
 
+  def deleteMovementSpec(id: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    sendWithAuthToken(
+      delete(HttpPath.url(s"${HttpPath.movementSpec}/$id")),
+      ResponseDecoders.movementSpecDeletedDecoder(id)
+    )
+
   private def delete[A](url: String): Request[A] =
     Request(
       method = Method.Delete,
@@ -239,6 +245,12 @@ object HttpHelper:
     val reconSpecDeletedDecoder: Decoder[Msg] =
       Decoder(
         _ => Msg.MaintainReconSpecMsg(MaintainReconSpecView.Msg.ReconSpecAction(ReconciliationSpecPayload(), Deleted)),
+        error => Msg.Error(error.toString)
+      )
+
+    def movementSpecDeletedDecoder(id: String): Decoder[Msg] =
+      Decoder(
+        _ => Msg.FundFlowViewMsg(FundFlowView.Msg.MovementSpecDeleted(id)),
         error => Msg.Error(error.toString)
       )
     val jobsDecoder: Decoder[Msg] =
