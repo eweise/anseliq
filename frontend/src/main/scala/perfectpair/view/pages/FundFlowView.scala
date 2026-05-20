@@ -89,7 +89,7 @@ object FundFlowView:
     val accountMenu: Html[AppMsg] = model.selectedAccount.flatMap { selected =>
       selected.id.flatMap { id =>
         posOf.get(id).map { (x, y) =>
-          renderAccountMenu(selected, model.movementSpecs, model.fundFlow, x, y + boxH + 4)
+          renderAccountMenu(model.accounts, selected, model.movementSpecs, model.fundFlow, x, y + boxH + 4)
         }
       }
     }.getOrElse(div()())
@@ -118,24 +118,52 @@ object FundFlowView:
     div(style := "position:relative;display:inline-block")(children*)
 
   private def renderAccountMenu(
-    account:       AccountPayload,
-    movementSpecs: Seq[MovementSpecPayload],
-    fundFlow:      FundFlowPayload,
-    x:             Int,
-    y:             Int
+    accounts:        Seq[AccountPayload],
+    selectedAccount: AccountPayload,
+    movementSpecs:   Seq[MovementSpecPayload],
+    fundFlow:        FundFlowPayload,
+    x:               Int,
+    y:               Int
   ): Html[AppMsg] =
+    var buttons = List(
+      button(
+        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+        onClick(AppMsg.FundFlowViewMsg(Msg.EditAccount(selectedAccount)))
+      )(text("Edit")),
+      if (selectedAccount.isRecon) then
+        button(
+          cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+          onClick(
+            AppMsg
+              .NavigateToMaintainReconSpec(selectedAccount, movementSpecs, None, AppMsg.NavigateToFundFlow(fundFlow))
+          )
+        )(text("Configure Reconciliation"))
+      else div()
+    )
+
+    val addMovementSpecButtons = accounts
+      .filter(_.id != selectedAccount.id)
+      .filter { targetAccount =>
+        !movementSpecs.exists(s =>
+          (s.inAccountId == targetAccount.id.get && s.outAccountId == selectedAccount.id.get) ||
+            (s.inAccountId == selectedAccount.id.get && s.outAccountId == targetAccount.id.get)
+        )
+        true
+      }
+      .map(a =>
+        button(
+          cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+          onClick(
+            AppMsg
+              .NavigateToMaintainMovementSpec(fundFlow, Seq(a, selectedAccount), None, AppMsg.NavigateToFundFlow(fundFlow))
+          )
+        )(text(s"Link to ${a.name}"))
+      )
+
+    buttons = buttons ++ addMovementSpecButtons
     div(
       style := s"position:absolute;left:${x}px;top:${y}px;z-index:30;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);min-width:160px;overflow:hidden"
-    )(
-      button(
-        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
-        onClick(AppMsg.FundFlowViewMsg(Msg.EditAccount(account)))
-      )(text("Edit")),
-      button(
-        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
-        onClick(AppMsg.NavigateToMaintainReconSpec(account, movementSpecs, None, AppMsg.NavigateToFundFlow(fundFlow)))
-      )(text("Configure Reconciliation"))
-    )
+    )(buttons*)
 
   private def renderMovementSpecMenu(spec: MovementSpecPayload, x: Int, y: Int): Html[AppMsg] =
     div(

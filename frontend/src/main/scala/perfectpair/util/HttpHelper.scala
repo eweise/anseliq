@@ -279,7 +279,7 @@ object HttpHelper:
       Decoder(
         onResponse =>
           val spec = read[MovementSpecPayload](onResponse.body)
-          Msg.MaintainMovementSpecsMsg(MaintainMovementSpecsView.Msg.MovementSpecAction(spec, action))
+          Msg.MaintainMovementSpecsMsg(MaintainMovementSpecView.Msg.MovementSpecAction(spec, action))
         ,
         error => Msg.Error(error.toString)
       )

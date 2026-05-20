@@ -104,11 +104,11 @@ object Page {
 
   object MaintainMovementSpec extends Page {
     val path:   String             = "/components/maintain-movement-spec"
-    val render: Model => Html[Msg] = m => MaintainMovementSpecsView(m.maintainMovementSpecModel)
+    val render: Model => Html[Msg] = m => MaintainMovementSpecView(m.maintainMovementSpecModel)
 
     def update(model: Model, msg: Msg): (Model, Cmd[Task, Msg]) = msg match
       case Msg.MaintainMovementSpecsMsg(sub) =>
-        val (sub2, cmd) = MaintainMovementSpecsView.update(model.maintainMovementSpecModel, sub)
+        val (sub2, cmd) = MaintainMovementSpecView.update(model.maintainMovementSpecModel, sub)
         (model.copy(maintainMovementSpecModel = sub2), cmd)
       case _ => (model, Cmd.None)
 

@@ -60,7 +60,7 @@ enum Msg:
   case MaintainFundFlowMsg(msg: MaintainFundFlowView.Msg)
   case AccountsMsg(msg: AccountsView.Msg)
   case MaintainAccountMsg(msg: MaintainAccountView.Msg)
-  case MaintainMovementSpecsMsg(msg: MaintainMovementSpecsView.Msg)
+  case MaintainMovementSpecsMsg(msg: MaintainMovementSpecView.Msg)
   case ReconSpecsMsg(msg: ReconSpecsView.Msg)
   case MaintainReconSpecMsg(msg: MaintainReconSpecView.Msg)
   case IngestViewMsg(msg: IngestView.Msg)
@@ -72,25 +72,25 @@ enum Msg:
 case class User(username: String, accessToken: String, refreshToken: String)
 
 case class Model(
-  currentPage:                Page,
-  user:                       Option[User],
-  isDarkMode:                 Boolean,
-  loginModel:                 LoginPage.Model,
-  homeModel:                  Welcome.Model,
-  fundFlowsModel:             FundFlowsView.Model,
-  maintainFundFlowModel:      MaintainFundFlowView.Model,
-  accountsModel:              AccountsView.Model,
-  maintainAccountModel:       MaintainAccountView.Model,
-  maintainMovementSpecModel:  MaintainMovementSpecsView.Model = MaintainMovementSpecsView.Model(),
-  reconSpecsModel:            ReconSpecsView.Model            = ReconSpecsView.Model(),
-  maintainReconSpecModel:     MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
-  ingestModel:                IngestView.Model                = IngestView.Model(),
-  jobsModel:                  JobsView.Model                  = JobsView.Model(),
-  unreconciledMovementsModel: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
-  reconciliationsModel:       ReconciliationsView.Model       = ReconciliationsView.Model(),
-  error:                      Option[String]                  = None,
-  fundFlowNavOpen:            Boolean                         = false,
-  fundFlowViewModel:          FundFlowView.Model              = FundFlowView.Model()
+                  currentPage:                Page,
+                  user:                       Option[User],
+                  isDarkMode:                 Boolean,
+                  loginModel:                 LoginPage.Model,
+                  homeModel:                  Welcome.Model,
+                  fundFlowsModel:             FundFlowsView.Model,
+                  maintainFundFlowModel:      MaintainFundFlowView.Model,
+                  accountsModel:              AccountsView.Model,
+                  maintainAccountModel:       MaintainAccountView.Model,
+                  maintainMovementSpecModel:  MaintainMovementSpecView.Model = MaintainMovementSpecView.Model(),
+                  reconSpecsModel:            ReconSpecsView.Model            = ReconSpecsView.Model(),
+                  maintainReconSpecModel:     MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
+                  ingestModel:                IngestView.Model                = IngestView.Model(),
+                  jobsModel:                  JobsView.Model                  = JobsView.Model(),
+                  unreconciledMovementsModel: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
+                  reconciliationsModel:       ReconciliationsView.Model       = ReconciliationsView.Model(),
+                  error:                      Option[String]                  = None,
+                  fundFlowNavOpen:            Boolean                         = false,
+                  fundFlowViewModel:          FundFlowView.Model              = FundFlowView.Model()
 ):
   def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
 
@@ -117,7 +117,7 @@ object Model:
     accountsModel         = AccountsView.Model(),
     maintainAccountModel =
       MaintainAccountView.Model(), // fixme. I don't think these models should be initialized with default payloads
-    maintainMovementSpecModel  = MaintainMovementSpecsView.Model(),
+    maintainMovementSpecModel  = MaintainMovementSpecView.Model(),
     reconSpecsModel            = ReconSpecsView.Model(),
     maintainReconSpecModel     = MaintainReconSpecView.Model(),
     ingestModel                = IngestView.Model(),
