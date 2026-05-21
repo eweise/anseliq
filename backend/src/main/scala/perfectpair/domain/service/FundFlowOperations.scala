@@ -103,6 +103,7 @@ class FundFlowOperations(using
     val id       = UUID.fromString(idStr)
     var existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
     existing = existing.copy(
+      name           = payload.name,
       inAccountId    = UUID.fromString(payload.inAccountId),
       outAccountId   = UUID.fromString(payload.outAccountId),
       dataSourceJson = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")

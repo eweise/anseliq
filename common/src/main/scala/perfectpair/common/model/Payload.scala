@@ -140,6 +140,7 @@ case class AccountPayload(
 
 case class MovementSpecPayload(
   id:               Option[String]           = None,
+  name:             String                   = "",
   inAccountId:      String                   = "",
   outAccountId:     String                   = "",
   dataSourceConfig: Option[DataSourceConfig] = None

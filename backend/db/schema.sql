@@ -33,6 +33,7 @@ CREATE INDEX account_props_index
 create table recon.movement_spec
 (
     id               uuid primary key,
+    name             text,
     in_account_id    uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
     out_account_id   uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
     data_source_json text                                  not null,
