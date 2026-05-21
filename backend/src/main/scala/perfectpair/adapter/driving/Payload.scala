@@ -55,6 +55,7 @@ object Payload:
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
     MovementSpecPayload(
       id               = Some(spec.id.toString),
+      name             = spec.name,
       inAccountId      = spec.inAccountId.toString,
       outAccountId     = spec.outAccountId.toString,
       dataSourceConfig = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s))

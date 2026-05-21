@@ -42,6 +42,12 @@ object MaintainMovementSpecView:
     div(cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4")(
       div(cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8")(
         h2(cls := "text-xl font-medium text-md-on-surface mb-7")(text("Movement Spec")),
+        Form.field[AppMsg](
+          fieldID      = "name",
+          labelName    = "Name",
+          defaultValue = Some(spec.name),
+          onChangFn    = Some(value => AppMsg.MaintainMovementSpecsMsg(Msg.FormUpdate(spec.copy(name = value))))
+        ),
         accountSelect(
           fieldID    = "inAccountId",
           labelName  = "In Account",
