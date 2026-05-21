@@ -216,10 +216,19 @@ object FundFlowView:
       for {
         (x1, y1) <- posOf.get(ms.outAccountId)
         (x2, y2) <- posOf.get(ms.inAccountId)
-      } sb.append(
-        s"""<line x1="${x1 + boxW}" y1="${y1 + boxH / 2}" x2="$x2" y2="${y2 + boxH / 2}" """ +
-          """stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)" />"""
-      )
+      } {
+        val midX = (x1 + boxW + x2) / 2
+        val midY = (y1 + boxH / 2 + y2 + boxH / 2) / 2
+        sb.append(
+          s"""<line x1="${x1 + boxW}" y1="${y1 + boxH / 2}" x2="$x2" y2="${y2 + boxH / 2}" """ +
+            """stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)" />"""
+        )
+        if (ms.name.nonEmpty)
+          sb.append(
+            s"""<text x="$midX" y="${midY - 14}" text-anchor="middle" dominant-baseline="middle" """ +
+              s"""fill="#6b7280" font-size="11" font-family="sans-serif">${xmlEscape(ms.name)}</text>"""
+          )
+      }
     }
 
     accounts.foreach { acc =>
