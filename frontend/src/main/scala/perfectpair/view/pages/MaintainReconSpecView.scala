@@ -21,25 +21,27 @@ object MaintainReconSpecView:
         val toSave = spec.copy(rule = RuleWidget.toRule(model.ruleWidget))
         (model, HttpHelper.createReconSpec(toSave))
       case Msg.ReconSpecAction(spec, Created) =>
-        (model.copy(reconSpec = Some(spec)), Cmd.emit(AppMsg.NavigateToReconSpecs(model.account)))
+        (model.copy(reconSpec = Some(spec)), Cmd.emit(model.returnTo))
       case Msg.ReconSpecAction(spec, Update) =>
         val toSave = spec.copy(rule = RuleWidget.toRule(model.ruleWidget))
         (model, HttpHelper.updateReconSpec(toSave))
       case Msg.ReconSpecAction(spec, Updated) =>
-        (model.copy(reconSpec = Some(spec)), Cmd.emit(AppMsg.NavigateToReconSpecs(model.account)))
+        (model.copy(reconSpec = Some(spec)), Cmd.emit(model.returnTo))
       case Msg.ReconSpecAction(_, Delete) =>
         val id = model.reconSpec.flatMap(_.id).getOrElse("")
         (model, HttpHelper.deleteReconSpec(id))
       case Msg.ReconSpecAction(_, Deleted) =>
-        (model, Cmd.emit(AppMsg.NavigateToReconSpecs(model.account)))
+        (model, Cmd.emit(model.returnTo))
 
   def apply(model: Model): Html[AppMsg] =
-    val firstSpecId = model.movementSpecs.headOption.flatMap(_.id).getOrElse("")
+    val accountId = model.account.id.getOrElse("")
+    val firstInSpecId  = model.movementSpecs.filter(_.inAccountId == accountId).headOption.flatMap(_.id).getOrElse("")
+    val firstOutSpecId = model.movementSpecs.filter(_.outAccountId == accountId).headOption.flatMap(_.id).getOrElse("")
     val spec = model.reconSpec.getOrElse(
       ReconciliationSpecPayload(
         accountId         = model.account.id,
-        inMovementSpecId  = firstSpecId,
-        outMovementSpecId = firstSpecId
+        inMovementSpecId  = firstInSpecId,
+        outMovementSpecId = firstOutSpecId
       )
     )
     val action = if spec.id.isEmpty then Create else Update
@@ -116,7 +118,7 @@ object MaintainReconSpecView:
           option(
             value := spec.id.getOrElse(""),
             if spec.id.getOrElse("") == selectedId then attribute("selected", "selected") else EmptyAttribute
-          )(text("spec.name"))
+          )(text(spec.name))
         )*
       )
     )
