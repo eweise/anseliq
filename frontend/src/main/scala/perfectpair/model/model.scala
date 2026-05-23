@@ -71,56 +71,46 @@ enum Msg:
 
 case class User(username: String, accessToken: String, refreshToken: String)
 
+case class SharedState(
+  user:            Option[User]         = None,
+  isDarkMode:      Boolean              = false,
+  error:           Option[String]       = None,
+  fundFlowNavOpen: Boolean              = false,
+  fundFlows:       Seq[FundFlowPayload] = Seq()
+)
+
+enum PageState:
+  case Login(model: LoginPage.Model = LoginPage.Model.init)
+  case Home(model: Welcome.Model = Welcome.Model())
+  case FundFlows(model: FundFlowsView.Model = FundFlowsView.Model())
+  case MaintainFundFlow(model: MaintainFundFlowView.Model = MaintainFundFlowView.Model())
+  case Accounts(model: AccountsView.Model = AccountsView.Model())
+  case MaintainAccount(model: MaintainAccountView.Model = MaintainAccountView.Model())
+  case MaintainMovementSpec(model: MaintainMovementSpecView.Model = MaintainMovementSpecView.Model())
+  case ReconSpecs(model: ReconSpecsView.Model = ReconSpecsView.Model())
+  case MaintainReconSpec(model: MaintainReconSpecView.Model = MaintainReconSpecView.Model())
+  case Ingest(model: IngestView.Model = IngestView.Model())
+  case Jobs(model: JobsView.Model = JobsView.Model())
+  case UnreconciledMovements(model: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model())
+  case Reconciliations(model: ReconciliationsView.Model = ReconciliationsView.Model())
+  case FundFlow(model: FundFlowView.Model = FundFlowView.Model())
+
 case class Model(
-                  currentPage:                Page,
-                  user:                       Option[User],
-                  isDarkMode:                 Boolean,
-                  loginModel:                 LoginPage.Model,
-                  homeModel:                  Welcome.Model,
-                  fundFlowsModel:             FundFlowsView.Model,
-                  maintainFundFlowModel:      MaintainFundFlowView.Model,
-                  accountsModel:              AccountsView.Model,
-                  maintainAccountModel:       MaintainAccountView.Model,
-                  maintainMovementSpecModel:  MaintainMovementSpecView.Model = MaintainMovementSpecView.Model(),
-                  reconSpecsModel:            ReconSpecsView.Model            = ReconSpecsView.Model(),
-                  maintainReconSpecModel:     MaintainReconSpecView.Model     = MaintainReconSpecView.Model(),
-                  ingestModel:                IngestView.Model                = IngestView.Model(),
-                  jobsModel:                  JobsView.Model                  = JobsView.Model(),
-                  unreconciledMovementsModel: UnreconciledMovementsView.Model = UnreconciledMovementsView.Model(),
-                  reconciliationsModel:       ReconciliationsView.Model       = ReconciliationsView.Model(),
-                  error:                      Option[String]                  = None,
-                  fundFlowNavOpen:            Boolean                         = false,
-                  fundFlowViewModel:          FundFlowView.Model              = FundFlowView.Model()
+  shared:    SharedState,
+  pageState: PageState
 ):
-  def toggleDarkMode: Model = copy(isDarkMode = !isDarkMode)
-
-  def isLoggedIn: Boolean = user.isDefined
-
-  def navigateTo(page: Page): Model = copy(currentPage = page)
+  def isLoggedIn: Boolean = shared.user.isDefined
 
   def loginSuccess(accessToken: String, refreshToken: String): Model =
     JwtHelper.getUnverifiedUserClaim(accessToken).map(claim => User(claim.username, accessToken, refreshToken)) match
-      case Right(u) => this.copy(user = Some(u))
+      case Right(u) => copy(shared = shared.copy(user = Some(u)))
       case Left(_)  => this
 
-  def logout: Model = copy(user = None)
+  def logout: Model         = copy(shared = shared.copy(user = None))
+  def toggleDarkMode: Model = copy(shared = shared.copy(isDarkMode = !shared.isDarkMode))
 
 object Model:
   val init: Model = Model(
-    currentPage           = Page.Login,
-    user                  = None,
-    isDarkMode            = false,
-    loginModel            = LoginPage.Model.init,
-    homeModel             = Welcome.Model(),
-    fundFlowsModel        = FundFlowsView.Model(),
-    maintainFundFlowModel = MaintainFundFlowView.Model(),
-    accountsModel         = AccountsView.Model(),
-    maintainAccountModel =
-      MaintainAccountView.Model(), // fixme. I don't think these models should be initialized with default payloads
-    maintainMovementSpecModel  = MaintainMovementSpecView.Model(),
-    reconSpecsModel            = ReconSpecsView.Model(),
-    maintainReconSpecModel     = MaintainReconSpecView.Model(),
-    ingestModel                = IngestView.Model(),
-    jobsModel                  = JobsView.Model(),
-    unreconciledMovementsModel = UnreconciledMovementsView.Model()
+    shared    = SharedState(),
+    pageState = PageState.Login()
   )
