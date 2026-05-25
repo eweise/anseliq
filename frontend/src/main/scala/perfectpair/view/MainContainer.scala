@@ -35,8 +35,7 @@ object MainContainer:
       navbar(isDark, isLoggedIn),
       leftNav(fundFlows, fundFlowNavOpen),
       error.map(errorBanner).getOrElse(div()()),
-      main(cls := "flex flex-col min-h-screen mt-20 ml-64 bg-md-surface-variant dark:bg-gray-900")(content),
-      theFooter
+      main(cls := "flex flex-col min-h-screen  ml-64 bg-md-surface-variant dark:bg-gray-900")(content)
     )
 
   private def errorBanner(message: String): Html[Msg] =
@@ -53,39 +52,9 @@ object MainContainer:
       )(text("×"))
     )
 
-  def navbar(isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
-    nav(
-      cls := "bg-purple-600 dark:bg-purple-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-700"
-    )(
-      div(cls := "flex flex-wrap items-center justify-between p-4")(
-        a(href := "/", cls := "flex items-center")(
-          img(
-            src   := "assets/images/perfectpair.png",
-            width := "100px"
-          )
-        ),
-        div(cls := "flex")(
-          darkModeSwitchButton(isDark),
-          if isLoggedIn then controlButton(Msg.Logout, Icons.logout) else div()
-        )
-      )
-    )
-
-  private def darkModeSwitchButton(isDark: Boolean) =
-    val icon = if isDark then Icons.sun else Icons.moon
-    controlButton(Msg.ToggleDarkMode, icon)
-
-  private def controlButton(clickMsg: Msg, child: Elem[Msg]) =
-    val dark   = "dark:text-white dark:hover:bg-purple-700 dark:focus:ring-purple-200"
-    val normal = "text-white hover:bg-purple-700 focus:ring-purple-100"
-    button(
-      onClick(clickMsg),
-      cls := s"transition-transform duration-300 ease-in-out hover:scale-105 p-4 me-2 mb-2 rounded-full focus:outline-none $normal $dark"
-    )(child)
-
   private def leftNav(fundFlows: Seq[FundFlowPayload], fundFlowNavOpen: Boolean): Html[Msg] =
     aside(
-      cls := "fixed left-0 top-20 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto"
+      cls := "fixed left-0 top-0 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto"
     )(
       nav(cls := "p-4")(
         ul(cls := "space-y-2")(
@@ -164,3 +133,33 @@ object MainContainer:
         )
       else ul()()
     )
+
+  def navbar(isDark: Boolean, isLoggedIn: Boolean): Html[Msg] =
+    nav(
+      cls := "bg-purple-600 dark:bg-purple-900 fixed w-full z-20 top-0 start-0 border-b border-gray-200 dark:border-gray-700"
+    )(
+      div(cls := "flex flex-wrap items-center justify-between p-4")(
+        a(href := "/", cls := "flex items-center")(
+          img(
+            src   := "assets/images/perfectpair.png",
+            width := "100px"
+          )
+        ),
+        div(cls := "flex")(
+          darkModeSwitchButton(isDark),
+          if isLoggedIn then controlButton(Msg.Logout, Icons.logout) else div()
+        )
+      )
+    )
+
+  private def darkModeSwitchButton(isDark: Boolean) =
+    val icon = if isDark then Icons.sun else Icons.moon
+    controlButton(Msg.ToggleDarkMode, icon)
+
+  private def controlButton(clickMsg: Msg, child: Elem[Msg]) =
+    val dark   = "dark:text-white dark:hover:bg-purple-700 dark:focus:ring-purple-200"
+    val normal = "text-white hover:bg-purple-700 focus:ring-purple-100"
+    button(
+      onClick(clickMsg),
+      cls := s"transition-transform duration-300 ease-in-out hover:scale-105 p-4 me-2 mb-2 rounded-full focus:outline-none $normal $dark"
+    )(child)
