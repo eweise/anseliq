@@ -3,7 +3,7 @@ package perfectpair.domain.service
 import com.augustnagro.magnum.{Transactor, transact}
 import ox.scheduling.{Schedule, repeat}
 import perfectpair.common.model.model.ID
-import perfectpair.common.model.{IngestionInfo, JobInfo, ReconciliationInfo}
+import perfectpair.common.model.{FileInventoryInfo, IngestionInfo, JobInfo, ReconciliationInfo}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.JobStatus.{Complete, InProgress, Submitted}
 import perfectpair.domain.port.driven.{JobRepo, Txn}
@@ -62,6 +62,12 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
           case JobType.Ingestion =>
             if !jobInfo.isInstanceOf[IngestionInfo] then
               throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
+
+          case JobType.CreateFileInventory =>
+            if !jobInfo.isInstanceOf[FileInventoryInfo] then
+              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
+
+          case JobType.GenerateReconStats => ()
 
         jobRepo.update(
           job.copy(

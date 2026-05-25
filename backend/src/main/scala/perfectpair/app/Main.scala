@@ -3,6 +3,7 @@ package perfectpair.app
 import com.augustnagro.magnum.*
 import com.typesafe.config.ConfigFactory
 import ox.*
+import ox.scheduling.{Schedule, repeat}
 import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.http.HttpPath
@@ -11,10 +12,15 @@ import perfectpair.common.model.IngestionDataSource.Manual
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.*
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import upickle.default.*
 
+import java.net.URI
 import java.util.UUID
 import javax.sql.DataSource
+import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
 object HttpCmd:
@@ -44,6 +50,7 @@ object Main:
     given eventStore:         EventStore             = EventStore()
     given ingestor:           Ingestor               = Ingestor()
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
+    given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
     supervised {
@@ -86,6 +93,40 @@ object Main:
         catch {
           case ex: Exception => ex.printStackTrace()
         }
+      }
+
+      fork {
+        val fileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
+        try
+          repeat(Schedule.fixedInterval(1.minute)) {
+            transact(Transactor(dataSource = given_DataSource)):
+              jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
+          }
+        catch case ex: Exception => ex.printStackTrace()
+      }
+
+      fork {
+        val s3Client = S3Client
+          .builder()
+          .region(Region.US_EAST_1)
+          .endpointOverride(URI.create("http://localhost:4566"))
+          .credentialsProvider(
+            StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test"))
+          )
+          .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+          .build()
+        val s3FileSource = S3FileSource("perfectpair-files", s3Client = s3Client)
+        val tracker      = FileInventoryTracker()
+        try
+          jobManager.pollForJob(JobType.CreateFileInventory, 60) { job =>
+            try
+              transact(Transactor(dataSource = given_DataSource)):
+                val newFiles = tracker.detectAndQueue(s3FileSource)
+                println(s"File inventory scan: queued ${newFiles.size} new S3 files")
+                jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = newFiles.size))
+            catch case ex: Exception => ex.printStackTrace()
+          }
+        catch case ex: Exception => ex.printStackTrace()
       }
 
       new App().main(args)

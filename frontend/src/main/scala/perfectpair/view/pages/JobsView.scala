@@ -44,7 +44,7 @@ object JobsView:
           Form.select(
             fieldID       = "job-type-select",
             labelName     = "Job Type",
-            options       = Seq("reconciliation" -> "Reconciliation", "ingestion" -> "Ingestion"),
+            options       = Seq("reconciliation" -> "Reconciliation", "ingestion" -> "Ingestion", "createFileInventory" -> "CreateFileInventory"),
             selectedValue = model.selectedJobType,
             onChangeFn    = v => AppMsg.JobsMsg(Msg.SelectJobType(v))
           )
