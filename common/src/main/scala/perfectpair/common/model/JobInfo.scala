@@ -22,3 +22,7 @@ case class IngestionInfo(
   numberOfRecordsIngested: Int,
   processingTimeSeconds:   Long
 ) extends JobInfo
+
+case class FileInventoryInfo(
+  filesQueued: Int
+) extends JobInfo
