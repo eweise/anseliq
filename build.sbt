@@ -28,6 +28,7 @@ lazy val frontend = (project in file("frontend"))
       "io.indigoengine"            %%% "tyrian-zio"                % Dependencies.Tyrian,
       "dev.zio"                    %%% "zio-interop-cats"          % Dependencies.ZioInteropCats,
       "com.lihaoyi"                %%% "upickle"                   % upickleVersion,
+      "software.amazon.awssdk"       % "aws-sdk-java"              % "2.29.0",
       "com.softwaremill.quicklens" %%% "quicklens"                 % Dependencies.Quicklens,
       ("org.scala-js"              %%% "scalajs-java-securerandom" % Dependencies.JavaSecureRandom).cross(CrossVersion.for3Use2_13)
     )
@@ -38,7 +39,8 @@ lazy val frontend = (project in file("frontend"))
     Docker / publishLocal := (Docker / publishLocal).dependsOn(Compile / fullLinkJS).value,
     dockerExposedPorts    := Seq(80),
     dockerRepository      := Some(DockerSettings.repository),
-    dockerAlias           := DockerAlias.apply(dockerRepository.value, None, "perfectpair", dockerAlias.value.tag.map(t => "frontend-" + t)),
+    dockerAlias := DockerAlias
+      .apply(dockerRepository.value, None, "perfectpair", dockerAlias.value.tag.map(t => "frontend-" + t)),
     DockerSettings.x86ArchSetting,
     Docker / defaultLinuxInstallLocation := "/usr/share/nginx/html",
     dockerCommands := dockerCommands.value.filter {
@@ -123,16 +125,18 @@ lazy val backend = (project in file("backend"))
       "com.lihaoyi"         %% "cask"               % "0.10.2",
       "org.scalameta"       %% "munit"              % "1.0.2"                % Test,
       "io.circe"            %% "circe-core"         % "0.14.10",
-      "io.circe"            %% "circe-parser"       % "0.14.10"
+      "io.circe"            %% "circe-parser"       % "0.14.10",
+      "software.amazon.awssdk" % "s3"              % "2.29.0"
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
-    mainClass          := Some("perfectpair.app.Main")
+    mainClass := Some("perfectpair.app.Main")
   )
   .settings(
     dockerBaseImage    := "openjdk:17-slim",
     dockerExposedPorts := Seq(8080),
     dockerRepository   := Some(DockerSettings.repository),
-    dockerAlias        := DockerAlias.apply(dockerRepository.value, None, "perfectpair", dockerAlias.value.tag.map(t => "backend-" + t)),
+    dockerAlias := DockerAlias
+      .apply(dockerRepository.value, None, "perfectpair", dockerAlias.value.tag.map(t => "backend-" + t)),
     DockerSettings.x86ArchSetting
   )
   .dependsOn(common.jvm)
@@ -145,7 +149,10 @@ lazy val common = (crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(BuildInfoPlugin)
   .settings(
     scalaVersion := scala3Version,
-    scalacOptions ++= Seq("-Xmax-inlines", "64"), // see [[https://docs.scala-lang.org/scala3/guides/migration/options-new.html]]
+    scalacOptions ++= Seq(
+      "-Xmax-inlines",
+      "64"
+    ), // see [[https://docs.scala-lang.org/scala3/guides/migration/options-new.html]]
     libraryDependencies ++= Seq(
       "dev.zio"              %%% "zio-json"        % Dependencies.ZioJson,
       "dev.zio"              %%% "zio-http"        % Dependencies.ZioHttp,

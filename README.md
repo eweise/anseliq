@@ -18,15 +18,47 @@ sbt
 
 # reconproto
 
-
 # Installation
+
 ## Docker
+
 ## Minikube
+
+## Localstack
+
+Configuring a custom profile
+
+You can configure a custom profile to use with LocalStack. Add the following profile to your AWS configuration file (by
+default, this file is at ~/.aws/config):
+Terminal window
+
+[profile localstack]
+region=us-east-1
+output=json
+endpoint_url = http://localhost.localstack.cloud:4566
+
+Add the following profile to your AWS credentials file (by default, this file is at ~/.aws/credentials):
+Terminal window
+
+[localstack]
+aws_access_key_id=test
+aws_secret_access_key=test
+
+You can now use the localstack profile with the aws CLI:
+Terminal window
+
+aws s3 mb s3://test --profile localstack
+aws s3 ls --profile localstack
+
+## AWS CLI
+
 ## Helm
+
 * brew install helm
   $ brew install openapi-generator
 
 ## Postgres on Kubernetes
+
 ** Please be patient while the chart is being deployed **
 
 PostgreSQL can be accessed via port 5432 on the following DNS names from within your cluster:
@@ -49,9 +81,8 @@ To connect to your database from outside the cluster execute the following comma
     kubectl port-forward --namespace default svc/my-release-postgresql 5432:5432 &
     PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
 
-
-
 # Building
+
 sbt assembly
 
 
