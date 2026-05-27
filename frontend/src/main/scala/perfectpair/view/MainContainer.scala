@@ -32,7 +32,7 @@ object MainContainer:
     fundFlowNavOpen: Boolean              = false
   ): Html[Msg] =
     div(cls := (if isDark then "dark bg-gray-900" else "not-dark-mode bg-md-surface-variant"))(
-      navbar(isDark, isLoggedIn),
+//      navbar(isDark, isLoggedIn),
       leftNav(fundFlows, fundFlowNavOpen),
       error.map(errorBanner).getOrElse(div()()),
       main(cls := "flex flex-col min-h-screen  ml-64 bg-md-surface-variant dark:bg-gray-900")(content)
