@@ -326,10 +326,9 @@ class App(using
   // Jobs
   @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)
   def jobsByType(jobType: String): String =
-    val jobTypeInfo = jobType match
-      case "reconciliation" => JobTypeInfo.Reconciliation
-      case "ingestion"      => JobTypeInfo.Ingestion
-      case _                => throw IllegalArgumentError("jobType", s"incorrect value $jobType")
+    val jobTypeInfo =
+      try JobTypeInfo.valueOf(jobType)
+      catch case ex: Exception => throw IllegalArgumentError("JobType", jobType)
     transact(transactor):
       val jobs = jobRepo.findByJobType(JobType.valueOf(jobTypeInfo.toString))
       write(jobs.map(Payload.jobPayloadFromDomain))
