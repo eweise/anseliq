@@ -56,7 +56,7 @@ object WebApp extends TyrianZIOApp[Msg, Model]:
         case Page.MaintainFundFlow => (PageState.MaintainFundFlow(), Cmd.None)
         case Page.Jobs           =>
           val m = JobsView.Model()
-          (PageState.Jobs(m), HttpHelper.fetchJobsByType(m.selectedJobType))
+          (PageState.Jobs(m), HttpHelper.fetchJobsByType(m.selectedJobType.toString))
         case _                   => (model.pageState, Cmd.None)
       (
         model.copy(shared = model.shared.copy(error = None), pageState = newPageState),
