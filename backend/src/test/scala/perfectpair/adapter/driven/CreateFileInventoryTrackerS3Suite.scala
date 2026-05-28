@@ -17,7 +17,7 @@ import software.amazon.awssdk.services.s3.model.{
 import java.net.URI
 import javax.sql.DataSource
 
-class FileInventoryTrackerS3Suite extends munit.FunSuite:
+class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
 
   val localstackEndpoint = URI.create("http://localhost:4566")
   val bucket             = "file-inventory-test"

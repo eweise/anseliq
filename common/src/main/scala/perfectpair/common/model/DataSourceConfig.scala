@@ -9,7 +9,13 @@ case class CSVParserConfig(
   amountField:       Option[Int]
 ) extends ParserConfig
 
-//todo need full definition
 case class DataSourceConfig(
-  parserConfig: ParserConfig
+  parserConfig:     ParserConfig,
+  connectionConfig: ConnectionConfig
 ) derives ReadWriter
+
+sealed trait ConnectionConfig derives ReadWriter
+case class S3ConnectionConfig(
+  s3Bucket: String,
+  filePath: String
+) extends ConnectionConfig

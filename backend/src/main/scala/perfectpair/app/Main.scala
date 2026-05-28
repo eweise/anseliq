@@ -57,19 +57,22 @@ object Main:
       fork {
         try
           jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
-            val account =
-              accountRepo
-                .findById(job.referenceId)
-                .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
-            val reconcilationResult = reconciler.reconcileAccount(account.id)
+            try
+              transact(Transactor(dataSource = given_DataSource)):
+                val account =
+                  accountRepo
+                    .findById(job.referenceId)
+                    .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
+                val reconcilationResult = reconciler.reconcileAccount(account.id)
 
-            val jobInfo = ReconciliationInfo(
-              accountId                   = account.id.toString,
-              accountName                 = account.name,
-              reconciliationsCreatedCount = reconcilationResult.totalCount,
-              processingTimeSeconds       = reconcilationResult.processingTimeSeconds
-            )
-            jobManager.completeJob(job.id, jobInfo)
+                val jobInfo = ReconciliationInfo(
+                  accountId                   = account.id.toString,
+                  accountName                 = account.name,
+                  reconciliationsCreatedCount = reconcilationResult.totalCount,
+                  processingTimeSeconds       = reconcilationResult.processingTimeSeconds
+                )
+                jobManager.completeJob(job.id, jobInfo)
+            catch case ex: Exception => ex.printStackTrace()
           }
         catch {
           case ex: Exception => ex.printStackTrace()

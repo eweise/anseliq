@@ -3,7 +3,6 @@ package perfectpair.domain.model
 import com.augustnagro.magnum.*
 import perfectpair.common.model.JobInfo
 import perfectpair.common.model.model.ID
-import perfectpair.domain.model.JobStatus.Submitted
 import ujson.Arr.from
 
 import java.time.OffsetDateTime
@@ -22,7 +21,7 @@ case class Job(
   @Id id:        ID                     = createID(),
   referenceId:   ID,
   jobType:       JobType,
-  jobStatus:     JobStatus              = Submitted,
+  jobStatus:     JobStatus,
   jobInfoJson:   Option[String]         = None,
   errorMessage:  Option[String]         = None,
   var createdAt: Option[OffsetDateTime] = None,

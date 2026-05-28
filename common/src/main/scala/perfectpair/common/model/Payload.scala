@@ -65,7 +65,7 @@ enum MovementStatus:
   case Reconciled, WithinSLA, OutOfSLA
 
 enum JobTypeInfo derives ReadWriter:
-  case Ingestion, Reconciliation, FileInventory
+  case Ingestion, Reconciliation, CreateFileInventory
 
 enum JobInfoStatus derives ReadWriter:
   case Submitted, InProgress, Complete, Error
