@@ -1,6 +1,6 @@
 package perfectpair.view.components
 
-import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
+import perfectpair.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
 import tyrian.Html.*
 import tyrian.{EmptyAttribute, Html}
 
@@ -22,6 +22,8 @@ object DataSourceConfigWidget:
           else Some(idx)
         }
         model.copy(columns = newCols, amountColIndex = newAmt)
+      case Msg.SetS3Bucket(v)   => model.copy(s3Bucket = v)
+      case Msg.SetS3FilePath(v) => model.copy(s3FilePath = v)
 
   def toDataSourceConfig(m: Model): Option[DataSourceConfig] =
     if !m.enabled then None
@@ -32,6 +34,10 @@ object DataSourceConfigWidget:
             hasHeader         = m.hasHeader,
             columnDefinitions = m.columns.zipWithIndex.map((name, i) => i -> name).toMap,
             amountField       = m.amountColIndex
+          ),
+          connectionConfig = S3ConnectionConfig(
+            s3Bucket = m.s3Bucket,
+            filePath = m.s3FilePath
           )
         )
       )
@@ -39,12 +45,14 @@ object DataSourceConfigWidget:
   def fromDataSourceConfig(cfg: Option[DataSourceConfig]): Model =
     cfg match
       case None => Model()
-      case Some(DataSourceConfig(CSVParserConfig(hasHeader, colDefs, amountField))) =>
+      case Some(DataSourceConfig(CSVParserConfig(hasHeader, colDefs, amountField), S3ConnectionConfig(bucket, path))) =>
         Model(
           enabled        = true,
           hasHeader      = hasHeader,
           columns        = colDefs.toList.sortBy(_._1).map(_._2),
-          amountColIndex = amountField
+          amountColIndex = amountField,
+          s3Bucket       = bucket,
+          s3FilePath     = path
         )
 
   def apply[M](model: Model, lift: Msg => M): Html[M] =
@@ -133,7 +141,36 @@ object DataSourceConfigWidget:
             tpe := "button",
             cls := "border border-dashed border-md-primary text-md-primary rounded px-3 py-1.5 text-xs hover:bg-md-primary-container transition-colors",
             onClick(lift(Msg.AddColumn))
-          )(text("+ Add Column"))
+          )(text("+ Add Column")),
+          div(cls := "mt-4")(
+            span(cls := "text-xs font-semibold uppercase tracking-widest text-md-on-surface-variant")(
+              text("S3 Connection")
+            ),
+            div(cls := "mt-2 flex flex-col gap-3")(
+              div(cls := "relative border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded")(
+                label(
+                  cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant"
+                )(text("Bucket")),
+                input(
+                  tpe   := "text",
+                  cls   := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-sm focus:outline-none rounded",
+                  attribute("value", model.s3Bucket),
+                  onChange(v => lift(Msg.SetS3Bucket(v)))
+                )
+              ),
+              div(cls := "relative border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded")(
+                label(
+                  cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant"
+                )(text("File Path")),
+                input(
+                  tpe   := "text",
+                  cls   := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-sm focus:outline-none rounded",
+                  attribute("value", model.s3FilePath),
+                  onChange(v => lift(Msg.SetS3FilePath(v)))
+                )
+              )
+            )
+          )
         )
       else div()()
     )
@@ -142,7 +179,9 @@ object DataSourceConfigWidget:
     enabled:        Boolean      = false,
     hasHeader:      Boolean      = true,
     columns:        List[String] = List(),
-    amountColIndex: Option[Int]  = None
+    amountColIndex: Option[Int]  = None,
+    s3Bucket:       String       = "",
+    s3FilePath:     String       = ""
   )
 
   enum Msg:
@@ -152,3 +191,5 @@ object DataSourceConfigWidget:
     case UpdateColumn(index: Int, name: String)
     case RemoveColumn(index: Int)
     case SetAmountCol(index: Int)
+    case SetS3Bucket(value: String)
+    case SetS3FilePath(value: String)

@@ -10,7 +10,7 @@ import perfectpair.testing.rollBackOnly
 import java.time.OffsetDateTime
 import javax.sql.DataSource
 
-class FileInventoryTrackerSuite extends munit.FunSuite:
+class CreateFileInventoryTrackerSuite extends munit.FunSuite:
 
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   given transactor: Transactor = Transactor(dataSource)

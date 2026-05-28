@@ -98,7 +98,7 @@ object RuleWidget:
     specs
       .find(_.id.contains(specId))
       .flatMap(_.dataSourceConfig)
-      .collect { case DataSourceConfig(CSVParserConfig(_, cols, _)) => cols.values.toSeq }
+      .collect { case DataSourceConfig(CSVParserConfig(_, cols, _), _) => cols.values.toSeq }
       .getOrElse(Seq.empty)
 
   private def leafRow[M](

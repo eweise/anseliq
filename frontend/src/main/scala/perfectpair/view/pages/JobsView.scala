@@ -1,6 +1,6 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.JobTypeInfo.{FileInventory, Ingestion, Reconciliation}
+import perfectpair.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Reconciliation}
 import perfectpair.common.model.{
   FileInventoryInfo,
   IngestionInfo,
@@ -31,7 +31,7 @@ object JobsView:
     val extraHeaders = model.selectedJobType match
       case Reconciliation => reconExtraHeaders
       case Ingestion      => ingestionExtraHeaders
-      case FileInventory  => fileInventoryExtraHeaders
+      case CreateFileInventory  => fileInventoryExtraHeaders
     val headers = Seq(
       "Status",
       "Error",
@@ -47,7 +47,7 @@ object JobsView:
       baseCells ++ (job.jobType match
         case Reconciliation => reconExtraCells(job)
         case Ingestion      => ingestionExtraCells(job)
-        case FileInventory  => fileInventoryExtraCells(job)
+        case CreateFileInventory  => fileInventoryExtraCells(job)
       )
     }
 
