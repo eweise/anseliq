@@ -11,7 +11,7 @@ case class CSVParserConfig(
 
 case class DataSourceConfig(
   parserConfig:     ParserConfig,
-  connectionConfig: ConnectionConfig
+  connectionConfig: ConnectionConfig = S3ConnectionConfig("", "") // fixme should default this?
 ) derives ReadWriter
 
 sealed trait ConnectionConfig derives ReadWriter

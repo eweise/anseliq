@@ -2,11 +2,12 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
+import ox.*
 import perfectpair.adapter.driven.{DbDataSource, JobRepoLive}
 import perfectpair.common.model.ReconciliationInfo
 import perfectpair.domain.model.JobStatus.InProgress
 import perfectpair.domain.model.JobType.Reconciliation
-import perfectpair.domain.model.{IllegalArgumentError, IllegalStateError, Job, JobType}
+import perfectpair.domain.model.{IllegalArgumentError, IllegalStateError, JobType}
 import perfectpair.testing
 
 import java.util.UUID
@@ -97,13 +98,22 @@ class JobManagerSuite extends munit.FunSuite:
   test("pollForJob calls fn with submitted job and marks it InProgress"):
     // pollForJob creates its own transactions so we commit the job without rollBackOnly
     val referenceID = UUID.randomUUID()
-    transact(transactor):
+    transact(transactor) {
       jobManager.submitJob(Reconciliation, referenceID)
+    }
 
     var processedCount = 0
+    val latch          = java.util.concurrent.CountDownLatch(1)
 
-    jobManager.pollForJob(Reconciliation, 1): job =>
-      if job.referenceId == referenceID then processedCount += 1
+    supervised:
+      val fork = forkCancellable:
+        jobManager.pollForJob(Reconciliation, 1): job =>
+          if job.referenceId == referenceID then
+            processedCount += 1
+            latch.countDown()
+
+      latch.await()
+      fork.cancel()
 
     assertEquals(processedCount, 1)
 
