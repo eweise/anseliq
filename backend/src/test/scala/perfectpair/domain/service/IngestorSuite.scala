@@ -2,30 +2,51 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{AccountRepoLive, DbDataSource, EventRepoLive, MovementRepoLive}
+import perfectpair.adapter.driven.{AccountRepoLive, DbDataSource, EventRepoLive, FileInventoryRepoLive, MovementRepoLive}
 import perfectpair.domain.DataSetup
-import perfectpair.domain.port.driven.EventRepo
+import perfectpair.domain.model.{FileInventory, FileInventoryStatus, FileSourceEntry, S3FileSourceEntry}
+import perfectpair.domain.port.driven.{AccountRepo, EventRepo, FileInventoryRepo, FileSource, MovementRepo}
 import perfectpair.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
+import java.util.UUID
 import javax.sql.DataSource
 
 class IngestorSuite extends munit.FunSuite:
-  given transactor: Transactor = Transactor(dataSource)
+  given transactor:        Transactor        = Transactor(dataSource)
+  given dataSource:        DataSource        = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given eventRepo:         EventRepo         = EventRepoLive()
+  given clockService:      ClockService      = ClockService()
+  given eventStore:        EventStore        = EventStore()
+  given movementRepo:      MovementRepo      = MovementRepoLive()
+  given accountRepo:       AccountRepo       = AccountRepoLive()
+  given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
 
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  def stubSource(entries: Vector[FileSourceEntry], system: String = "S3") = new FileSource:
+    val sourceSystem = system
+    def listFiles(): Vector[FileSourceEntry] = entries
 
-  given eventRepo : EventRepo = EventRepoLive()
-  
-  given clockService:ClockService = ClockService()
-  
+  private def createExistingFileInventory(movementSpecID: UUID) =
+    val s3Entry = S3FileSourceEntry(
+      bucket         = "bucket",
+      key            = "existing",
+      fileSizeBytes  = 512L,
+      lastModifiedAt = clockService.now
+    )
+    FileInventory(
+      sourceSystem        = "S3",
+      movementSpecId      = movementSpecID,
+      fileSourceEntryJson = upickle.write(s3Entry),
+      fileSizeBytes       = 512L,
+      lastModifiedAt      = clockService.now,
+      status              = FileInventoryStatus.QUEUED,
+      lastProcessedAt     = None,
+      updatedAt           = None
+    )
+
   test("Post Amount balances"):
-    val movementRepo = MovementRepoLive()
-    val accountRepo  = AccountRepoLive()
-    val parser       = CSVParser(Map(0 -> "field1", 1 -> "field2"), None)
-    val eventStore   = EventStore()
-    val ingestor     = Ingestor(using movementRepo = movementRepo, accountRepo = accountRepo, eventStore = eventStore)
+    val ingestor = Ingestor()
     transact(transactor):
       rollBackOnly:
         val data: DataSetup = DataSetup()
@@ -34,3 +55,44 @@ class IngestorSuite extends munit.FunSuite:
         ingestor.ingest(data.journalToRecon, is)
         val allMovements = movementRepo.findAll
         assert(allMovements.exists(_.properties.props.exists((key, value) => key == "field1" && value == "value1")))
+
+  test("detectAndQueue inserts new files with QUEUED status"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val entries = Vector(
+          S3FileSourceEntry(bucket = "bucket", key = "file1.csv", 1024L, clockService.now),
+          S3FileSourceEntry(bucket = "bucket", key = "file2.csv", 2048L, clockService.now)
+        )
+        val result = ingestor.detectAndQueue(UUID.randomUUID(), stubSource(entries))
+        assert(result.size == 2)
+        assert(result.forall(_.status == FileInventoryStatus.QUEUED))
+        assert(fileInventoryRepo.findAll.size == 2)
+
+  test("detectAndQueue skips files already in the inventory"):
+    transact(transactor):
+      rollBackOnly:
+        val movementSpecID = UUID.randomUUID()
+        val ingestor       = Ingestor()
+        val existing       = createExistingFileInventory(movementSpecID)
+        fileInventoryRepo.insert(existing)
+        val entries = Vector(
+          S3FileSourceEntry(bucket = "bucket", key = "existing", 512L, clockService.now),
+          S3FileSourceEntry(bucket = "bucket", key = "new", 1024L, clockService.now)
+        )
+        val result = ingestor.detectAndQueue(movementSpecID, stubSource(entries))
+        assert(result.size == 1)
+        val foundKey = result.head.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key
+        assert(foundKey == "new")
+
+  test("detectAndQueue returns empty when all source files are already in inventory"):
+    transact(transactor):
+      rollBackOnly:
+        val movementSpecID = UUID.randomUUID()
+        val ingestor       = Ingestor()
+        fileInventoryRepo.insert(createExistingFileInventory(movementSpecID))
+        val result = ingestor.detectAndQueue(
+          movementSpecID,
+          stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, clockService.now)))
+        )
+        assert(result.isEmpty)
