@@ -48,9 +48,9 @@ object Main:
     given eventRepo:          EventRepo              = EventRepoLive()
     given fundFlowOperations: FundFlowOperations     = FundFlowOperations()
     given eventStore:         EventStore             = EventStore()
+    given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
     given ingestor:           Ingestor               = Ingestor()
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
-    given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
 
@@ -124,7 +124,6 @@ object Main:
           .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
           .build()
         val s3FileSource = S3FileSource("perfectpair-files", s3Client = s3Client)
-        val tracker      = FileInventoryTracker()
         try
           jobManager.pollForJob(JobType.CreateFileInventory, 60) { job =>
             transact(Transactor(dataSource = given_DataSource)):
@@ -134,7 +133,7 @@ object Main:
                 .filter(_.dataSourceConfig().connectionConfig.isInstanceOf[S3ConnectionConfig])
 
               s3MovementSpecs.foreach { spec =>
-                val newFiles = tracker.detectAndQueue(spec.id, s3FileSource)
+                val newFiles = ingestor.detectAndQueue(spec.id, s3FileSource)
                 println(s"File inventory scan: queued ${newFiles.size} new S3 files")
                 jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = newFiles.size))
               }

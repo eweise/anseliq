@@ -1,11 +1,12 @@
 package perfectpair.domain.service
 
 import ox.flow.Flow
-import perfectpair.common.model.model.Properties
+import perfectpair.common.model.model.{ID, Properties}
 import perfectpair.common.model.{CSVParserConfig, ParserConfig, ReconciliationInfo}
+import perfectpair.domain.model.FileInventoryStatus.COMPLETED
 import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.model.{MoneyMovementsIngested, Movement, MovementSpec, NotFoundError}
-import perfectpair.domain.port.driven.{AccountRepo, MovementRepo, Txn}
+import perfectpair.domain.model.{ErrIfNotFound, FileInventory, FileInventoryStatus, MoneyMovementsIngested, Movement, MovementSpec, NewFileDetected, NotFoundError}
+import perfectpair.domain.port.driven.{AccountRepo, FileInventoryRepo, FileSource, MovementRepo, Txn}
 
 import java.io.InputStream
 import java.time.Instant.now
@@ -52,9 +53,10 @@ case class IngestionResult(
 )
 
 class Ingestor(using
-  val movementRepo: MovementRepo,
-  val accountRepo:  AccountRepo,
-  val eventStore:   EventStore
+  val movementRepo:      MovementRepo,
+  val accountRepo:       AccountRepo,
+  val eventStore:        EventStore,
+  val fileInventoryRepo: FileInventoryRepo
 ):
 
   def ingest(movementSpec: MovementSpec, is: InputStream): Txn[IngestionResult] =
@@ -97,10 +99,41 @@ class Ingestor(using
         accountRepo.update(inAccount)
         accountRepo.update(outAccount)
       }
-    
+
     eventStore.publishEvent(MoneyMovementsIngested(movementSpecID = movementSpec.id))
-    
+
     IngestionResult(
       recordCount          = lineCounter,
       ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond
     )
+
+  def detectAndQueue(movementSpecID: ID, source: FileSource): Txn[Vector[FileInventory]] =
+    val existingFileSourceEntries = fileInventoryRepo
+      .findBySourceSystem(source.sourceSystem)
+      .map(inventory => inventory.fileSourceEntry())
+
+    val newFiles = source.listFiles().filterNot(f => existingFileSourceEntries.contains(f))
+
+    newFiles.map(f =>
+      val fileSourceEntryJson = upickle.write(f)
+      val fileInventory = FileInventory(
+        movementSpecId      = movementSpecID,
+        sourceSystem        = source.sourceSystem,
+        fileSourceEntryJson = fileSourceEntryJson,
+        fileSizeBytes       = f.fileSizeBytes,
+        lastModifiedAt      = f.lastModifiedAt,
+        status              = FileInventoryStatus.QUEUED,
+        lastProcessedAt     = None,
+        updatedAt           = None
+      )
+      fileInventoryRepo.insert(fileInventory)
+      eventStore.publishEvent(NewFileDetected(fileInventoryID = fileInventory.id))
+      fileInventory
+    )
+
+  def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
+    fileInventoryRepo
+      .findById(fileInventoryID)
+      .ErrIfNotFound("FileInventory", fileInventoryID)
+      .copy(status = COMPLETED)
+  )

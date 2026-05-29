@@ -3,8 +3,8 @@ package perfectpair.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.domain.model.{FileInventoryStatus, S3FileSourceEntry}
-import perfectpair.domain.port.driven.EventRepo
-import perfectpair.domain.service.{ClockService, EventStore, FileInventoryTracker}
+import perfectpair.domain.port.driven.{AccountRepo, EventRepo, FileInventoryRepo, MovementRepo}
+import perfectpair.domain.service.{ClockService, EventStore, Ingestor}
 import perfectpair.testing.rollBackOnly
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.core.sync.RequestBody
@@ -30,15 +30,14 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   val localstackEndpoint = URI.create("http://localhost:4566")
   val bucket             = "file-inventory-test"
 
-  given clockService: ClockService = ClockService()
-
-  given transactor: Transactor = Transactor(dataSource)
-
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-
-  given eventRepo: EventRepo = EventRepoLive()
-
-  given eventStore: EventStore = EventStore()
+  given clockService:      ClockService      = ClockService()
+  given transactor:        Transactor        = Transactor(dataSource)
+  given dataSource:        DataSource        = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given eventRepo:         EventRepo         = EventRepoLive()
+  given eventStore:        EventStore        = EventStore()
+  given movementRepo:      MovementRepo      = MovementRepoLive()
+  given accountRepo:       AccountRepo       = AccountRepoLive()
+  given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
 
   override def beforeAll(): Unit =
     s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
@@ -67,10 +66,9 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val movementSpecID = UUID.randomUUID()
-        val repo           = FileInventoryRepoLive()
-        val tracker        = FileInventoryTracker(using repo)
+        val ingestor       = Ingestor()
         val source         = S3FileSource(bucket, "reports/", s3Client)
-        val result         = tracker.detectAndQueue(movementSpecID, source)
+        val result         = ingestor.detectAndQueue(movementSpecID, source)
         assert(result.size == 3)
         assert(result.forall(_.status == FileInventoryStatus.QUEUED))
         assert(result.forall(_.sourceSystem == "S3"))
@@ -87,11 +85,10 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     put("idempotency/b.csv")
     transact(transactor):
       rollBackOnly:
-        val repo    = FileInventoryRepoLive()
-        val tracker = FileInventoryTracker(using repo)
-        val source  = S3FileSource(bucket, "idempotency/", s3Client)
-        val first   = tracker.detectAndQueue(UUID.randomUUID(), source)
-        val second  = tracker.detectAndQueue(UUID.randomUUID(), source)
+        val ingestor = Ingestor()
+        val source   = S3FileSource(bucket, "idempotency/", s3Client)
+        val first    = ingestor.detectAndQueue(UUID.randomUUID(), source)
+        val second   = ingestor.detectAndQueue(UUID.randomUUID(), source)
         assertEquals(first.size, 2)
         assert(second.isEmpty, "second run should not re-queue already tracked files")
 
@@ -100,12 +97,11 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val movementSpecID = UUID.randomUUID()
-        val repo           = FileInventoryRepoLive()
-        val tracker        = FileInventoryTracker(using repo)
+        val ingestor       = Ingestor()
         val source         = S3FileSource(bucket, "incremental/", s3Client)
-        val first          = tracker.detectAndQueue(movementSpecID, source)
+        val first          = ingestor.detectAndQueue(movementSpecID, source)
         assertEquals(first.size, 1)
         put("incremental/new.csv")
-        val second = tracker.detectAndQueue(movementSpecID, source)
+        val second = ingestor.detectAndQueue(movementSpecID, source)
         assertEquals(second.size, 1)
         assertEquals(second.head.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key, s"incremental/new.csv")
