@@ -4,4 +4,4 @@ import com.augustnagro.magnum.DbCon
 import perfectpair.domain.model.FileInventory
 
 trait FileInventoryRepo extends DomainRepo[FileInventory, FileInventory]:
-  def findPathsBySourceSystem(sourceSystem: String)(using DbCon): Set[String]
+  def findBySourceSystem(sourceSystem: String)(using DbCon): Set[FileInventory]

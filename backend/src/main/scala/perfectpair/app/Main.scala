@@ -53,8 +53,9 @@ object Main:
     given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
-    supervised {
-      fork {
+
+    supervised:
+      fork:
         try
           jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
             try
@@ -74,11 +75,19 @@ object Main:
                 jobManager.completeJob(job.id, jobInfo)
             catch case ex: Exception => ex.printStackTrace()
           }
-        catch {
-          case ex: Exception => ex.printStackTrace()
-        }
-      }
-      fork {
+        catch case ex: Exception => ex.printStackTrace()
+
+      fork:
+        try
+          eventStore.consumeEvent(classOf[NewFileDetected], 5, 10): event =>
+            println(s"found NewFileDetected event: $event")
+            val fileInventory = fileInventoryRepo
+              .findById(event.fileInventoryID)
+              .ErrIfNotFound("FileInventory", event.fileInventoryID)
+//            ingestor.ingest()
+        catch case ex: Exception => ex.printStackTrace()
+
+      fork:
         try
           eventStore.consumeEvent(classOf[MoneyMovementsIngested], 5, 10) { event =>
             println(s"found ingestion job $event")
@@ -93,12 +102,9 @@ object Main:
               if (accountRepo.isReconAccount(movementSpec.outAccountId)) then
                 jobManager.submitJob(JobType.Reconciliation, movementSpec.outAccountId)
           }
-        catch {
-          case ex: Exception => ex.printStackTrace()
-        }
-      }
+        catch case ex: Exception => ex.printStackTrace()
 
-      fork {
+      fork:
         val fileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
         try
           repeat(Schedule.fixedInterval(1.minute)) {
@@ -106,15 +112,14 @@ object Main:
               jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
           }
         catch case ex: Exception => ex.printStackTrace()
-      }
 
-      fork {
+      fork:
         val s3Client = S3Client
           .builder()
           .region(Region.US_EAST_1)
           .endpointOverride(URI.create("http://localhost:4566"))
           .credentialsProvider(
-            StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test"))
+            StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")) // fixme remove
           )
           .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
           .build()
@@ -122,19 +127,22 @@ object Main:
         val tracker      = FileInventoryTracker()
         try
           jobManager.pollForJob(JobType.CreateFileInventory, 60) { job =>
-            try
-              transact(Transactor(dataSource = given_DataSource)):
-                val newFiles = tracker.detectAndQueue(s3FileSource)
+            transact(Transactor(dataSource = given_DataSource)):
+              val movementSpecs = movementSpecRepo.findAll
+              // fixme just filter for S3 based movement specs for now
+              val s3MovementSpecs = movementSpecs
+                .filter(_.dataSourceConfig().connectionConfig.isInstanceOf[S3ConnectionConfig])
+
+              s3MovementSpecs.foreach { spec =>
+                val newFiles = tracker.detectAndQueue(spec.id, s3FileSource)
                 println(s"File inventory scan: queued ${newFiles.size} new S3 files")
                 jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = newFiles.size))
-            catch case ex: Exception => ex.printStackTrace()
+              }
           }
         catch case ex: Exception => ex.printStackTrace()
-      }
 
-      new App().main(args)
-      shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
-    }
+    new App().main(args)
+    shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
 
 class App(using
   dataSource:         DataSource,

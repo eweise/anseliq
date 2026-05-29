@@ -82,18 +82,19 @@ create table recon.movement
 
 CREATE TABLE recon.file_inventory
 (
-    id                UUID PRIMARY KEY,
-    source_system     VARCHAR(50)              NOT NULL,
-    file_path         TEXT                     NOT NULL,
-    file_size_bytes   BIGINT                   NOT NULL,
-    last_modified_at  TIMESTAMP WITH TIME ZONE NOT NULL,
-    status            TEXT                     NOT NULL DEFAULT 'QUEUED',
-    last_processed_at TIMESTAMP WITH TIME ZONE,
-    updated_at        TIMESTAMP WITH TIME ZONE          DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_source_path UNIQUE (source_system, file_path)
+    id                     UUID PRIMARY KEY,
+    movement_spec_id       UUID                     NOT NULL,
+    source_system          VARCHAR(50)              NOT NULL,
+    file_source_entry_json TEXT                     NOT NULL,
+    file_size_bytes        BIGINT                   NOT NULL,
+    last_modified_at       TIMESTAMP WITH TIME ZONE NOT NULL,
+    status                 TEXT                     NOT NULL DEFAULT 'QUEUED',
+    last_processed_at      TIMESTAMP WITH TIME ZONE,
+    updated_at             TIMESTAMP WITH TIME ZONE          DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_source_path UNIQUE (source_system, file_source_entry_json)
 );
 
-CREATE INDEX idx_inventory_lookup ON recon.file_inventory (source_system, file_path);
+CREATE INDEX idx_inventory_lookup ON recon.file_inventory (source_system, file_source_entry_json);
 
 CREATE INDEX movement_movement_spec_fk ON recon.movement (movement_spec_id);
 CREATE INDEX movement_in_account_fk ON recon.movement (in_account_id);
