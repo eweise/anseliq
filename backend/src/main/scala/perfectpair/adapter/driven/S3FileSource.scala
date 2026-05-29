@@ -1,9 +1,11 @@
 package perfectpair.adapter.driven
 
-import perfectpair.domain.port.driven.{FileSource, FileSourceEntry}
-import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Request
+import perfectpair.domain.model.{FileSourceEntry, S3FileSourceEntry}
+import perfectpair.domain.port.driven.FileSource
+import software.amazon.awssdk.services.s3.model.{GetObjectRequest, ListObjectsV2Request}
+import software.amazon.awssdk.services.s3.{S3Client, S3Uri}
 
+import java.io.InputStream
 import java.time.ZoneOffset
 import scala.jdk.CollectionConverters.*
 
@@ -11,17 +13,25 @@ class S3FileSource(bucket: String, prefix: String = "", s3Client: S3Client) exte
   val sourceSystem = "S3"
 
   def listFiles(): Vector[FileSourceEntry] =
-    val req = ListObjectsV2Request.builder()
+    val req = ListObjectsV2Request
+      .builder()
       .bucket(bucket)
       .prefix(prefix)
       .build()
+
+    var bucketName = ""
+
     s3Client
       .listObjectsV2Paginator(req)
       .stream()
-      .flatMap(_.contents().stream())
+      .flatMap(response =>
+        bucketName = response.name()
+        response.contents().stream()
+      )
       .map(obj =>
-        FileSourceEntry(
-          filePath       = s"s3://$bucket/${obj.key()}",
+        S3FileSourceEntry(
+          bucket         = bucketName,
+          key            = obj.key(),
           fileSizeBytes  = obj.size(),
           lastModifiedAt = obj.lastModified().atOffset(ZoneOffset.UTC)
         )
@@ -29,3 +39,13 @@ class S3FileSource(bucket: String, prefix: String = "", s3Client: S3Client) exte
       .iterator()
       .asScala
       .toVector
+
+  def getFile(filePath: String): InputStream =
+    val s3Uri = S3Uri.builder().uri(java.net.URI(filePath))
+    s3Client.getObject(
+      GetObjectRequest
+        .builder()
+        .bucket(bucket)
+        .key(filePath)
+        .build()
+    )

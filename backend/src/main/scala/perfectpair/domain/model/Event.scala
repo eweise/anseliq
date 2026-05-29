@@ -10,6 +10,8 @@ sealed trait Event derives ReadWriter {
   val eventType: String = this.getClass.getSimpleName
 }
 
-case class MoneyMovementsIngested(id: UUID = UUID.randomUUID(), movementSpecID: ID) extends Event
+case class MoneyMovementsIngested(id: ID = UUID.randomUUID(), movementSpecID: ID) extends Event
 
-case class AccountReconciled(id: UUID = UUID.randomUUID(), accountID: ID) extends Event
+case class AccountReconciled(id: ID = UUID.randomUUID(), accountID: ID) extends Event
+
+case class NewFileDetected(id: ID = UUID.randomUUID(), fileInventoryID: ID) extends Event

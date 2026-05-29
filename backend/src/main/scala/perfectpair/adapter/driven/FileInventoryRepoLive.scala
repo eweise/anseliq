@@ -9,8 +9,11 @@ import java.util.UUID
 class FileInventoryRepoLive extends Repo[FileInventory, FileInventory, UUID] with FileInventoryRepo:
   val fi = FileInventory.Table
 
-  def findPathsBySourceSystem(sourceSystem: String)(using DbCon): Set[String] =
-    sql"SELECT file_path FROM $fi WHERE source_system = $sourceSystem"
-      .query[String]
+  def findBySourceSystem(sourceSystem: String)(using DbCon): Set[FileInventory] =
+    sql"""
+    SELECT ${fi.all} 
+    FROM $fi WHERE source_system = $sourceSystem
+    """
+      .query[FileInventory]
       .run()
       .toSet
