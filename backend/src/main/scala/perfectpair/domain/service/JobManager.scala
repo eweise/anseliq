@@ -99,11 +99,14 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
 
   def pollForJob(jobType: JobType, pollingSeconds: Int)(fn: Job => Unit): Unit =
     repeat(Schedule.fixedInterval(pollingSeconds.seconds)) {
-      given transactor: Transactor = Transactor(dataSource)
-      val jobOpt = transact(transactor) {
-        getNextAvailableJob(jobType)
-      }
-      jobOpt.foreach(fn)
+      try
+        given transactor: Transactor = Transactor(dataSource)
+        val jobOpt = transact(transactor) {
+          getNextAvailableJob(jobType)
+        }
+        jobOpt.foreach(fn)
+      catch case ex: Exception =>
+        println(s"Error polling for $jobType job, will retry in ${pollingSeconds}s: ${ex.getMessage}")
     }
 
   def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =

@@ -16,10 +16,13 @@ class EventStore(using eventRepo: EventRepo, clock: ClockService, dataSource: Da
 
   def consumeEvent[T <: Event](eventClass: Class[T], pollingSeconds: Int, maxRetries: Int)(consumer: T => Txn[Unit]): Unit =
     repeat(Schedule.fixedInterval(pollingSeconds.seconds)) {
-      given transactor: Transactor = Transactor(dataSource)
-      transact(transactor) {
-        processNextEvent(eventClass, maxRetries)(consumer)
-      }
+      try
+        given transactor: Transactor = Transactor(dataSource)
+        transact(transactor) {
+          processNextEvent(eventClass, maxRetries)(consumer)
+        }
+      catch case ex: Exception =>
+        println(s"Error consuming ${eventClass.getSimpleName} event, will retry in ${pollingSeconds}s: ${ex.getMessage}")
     }
 
   def processNextEvent[T <: Event](eventClass: Class[T], maxRetries: Int)(consumer: T => Txn[Unit]): Txn[Unit] =

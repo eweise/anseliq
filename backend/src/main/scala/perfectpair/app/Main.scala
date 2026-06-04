@@ -75,7 +75,10 @@ object Main:
                 jobManager.completeJob(job.id, jobInfo)
             catch case ex: Exception => ex.printStackTrace()
           }
-        catch case ex: Exception => ex.printStackTrace()
+        catch
+          case ex: Exception =>
+            println("failed poll for Reconciliation job")
+            ex.printStackTrace()
 
       fork:
         try
@@ -85,7 +88,10 @@ object Main:
               .findById(event.fileInventoryID)
               .ErrIfNotFound("FileInventory", event.fileInventoryID)
 //            ingestor.ingest()
-        catch case ex: Exception => ex.printStackTrace()
+        catch
+          case ex: Exception =>
+            println("failed eventStore.consumeEvent")
+            ex.printStackTrace()
 
       fork:
         try
@@ -106,12 +112,13 @@ object Main:
 
       fork:
         val fileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
-        try
-          repeat(Schedule.fixedInterval(1.minute)) {
+        repeat(Schedule.fixedInterval(1.minute)) {
+          try
             transact(Transactor(dataSource = given_DataSource)):
               jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
-          }
-        catch case ex: Exception => ex.printStackTrace()
+          catch case ex: Exception =>
+            println(s"Error submitting CreateFileInventory job, will retry in 1m: ${ex.getMessage}")
+        }
 
       fork:
         val s3Client = S3Client
@@ -140,8 +147,8 @@ object Main:
           }
         catch case ex: Exception => ex.printStackTrace()
 
-    new App().main(args)
-    shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
+      new App().main(args)
+      shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
 
 class App(using
   dataSource:         DataSource,
