@@ -49,6 +49,7 @@ object Main:
     given fundFlowOperations: FundFlowOperations     = FundFlowOperations()
     given eventStore:         EventStore             = EventStore()
     given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
+    given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
     given ingestor:           Ingestor               = Ingestor()
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
 
@@ -116,35 +117,24 @@ object Main:
           try
             transact(Transactor(dataSource = given_DataSource)):
               jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
-          catch case ex: Exception =>
-            println(s"Error submitting CreateFileInventory job, will retry in 1m: ${ex.getMessage}")
+          catch
+            case ex: Exception =>
+              println(s"Error submitting CreateFileInventory job, will retry in 1m: ${ex.getMessage}")
         }
 
-      fork:
-        val s3Client = S3Client
-          .builder()
-          .region(Region.US_EAST_1)
-          .endpointOverride(URI.create("http://localhost:4566"))
-          .credentialsProvider(
-            StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")) // fixme remove
-          )
-          .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
-          .build()
-        val s3FileSource = S3FileSource("perfectpair-files", s3Client = s3Client)
-        try
-          jobManager.pollForJob(JobType.CreateFileInventory, 60) { job =>
-            transact(Transactor(dataSource = given_DataSource)):
-              val movementSpecs = movementSpecRepo.findAll
-              // fixme just filter for S3 based movement specs for now
-              val s3MovementSpecs = movementSpecs
-                .filter(_.dataSourceConfig().connectionConfig.isInstanceOf[S3ConnectionConfig])
+      val s3FileSourceFactory = S3FileSourceFactory()
 
-              s3MovementSpecs.foreach { spec =>
-                val newFiles = ingestor.detectAndQueue(spec.id, s3FileSource)
+      fork:
+        try
+          jobManager.pollForJob(JobType.CreateFileInventory, 60): job =>
+            transact(Transactor(dataSource = given_DataSource)):
+
+              movementSpecRepo.findAll.foreach: spec =>
+                val s3FileSource = s3FileSourceFactory.createFileSource(spec.dataSourceConfig().connectionConfig)
+                val newFiles     = ingestor.detectAndQueue(spec.id, s3FileSource)
                 println(s"File inventory scan: queued ${newFiles.size} new S3 files")
                 jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = newFiles.size))
-              }
-          }
+
         catch case ex: Exception => ex.printStackTrace()
 
       new App().main(args)

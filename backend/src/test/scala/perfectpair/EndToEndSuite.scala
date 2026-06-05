@@ -16,11 +16,11 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.sql.DataSource
 
 class EndToEndSuite extends munit.FunSuite {
-  given clock:              ClockService           = ClockService()
+  given clock: ClockService = ClockService()
 
-  given transactor:         Transactor             = Transactor(dataSource)
+  given transactor: Transactor = Transactor(dataSource)
 
-  given dataSource:         DataSource             = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
   given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
   given movementRepo:       MovementRepo           = MovementRepoLive()
@@ -31,6 +31,7 @@ class EndToEndSuite extends munit.FunSuite {
   given eventRepo:          EventRepo              = EventRepoLive()
   given eventStore:         EventStore             = EventStore()
   given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
+  given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
   given ingestor:           Ingestor               = Ingestor()
   given reconciler:         InMemoryReconciler     = InMemoryReconciler()
 

@@ -2,30 +2,39 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{AccountRepoLive, DbDataSource, EventRepoLive, FileInventoryRepoLive, MovementRepoLive}
+import perfectpair.adapter.driven.*
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.{FileInventory, FileInventoryStatus, FileSourceEntry, S3FileSourceEntry}
-import perfectpair.domain.port.driven.{AccountRepo, EventRepo, FileInventoryRepo, FileSource, MovementRepo}
+import perfectpair.domain.port.driven.*
 import perfectpair.testing.rollBackOnly
 
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 import javax.sql.DataSource
 
 class IngestorSuite extends munit.FunSuite:
-  given transactor:        Transactor        = Transactor(dataSource)
-  given dataSource:        DataSource        = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given eventRepo:         EventRepo         = EventRepoLive()
-  given clockService:      ClockService      = ClockService()
-  given eventStore:        EventStore        = EventStore()
-  given movementRepo:      MovementRepo      = MovementRepoLive()
-  given accountRepo:       AccountRepo       = AccountRepoLive()
+  given transactor:   Transactor   = Transactor(dataSource)
+  given dataSource:   DataSource   = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given eventRepo:    EventRepo    = EventRepoLive()
+  given clockService: ClockService = ClockService()
+
+  given eventStore: EventStore = EventStore()
+
+  given movementRepo: MovementRepo = MovementRepoLive()
+
+  given accountRepo: AccountRepo = AccountRepoLive()
+
+  given movementSpecRepo: MovementSpecRepo = MovementSpecRepoLive()
+
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
+
+  given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
 
   def stubSource(entries: Vector[FileSourceEntry], system: String = "S3") = new FileSource:
     val sourceSystem = system
     def listFiles(): Vector[FileSourceEntry] = entries
+    override def getFile(entry: FileSourceEntry): InputStream = ???
 
   private def createExistingFileInventory(movementSpecID: UUID) =
     val s3Entry = S3FileSourceEntry(
@@ -44,6 +53,7 @@ class IngestorSuite extends munit.FunSuite:
       lastProcessedAt     = None,
       updatedAt           = None
     )
+
 
   test("Post Amount balances"):
     val ingestor = Ingestor()

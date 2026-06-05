@@ -1,51 +1,17 @@
 package perfectpair.domain.service
 
 import ox.flow.Flow
+import perfectpair.adapter.driven.S3FileSource
 import perfectpair.common.model.model.{ID, Properties}
-import perfectpair.common.model.{CSVParserConfig, ParserConfig, ReconciliationInfo}
+import perfectpair.common.model.{CSVParserConfig, ParserConfig}
+import perfectpair.domain.model.*
 import perfectpair.domain.model.FileInventoryStatus.COMPLETED
 import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.model.{ErrIfNotFound, FileInventory, FileInventoryStatus, MoneyMovementsIngested, Movement, MovementSpec, NewFileDetected, NotFoundError}
-import perfectpair.domain.port.driven.{AccountRepo, FileInventoryRepo, FileSource, MovementRepo, Txn}
+import perfectpair.domain.port.driven.*
+import software.amazon.awssdk.services.s3.S3Client
 
 import java.io.InputStream
 import java.time.Instant.now
-
-case class ParsedLine(props: Properties, maybeAmount: Option[BigDecimal])
-
-trait Parser:
-  def parse(text: String, lineNumber: Long): Option[ParsedLine]
-
-object Parser:
-  def apply(config: ParserConfig): Parser =
-    config match
-      case csv: CSVParserConfig =>
-        CSVParser(
-          hasHeader   = csv.hasHeader,
-          columns     = csv.columnDefinitions,
-          amountField = csv.amountField
-        )
-
-case class CSVParser(
-  columns:     Map[Int, String],
-  amountField: Option[Int],
-  hasHeader:   Boolean = false
-) extends Parser:
-  override def parse(text: String, lineNumber: Long): Option[ParsedLine] =
-    val fields = text.split(",") // todo replace with real csv parser
-    if fields.length < 2 then None
-    else if lineNumber == 0 && hasHeader then None
-    else
-      val amount = amountField.map(index =>
-        val amountStr = fields(index)
-        BigDecimal(amountStr)
-      )
-      Some(
-        ParsedLine(
-          maybeAmount = amount,
-          props       = for ((index, key) <- columns) yield (key, fields(index))
-        )
-      )
 
 case class IngestionResult(
   recordCount:          Int,
@@ -54,10 +20,31 @@ case class IngestionResult(
 
 class Ingestor(using
   val movementRepo:      MovementRepo,
+  val movementSpecRepo:  MovementSpecRepo,
   val accountRepo:       AccountRepo,
   val eventStore:        EventStore,
-  val fileInventoryRepo: FileInventoryRepo
+  val fileInventoryRepo: FileInventoryRepo,
+  val fileSourceFactory: FileSourceFactory
 ):
+
+  def ingestFileFromInventory(fileInventoryID: ID): Txn[IngestionResult] =
+    val fileInventory = fileInventoryRepo
+      .findById(fileInventoryID)
+      .ErrIfNotFound("FileInventory", fileInventoryID)
+
+    // fixme there is probably a better way to make the relationship between file source
+    val entry = fileInventory.fileSourceEntry()
+
+    val movementSpec = movementSpecRepo
+      .findById(fileInventory.movementSpecId)
+      .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
+
+    val connectionConfig = movementSpec.dataSourceConfig().connectionConfig
+    val fileSource = fileSourceFactory.createFileSource(connectionConfig)
+
+    val inputStream = fileSource.getFile(fileInventory.fileSourceEntry())
+    
+    ingest(movementSpec, inputStream)
 
   def ingest(movementSpec: MovementSpec, is: InputStream): Txn[IngestionResult] =
     var lineCounter = 0
