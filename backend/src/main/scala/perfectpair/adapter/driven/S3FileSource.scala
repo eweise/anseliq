@@ -6,7 +6,7 @@ import perfectpair.domain.port.driven.{FileSource, FileSourceFactory}
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, ListObjectsV2Request}
-import software.amazon.awssdk.services.s3.{S3Client, S3Configuration, S3Uri}
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.io.InputStream
 import java.net.URI
@@ -22,7 +22,7 @@ class S3FileSourceFactory extends FileSourceFactory:
       .credentialsProvider(
         StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")) // fixme remove
       )
-      .serviceConfiguration(S3Configuration.builder().build())
+      .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
       .build()
 
   def createFileSource(conn: ConnectionConfig): S3FileSource =
@@ -35,24 +35,21 @@ class S3FileSource(con: S3ConnectionConfig, s3Client: S3Client) extends FileSour
     val req = ListObjectsV2Request
       .builder()
       .bucket(con.s3Bucket)
-      .prefix(con.filePath)
+      .prefix(s"${con.filePath}/")
       .build()
 
     var bucketName = ""
 
     s3Client
-      .listObjectsV2Paginator(req)
+      .listObjectsV2(req)
+      .contents()
       .stream()
-      .flatMap(response =>
-        bucketName = response.name()
-        response.contents().stream()
-      )
-      .map(obj =>
+      .map(seObject =>
         S3FileSourceEntry(
           bucket         = bucketName,
-          key            = obj.key(),
-          fileSizeBytes  = obj.size(),
-          lastModifiedAt = obj.lastModified().atOffset(ZoneOffset.UTC)
+          key            = seObject.key(),
+          fileSizeBytes  = seObject.size(),
+          lastModifiedAt = seObject.lastModified().atOffset(ZoneOffset.UTC)
         )
       )
       .iterator()

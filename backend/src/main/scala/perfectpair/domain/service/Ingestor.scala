@@ -1,14 +1,11 @@
 package perfectpair.domain.service
 
 import ox.flow.Flow
-import perfectpair.adapter.driven.S3FileSource
-import perfectpair.common.model.model.{ID, Properties}
-import perfectpair.common.model.{CSVParserConfig, ParserConfig}
+import perfectpair.common.model.model.ID
 import perfectpair.domain.model.*
 import perfectpair.domain.model.FileInventoryStatus.COMPLETED
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
-import software.amazon.awssdk.services.s3.S3Client
 
 import java.io.InputStream
 import java.time.Instant.now
@@ -40,10 +37,10 @@ class Ingestor(using
       .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
 
     val connectionConfig = movementSpec.dataSourceConfig().connectionConfig
-    val fileSource = fileSourceFactory.createFileSource(connectionConfig)
+    val fileSource       = fileSourceFactory.createFileSource(connectionConfig)
 
     val inputStream = fileSource.getFile(fileInventory.fileSourceEntry())
-    
+
     ingest(movementSpec, inputStream)
 
   def ingest(movementSpec: MovementSpec, is: InputStream): Txn[IngestionResult] =
@@ -98,8 +95,8 @@ class Ingestor(using
     val existingFileSourceEntries = fileInventoryRepo
       .findBySourceSystem(source.sourceSystem)
       .map(inventory => inventory.fileSourceEntry())
-
-    val newFiles = source.listFiles().filterNot(f => existingFileSourceEntries.contains(f))
+    val sourceFiles = source.listFiles()
+    val newFiles    = sourceFiles.filterNot(f => existingFileSourceEntries.contains(f))
 
     newFiles.map(f =>
       val fileSourceEntryJson = upickle.write(f)

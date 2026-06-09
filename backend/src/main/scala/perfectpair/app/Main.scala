@@ -12,12 +12,8 @@ import perfectpair.common.model.IngestionDataSource.Manual
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.*
-import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import upickle.default.*
 
-import java.net.URI
 import java.util.UUID
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
@@ -56,6 +52,11 @@ object Main:
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
 
     supervised:
+
+      /**
+       * RECONCILIATION: Job looks for Reconciliation jobs. If found then tries to reconcile by the
+       * Account ID
+       */
       fork:
         try
           jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
@@ -81,19 +82,27 @@ object Main:
             println("failed poll for Reconciliation job")
             ex.printStackTrace()
 
+      /**
+       * INGESTION. Listens for New Files. If found then tries to ingest
+       */
       fork:
         try
           eventStore.consumeEvent(classOf[NewFileDetected], 5, 10): event =>
             println(s"found NewFileDetected event: $event")
+
             val fileInventory = fileInventoryRepo
               .findById(event.fileInventoryID)
               .ErrIfNotFound("FileInventory", event.fileInventoryID)
-//            ingestor.ingest()
+
+            ingestor.ingestFileFromInventory(fileInventory.id)
         catch
           case ex: Exception =>
             println("failed eventStore.consumeEvent")
             ex.printStackTrace()
 
+      /**
+       * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs
+       */
       fork:
         try
           eventStore.consumeEvent(classOf[MoneyMovementsIngested], 5, 10) { event =>
@@ -111,6 +120,9 @@ object Main:
           }
         catch case ex: Exception => ex.printStackTrace()
 
+      /**
+       * Publishes FileInventory jobs
+       */
       fork:
         val fileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
         repeat(Schedule.fixedInterval(1.minute)) {
@@ -124,16 +136,22 @@ object Main:
 
       val s3FileSourceFactory = S3FileSourceFactory()
 
+      /**
+       * Consumes FileInventory jobs. Detects new files and creates FileInventory events.
+       */
       fork:
         try
           jobManager.pollForJob(JobType.CreateFileInventory, 60): job =>
             transact(Transactor(dataSource = given_DataSource)):
+              var filesQueued = 0
 
               movementSpecRepo.findAll.foreach: spec =>
                 val s3FileSource = s3FileSourceFactory.createFileSource(spec.dataSourceConfig().connectionConfig)
                 val newFiles     = ingestor.detectAndQueue(spec.id, s3FileSource)
                 println(s"File inventory scan: queued ${newFiles.size} new S3 files")
-                jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = newFiles.size))
+                filesQueued += newFiles.size
+
+              jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = filesQueued))
 
         catch case ex: Exception => ex.printStackTrace()
 
