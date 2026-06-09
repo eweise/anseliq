@@ -98,14 +98,14 @@ class Ingestor(using
     val sourceFiles = source.listFiles()
     val newFiles    = sourceFiles.filterNot(f => existingFileSourceEntries.contains(f))
 
-    newFiles.map(f =>
-      val fileSourceEntryJson = upickle.write(f)
+    newFiles.map: newFile =>
+      val fileSourceEntryJson = upickle.write(newFile)
       val fileInventory = FileInventory(
         movementSpecId      = movementSpecID,
         sourceSystem        = source.sourceSystem,
         fileSourceEntryJson = fileSourceEntryJson,
-        fileSizeBytes       = f.fileSizeBytes,
-        lastModifiedAt      = f.lastModifiedAt,
+        fileSizeBytes       = newFile.fileSizeBytes,
+        lastModifiedAt      = newFile.lastModifiedAt,
         status              = FileInventoryStatus.QUEUED,
         lastProcessedAt     = None,
         updatedAt           = None
@@ -113,7 +113,6 @@ class Ingestor(using
       fileInventoryRepo.insert(fileInventory)
       eventStore.publishEvent(NewFileDetected(fileInventoryID = fileInventory.id))
       fileInventory
-    )
 
   def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
     fileInventoryRepo
