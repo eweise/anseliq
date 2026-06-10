@@ -43,10 +43,11 @@ object AppState:
   val fundFlowNavOpen: Var[Boolean]                 = Var(false)
   val fundFlows:       Var[Seq[FundFlowPayload]]    = Var(Seq.empty)
   val activeFundFlow:  Var[Option[FundFlowPayload]] = Var(None)
-  val activeAccount:   Var[Option[AccountPayload]]  = Var(None)
 ```
 
-`activeFundFlow` and `activeAccount` are set by navigation helpers before pushing a new URL. Pages that operate within a fund flow or account context read these directly rather than receiving them as parameters.
+`activeFundFlow` is set by the navigation helper before pushing a fund-flow-scoped URL. Pages that need the active fund flow read `AppState.activeFundFlow.signal` directly.
+
+**Account context is URL-driven, not global state.** Account-scoped pages (`ReconSpecsPage`, `MaintainReconSpecPage`, `IngestPage`, `ReconciliationsPage`, `MaintainAccountPage`) receive the account ID from the URL segment and fetch the account themselves on mount. This keeps each page independently navigable and avoids hidden global mutation.
 
 ### Page-Local State
 
@@ -54,7 +55,7 @@ Each page declares a `case class State(...)` scoped to that component. A `Var[St
 
 ## Routing
 
-frontroute drives the main content area. Route definitions live in `routing/Routes.scala`:
+frontroute drives the main content area. Route definitions live in `routing/Routes.scala`. Account-scoped pages use a path segment to carry the account ID:
 
 ```scala
 object Routes:
@@ -62,18 +63,18 @@ object Routes:
     div(
       pathPrefix("components") {
         concat(
-          path("fund-flows")              { FundFlowsPage() },
-          path("fund-flow")               { FundFlowPage() },
-          path("maintain-fund-flow")      { MaintainFundFlowPage() },
-          path("accounts")               { AccountsPage() },
-          path("maintain-account")       { MaintainAccountPage() },
-          path("recon-specs")            { ReconSpecsPage() },
-          path("maintain-recon-spec")    { MaintainReconSpecPage() },
-          path("maintain-movement-spec") { MaintainMovementSpecPage() },
-          path("ingest")                 { IngestPage() },
-          path("jobs")                   { JobsPage() },
-          path("unreconciled-movements") { UnreconciledMovementsPage() },
-          path("reconciliations")        { ReconciliationsPage() }
+          path("fund-flows")                                          { FundFlowsPage() },
+          path("fund-flow")                                           { FundFlowPage() },
+          path("maintain-fund-flow")                                  { MaintainFundFlowPage() },
+          path("accounts")                                           { AccountsPage() },
+          (path("accounts") / segment[String] / "maintain")          { accountId => MaintainAccountPage(accountId) },
+          (path("accounts") / segment[String] / "recon-specs")       { accountId => ReconSpecsPage(accountId) },
+          (path("accounts") / segment[String] / "maintain-recon-spec") { accountId => MaintainReconSpecPage(accountId) },
+          path("maintain-movement-spec")                             { MaintainMovementSpecPage() },
+          (path("accounts") / segment[String] / "ingest")            { accountId => IngestPage(accountId) },
+          path("jobs")                                               { JobsPage() },
+          path("unreconciled-movements")                             { UnreconciledMovementsPage() },
+          (path("accounts") / segment[String] / "reconciliations")   { accountId => ReconciliationsPage(accountId) }
         )
       },
       path("login") { LoginPage() },
@@ -82,13 +83,24 @@ object Routes:
     )
 ```
 
-Navigation is performed by calling `BrowserNavigation.pushState(url)` directly inside page event handlers. No `Msg.NavigateTo` or global dispatcher. When entering a fund flow or account context, the caller sets the relevant `AppState` var before pushing:
+Navigation is performed by calling `BrowserNavigation.pushState(url)` directly inside page event handlers. No `Msg.NavigateTo` or global dispatcher.
+
+When entering a fund flow context, the caller sets `AppState.activeFundFlow` and pushes the URL:
 
 ```scala
 def navigateToAccounts(ff: FundFlowPayload): Unit =
   AppState.activeFundFlow.set(Some(ff))
   BrowserNavigation.pushState("/components/accounts")
 ```
+
+When entering an account context, the account ID is embedded in the URL — no global var is set:
+
+```scala
+def navigateToReconSpecs(account: AccountPayload): Unit =
+  BrowserNavigation.pushState(s"/components/accounts/${account.id.get}/recon-specs")
+```
+
+Account-scoped pages receive the ID as a constructor parameter and fetch the full account on mount.
 
 ## HTTP Client
 
