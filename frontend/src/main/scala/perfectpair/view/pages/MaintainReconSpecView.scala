@@ -16,16 +16,30 @@ object MaintainReconSpecView:
       case Msg.FormUpdate(spec) =>
         (model.copy(reconSpec = Some(spec)), Cmd.None)
       case Msg.RuleWidgetMsg(widgetMsg) =>
-        (model.copy(ruleWidget = RuleWidget.update(model.ruleWidget, widgetMsg)), Cmd.None)
-      case Msg.ReconSpecAction(spec, Create) =>
+        val updatedWidget = RuleWidget.update(model.ruleWidget, widgetMsg)
+        val finalWidget = widgetMsg match
+          case RuleWidget.Msg.SelectRuleType(rt) if rt == "StringMatch" || rt == "DateMatch" =>
+            val accountId = model.account.id.getOrElse("")
+            val inSpecId = model.reconSpec
+              .map(_.inMovementSpecId)
+              .getOrElse(model.movementSpecs.filter(_.inAccountId == accountId).headOption.flatMap(_.id).getOrElse(""))
+            val outSpecId = model.reconSpec
+              .map(_.outMovementSpecId)
+              .getOrElse(model.movementSpecs.filter(_.outAccountId == accountId).headOption.flatMap(_.id).getOrElse(""))
+            val inCols  = RuleWidget.columnsFor(inSpecId, model.movementSpecs)
+            val outCols = RuleWidget.columnsFor(outSpecId, model.movementSpecs)
+            updatedWidget.copy(
+              inKey  = if updatedWidget.inKey.isEmpty then inCols.headOption.getOrElse("") else updatedWidget.inKey,
+              outKey = if updatedWidget.outKey.isEmpty then outCols.headOption.getOrElse("") else updatedWidget.outKey
+            )
+          case _ => updatedWidget
+        (model.copy(ruleWidget = finalWidget), Cmd.None)
+      case Msg.ReconSpecAction(spec, Create | Update) =>
+        println(s"saving recon spec spec.id = " + spec.id)
         val toSave = spec.copy(rule = RuleWidget.toRule(model.ruleWidget))
-        (model, HttpHelper.createReconSpec(toSave))
-      case Msg.ReconSpecAction(spec, Created) =>
-        (model.copy(reconSpec = Some(spec)), Cmd.emit(model.returnTo))
-      case Msg.ReconSpecAction(spec, Update) =>
-        val toSave = spec.copy(rule = RuleWidget.toRule(model.ruleWidget))
-        (model, HttpHelper.updateReconSpec(toSave))
-      case Msg.ReconSpecAction(spec, Updated) =>
+        val cmd    = if toSave.id.isDefined then HttpHelper.updateReconSpec(toSave) else HttpHelper.createReconSpec(toSave)
+        (model, cmd)
+      case Msg.ReconSpecAction(spec, Created | Updated) =>
         (model.copy(reconSpec = Some(spec)), Cmd.emit(model.returnTo))
       case Msg.ReconSpecAction(_, Delete) =>
         val id = model.reconSpec.flatMap(_.id).getOrElse("")
@@ -34,7 +48,7 @@ object MaintainReconSpecView:
         (model, Cmd.emit(model.returnTo))
 
   def apply(model: Model): Html[AppMsg] =
-    val accountId = model.account.id.getOrElse("")
+    val accountId      = model.account.id.getOrElse("")
     val firstInSpecId  = model.movementSpecs.filter(_.inAccountId == accountId).headOption.flatMap(_.id).getOrElse("")
     val firstOutSpecId = model.movementSpecs.filter(_.outAccountId == accountId).headOption.flatMap(_.id).getOrElse("")
     val spec = model.reconSpec.getOrElse(
@@ -44,6 +58,7 @@ object MaintainReconSpecView:
         outMovementSpecId = firstOutSpecId
       )
     )
+    println("in Apply the spec.id = " + spec.id)
     val action = if spec.id.isEmpty then Create else Update
     div(cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4")(
       div(cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8")(

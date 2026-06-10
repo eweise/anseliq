@@ -1,6 +1,6 @@
 package perfectpair.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
 import perfectpair.model.Msg as AppMsg
 import perfectpair.util.HttpHelper
 import tyrian.Html.*
@@ -52,6 +52,18 @@ object FundFlowView:
           (model.copy(selectedMovementSpec = None), HttpHelper.deleteMovementSpec(spec.id.get))
         case Msg.MovementSpecDeleted(id) =>
           (model, Cmd.Emit(AppMsg.NavigateToFundFlow(model.fundFlow)))
+        case Msg.ConfigureRecon(account) =>
+          (model.copy(selectedAccount = None), HttpHelper.fetchReconSpecsForAccount(account))
+        case Msg.ReconSpecsFetched(account, specs) =>
+          (
+            model,
+            Cmd.Emit(AppMsg.NavigateToMaintainReconSpec(
+              account,
+              model.movementSpecs,
+              specs.headOption,
+              AppMsg.NavigateToFundFlow(model.fundFlow)
+            ))
+          )
     catch
       case ex: Exception =>
         println(ex)
@@ -146,10 +158,7 @@ object FundFlowView:
       if (selectedAccount.isRecon) then
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
-          onClick(
-            AppMsg
-              .NavigateToMaintainReconSpec(selectedAccount, movementSpecs, None, AppMsg.NavigateToFundFlow(fundFlow))
-          )
+          onClick(AppMsg.FundFlowViewMsg(Msg.ConfigureRecon(selectedAccount)))
         )(text("Configure Reconciliation"))
       else div()
     )
@@ -302,6 +311,8 @@ object FundFlowView:
     case EditRelationship(spec: MovementSpecPayload)
     case DeleteMovementSpec(spec: MovementSpecPayload)
     case MovementSpecDeleted(id: String)
+    case ConfigureRecon(account: AccountPayload)
+    case ReconSpecsFetched(account: AccountPayload, specs: Seq[ReconciliationSpecPayload])
 
   case class Model(
     fundFlow:             FundFlowPayload             = FundFlowPayload(),
