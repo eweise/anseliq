@@ -8,6 +8,7 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.net.URI
 import java.time.OffsetDateTime
+import java.util.UUID
 
 class PopulateS3Buckets extends munit.FunSuite:
 
@@ -28,24 +29,33 @@ class PopulateS3Buckets extends munit.FunSuite:
 
     val buckets = s3Client.listBuckets()
     println(buckets)
-    var contents1 = ""
-    for (i <- 0 until 100)
-      contents1 += s"""$i,${i + 10}\n"""
 
-    var file2 = ""
-    for (i <- 0 until 100)
-      file2 += s"""$i,${OffsetDateTime.now()},${i + 10}\n"""
-
-    for i <- 0 until 10 do
+    for i <- 0 until 10 do {
+      var bankContents     = ""
+      var internalContents = ""
+      for (i <- 0 until 100) {
+        val transactionID = UUID.randomUUID()
+        bankContents += s"""$transactionID,${i * 10}\n"""
+        internalContents += s"""$transactionID,${i * 10},${OffsetDateTime.now()}\n"""
+      }
       s3Client.putObject(
-        PutObjectRequest.builder().bucket(bucket).key(s"bank/file$i.csv").build(),
-        RequestBody.fromString(contents1)
+        PutObjectRequest
+          .builder()
+          .bucket(bucket)
+          .key(s"bank/file_${UUID.randomUUID()}.csv")
+          .build(),
+        RequestBody.fromString(bankContents)
       )
 
       s3Client.putObject(
-        PutObjectRequest.builder().bucket(bucket).key(s"internal/data$i.csv").build(),
-        RequestBody.fromString(contents1)
+        PutObjectRequest
+          .builder()
+          .bucket(bucket)
+          .key(s"internal/data_${UUID.randomUUID()}.csv")
+          .build(),
+        RequestBody.fromString(internalContents)
       )
+    }
 
     val objects = s3Client.listObjectsV2(ListObjectsV2Request.builder().bucket(bucket).build())
     println(objects.contents())
