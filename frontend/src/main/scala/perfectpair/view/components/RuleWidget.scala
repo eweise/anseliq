@@ -75,7 +75,6 @@ object RuleWidget:
       selectField("ruleType", "Rule Type", model.ruleType, ruleTypeOptions, v => lift(Msg.SelectRuleType(v))),
       model.ruleType match
         case "StringMatch" | "DateMatch" =>
-          println(s"inKey = ${model.inKey}; outKey = ${model.outKey}")
           div()(
             selectField ("inKey", "In Key", model.inKey, inCols.map(c => c -> c), v => lift(Msg.UpdateInKey(v))),
             selectField("outKey", "Out Key", model.outKey, outCols.map(c => c -> c), v => lift(Msg.UpdateOutKey(v)))

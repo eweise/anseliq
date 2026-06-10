@@ -363,6 +363,7 @@ class App(using
   def reconSpecsByaccountID(accountID: String): String =
     transact(transactor):
       val specs   = reconSpecRepo.findByAccountID(UUID.fromString(accountID))
+      specs.foreach(s => println(s"[reconSpecsByaccountID] id=${s.id} ruleJson=${s.ruleJson} rule=${s.rule()}"))
       val payload = specs.map(Payload.reconSpecPayloadFromDomain)
       write(payload)
 

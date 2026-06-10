@@ -126,28 +126,34 @@ class FundFlowOperations(using
       UUID.fromString(payload.accountId.getOrElse(throw IllegalArgumentException("Account ID is required")))
     val inMovementSpecId  = UUID.fromString(payload.inMovementSpecId)
     val outMovementSpecId = UUID.fromString(payload.outMovementSpecId)
+    val ruleJson = upickleWrite(payload.rule)
+    println(s"[createReconSpec] payload.rule=${payload.rule} ruleJson=$ruleJson")
     val spec = ReconciliationSpec(
       accountId         = accountId,
       agingLimit        = payload.agingLimit,
       relationship      = Payload.reconRelationshipToDomain(payload.relationship),
       inMovementSpecId  = inMovementSpecId,
       outMovementSpecId = outMovementSpecId,
-      ruleJson          = upickleWrite(payload.rule)
+      ruleJson          = ruleJson
     )
     reconSpecRepo.insert(spec)
+    println(s"[createReconSpec] spec.rule()=${spec.rule()}")
     Payload.reconSpecPayloadFromDomain(spec)
 
   def updateReconSpec(idStr: String, payload: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
     val id       = UUID.fromString(idStr)
     var existing = reconSpecRepo.findById(id).ErrIfNotFound("reconciliation spec", id)
+    val ruleJson = upickleWrite(payload.rule)
+    println(s"[updateReconSpec] payload.rule=${payload.rule} ruleJson=$ruleJson")
     existing = existing.copy(
       agingLimit        = payload.agingLimit,
       relationship      = Payload.reconRelationshipToDomain(payload.relationship),
       inMovementSpecId  = UUID.fromString(payload.inMovementSpecId),
       outMovementSpecId = UUID.fromString(payload.outMovementSpecId),
-      ruleJson          = upickleWrite(payload.rule)
+      ruleJson          = ruleJson
     )
     reconSpecRepo.update(existing)
+    println(s"[updateReconSpec] existing.rule()=${existing.rule()}")
     Payload.reconSpecPayloadFromDomain(existing)
 
   def deleteReconSpec(idStr: String): Txn[Unit] =

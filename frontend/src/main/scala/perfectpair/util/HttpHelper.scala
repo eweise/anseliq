@@ -82,6 +82,12 @@ object HttpHelper:
   def fetchReconSpecsByAccountID(accountID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(HttpPath.url(s"${HttpPath.account}/$accountID/recon-specs"), reconSpecsDecoder)
 
+  def fetchReconSpecsForAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
+    fetchServerMessageCmd(
+      HttpPath.url(s"${HttpPath.account}/${account.id.get}/recon-specs"),
+      ResponseDecoders.reconSpecsForAccountDecoder(account)
+    )
+
   def fetchMovementSpecsForReconView(fundFlowID: String): Cmd[Task, Msg.SendHttpRequestWithAccessToken] =
     fetchServerMessageCmd(
       HttpPath.url(s"${HttpPath.fundFlows}/$fundFlowID/movement-specs"),
@@ -231,6 +237,15 @@ object HttpHelper:
         onResponse =>
           val specs = read[Seq[ReconciliationSpecPayload]](onResponse.body)
           Msg.ReconSpecsMsg(ReconSpecsView.Msg.ReconSpecsFromBackend(specs))
+        ,
+        error => Msg.Error(error.toString)
+      )
+
+    def reconSpecsForAccountDecoder(account: AccountPayload): Decoder[Msg] =
+      Decoder(
+        onResponse =>
+          val specs = read[Seq[ReconciliationSpecPayload]](onResponse.body)
+          Msg.FundFlowViewMsg(FundFlowView.Msg.ReconSpecsFetched(account, specs))
         ,
         error => Msg.Error(error.toString)
       )
