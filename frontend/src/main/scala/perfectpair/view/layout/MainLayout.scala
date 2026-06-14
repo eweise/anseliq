@@ -19,11 +19,9 @@ object MainLayout:
     )
 
   private def errorBanner(message: String): HtmlElement =
-    div(cls := "fixed top-0 left-64 right-0 z-10 flex items-center justify-between px-6 py-3 bg-red-100 border-b border-red-300 text-red-800",
-      div(cls := "flex items-center gap-2",
-        span(cls := "font-medium", "Error:"),
-        span(message)
-      ),
+    div(
+      cls := "fixed top-0 left-64 right-0 z-10 flex items-center justify-between px-6 py-3 bg-red-100 border-b border-red-300 text-red-800",
+      div(cls := "flex items-center gap-2", span(cls := "font-medium", "Error:"), span(message)),
       button(
         cls := "ml-4 text-red-600 hover:text-red-900 font-bold text-lg leading-none",
         onClick --> (_ => AppState.globalError.set(None)),

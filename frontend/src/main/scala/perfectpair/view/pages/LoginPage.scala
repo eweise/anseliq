@@ -21,22 +21,28 @@ object LoginPage:
 
   private def doLogin(username: String, password: String): EventStream[Either[String, (String, String)]] =
     EventStream.fromFuture(
-      dom.fetch(
-        BackendApiUrl.login,
-        js.Dynamic.literal(
-          method  = "POST",
-          headers = js.Dynamic.literal("Content-Type" -> "application/json"),
-          body    = s"""{"username":"$username","password":"$password"}"""
-        ).asInstanceOf[dom.RequestInit]
-      ).toFuture.flatMap { resp =>
-        resp.text().toFuture.map { body =>
-          if resp.ok then
-            body.fromJson[LoginSuccess] match
-              case Right(LoginSuccess(at, rt)) => Right((at, rt))
-              case _                           => Left("Failed to parse login response")
-          else Left(s"Login failed")
+      dom
+        .fetch(
+          BackendApiUrl.login,
+          js.Dynamic
+            .literal(
+              method  = "POST",
+              headers = js.Dynamic.literal("Content-Type" -> "application/json"),
+              body    = s"""{"username":"$username","password":"$password"}"""
+            )
+            .asInstanceOf[dom.RequestInit]
+        )
+        .toFuture
+        .flatMap { resp =>
+          resp.text().toFuture.map { body =>
+            if resp.ok then
+              body.fromJson[LoginSuccess] match
+                case Right(LoginSuccess(at, rt)) => Right((at, rt))
+                case _                           => Left("Failed to parse login response")
+            else Left(s"Login failed")
+          }
         }
-      }.recover { case e => Left(e.getMessage) }
+        .recover { case e => Left(e.getMessage) }
     )
 
   def apply(): HtmlElement =
@@ -54,9 +60,9 @@ object LoginPage:
         case Left(err) =>
           state.update(_.copy(error = Some(err)))
       },
-
       cls := "h-screen flex justify-center bg-base-150",
-      div(cls := "w-full max-w-sm my-auto p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 md:p-8",
+      div(
+        cls := "w-full max-w-sm my-auto p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 md:p-8",
         h5(cls := "text-xl font-medium text-gray-900 mb-4", "Login"),
         formField("Username", "text", Icons.user, v => state.update(_.copy(username = v))),
         formField("Password", "password", Icons.lock, v => state.update(_.copy(password = v))),
@@ -71,9 +77,11 @@ object LoginPage:
     )
 
   private def formField(lbl: String, inputType: String, icon: HtmlElement, inputFn: String => Unit): HtmlElement =
-    div(cls := "mb-4",
+    div(
+      cls := "mb-4",
       label(cls := "block mb-2 text-sm font-medium text-gray-900", lbl),
-      div(cls := "relative",
+      div(
+        cls := "relative",
         div(cls := "absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none", icon),
         input(
           typ := inputType,

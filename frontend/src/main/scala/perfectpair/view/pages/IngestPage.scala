@@ -18,7 +18,7 @@ object IngestPage:
 
   def apply(accountId: String): HtmlElement =
     AppState.activeFundFlow.now() match
-      case None     => div(onMountCallback { _ => Nav.toFundFlows() })
+      case None     => div(onMountCallback(_ => Nav.toFundFlows()))
       case Some(ff) => renderPage(accountId, ff)
 
   private def renderPage(accountId: String, ff: perfectpair.common.model.FundFlowPayload): HtmlElement =
@@ -30,23 +30,24 @@ object IngestPage:
 
     div(
       ApiClient.get[Seq[MovementSpecPayload]](
-        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"), SessionStore.token
+        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+        SessionStore.token
       ) --> {
         case Right(specs) => movementSpecs.set(specs)
         case Left(e)      => AppState.globalError.set(Some(e))
       },
-
       fileReadBus.events.flatMapSwitch { (specId, content) =>
         statuses.update(_.updated(specId, UploadStatus.Uploading))
-        ApiClient.postRaw(HttpPath.url(s"${HttpPath.movementSpec}/$specId/ingest"), content, SessionStore.token)
+        ApiClient
+          .postRaw(HttpPath.url(s"${HttpPath.movementSpec}/$specId/ingest"), content, SessionStore.token)
           .map(result => (specId, result))
       } --> {
         case (specId, Right(_)) => statuses.update(_.updated(specId, UploadStatus.Done))
         case (specId, Left(e))  => statuses.update(_.updated(specId, UploadStatus.Failed(e)))
       },
-
       cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4",
-      div(cls := "bg-white rounded-xl shadow-md w-full max-w-lg p-8",
+      div(
+        cls := "bg-white rounded-xl shadow-md w-full max-w-lg p-8",
         h2(cls := "text-xl font-medium text-md-on-surface mb-2", "Ingest Files"),
         child <-- movementSpecs.signal.map { specs =>
           val relevantIds = Set(reconSpec.inMovementSpecId, reconSpec.outMovementSpecId)
@@ -54,8 +55,10 @@ object IngestPage:
           div(cls := "space-y-4").amend(
             relevant.map { ms =>
               val specId = ms.id.getOrElse("")
-              div(cls := "border border-md-outline rounded-lg p-4",
-                div(cls := "flex items-center justify-between mb-3",
+              div(
+                cls := "border border-md-outline rounded-lg p-4",
+                div(
+                  cls := "flex items-center justify-between mb-3",
                   child <-- statuses.signal.map(m => statusBadge(m.getOrElse(specId, UploadStatus.Idle)))
                 ),
                 input(
@@ -65,8 +68,8 @@ object IngestPage:
                   onChange --> { _ =>
                     statuses.update(_.updated(specId, UploadStatus.Reading))
                     val fileInput = dom.document.getElementById(s"file-input-$specId").asInstanceOf[HTMLInputElement]
-                    val file  = fileInput.files(0)
-                    val reader = new FileReader()
+                    val file      = fileInput.files(0)
+                    val reader    = new FileReader()
                     reader.onload  = _ => fileReadBus.emit((specId, reader.result.asInstanceOf[String]))
                     reader.onerror = _ => statuses.update(_.updated(specId, UploadStatus.Failed("Failed to read file")))
                     reader.readAsText(file)
@@ -76,15 +79,13 @@ object IngestPage:
             }*
           )
         },
-        div(cls := "flex justify-end mt-6",
-          Buttons.textButton("Back", Observer[Unit](_ => Nav.back()))
-        )
+        div(cls := "flex justify-end mt-6", Buttons.textButton("Back", Observer[Unit](_ => Nav.back())))
       )
     )
 
   private def statusBadge(status: UploadStatus): HtmlElement = status match
-    case UploadStatus.Idle       => span()
-    case UploadStatus.Reading    => span(cls := "text-xs text-blue-500", "Reading...")
-    case UploadStatus.Uploading  => span(cls := "text-xs text-blue-500", "Uploading...")
-    case UploadStatus.Done       => span(cls := "text-xs text-green-600 font-medium", "Done")
-    case UploadStatus.Failed(e)  => span(cls := "text-xs text-red-500", s"Error: $e")
+    case UploadStatus.Idle      => span()
+    case UploadStatus.Reading   => span(cls := "text-xs text-blue-500", "Reading...")
+    case UploadStatus.Uploading => span(cls := "text-xs text-blue-500", "Uploading...")
+    case UploadStatus.Done      => span(cls := "text-xs text-green-600 font-medium", "Done")
+    case UploadStatus.Failed(e) => span(cls := "text-xs text-red-500", s"Error: $e")

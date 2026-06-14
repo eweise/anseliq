@@ -22,24 +22,29 @@ object ReconSpecsPage:
 
     div(
       ApiClient.get[Seq[ReconciliationSpecPayload]](
-        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"), SessionStore.token
+        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+        SessionStore.token
       ) --> {
         case Right(specs) => state.update(_.copy(reconSpecs = specs))
         case Left(e)      => AppState.globalError.set(Some(e))
       },
       ApiClient.get[Seq[MovementSpecPayload]](
-        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"), SessionStore.token
+        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+        SessionStore.token
       ) --> {
         case Right(specs) => state.update(_.copy(movementSpecs = specs))
         case Left(e)      => AppState.globalError.set(Some(e))
       },
-
       cls := "flex flex-col items-center mb-8 pt-20",
-      div(cls := "my-8 text-center",
-        Buttons.linkButton("Add Recon Spec", Observer[Unit](_ =>
-          AppState.editReconSpec.set(None)
-          Nav.toMaintainReconSpec(accountId)
-        )),
+      div(
+        cls := "my-8 text-center",
+        Buttons.linkButton(
+          "Add Recon Spec",
+          Observer[Unit](_ =>
+            AppState.editReconSpec.set(None)
+            Nav.toMaintainReconSpec(accountId)
+          )
+        ),
         child <-- state.signal.map { s =>
           Table.create(
             Seq("Aging Limit", "Relationship", ""),
@@ -47,19 +52,29 @@ object ReconSpecsPage:
               Seq(
                 span(spec.agingLimit.toString),
                 span(spec.relationship.toString),
-                div(cls := "flex gap-2",
-                  Buttons.textButton("Ingest Files", Observer[Unit](_ =>
-                    AppState.editReconSpec.set(Some(spec))
-                    Nav.toIngest(accountId)
-                  )),
-                  Buttons.textButton("Edit", Observer[Unit](_ =>
-                    AppState.editReconSpec.set(Some(spec))
-                    Nav.toMaintainReconSpec(accountId)
-                  )),
-                  Buttons.textButton("Reconciliations", Observer[Unit](_ =>
-                    AppState.editReconSpec.set(Some(spec))
-                    Nav.toReconciliations(accountId)
-                  ))
+                div(
+                  cls := "flex gap-2",
+                  Buttons.textButton(
+                    "Ingest Files",
+                    Observer[Unit](_ =>
+                      AppState.editReconSpec.set(Some(spec))
+                      Nav.toIngest(accountId)
+                    )
+                  ),
+                  Buttons.textButton(
+                    "Edit",
+                    Observer[Unit](_ =>
+                      AppState.editReconSpec.set(Some(spec))
+                      Nav.toMaintainReconSpec(accountId)
+                    )
+                  ),
+                  Buttons.textButton(
+                    "Reconciliations",
+                    Observer[Unit](_ =>
+                      AppState.editReconSpec.set(Some(spec))
+                      Nav.toReconciliations(accountId)
+                    )
+                  )
                 )
               )
             }
