@@ -40,12 +40,16 @@ object ApiClient:
     body:   Option[String],
     token:  String
   ): Future[Either[String, A]] =
-    val init = js.Dynamic.literal(
-      method  = method,
-      headers = makeHeaders(token, body.isDefined),
-      body    = body.map(b => b: js.Any).getOrElse(js.undefined)
-    ).asInstanceOf[dom.RequestInit]
-    dom.fetch(url, init).toFuture
+    val init = js.Dynamic
+      .literal(
+        method  = method,
+        headers = makeHeaders(token, body.isDefined),
+        body    = body.map(b => b: js.Any).getOrElse(js.undefined)
+      )
+      .asInstanceOf[dom.RequestInit]
+    dom
+      .fetch(url, init)
+      .toFuture
       .flatMap { resp =>
         resp.text().toFuture.map { bodyText =>
           if resp.ok then Right(read[A](bodyText))
@@ -60,12 +64,16 @@ object ApiClient:
     body:   Option[String],
     token:  String
   ): Future[Either[String, Unit]] =
-    val init = js.Dynamic.literal(
-      method  = method,
-      headers = makeHeaders(token, body.isDefined),
-      body    = body.map(b => b: js.Any).getOrElse(js.undefined)
-    ).asInstanceOf[dom.RequestInit]
-    dom.fetch(url, init).toFuture
+    val init = js.Dynamic
+      .literal(
+        method  = method,
+        headers = makeHeaders(token, body.isDefined),
+        body    = body.map(b => b: js.Any).getOrElse(js.undefined)
+      )
+      .asInstanceOf[dom.RequestInit]
+    dom
+      .fetch(url, init)
+      .toFuture
       .flatMap { resp =>
         resp.text().toFuture.map { bodyText =>
           if resp.ok then Right(())

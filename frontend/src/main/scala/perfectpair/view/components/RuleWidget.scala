@@ -8,10 +8,10 @@ object RuleWidget:
   case class LeafState(ruleType: String = "StringMatch", inKey: String = "", outKey: String = "")
 
   case class State(
-    ruleType: String           = "NoOp",
-    inKey:    String           = "",
-    outKey:   String           = "",
-    andRules: Seq[LeafState]   = Seq.empty
+    ruleType: String         = "NoOp",
+    inKey:    String         = "",
+    outKey:   String         = "",
+    andRules: Seq[LeafState] = Seq.empty
   )
 
   object State:
@@ -58,23 +58,38 @@ object RuleWidget:
   ): (HtmlElement, Signal[Rule]) =
     val state = Var(State.fromRule(initial))
 
-    val ruleTypeOptions = Seq("NoOp" -> "No Rule", "StringMatch" -> "String Match", "DateMatch" -> "Date Match", "And" -> "And")
+    val ruleTypeOptions =
+      Seq("NoOp" -> "No Rule", "StringMatch" -> "String Match", "DateMatch" -> "Date Match", "And" -> "And")
 
     val inCols  = inMovementSpecId.combineWith(movementSpecs.signal).map((id, specs) => columnsFor(id, specs))
     val outCols = outMovementSpecId.combineWith(movementSpecs.signal).map((id, specs) => columnsFor(id, specs))
 
-    val el = div(cls := "border-t border-md-outline pt-5 mt-2",
+    val el = div(
+      cls := "border-t border-md-outline pt-5 mt-2",
       p(cls := "text-sm font-medium text-md-on-surface mb-4", "Matching Rule"),
-      Form.selectField("ruleType", "Rule Type", ruleTypeOptions, state.now().ruleType, v => state.update(_.copy(ruleType = v))),
+      Form.selectField(
+        "ruleType",
+        "Rule Type",
+        ruleTypeOptions,
+        state.now().ruleType,
+        v => state.update(_.copy(ruleType = v))
+      ),
       child <-- state.signal.map { s =>
         s.ruleType match
           case "StringMatch" | "DateMatch" =>
             div(
               child <-- inCols.map(cols =>
-                Form.selectField("inKey", "In Key", cols.map(c => c -> c), s.inKey, v => state.update(_.copy(inKey = v)))
+                Form
+                  .selectField("inKey", "In Key", cols.map(c => c -> c), s.inKey, v => state.update(_.copy(inKey = v)))
               ),
               child <-- outCols.map(cols =>
-                Form.selectField("outKey", "Out Key", cols.map(c => c -> c), s.outKey, v => state.update(_.copy(outKey = v)))
+                Form.selectField(
+                  "outKey",
+                  "Out Key",
+                  cols.map(c => c -> c),
+                  s.outKey,
+                  v => state.update(_.copy(outKey = v))
+                )
               )
             )
           case "And" =>
@@ -101,8 +116,10 @@ object RuleWidget:
     outCols: Signal[Seq[String]],
     state:   Var[State]
   ): HtmlElement =
-    div(cls := "border border-md-outline rounded p-3 mb-3",
-      div(cls := "flex justify-between items-center mb-2",
+    div(
+      cls := "border border-md-outline rounded p-3 mb-3",
+      div(
+        cls := "flex justify-between items-center mb-2",
         p(cls := "text-sm font-medium text-md-on-surface", s"Rule ${index + 1}"),
         button(
           cls := "text-md-error text-sm px-2",
@@ -112,16 +129,28 @@ object RuleWidget:
         )
       ),
       Form.selectField(
-        s"andType_$index", "Type", Seq("StringMatch" -> "String Match", "DateMatch" -> "Date Match"),
+        s"andType_$index",
+        "Type",
+        Seq("StringMatch" -> "String Match", "DateMatch" -> "Date Match"),
         leaf.ruleType,
         v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(ruleType = v))))
       ),
       child <-- inCols.map(cols =>
-        Form.selectField(s"andInKey_$index", "In Key", cols.map(c => c -> c), leaf.inKey,
-          v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(inKey = v)))))
+        Form.selectField(
+          s"andInKey_$index",
+          "In Key",
+          cols.map(c => c -> c),
+          leaf.inKey,
+          v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(inKey = v))))
+        )
       ),
       child <-- outCols.map(cols =>
-        Form.selectField(s"andOutKey_$index", "Out Key", cols.map(c => c -> c), leaf.outKey,
-          v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(outKey = v)))))
+        Form.selectField(
+          s"andOutKey_$index",
+          "Out Key",
+          cols.map(c => c -> c),
+          leaf.outKey,
+          v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(outKey = v))))
+        )
       )
     )

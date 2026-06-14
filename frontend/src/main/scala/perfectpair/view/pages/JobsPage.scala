@@ -25,11 +25,14 @@ object JobsPage:
         case Left(e)     => AppState.globalError.set(Some(e))
       },
       cls := "flex flex-col items-center mb-8 pt-20 px-8 w-full",
-      div(cls := "w-full max-w-5xl",
+      div(
+        cls := "w-full max-w-5xl",
         h2(cls := "text-2xl font-medium mb-6", "Jobs"),
-        div(cls := "mb-6 max-w-xs",
+        div(
+          cls := "mb-6 max-w-xs",
           Form.selectField(
-            "job-type-select", "Job Type",
+            "job-type-select",
+            "Job Type",
             JobTypeInfo.values.toSeq.map(jt => jt.toString -> jt.toString),
             state.now().selectedJobType.toString,
             v =>

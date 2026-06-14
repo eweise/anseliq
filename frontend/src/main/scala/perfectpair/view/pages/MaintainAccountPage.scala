@@ -21,8 +21,7 @@ object MaintainAccountPage:
 
     div(
       onMountCallback { _ =>
-        if accountId != "new" then
-          loadBus.emit(())
+        if accountId != "new" then loadBus.emit(())
       },
       loadBus.events.flatMapSwitch { _ =>
         ApiClient.get[AccountPayload](HttpPath.url(s"${HttpPath.account}/$accountId"), SessionStore.token)
@@ -30,7 +29,6 @@ object MaintainAccountPage:
         case Right(a) => account.set(a)
         case Left(e)  => AppState.globalError.set(Some(e))
       },
-
       saveBus.events.flatMapSwitch { _ =>
         val a     = account.now()
         val token = SessionStore.token
@@ -41,14 +39,15 @@ object MaintainAccountPage:
         case Right(_) => Nav.back()
         case Left(e)  => AppState.globalError.set(Some(e))
       },
-
       cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4",
-      div(cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8",
+      div(
+        cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8",
         h2(cls := "text-xl font-medium text-md-on-surface mb-7", "Account"),
         child <-- account.signal.map { a =>
           Form.field("name", "Name", a.name, v => account.update(_.copy(name = v)))
         },
-        div(cls := "flex justify-end gap-2 mt-6",
+        div(
+          cls := "flex justify-end gap-2 mt-6",
           Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),
           Buttons.linkButton("Save", Observer[Unit](_ => saveBus.emit(())))
         )

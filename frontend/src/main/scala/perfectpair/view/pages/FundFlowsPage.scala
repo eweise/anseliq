@@ -22,15 +22,19 @@ object FundFlowsPage:
           AppState.fundFlows.set(ffs)
         case Left(err) => AppState.globalError.set(Some(err))
       },
-
       cls := "flex flex-col mb-8 pt-20",
-      div(cls := "w-full px-8",
-        div(cls := "flex justify-between items-center my-8",
+      div(
+        cls := "w-full px-8",
+        div(
+          cls := "flex justify-between items-center my-8",
           h2(cls := "text-xl font-medium", "Fund Flows"),
-          Buttons.linkButton("Create", Observer[Unit](_ =>
-            AppState.activeFundFlow.set(None)
-            Nav.toMaintainFundFlow()
-          ))
+          Buttons.linkButton(
+            "Create",
+            Observer[Unit](_ =>
+              AppState.activeFundFlow.set(None)
+              Nav.toMaintainFundFlow()
+            )
+          )
         ),
         child <-- fundFlows.signal.map { ffs =>
           Table.create(
@@ -41,10 +45,13 @@ object FundFlowsPage:
                 span(ff.createdAt.map(ViewHelper.formatDateTime).getOrElse("")),
                 span(ff.updatedAt.map(ViewHelper.formatDateTime).getOrElse("")),
                 Buttons.textButton(DisplayName.accounts, Observer[Unit](_ => Nav.toAccounts(ff))),
-                Buttons.textButton("Edit", Observer[Unit](_ =>
-                  AppState.activeFundFlow.set(Some(ff))
-                  Nav.toMaintainFundFlow()
-                ))
+                Buttons.textButton(
+                  "Edit",
+                  Observer[Unit](_ =>
+                    AppState.activeFundFlow.set(Some(ff))
+                    Nav.toMaintainFundFlow()
+                  )
+                )
               )
             }
           )

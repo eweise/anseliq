@@ -22,37 +22,43 @@ object FundFlowPage:
   private val rowStride = boxH + rowGap
 
   case class State(
-    accounts:             Seq[AccountPayload]        = Seq.empty,
-    movementSpecs:        Seq[MovementSpecPayload]   = Seq.empty,
-    selectedAccount:      Option[AccountPayload]     = None,
+    accounts:             Seq[AccountPayload]         = Seq.empty,
+    movementSpecs:        Seq[MovementSpecPayload]    = Seq.empty,
+    selectedAccount:      Option[AccountPayload]      = None,
     selectedMovementSpec: Option[MovementSpecPayload] = None
   )
 
   def apply(): HtmlElement =
     AppState.activeFundFlow.now() match
-      case None => div(onMountCallback { _ => Nav.toFundFlows() })
+      case None     => div(onMountCallback(_ => Nav.toFundFlows()))
       case Some(ff) => renderPage(ff)
 
   private def renderPage(ff: FundFlowPayload): HtmlElement =
-    val ffId = ff.id.getOrElse("")
-    val state = Var(State())
+    val ffId              = ff.id.getOrElse("")
+    val state             = Var(State())
     val configureReconBus = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
 
     div(
-      ApiClient.get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token) --> {
+      ApiClient
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token) --> {
         case Right(accounts) => state.update(_.copy(accounts = accounts))
         case Left(e)         => AppState.globalError.set(Some(e))
       },
-      ApiClient.get[Seq[MovementSpecPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"), SessionStore.token) --> {
+      ApiClient.get[Seq[MovementSpecPayload]](
+        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+        SessionStore.token
+      ) --> {
         case Right(specs) => state.update(_.copy(movementSpecs = specs))
         case Left(e)      => AppState.globalError.set(Some(e))
       },
       configureReconBus.events.flatMapSwitch { account =>
-        ApiClient.get[Seq[ReconciliationSpecPayload]](
-          HttpPath.url(s"${HttpPath.account}/${account.id.get}/recon-specs"),
-          SessionStore.token
-        ).map(res => (account, res))
+        ApiClient
+          .get[Seq[ReconciliationSpecPayload]](
+            HttpPath.url(s"${HttpPath.account}/${account.id.get}/recon-specs"),
+            SessionStore.token
+          )
+          .map(res => (account, res))
       } --> {
         case (account, Right(specs)) =>
           AppState.editReconSpec.set(specs.headOption)
@@ -65,12 +71,10 @@ object FundFlowPage:
         case Right(_) => Nav.toFundFlow(ff)
         case Left(e)  => AppState.globalError.set(Some(e))
       },
-
       cls := "flex flex-col items-center mb-8 pt-20",
-      div(cls := "my-8 text-center",
-        h2(cls := "text-2xl font-medium mb-6", ff.name)
-      ),
-      div(cls := "self-start mb-4 pl-8",
+      div(cls := "my-8 text-center", h2(cls := "text-2xl font-medium mb-6", ff.name)),
+      div(
+        cls := "self-start mb-4 pl-8",
         button(
           cls := "px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700",
           typ := "button",
@@ -94,7 +98,7 @@ object FundFlowPage:
     deleteSpecBus:     EventBus[MovementSpecPayload],
     state:             Var[State]
   ): HtmlElement =
-    val posOf = computePositions(s.accounts, s.movementSpecs)
+    val posOf   = computePositions(s.accounts, s.movementSpecs)
     val svgHtml = buildSvg(s.accounts, s.movementSpecs, posOf)
 
     val accountOverlays = s.accounts.flatMap { acc =>
@@ -236,18 +240,31 @@ object FundFlowPage:
       )
     )
 
-  private def buildSvg(accounts: Seq[AccountPayload], movementSpecs: Seq[MovementSpecPayload], posOf: Map[String, (Int, Int)]): String =
+  private def buildSvg(
+    accounts:      Seq[AccountPayload],
+    movementSpecs: Seq[MovementSpecPayload],
+    posOf:         Map[String, (Int, Int)]
+  ): String =
     val svgW = posOf.values.map(_._1).maxOption.fold(margin * 2)(_ + boxW + margin)
     val svgH = posOf.values.map(_._2).maxOption.fold(margin * 2)(_ + boxH + margin)
     val sb   = new StringBuilder
     sb.append(s"""<svg width="$svgW" height="$svgH" xmlns="http://www.w3.org/2000/svg">""")
-    sb.append("""<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" /></marker></defs>""")
+    sb.append(
+      """<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" /></marker></defs>"""
+    )
     movementSpecs.foreach { ms =>
       for { (x1, y1) <- posOf.get(ms.outAccountId); (x2, y2) <- posOf.get(ms.inAccountId) } {
         val midX = (x1 + boxW + x2) / 2
         val midY = (y1 + boxH / 2 + y2 + boxH / 2) / 2
-        sb.append(s"""<line x1="${x1 + boxW}" y1="${y1 + boxH / 2}" x2="$x2" y2="${y2 + boxH / 2}" stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)" />""")
-        if ms.name.nonEmpty then sb.append(s"""<text x="$midX" y="${midY - 14}" text-anchor="middle" dominant-baseline="middle" fill="#6b7280" font-size="11" font-family="sans-serif">${xmlEscape(ms.name)}</text>""")
+        sb.append(
+          s"""<line x1="${x1 + boxW}" y1="${y1 + boxH / 2}" x2="$x2" y2="${y2 + boxH / 2}" stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)" />"""
+        )
+        if ms.name.nonEmpty then
+          sb.append(
+            s"""<text x="$midX" y="${midY - 14}" text-anchor="middle" dominant-baseline="middle" fill="#6b7280" font-size="11" font-family="sans-serif">${xmlEscape(
+                ms.name
+              )}</text>"""
+          )
       }
     }
     accounts.foreach { acc =>
@@ -255,8 +272,14 @@ object FundFlowPage:
         posOf.get(id).foreach { (x, y) =>
           val fill   = if acc.isRecon then "#f3f0ff" else "white"
           val stroke = if acc.isRecon then "#7c3aed" else "#d1d5db"
-          sb.append(s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />""")
-          sb.append(s"""<text x="${x + boxW / 2}" y="${y + boxH / 2}" text-anchor="middle" dominant-baseline="middle" fill="#374151" font-size="13" font-family="sans-serif">${xmlEscape(acc.name)}</text>""")
+          sb.append(
+            s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />"""
+          )
+          sb.append(
+            s"""<text x="${x + boxW / 2}" y="${y + boxH / 2}" text-anchor="middle" dominant-baseline="middle" fill="#374151" font-size="13" font-family="sans-serif">${xmlEscape(
+                acc.name
+              )}</text>"""
+          )
         }
       }
     }
@@ -266,7 +289,10 @@ object FundFlowPage:
   private def xmlEscape(s: String): String =
     s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-  private def computePositions(accounts: Seq[AccountPayload], movementSpecs: Seq[MovementSpecPayload]): Map[String, (Int, Int)] =
+  private def computePositions(
+    accounts:      Seq[AccountPayload],
+    movementSpecs: Seq[MovementSpecPayload]
+  ): Map[String, (Int, Int)] =
     val columnOf = mutable.Map[String, Int]()
     val allInIds = movementSpecs.map(_.inAccountId).toSet
     accounts.foreach(a => a.id.foreach(id => if !allInIds.contains(id) then columnOf(id) = 0))
@@ -277,7 +303,7 @@ object FundFlowPage:
         val newInCol = columnOf.getOrElse(ms.outAccountId, 0) + 1
         if newInCol > columnOf.getOrElse(ms.inAccountId, -1) then
           columnOf(ms.inAccountId) = newInCol
-          changed = true
+          changed                  = true
       }
     accounts.foreach(a => a.id.foreach(id => if !columnOf.contains(id) then columnOf(id) = 0))
     val byColumn = accounts.groupBy(a => columnOf.getOrElse(a.id.getOrElse(""), 0))
