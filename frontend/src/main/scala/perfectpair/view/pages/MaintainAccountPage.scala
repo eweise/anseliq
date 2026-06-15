@@ -12,12 +12,13 @@ import upickle.default.*
 object MaintainAccountPage:
 
   def apply(accountId: String): HtmlElement =
-    val fundFlow = AppState.activeFundFlow.now()
-    val ffId     = fundFlow.flatMap(_.id).getOrElse("")
-    val initial  = AccountPayload(id = if accountId == "new" then None else Some(accountId), fundFlowId = ffId)
-    val account  = Var(initial)
-    val loadBus  = EventBus[Unit]()
-    val saveBus  = EventBus[Unit]()
+    val fundFlow   = AppState.activeFundFlow.now()
+    val ffId       = fundFlow.flatMap(_.id).getOrElse("")
+    val initial    = AccountPayload(id = if accountId == "new" then None else Some(accountId), fundFlowId = ffId)
+    val account    = Var(initial)
+    val setNameBus = EventBus[String]()
+    val loadBus    = EventBus[Unit]()
+    val saveBus    = EventBus[Unit]()
 
     div(
       onMountCallback { _ =>
@@ -26,8 +27,10 @@ object MaintainAccountPage:
       loadBus.events.flatMapSwitch { _ =>
         ApiClient.get[AccountPayload](HttpPath.url(s"${HttpPath.account}/$accountId"), SessionStore.token)
       } --> {
-        case Right(a) => account.set(a)
-        case Left(e)  => AppState.globalError.set(Some(e))
+        case Right(a) =>
+          account.set(a)
+          setNameBus.emit(a.name)
+        case Left(e) => AppState.globalError.set(Some(e))
       },
       saveBus.events.flatMapSwitch { _ =>
         val a     = account.now()
@@ -43,9 +46,7 @@ object MaintainAccountPage:
       div(
         cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8",
         h2(cls := "text-xl font-medium text-md-on-surface mb-7", "Account"),
-        child <-- account.signal.map { a =>
-          Form.field("name", "Name", a.name, v => account.update(_.copy(name = v)))
-        },
+        Form.field("name", "Name", initial.name, v => account.update(_.copy(name = v)), updates = setNameBus.events),
         div(
           cls := "flex justify-end gap-2 mt-6",
           Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),

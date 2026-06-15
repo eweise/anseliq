@@ -9,7 +9,8 @@ object Form:
     lbl:     String,
     value:   String,
     inputFn: String => Unit = _ => (),
-    enabled: Boolean        = true
+    enabled: Boolean        = true,
+    updates: EventStream[String] = EventStream.empty
   ): HtmlElement =
     div(
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
@@ -23,7 +24,8 @@ object Form:
         defaultValue := value,
         cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
         onInput.mapToValue --> Observer[String](inputFn),
-        if !enabled then disabled := true else emptyMod
+        if !enabled then disabled := true else emptyMod,
+        inContext { el => updates --> Observer[String](v => el.ref.value = v) }
       )
     )
 
