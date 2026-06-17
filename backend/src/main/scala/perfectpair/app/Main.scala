@@ -8,6 +8,7 @@ import perfectpair.adapter.driven.*
 import perfectpair.adapter.driving.*
 import perfectpair.common.model.*
 import perfectpair.domain.model.*
+import perfectpair.domain.model.JobType.Ingestion
 import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.*
 
@@ -56,7 +57,7 @@ object Main:
                   accountRepo
                     .findById(job.referenceId)
                     .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
- 
+
                 val reconcilationResult = reconciler.reconcileAccount(account.id)
 
                 val jobInfo = ReconciliationInfo(
@@ -74,22 +75,35 @@ object Main:
             ex.printStackTrace()
 
       /**
-       * INGESTION. Listens for New Files. If found then tries to ingest
+       * INGESTION. Listens for New Files. If found then submits ingestion job
        */
       fork:
         try
           eventStore.consumeEvent(classOf[NewFileDetected], 5, 10): event =>
             println(s"found NewFileDetected event: $event")
-
             val fileInventory = fileInventoryRepo
               .findById(event.fileInventoryID)
               .ErrIfNotFound("FileInventory", event.fileInventoryID)
-
-            ingestor.ingestFileFromInventory(fileInventory.id)
+            jobManager.submitJob(Ingestion, fileInventory.id)
         catch
           case ex: Exception =>
             println("failed eventStore.consumeEvent")
             ex.printStackTrace()
+
+      /**
+       * INGESTION. Processes Ingestion jobs
+       */
+      fork:
+        jobManager.pollForJob(JobType.Ingestion, 60): job =>
+          transact(Transactor(dataSource = given_DataSource)):
+            val results = ingestor.ingestFileFromInventory(job.referenceId)
+            jobManager.completeJob(
+              job.id,
+              IngestionInfo( // fixme. should remove these info objects and use events instead
+                numberOfRecordsIngested = results.recordCount,
+                processingTimeSeconds   = results.ingestionTimeSeconds
+              )
+            )
 
       /**
        * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs
@@ -116,7 +130,7 @@ object Main:
        */
       fork:
         val fileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
-        repeat(Schedule.fixedInterval(1.minute)) {
+        repeat(Schedule.fixedInterval(5.minute)) {
           try
             transact(Transactor(dataSource = given_DataSource)):
               jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
@@ -128,7 +142,7 @@ object Main:
       val s3FileSourceFactory = S3FileSourceFactory()
 
       /**
-       * Consumes FileInventory jobs. Detects new files and creates FileInventory events.
+       * Process FileInventory jobs. Detects new files and creates FileInventory events.
        */
       fork:
         try
