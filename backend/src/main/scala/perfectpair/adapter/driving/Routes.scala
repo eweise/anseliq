@@ -183,8 +183,6 @@ class App(using
       jobManager.submitAndProcessJob(JobType.Ingestion, movementSpec.id) { job =>
         val result = ingestor.ingest(movementSpec, is)
         IngestionInfo(
-          movementSpecId          = id,
-          dataSource              = Manual,
           numberOfRecordsIngested = result.recordCount,
           processingTimeSeconds   = result.ingestionTimeSeconds
         )
@@ -221,7 +219,7 @@ class App(using
   @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)
   def reconSpecsByaccountID(accountID: String): String =
     transact(transactor):
-      val specs   = reconSpecRepo.findByAccountID(UUID.fromString(accountID))
+      val specs = reconSpecRepo.findByAccountID(UUID.fromString(accountID))
       specs.foreach(s => println(s"[reconSpecsByaccountID] id=${s.id} ruleJson=${s.ruleJson} rule=${s.rule()}"))
       val payload = specs.map(Payload.reconSpecPayloadFromDomain)
       write(payload)

@@ -2,8 +2,8 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Reconciliation}
 import perfectpair.common.model.*
+import perfectpair.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Reconciliation}
 import perfectpair.http.ApiClient
 import perfectpair.state.{AppState, SessionStore}
 import perfectpair.view.ViewHelper
@@ -44,7 +44,7 @@ object JobsPage:
           val extraHeaders = s.selectedJobType match
             case Reconciliation => Seq("Account Name", "Record Count", "Processing Time (seconds)")
             case Ingestion =>
-              Seq("Spec Name", "Data Source", "File Path", "Records Ingested", "Processing Time (Seconds)")
+              Seq("Records Ingested", "Processing Time (Seconds)")
             case CreateFileInventory => Seq("Files Queued")
           val headers = Seq("Status", "Error", "Created At") ++ extraHeaders
           val rows = s.jobs.map { job =>
@@ -77,9 +77,6 @@ object JobsPage:
         .flatMap(parseJobInfo)
         .collect { case ii: IngestionInfo =>
           Seq(
-            span(ii.movementSpecName),
-            span(ii.dataSource.toString),
-            span(ii.filePath),
             span(ii.numberOfRecordsIngested.toString),
             span(ii.processingTimeSeconds.toString)
           )

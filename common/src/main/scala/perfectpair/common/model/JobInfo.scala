@@ -15,10 +15,6 @@ enum IngestionDataSource derives ReadWriter:
   case FTP, S3, API, Manual
 
 case class IngestionInfo(
-  movementSpecId:          String,
-  movementSpecName:        String = "",
-  dataSource:              IngestionDataSource,
-  filePath:                String = "",
   numberOfRecordsIngested: Int,
   processingTimeSeconds:   Long
 ) extends JobInfo
