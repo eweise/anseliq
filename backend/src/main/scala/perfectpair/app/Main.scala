@@ -94,7 +94,7 @@ object Main:
        * INGESTION. Processes Ingestion jobs
        */
       fork:
-        jobManager.pollForJob(JobType.Ingestion, 60): job =>
+        jobManager.pollForJob(JobType.Ingestion, 5): job =>
           transact(Transactor(dataSource = given_DataSource)):
             val results = ingestor.ingestFileFromInventory(job.referenceId)
             jobManager.completeJob(

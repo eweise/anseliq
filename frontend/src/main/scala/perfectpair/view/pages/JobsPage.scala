@@ -3,6 +3,7 @@ package perfectpair.view.pages
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
 import perfectpair.common.model.*
+import perfectpair.common.model.JobInfoStatus.Complete
 import perfectpair.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Reconciliation}
 import perfectpair.http.ApiClient
 import perfectpair.state.{AppState, SessionStore}
@@ -47,14 +48,16 @@ object JobsPage:
               Seq("Records Ingested", "Processing Time (Seconds)")
             case CreateFileInventory => Seq("Files Queued")
           val headers = Seq("Status", "Error", "Created At") ++ extraHeaders
-          val rows = s.jobs.map { job =>
-            val base: Seq[HtmlElement] = Seq(
-              span(job.jobStatus.toString),
-              span(job.errorMessage.getOrElse("-")),
-              span(job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"))
-            )
-            base ++ extraCells(job, s.selectedJobType)
-          }
+          val rows = s.jobs
+            .filter(j => j.jobStatus == Complete || j.jobStatus == JobInfoStatus.Error)
+            .map { job =>
+              val base: Seq[HtmlElement] = Seq(
+                span(job.jobStatus.toString),
+                span(job.errorMessage.getOrElse("-")),
+                span(job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"))
+              )
+              base ++ extraCells(job, s.selectedJobType)
+            }
           Table.create(headers, rows)
         }
       )
@@ -81,7 +84,7 @@ object JobsPage:
             span(ii.processingTimeSeconds.toString)
           )
         }
-        .getOrElse(Seq.fill(5)(span("-")))
+        .getOrElse(Seq.fill(2)(span("-")))
     case CreateFileInventory =>
       job.jobInfoJson
         .flatMap(parseJobInfo)
