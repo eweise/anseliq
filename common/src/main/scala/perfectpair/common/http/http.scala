@@ -17,6 +17,7 @@ object HttpPath:
   val reconSpec       = s"$prefix/recon-spec"
   val reconciliations = s"$prefix/reconciliations"
   val jobs            = s"$prefix/jobs"
+  val events          = s"$prefix/events"
 
   def url(path: String) = s"http://localhost:8080$path"
 // Get rid of this crap

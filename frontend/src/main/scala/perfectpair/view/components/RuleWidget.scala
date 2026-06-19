@@ -1,97 +1,47 @@
 package perfectpair.view.components
 
+import com.raquo.laminar.api.L.*
 import perfectpair.common.model.*
-import tyrian.Html.*
-import tyrian.{EmptyAttribute, Html}
 
 object RuleWidget:
 
-  private val ruleTypeOptions: Seq[(String, String)] = Seq(
-    "NoOp"        -> "No Rule",
-    "StringMatch" -> "String Match",
-    "DateMatch"   -> "Date Match",
-    "And"         -> "And"
-  )
-  private val leafRuleTypeOptions: Seq[(String, String)] = Seq(
-    "StringMatch" -> "String Match",
-    "DateMatch"   -> "Date Match"
+  case class LeafState(ruleType: String = "StringMatch", inKey: String = "", outKey: String = "")
+
+  case class State(
+    ruleType: String         = "NoOp",
+    inKey:    String         = "",
+    outKey:   String         = "",
+    andRules: Seq[LeafState] = Seq.empty
   )
 
-  def update(model: Model, msg: Msg): Model =
-    msg match
-      case Msg.SelectRuleType(rt) => model.copy(ruleType = rt)
-      case Msg.UpdateInKey(key)   => model.copy(inKey = key)
-      case Msg.UpdateOutKey(key)  => model.copy(outKey = key)
-      case Msg.AddAndRule         => model.copy(andRules = model.andRules :+ LeafModel())
-      case Msg.RemoveAndRule(i)   => model.copy(andRules = model.andRules.patch(i, Nil, 1))
-      case Msg.UpdateAndRuleType(i, rt) =>
-        model.copy(andRules = model.andRules.updated(i, model.andRules(i).copy(ruleType = rt)))
-      case Msg.UpdateAndRuleInKey(i, key) =>
-        model.copy(andRules = model.andRules.updated(i, model.andRules(i).copy(inKey = key)))
-      case Msg.UpdateAndRuleOutKey(i, key) =>
-        model.copy(andRules = model.andRules.updated(i, model.andRules(i).copy(outKey = key)))
-
-  def fromRule(rule: Rule): Model =
-    rule match
+  object State:
+    def fromRule(rule: Rule): State = rule match
       case NoOpRule =>
-        Model()
+        State()
       case StringAttributeMatchRule(inKey, outKey) =>
-        Model(ruleType = "StringMatch", inKey = inKey.key, outKey = outKey.key)
+        State(ruleType = "StringMatch", inKey = inKey.key, outKey = outKey.key)
       case DateAttributeMatchRule(inKey, outKey) =>
-        Model(ruleType = "DateMatch", inKey = inKey.key, outKey = outKey.key)
+        State(ruleType = "DateMatch", inKey = inKey.key, outKey = outKey.key)
       case AndRule(rules) =>
         val leaves = rules.collect {
-          case StringAttributeMatchRule(inKey, outKey) => LeafModel("StringMatch", inKey.key, outKey.key)
-          case DateAttributeMatchRule(inKey, outKey)   => LeafModel("DateMatch", inKey.key, outKey.key)
+          case StringAttributeMatchRule(ik, ok) => LeafState("StringMatch", ik.key, ok.key)
+          case DateAttributeMatchRule(ik, ok)   => LeafState("DateMatch", ik.key, ok.key)
         }
-        Model(ruleType = "And", andRules = leaves)
-      case _ => Model()
+        State(ruleType = "And", andRules = leaves)
+      case _ => State()
 
-  def toRule(model: Model): Rule =
-    model.ruleType match
+    def toRule(s: State): Rule = s.ruleType match
       case "StringMatch" =>
-        StringAttributeMatchRule(StringAttribute(model.inKey), StringAttribute(model.outKey))
+        StringAttributeMatchRule(StringAttribute(s.inKey), StringAttribute(s.outKey))
       case "DateMatch" =>
-        DateAttributeMatchRule(DateAttribute(model.inKey), DateAttribute(model.outKey))
+        DateAttributeMatchRule(DateAttribute(s.inKey), DateAttribute(s.outKey))
       case "And" =>
-        AndRule(model.andRules.toList.map { leaf =>
-          if leaf.ruleType == "DateMatch" then
-            DateAttributeMatchRule(DateAttribute(leaf.inKey), DateAttribute(leaf.outKey))
+        AndRule(s.andRules.toList.map { leaf =>
+          if leaf.ruleType == "DateMatch"
+          then DateAttributeMatchRule(DateAttribute(leaf.inKey), DateAttribute(leaf.outKey))
           else StringAttributeMatchRule(StringAttribute(leaf.inKey), StringAttribute(leaf.outKey))
         })
       case _ => NoOpRule
-
-  def apply[M](
-    model:             Model,
-    movementSpecs:     Seq[MovementSpecPayload],
-    inMovementSpecId:  String,
-    outMovementSpecId: String,
-    lift:              Msg => M
-  ): Html[M] =
-    val inCols  = columnsFor(inMovementSpecId, movementSpecs)
-    val outCols = columnsFor(outMovementSpecId, movementSpecs)
-    div(cls := "border-t border-md-outline pt-5 mt-2")(
-      p(cls := "text-sm font-medium text-md-on-surface mb-4")(text("Matching Rule")),
-      selectField("ruleType", "Rule Type", model.ruleType, ruleTypeOptions, v => lift(Msg.SelectRuleType(v))),
-      model.ruleType match
-        case "StringMatch" | "DateMatch" =>
-          div()(
-            selectField ("inKey", "In Key", model.inKey, inCols.map(c => c -> c), v => lift(Msg.UpdateInKey(v))),
-            selectField("outKey", "Out Key", model.outKey, outCols.map(c => c -> c), v => lift(Msg.UpdateOutKey(v)))
-          )
-        case "And" =>
-          div()(
-            div()(model.andRules.zipWithIndex.map { case (leaf, i) =>
-              leafRow(i, leaf, inCols, outCols, lift)
-            }*),
-            button(
-              cls := "text-md-primary text-sm px-4 py-2 rounded-full border border-md-primary mt-1",
-              tpe := "button",
-              onClick(lift(Msg.AddAndRule))
-            )(text("+ Add Rule"))
-          )
-        case _ => div()()
-    )
 
   def columnsFor(specId: String, specs: Seq[MovementSpecPayload]): Seq[String] =
     specs
@@ -100,90 +50,107 @@ object RuleWidget:
       .collect { case DataSourceConfig(CSVParserConfig(_, cols, _), _) => cols.values.toSeq }
       .getOrElse(Seq.empty)
 
-  private def leafRow[M](
+  def apply(
+    initial:           Rule,
+    movementSpecs:     Var[Seq[MovementSpecPayload]],
+    inMovementSpecId:  Signal[String],
+    outMovementSpecId: Signal[String]
+  ): (HtmlElement, Signal[Rule]) =
+    val state = Var(State.fromRule(initial))
+
+    val ruleTypeOptions =
+      Seq("NoOp" -> "No Rule", "StringMatch" -> "String Match", "DateMatch" -> "Date Match", "And" -> "And")
+
+    val inCols  = inMovementSpecId.combineWith(movementSpecs.signal).map((id, specs) => columnsFor(id, specs))
+    val outCols = outMovementSpecId.combineWith(movementSpecs.signal).map((id, specs) => columnsFor(id, specs))
+
+    val el = div(
+      cls := "border-t border-md-outline pt-5 mt-2",
+      p(cls := "text-sm font-medium text-md-on-surface mb-4", "Matching Rule"),
+      Form.selectField(
+        "ruleType",
+        "Rule Type",
+        ruleTypeOptions,
+        state.now().ruleType,
+        v => state.update(_.copy(ruleType = v))
+      ),
+      child <-- state.signal.map { s =>
+        s.ruleType match
+          case "StringMatch" | "DateMatch" =>
+            div(
+              child <-- inCols.map(cols =>
+                Form
+                  .selectField("inKey", "In Key", cols.map(c => c -> c), s.inKey, v => state.update(_.copy(inKey = v)))
+              ),
+              child <-- outCols.map(cols =>
+                Form.selectField(
+                  "outKey",
+                  "Out Key",
+                  cols.map(c => c -> c),
+                  s.outKey,
+                  v => state.update(_.copy(outKey = v))
+                )
+              )
+            )
+          case "And" =>
+            div(
+              children <-- state.signal.map(_.andRules.zipWithIndex.map { case (leaf, i) =>
+                leafRow(i, leaf, inCols, outCols, state)
+              }),
+              button(
+                cls := "text-md-primary text-sm px-4 py-2 rounded-full border border-md-primary mt-1",
+                typ := "button",
+                onClick --> (_ => state.update(s => s.copy(andRules = s.andRules :+ LeafState()))),
+                "+ Add Rule"
+              )
+            )
+          case _ => div()
+      }
+    )
+    (el, state.signal.map(State.toRule))
+
+  private def leafRow(
     index:   Int,
-    leaf:    LeafModel,
-    inCols:  Seq[String],
-    outCols: Seq[String],
-    lift:    Msg => M
-  ): Html[M] =
-    div(cls := "border border-md-outline rounded p-3 mb-3")(
-      div(cls := "flex justify-between items-center mb-2")(
-        p(cls := "text-sm font-medium text-md-on-surface")(text(s"Rule ${index + 1}")),
+    leaf:    LeafState,
+    inCols:  Signal[Seq[String]],
+    outCols: Signal[Seq[String]],
+    state:   Var[State]
+  ): HtmlElement =
+    div(
+      cls := "border border-md-outline rounded p-3 mb-3",
+      div(
+        cls := "flex justify-between items-center mb-2",
+        p(cls := "text-sm font-medium text-md-on-surface", s"Rule ${index + 1}"),
         button(
           cls := "text-md-error text-sm px-2",
-          tpe := "button",
-          onClick(lift(Msg.RemoveAndRule(index)))
-        )(text("Remove"))
+          typ := "button",
+          onClick --> (_ => state.update(s => s.copy(andRules = s.andRules.patch(index, Nil, 1)))),
+          "Remove"
+        )
       ),
-      selectField(
+      Form.selectField(
         s"andType_$index",
         "Type",
+        Seq("StringMatch" -> "String Match", "DateMatch" -> "Date Match"),
         leaf.ruleType,
-        leafRuleTypeOptions,
-        v => lift(Msg.UpdateAndRuleType(index, v))
+        v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(ruleType = v))))
       ),
-      selectField(
-        s"andInKey_$index",
-        "In Key",
-        leaf.inKey,
-        inCols.map(c => c -> c),
-        v => lift(Msg.UpdateAndRuleInKey(index, v))
+      child <-- inCols.map(cols =>
+        Form.selectField(
+          s"andInKey_$index",
+          "In Key",
+          cols.map(c => c -> c),
+          leaf.inKey,
+          v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(inKey = v))))
+        )
       ),
-      selectField(
-        s"andOutKey_$index",
-        "Out Key",
-        leaf.outKey,
-        outCols.map(c => c -> c),
-        v => lift(Msg.UpdateAndRuleOutKey(index, v))
+      child <-- outCols.map(cols =>
+        Form.selectField(
+          s"andOutKey_$index",
+          "Out Key",
+          cols.map(c => c -> c),
+          leaf.outKey,
+          v => state.update(s => s.copy(andRules = s.andRules.updated(index, s.andRules(index).copy(outKey = v))))
+        )
       )
     )
-
-  private def selectField[M](
-    fieldID:   String,
-    labelText: String,
-    selected:  String,
-    options:   Seq[(String, String)],
-    onSelect:  String => M
-  ): Html[M] =
-    div(cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded")(
-      label(
-        cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
-        attribute("for", fieldID)
-      )(text(labelText)),
-      select(
-        id  := fieldID,
-        cls := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
-        onChange(onSelect)
-      )(
-        options.map { case (v, lbl) =>
-          option(
-            value := v,
-            if v == selected then attribute("selected", "selected") else EmptyAttribute
-          )(text(lbl))
-        }*
-      )
-    )
-
-  case class LeafModel(
-    ruleType: String = "StringMatch",
-    inKey:    String = "",
-    outKey:   String = ""
-  )
-
-  case class Model(
-    ruleType: String         = "NoOp",
-    inKey:    String         = "",
-    outKey:   String         = "",
-    andRules: Seq[LeafModel] = Seq()
-  )
-
-  enum Msg:
-    case SelectRuleType(ruleType: String)
-    case UpdateInKey(key: String)
-    case UpdateOutKey(key: String)
-    case AddAndRule
-    case RemoveAndRule(index: Int)
-    case UpdateAndRuleType(index: Int, ruleType: String)
-    case UpdateAndRuleInKey(index: Int, key: String)
-    case UpdateAndRuleOutKey(index: Int, key: String)

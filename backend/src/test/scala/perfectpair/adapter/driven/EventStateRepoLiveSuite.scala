@@ -63,3 +63,23 @@ class EventStateRepoLiveSuite extends munit.FunSuite:
         repo.insert(event)
         val found = repo.getNextPendingEvent("TestEvent", maxRetries = maxRetries)
         assert(found.isEmpty)
+
+  test("findByEventType returns only events matching the given type"):
+    val repo = EventRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val event1 = EventState(eventType = "MoneyMovementsIngested", payload = "{}")
+        val event2 = EventState(eventType = "AccountReconciled", payload = "{}")
+        repo.insert(event1)
+        repo.insert(event2)
+        val found = repo.findByEventType("MoneyMovementsIngested")
+        assert(found.exists(_.id == event1.id))
+        assert(!found.exists(_.id == event2.id))
+        assert(found.forall(_.eventType == "MoneyMovementsIngested"))
+
+  test("findByEventType returns empty vector when no events match"):
+    val repo = EventRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val found = repo.findByEventType("NonExistentType")
+        assert(found.isEmpty)

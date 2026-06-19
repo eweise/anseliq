@@ -59,8 +59,7 @@ class Reconciler(
       do
         val reconciliation = Reconciliation(
           specId       = reconSpec.id,
-          appliedRules = reconSpec.rule().sql,
-          description  = "need a description. probabaly equality matcher"
+          appliedRules = reconSpec.ruleJson
         )
         reconRepo.insert(reconciliation)
 
