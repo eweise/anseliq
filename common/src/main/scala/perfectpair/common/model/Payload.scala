@@ -196,7 +196,14 @@ def combineReconAndMovementSpecs(
     )
   )
 
-sealed trait EventPayload derives ReadWriter
+sealed trait EventPayload derives ReadWriter:
+  val id:           String
+  val eventType:    String
+  val status:       String
+  val retryCount:   Int
+  val errorMessage: Option[String]
+  val createdAt:    Option[OffsetDateTime]
+  val updatedAt:    Option[OffsetDateTime]
 
 case class MoneyMovementsIngestedPayload(
   id:             String,
