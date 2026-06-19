@@ -6,7 +6,7 @@ import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPa
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.Icons
+import perfectpair.view.pages.FundFlowPage.tabButton
 import upickle.default.*
 
 import scala.collection.mutable
@@ -21,13 +21,6 @@ object FundFlowPage:
   private val colStride = boxW + colGap
   private val rowStride = boxH + rowGap
 
-  case class State(
-    accounts:             Seq[AccountPayload]         = Seq.empty,
-    movementSpecs:        Seq[MovementSpecPayload]    = Seq.empty,
-    selectedAccount:      Option[AccountPayload]      = None,
-    selectedMovementSpec: Option[MovementSpecPayload] = None
-  )
-
   def apply(): HtmlElement =
     AppState.activeFundFlow.now() match
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
@@ -36,6 +29,7 @@ object FundFlowPage:
   private def renderPage(ff: FundFlowPayload): HtmlElement =
     val ffId              = ff.id.getOrElse("")
     val state             = Var(State())
+    val activeTab         = Var("configuration")
     val configureReconBus = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
 
@@ -65,41 +59,70 @@ object FundFlowPage:
           Nav.toMaintainReconSpec(account.id.get)
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
-      deleteSpecBus.events
-        .flatMapSwitch { spec =>
-          ApiClient.delete(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), SessionStore.token)
-        }
-        .flatMapSwitch {
-          case Right(_) =>
-            ApiClient.get[Seq[MovementSpecPayload]](
-              HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
-              SessionStore.token
-            )
-          case Left(e) =>
-            AppState.globalError.set(Some(e))
-            EventStream.empty
-        } --> {
+      deleteSpecBus.events.flatMapSwitch { spec =>
+        ApiClient.delete(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), SessionStore.token)
+      }.flatMapSwitch {
+        case Right(_) =>
+          ApiClient.get[Seq[MovementSpecPayload]](
+            HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+            SessionStore.token
+          )
+        case Left(e) =>
+          AppState.globalError.set(Some(e))
+          EventStream.empty
+      } --> {
         case Right(specs) => state.update(_.copy(movementSpecs = specs))
         case Left(e)      => AppState.globalError.set(Some(e))
       },
-      cls := "flex flex-col items-center mb-8 pt-20",
-      div(cls := "my-8 text-center", h2(cls := "text-2xl font-medium mb-6", ff.name)),
+      cls := "flex flex-col items-center mb-8 pt-20 w-full",
       div(
-        cls := "self-start mb-4 pl-8",
-        button(
-          cls := "px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700",
-          typ := "button",
-          onClick --> { _ =>
-            state.update(_.copy(selectedAccount = None, selectedMovementSpec = None))
-            Nav.toMaintainAccount(None)
-          },
-          "New Account"
+        cls := "w-full max-w-5xl px-8",
+        h2(cls := "text-2xl font-medium mb-6", ff.name)
+      ),
+      div(
+        cls := "w-full border-b border-gray-200 mb-6",
+        div(
+          cls := "max-w-5xl mx-auto px-8 flex -mb-px space-x-8",
+          tabButton("Activity", "Activity", activeTab),
+          tabButton("Configuration", "Configuration", activeTab)
         )
       ),
-      child <-- state.signal.map { s =>
-        if s.accounts.isEmpty then div(cls := "text-gray-500 text-sm", "No accounts")
-        else renderDiagram(s, ff, configureReconBus, deleteSpecBus, state)
-      }
+      div(
+        cls := "w-full max-w-5xl px-8",
+        child <-- activeTab.signal.map {
+          case "Configuration" =>
+            div(
+              div(
+                cls := "mb-4",
+                button(
+                  cls := "px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700",
+                  typ := "button",
+                  onClick --> { _ =>
+                    state.update(_.copy(selectedAccount = None, selectedMovementSpec = None))
+                    Nav.toMaintainAccount(None)
+                  },
+                  "New Account"
+                )
+              ),
+              child <-- state.signal.map { s =>
+                if s.accounts.isEmpty then div(cls := "text-gray-500 text-sm", "No accounts")
+                else renderDiagram(s, ff, configureReconBus, deleteSpecBus, state)
+              }
+            )
+          case _ => div()
+        }
+      )
+    )
+
+  private def tabButton(label: String, tabId: String, activeTab: Var[String]): HtmlElement =
+    button(
+      cls <-- activeTab.signal.map { active =>
+        val base = "px-4 pb-3 text-sm font-medium border-b-2 transition-colors"
+        if active == tabId then s"$base border-gray-900 text-gray-900"
+        else s"$base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+      },
+      onClick --> (_ => activeTab.set(tabId)),
+      label
     )
 
   private def renderDiagram(
@@ -325,3 +348,10 @@ object FundFlowPage:
       }
     }
     posOf.toMap
+
+  case class State(
+    accounts:             Seq[AccountPayload]         = Seq.empty,
+    movementSpecs:        Seq[MovementSpecPayload]    = Seq.empty,
+    selectedAccount:      Option[AccountPayload]      = None,
+    selectedMovementSpec: Option[MovementSpecPayload] = None
+  )
