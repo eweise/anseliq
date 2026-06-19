@@ -16,13 +16,17 @@ object EventsPage:
     val fetchBus = EventBus[String]()
 
     div(
-      onMountCallback(_ => fetchBus.emit(state.now().selectedEventType)),
-      fetchBus.events.flatMapSwitch { eventType =>
-        ApiClient.get[Seq[EventPayload]](
-          HttpPath.url(s"${HttpPath.events}/$eventType"),
-          SessionStore.token
+      EventStream
+        .merge(
+          EventStream.fromValue(state.now().selectedEventType, emitOnce = true),
+          fetchBus.events
         )
-      } --> {
+        .flatMapSwitch { eventType =>
+          ApiClient.get[Seq[EventPayload]](
+            HttpPath.url(s"${HttpPath.events}/$eventType"),
+            SessionStore.token
+          )
+        } --> {
         case Right(events) => state.update(_.copy(events = events))
         case Left(e)       => AppState.globalError.set(Some(e))
       },

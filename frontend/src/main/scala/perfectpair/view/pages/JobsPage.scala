@@ -18,10 +18,14 @@ object JobsPage:
     val fetchBus = EventBus[String]()
 
     div(
-      onMountCallback(_ => fetchBus.emit(JobTypeInfo.Reconciliation.toString)),
-      fetchBus.events.flatMapSwitch { jobType =>
-        ApiClient.get[Seq[JobInfoPayload]](HttpPath.url(s"${HttpPath.jobs}/$jobType"), SessionStore.token)
-      } --> {
+      EventStream
+        .merge(
+          EventStream.fromValue(JobTypeInfo.Reconciliation.toString, emitOnce = true),
+          fetchBus.events
+        )
+        .flatMapSwitch { jobType =>
+          ApiClient.get[Seq[JobInfoPayload]](HttpPath.url(s"${HttpPath.jobs}/$jobType"), SessionStore.token)
+        } --> {
         case Right(jobs) => state.update(_.copy(jobs = jobs))
         case Left(e)     => AppState.globalError.set(Some(e))
       },
