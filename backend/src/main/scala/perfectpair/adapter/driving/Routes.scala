@@ -31,7 +31,8 @@ class App(using
   ingestor:           Ingestor,
   reconciler:         InMemoryReconciler,
   jobRepo:            JobRepo,
-  reconSpecRepo:      ReconciliationSpecRepo
+  reconSpecRepo:      ReconciliationSpecRepo,
+  eventRepo:          EventRepo
 ) extends cask.MainRoutes:
 
   val prefixPath = "/api/v1"
@@ -214,6 +215,16 @@ class App(using
     transact(transactor):
       val jobs = jobRepo.findByJobType(JobType.valueOf(jobTypeInfo.toString))
       write(jobs.map(Payload.jobPayloadFromDomain))
+
+  // Events
+  @cask.route(s"${HttpPath.events}", methods = HttpCmd.GET)
+  def getEvents(request: cask.Request): String =
+    val eventTypeFilter = request.queryParams.get("eventType").flatMap(_.headOption)
+    transact(transactor):
+      val states = eventTypeFilter match
+        case Some(et) => eventRepo.findByEventType(et)
+        case None     => eventRepo.findAll
+      write(states.map(Payload.eventPayloadFromDomain))
 
   // ReconSpec
   @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)
