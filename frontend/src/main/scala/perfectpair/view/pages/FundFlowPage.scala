@@ -65,11 +65,22 @@ object FundFlowPage:
           Nav.toMaintainReconSpec(account.id.get)
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
-      deleteSpecBus.events.flatMapSwitch { spec =>
-        ApiClient.delete(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), SessionStore.token)
-      } --> {
-        case Right(_) => Nav.toFundFlow(ff)
-        case Left(e)  => AppState.globalError.set(Some(e))
+      deleteSpecBus.events
+        .flatMapSwitch { spec =>
+          ApiClient.delete(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), SessionStore.token)
+        }
+        .flatMapSwitch {
+          case Right(_) =>
+            ApiClient.get[Seq[MovementSpecPayload]](
+              HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+              SessionStore.token
+            )
+          case Left(e) =>
+            AppState.globalError.set(Some(e))
+            EventStream.empty
+        } --> {
+        case Right(specs) => state.update(_.copy(movementSpecs = specs))
+        case Left(e)      => AppState.globalError.set(Some(e))
       },
       cls := "flex flex-col items-center mb-8 pt-20",
       div(cls := "my-8 text-center", h2(cls := "text-2xl font-medium mb-6", ff.name)),

@@ -3,7 +3,6 @@ package perfectpair.adapter.driving
 import com.augustnagro.magnum.*
 import perfectpair.common.http.HttpPath
 import perfectpair.common.model.*
-import perfectpair.common.model.IngestionDataSource.Manual
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.*
@@ -166,7 +165,7 @@ class App(using
     transact(transactor):
       write(fundFlowOperations.updateMovementSpec(id, payload))
 
-  @cask.route(s"${HttpPath.movementSpec}/:id", methods = Seq("delete"))
+  @cask.delete(s"${HttpPath.movementSpec}/:id")
   def deleteMovementSpec(id: String): String =
     transact(transactor):
       fundFlowOperations.deleteMovementSpec(id)
