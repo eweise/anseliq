@@ -19,7 +19,7 @@ object EventsPage:
       onMountCallback(_ => fetchBus.emit(state.now().selectedEventType)),
       fetchBus.events.flatMapSwitch { eventType =>
         ApiClient.get[Seq[EventPayload]](
-          HttpPath.url(s"${HttpPath.events}?eventType=$eventType"),
+          HttpPath.url(s"${HttpPath.events}/$eventType"),
           SessionStore.token
         )
       } --> {
