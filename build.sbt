@@ -25,12 +25,10 @@ lazy val frontend = (project in file("frontend"))
     Compile / fastOptJS / scalaJSLinkerConfig ~= { _.withSourceMap(false) },
     Compile / fullOptJS / scalaJSLinkerConfig ~= { _.withSourceMap(false) },
     libraryDependencies ++= Seq(
-      "io.indigoengine"            %%% "tyrian-zio"                % Dependencies.Tyrian,
-      "dev.zio"                    %%% "zio-interop-cats"          % Dependencies.ZioInteropCats,
-      "com.lihaoyi"                %%% "upickle"                   % upickleVersion,
-      "software.amazon.awssdk"       % "aws-sdk-java"              % "2.29.0",
-      "com.softwaremill.quicklens" %%% "quicklens"                 % Dependencies.Quicklens,
-      ("org.scala-js"              %%% "scalajs-java-securerandom" % Dependencies.JavaSecureRandom).cross(CrossVersion.for3Use2_13)
+      "com.raquo"                  %%% "laminar"    % Dependencies.Laminar,
+      "io.frontroute"              %%% "frontroute" % Dependencies.Frontroute,
+      "com.lihaoyi"                %%% "upickle"    % upickleVersion,
+      "com.softwaremill.quicklens" %%% "quicklens"  % Dependencies.Quicklens
     )
   )
   .settings(

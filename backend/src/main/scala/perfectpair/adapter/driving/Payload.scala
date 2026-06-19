@@ -97,6 +97,42 @@ object Payload:
       updatedAt    = recon.updatedAt.get
     )
 
+  def eventPayloadFromDomain(state: EventState): EventPayload =
+    upickle.read[Event](state.payload) match
+      case e: MoneyMovementsIngested =>
+        MoneyMovementsIngestedPayload(
+          id             = state.id.toString,
+          eventType      = state.eventType,
+          movementSpecID = e.movementSpecID.toString,
+          status         = state.status.toString,
+          retryCount     = state.retryCount,
+          errorMessage   = state.errorMessage,
+          createdAt      = state.createdAt,
+          updatedAt      = state.updatedAt
+        )
+      case e: AccountReconciled =>
+        AccountReconciledPayload(
+          id           = state.id.toString,
+          eventType    = state.eventType,
+          accountID    = e.accountID.toString,
+          status       = state.status.toString,
+          retryCount   = state.retryCount,
+          errorMessage = state.errorMessage,
+          createdAt    = state.createdAt,
+          updatedAt    = state.updatedAt
+        )
+      case e: NewFileDetected =>
+        NewFileDetectedPayload(
+          id              = state.id.toString,
+          eventType       = state.eventType,
+          fileInventoryID = e.fileInventoryID.toString,
+          status          = state.status.toString,
+          retryCount      = state.retryCount,
+          errorMessage    = state.errorMessage,
+          createdAt       = state.createdAt,
+          updatedAt       = state.updatedAt
+        )
+
   def movementfromDomainModel(dmMovement: Movement): MovementPayload =
     MovementPayload(
       id               = dmMovement.id.toString,
