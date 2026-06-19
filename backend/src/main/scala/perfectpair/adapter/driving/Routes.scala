@@ -217,14 +217,10 @@ class App(using
       write(jobs.map(Payload.jobPayloadFromDomain))
 
   // Events
-  @cask.route(s"${HttpPath.events}", methods = HttpCmd.GET)
-  def getEvents(request: cask.Request): String =
-    val eventTypeFilter = request.queryParams.get("eventType").flatMap(_.headOption)
+  @cask.route(s"${HttpPath.events}/:eventType", methods = HttpCmd.GET)
+  def getEvents(eventType: String): String =
     transact(transactor):
-      val states = eventTypeFilter match
-        case Some(et) => eventRepo.findByEventType(et)
-        case None     => eventRepo.findAll
-      write(states.map(Payload.eventPayloadFromDomain))
+      write(eventRepo.findByEventType(eventType).map(Payload.eventPayloadFromDomain))
 
   // ReconSpec
   @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)
