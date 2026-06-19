@@ -19,6 +19,7 @@ object LeftNav:
           fundFlowNavSection(),
           navItem("Create Fund Flow", "/components/maintain-fund-flow", Icons.component),
           navItem("Jobs", "/components/jobs", Icons.document),
+          navItem("Events", "/components/events", Icons.document),
           navSeparator(),
           navItem("Dashboard", "#", Icons.dashboard),
           navItem("Profile", "#", Icons.user),

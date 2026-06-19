@@ -26,6 +26,7 @@ object Routes:
           path("accounts")(AccountsPage()),
           path("maintain-movement-spec")(MaintainMovementSpecPage()),
           path("jobs")(JobsPage()),
+          path("events")(EventsPage()),
           path("unreconciled-movements")(UnreconciledMovementsPage())
         )
       },
