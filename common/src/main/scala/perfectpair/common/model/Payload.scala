@@ -195,3 +195,38 @@ def combineReconAndMovementSpecs(
       )
     )
   )
+
+sealed trait EventPayload derives ReadWriter
+
+case class MoneyMovementsIngestedPayload(
+  id:             String,
+  eventType:      String,
+  movementSpecID: String,
+  status:         String,
+  retryCount:     Int,
+  errorMessage:   Option[String],
+  createdAt:      Option[OffsetDateTime],
+  updatedAt:      Option[OffsetDateTime]
+) extends EventPayload
+
+case class AccountReconciledPayload(
+  id:           String,
+  eventType:    String,
+  accountID:    String,
+  status:       String,
+  retryCount:   Int,
+  errorMessage: Option[String],
+  createdAt:    Option[OffsetDateTime],
+  updatedAt:    Option[OffsetDateTime]
+) extends EventPayload
+
+case class NewFileDetectedPayload(
+  id:              String,
+  eventType:       String,
+  fileInventoryID: String,
+  status:          String,
+  retryCount:      Int,
+  errorMessage:    Option[String],
+  createdAt:       Option[OffsetDateTime],
+  updatedAt:       Option[OffsetDateTime]
+) extends EventPayload
