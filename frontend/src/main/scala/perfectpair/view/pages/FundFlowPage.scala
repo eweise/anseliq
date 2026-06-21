@@ -2,11 +2,11 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import perfectpair.common.model.{AccountPayload, FundFlowPayload, FundFlowSummaryViewPayload, MovementSpecPayload, ReconciliationSpecPayload}
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.pages.FundFlowPage.tabButton
+import perfectpair.view.components.{Buttons, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -29,15 +29,26 @@ object FundFlowPage:
   private def renderPage(ff: FundFlowPayload): HtmlElement =
     val ffId              = ff.id.getOrElse("")
     val state             = Var(State())
-    val activeTab         = Var("configuration")
+    val activeTab         = Var("Account")
     val configureReconBus = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
+    val reconcileBus      = EventBus[String]()
 
     div(
       ApiClient
         .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token) --> {
         case Right(accounts) => state.update(_.copy(accounts = accounts))
         case Left(e)         => AppState.globalError.set(Some(e))
+      },
+      ApiClient
+        .get[FundFlowSummaryViewPayload](
+          HttpPath.url(s"${HttpPath.fundFlow}/$ffId/summary"),
+          SessionStore.token
+        ) --> {
+        case Right(summary) =>
+          val counts = summary.accounts.flatMap(a => a.account.id.map(_ -> a.unreconciledCount)).toMap
+          state.update(_.copy(unreconciledCounts = counts))
+        case Left(e) => AppState.globalError.set(Some(e))
       },
       ApiClient.get[Seq[MovementSpecPayload]](
         HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
@@ -74,6 +85,19 @@ object FundFlowPage:
         case Right(specs) => state.update(_.copy(movementSpecs = specs))
         case Left(e)      => AppState.globalError.set(Some(e))
       },
+      reconcileBus.events.map { id =>
+        state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.InProgress)))
+        id
+      }.flatMapSwitch { id =>
+        ApiClient
+          .postEmpty[ujson.Value](HttpPath.url(s"${HttpPath.account}/$id/reconcile"), SessionStore.token)
+          .map(res => (id, res))
+      } --> {
+        case (id, Right(_)) =>
+          state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.Success)))
+        case (id, Left(e)) =>
+          state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.Failed(e))))
+      },
       cls := "flex flex-col items-center mb-8 pt-20 w-full",
       div(
         cls := "w-full max-w-5xl px-8",
@@ -83,7 +107,7 @@ object FundFlowPage:
         cls := "w-full border-b border-gray-200 mb-6",
         div(
           cls := "max-w-5xl mx-auto px-8 flex -mb-px space-x-8",
-          tabButton("Activity", "Activity", activeTab),
+          tabButton("Accounts", "Account", activeTab),
           tabButton("Configuration", "Configuration", activeTab)
         )
       ),
@@ -109,10 +133,41 @@ object FundFlowPage:
                 else renderDiagram(s, ff, configureReconBus, deleteSpecBus, state)
               }
             )
+          case "Account" =>
+            div(
+              child <-- state.signal.map { s =>
+                Table.create(
+                  Seq("Name", "Balance", "Unreconciled Count", "", "", "", ""),
+                  s.accounts.sortBy(_.name).map { account =>
+                    val accountId        = account.id.getOrElse("")
+                    val status           = s.reconcileStatuses.getOrElse(accountId, ReconcileStatus.Idle)
+                    val unreconCount     = s.unreconciledCounts.getOrElse(accountId, 0)
+                    Seq(
+                      span(account.name),
+                      span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
+                      span(cls := "text-right w-full inline-block", unreconCount.toString),
+                      if account.isRecon then
+                        Buttons.textButton("Recon Specs", Observer[Unit](_ => Nav.toReconSpecs(accountId)))
+                      else div(),
+                      if account.isRecon then
+                        Buttons.textButton("Reconcile", Observer[Unit](_ => reconcileBus.emit(accountId)))
+                      else div(),
+                      statusBadge(status)
+                    )
+                  }
+                )
+              }
+            )
           case _ => div()
         }
       )
     )
+
+  private def statusBadge(status: ReconcileStatus): HtmlElement = status match
+    case ReconcileStatus.Idle       => span()
+    case ReconcileStatus.InProgress => span(cls := "text-xs text-blue-500", "Running...")
+    case ReconcileStatus.Success    => span(cls := "text-xs text-green-600 font-medium", "Done")
+    case ReconcileStatus.Failed(e)  => span(cls := "text-xs text-red-500", s"Error: $e")
 
   private def tabButton(label: String, tabId: String, activeTab: Var[String]): HtmlElement =
     button(
@@ -349,9 +404,15 @@ object FundFlowPage:
     }
     posOf.toMap
 
+  enum ReconcileStatus:
+    case Idle, InProgress, Success
+    case Failed(msg: String)
+
   case class State(
-    accounts:             Seq[AccountPayload]         = Seq.empty,
-    movementSpecs:        Seq[MovementSpecPayload]    = Seq.empty,
-    selectedAccount:      Option[AccountPayload]      = None,
-    selectedMovementSpec: Option[MovementSpecPayload] = None
+    accounts:             Seq[AccountPayload]          = Seq.empty,
+    movementSpecs:        Seq[MovementSpecPayload]     = Seq.empty,
+    selectedAccount:      Option[AccountPayload]       = None,
+    selectedMovementSpec: Option[MovementSpecPayload]  = None,
+    reconcileStatuses:    Map[String, ReconcileStatus] = Map.empty,
+    unreconciledCounts:   Map[String, Int]             = Map.empty
   )
