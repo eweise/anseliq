@@ -15,7 +15,7 @@ import java.util.UUID
 class JobManagerSuite extends munit.FunSuite:
   private val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   private val transactor: Transactor = Transactor(dataSource)
-  private val clock      = ClockService()
+  private val clock      = ClockServiceLive()
   private val jobRepo    = JobRepoLive()
   private val jobManager = JobManager(using jobRepo, clock, dataSource)
 
