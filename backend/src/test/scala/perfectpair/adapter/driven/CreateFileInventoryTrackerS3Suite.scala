@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigFactory
 import perfectpair.common.model.S3ConnectionConfig
 import perfectpair.domain.model.{FileInventoryStatus, S3FileSourceEntry}
 import perfectpair.domain.port.driven.{AccountRepo, EventRepo, FileInventoryRepo, MovementRepo, MovementSpecRepo}
-import perfectpair.domain.service.{ClockService, EventStore, Ingestor}
+import perfectpair.domain.service.{ClockService, ClockServiceLive, EventStore, Ingestor}
 import perfectpair.testing.rollBackOnly
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.core.sync.RequestBody
@@ -31,7 +31,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   val localstackEndpoint = URI.create("http://localhost:4566")
   val bucket             = "file-inventory-test"
 
-  given clockService:      ClockService      = ClockService()
+  given clockService:      ClockService      = ClockServiceLive()
   given transactor:        Transactor        = Transactor(dataSource)
   given dataSource:        DataSource        = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   given eventRepo:         EventRepo         = EventRepoLive()
@@ -72,11 +72,12 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
         val ingestor       = Ingestor()
         val source         = S3FileSource(S3ConnectionConfig(bucket, "reports/"), s3Client)
         val result         = ingestor.detectAndQueue(movementSpecID, source)
-        assert(result.size == 3)
+        assertEquals(result.size, 3)
         assert(result.forall(_.status == FileInventoryStatus.QUEUED))
         assert(result.forall(_.sourceSystem == "S3"))
-        assert(
-          result.map(_.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key).toSet == Set(
+        assertEquals(
+          result.map(_.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key).toSet,
+          Set(
             s"reports/jan.csv",
             s"reports/feb.csv",
             s"reports/mar.csv"

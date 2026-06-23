@@ -8,7 +8,7 @@ import perfectpair.common.model.Interval.Day
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.OneToMany
 import perfectpair.domain.port.driven.*
-import perfectpair.domain.service.{ClockService, EventStore, InMemoryReconciler, Ingestor}
+import perfectpair.domain.service.{ClockService, ClockServiceLive, EventStore, InMemoryReconciler, Ingestor}
 import perfectpair.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
@@ -16,7 +16,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import javax.sql.DataSource
 
 class EndToEndSuite extends munit.FunSuite {
-  given clock: ClockService = ClockService()
+  given clock: ClockService = ClockServiceLive()
 
   given transactor: Transactor = Transactor(dataSource)
 

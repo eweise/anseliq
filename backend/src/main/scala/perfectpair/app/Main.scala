@@ -23,7 +23,7 @@ object Main:
   def main(args: Array[String]): Unit =
 
     given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
-    given clock:              ClockService           = ClockService()
+    given clock:              ClockService           = ClockServiceLive()
     given jobRepo:            JobRepo                = JobRepoLive()
     given jobManager:         JobManager             = JobManager()
     given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()

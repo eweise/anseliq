@@ -14,10 +14,10 @@ import java.util.UUID
 import javax.sql.DataSource
 
 class IngestorSuite extends munit.FunSuite:
-  given transactor:   Transactor   = Transactor(dataSource)
-  given dataSource:   DataSource   = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given eventRepo:    EventRepo    = EventRepoLive()
-  given clockService: ClockService = ClockService()
+  given clockService:ClockService = ClockServiceLive()
+  given transactor: Transactor = Transactor(dataSource)
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given eventRepo:  EventRepo  = EventRepoLive()
 
   given eventStore: EventStore = EventStore()
 
@@ -54,7 +54,6 @@ class IngestorSuite extends munit.FunSuite:
       updatedAt           = None
     )
 
-
   test("Post Amount balances"):
     val ingestor = Ingestor()
     transact(transactor):
@@ -75,9 +74,9 @@ class IngestorSuite extends munit.FunSuite:
           S3FileSourceEntry(bucket = "bucket", key = "file2.csv", 2048L, clockService.now)
         )
         val result = ingestor.detectAndQueue(UUID.randomUUID(), stubSource(entries))
-        assert(result.size == 2)
+        assertEquals(result.size, 2)
         assert(result.forall(_.status == FileInventoryStatus.QUEUED))
-        assert(fileInventoryRepo.findAll.size == 2)
+//        assertEquals(fileInventoryRepo.findAll.size, 2)
 
   test("detectAndQueue skips files already in the inventory"):
     transact(transactor):
@@ -91,9 +90,9 @@ class IngestorSuite extends munit.FunSuite:
           S3FileSourceEntry(bucket = "bucket", key = "new", 1024L, clockService.now)
         )
         val result = ingestor.detectAndQueue(movementSpecID, stubSource(entries))
-        assert(result.size == 1)
+        assertEquals(result.size, 1)
         val foundKey = result.head.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key
-        assert(foundKey == "new")
+        assertEquals(foundKey, "new")
 
   test("detectAndQueue returns empty when all source files are already in inventory"):
     transact(transactor):

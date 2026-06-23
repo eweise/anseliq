@@ -12,7 +12,7 @@ import javax.sql.DataSource
 class EventStateStoreSuite extends munit.FunSuite:
   private val dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   private val transactor: Transactor = Transactor(dataSource)
-  private val clock      = ClockService()
+  private val clock      = ClockServiceLive()
   private val eventRepo  = EventRepoLive()
   private val eventStore = EventStore(using eventRepo, clock, dataSource)
 

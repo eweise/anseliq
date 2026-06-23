@@ -17,7 +17,7 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
 
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
-  given clockSvc: ClockService = ClockService()
+  given clockSvc: ClockService = ClockServiceLive()
   
   given eventRepo : EventRepoLive()
 
@@ -43,7 +43,7 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         import data.given
         val ops = FundFlowOperations()
 
-        given clock: ClockService = ClockService()
+        given clock: ClockService = ClockServiceLive()
         val reconciler = InMemoryReconciler()
 
         for _ <- 1 to 3
