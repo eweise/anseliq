@@ -2,7 +2,7 @@ package perfectpair.domain.service
 
 import perfectpair.common.model.*
 import perfectpair.common.model.Direction.{IN, OUT}
-import perfectpair.common.model.model.{ID, Zero}
+import perfectpair.common.model.model.{ID, Money, Zero}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
 import perfectpair.domain.port.driven.*
@@ -37,13 +37,14 @@ class InMemoryReconciler(using
   def reconcileAccount(accountID: ID): Txn[ReconciliationResult] =
     val beginTime                     = Instant.now()
     val reconciliationSpecInsertCount = scala.collection.mutable.Map[ID, Int]()
+    var reconciledDelta: Money = Zero
 
     val reconSpecs = reconSpecRepo.findByAccountID(accountID)
     for reconSpec <- reconSpecs
     do
       val unreconciledMovementsMap = getUnreconciledMovementsByRule(Map(), reconSpec)
 
-      val groupedMatches = ListBuffer[(mutable.HashSet[String], mutable.HashSet[String])]()
+      val groupedMatches   = ListBuffer[(mutable.HashSet[String], mutable.HashSet[String])]()
       var reconInsertCount = 0
 
       reconSpec.relationship match
@@ -74,15 +75,15 @@ class InMemoryReconciler(using
           }
 
         case OneToMany =>
-          val rule = reconSpec.rule()
-          val inMovements = unreconciledMovementsMap(reconSpec.inMovementSpecId)
+          val rule                  = reconSpec.rule()
+          val inMovements           = unreconciledMovementsMap(reconSpec.inMovementSpecId)
           var remainingOutMovements = unreconciledMovementsMap(reconSpec.outMovementSpecId).toBuffer
 
           // Phase 1: complete existing InProgress reconciliations
           val inProgressRecons = reconRepo.findInProgressBySpecId(reconSpec.id)
           for recon <- inProgressRecons do
             val reconMovements = movementRepo.findByReconciliationID(recon.id)
-            val inMovement = reconMovements.find(_.movementSpecId == reconSpec.inMovementSpecId)
+            val inMovement     = reconMovements.find(_.movementSpecId == reconSpec.inMovementSpecId)
             inMovement.foreach { inMov =>
               val matched = remainingOutMovements.filter(outMov => compareMovements(rule, inMov, outMov) == 0)
               remainingOutMovements = remainingOutMovements.filterNot(m => matched.exists(_.id == m.id))
@@ -91,6 +92,7 @@ class InMemoryReconciler(using
                 outMov.reconciliationId = Some(recon.id)
                 movementRepo.update(outMov)
                 recon.balance = recon.balance - outMov.amount
+                reconciledDelta = reconciledDelta + signedAmount(outMov, accountID)
 
               if matched.nonEmpty then
                 if recon.balance == Zero then recon.status = ReconciliationStatus.Final
@@ -99,12 +101,12 @@ class InMemoryReconciler(using
 
           // Phase 2: match remaining unreconciled movements
           val outMovements = remainingOutMovements.toSeq
-          var inIndex = 0
-          var outIndex = 0
+          var inIndex      = 0
+          var outIndex     = 0
           while inIndex < inMovements.size && outIndex < outMovements.size do
-            val inMovement = inMovements(inIndex)
+            val inMovement  = inMovements(inIndex)
             val outMovement = outMovements(outIndex)
-            val comparison = compareMovements(rule, inMovement, outMovement)
+            val comparison  = compareMovements(rule, inMovement, outMovement)
             if comparison == 0 then
               val matchedOuts = ListBuffer(outMovement)
               outIndex += 1
@@ -112,13 +114,13 @@ class InMemoryReconciler(using
                 matchedOuts += outMovements(outIndex)
                 outIndex += 1
 
-              val now = clock.now
+              val now     = clock.now
               var balance = inMovement.amount
-              for out <- matchedOuts do
-                balance = balance - out.amount
+              for out <- matchedOuts do balance = balance - out.amount
 
-              val status = if balance == Zero then ReconciliationStatus.Final
-                           else ReconciliationStatus.InProgress
+              val status =
+                if balance == Zero then ReconciliationStatus.Final
+                else ReconciliationStatus.InProgress
 
               val reconciliation = Reconciliation(
                 specId       = reconSpec.id,
@@ -134,15 +136,15 @@ class InMemoryReconciler(using
 
               inMovement.reconciliationId = Some(reconciliation.id)
               movementRepo.update(inMovement)
+              reconciledDelta = reconciledDelta + signedAmount(inMovement, accountID)
               for out <- matchedOuts do
                 out.reconciliationId = Some(reconciliation.id)
                 movementRepo.update(out)
+                reconciledDelta = reconciledDelta + signedAmount(out, accountID)
 
               inIndex += 1
-            else if comparison < 0 then
-              inIndex += 1
-            else
-              outIndex += 1
+            else if comparison < 0 then inIndex += 1
+            else outIndex += 1
         case ManyToOne  =>
         case ManyToMany =>
 
@@ -171,6 +173,7 @@ class InMemoryReconciler(using
           inMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(inMovement)
           matchBalance = matchBalance + inMovement.amount
+          reconciledDelta = reconciledDelta + signedAmount(inMovement, accountID)
 
         for outMatches <- matches._2
         do
@@ -183,8 +186,16 @@ class InMemoryReconciler(using
           movementRepo.update(outMovement)
           matchBalance           = matchBalance - outMovement.amount
           reconciliation.balance = reconciliation.balance + matchBalance
+          reconciledDelta = reconciledDelta + signedAmount(outMovement, accountID)
 
       reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
+
+    val account = accountRepo.findById(accountID).getOrElse(
+      throw NotFoundError(s"account $accountID not found")
+    )
+    account.reconciledBalance   = account.reconciledBalance + reconciledDelta
+    account.unreconciledBalance = account.unreconciledBalance - reconciledDelta
+    accountRepo.update(account)
 
     eventStore.publishEvent(AccountReconciled(accountID = accountID))
 
@@ -192,6 +203,9 @@ class InMemoryReconciler(using
       reconciliationSpecInsertCount = reconciliationSpecInsertCount.toMap,
       processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond
     )
+
+  private def signedAmount(movement: Movement, accountID: ID): Money =
+    if movement.inAccountId == accountID then movement.amount else -movement.amount
 
   /**
    * Compares two movements based on the rule argument. If the rule is a collection (AND, OR) then

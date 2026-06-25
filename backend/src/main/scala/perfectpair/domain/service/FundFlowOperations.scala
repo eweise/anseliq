@@ -57,6 +57,14 @@ class FundFlowOperations(using
     )
     movementRepo.insert(movement)
 
+    inAccount.balance             = inAccount.balance + amount
+    inAccount.unreconciledBalance = inAccount.unreconciledBalance + amount
+    accountRepo.update(inAccount)
+
+    outAccount.balance             = outAccount.balance - amount
+    outAccount.unreconciledBalance = outAccount.unreconciledBalance - amount
+    accountRepo.update(outAccount)
+
   def createAccount(payload: AccountPayload): Txn[AccountPayload] =
     val newAccount = Account(
       name       = payload.name,
