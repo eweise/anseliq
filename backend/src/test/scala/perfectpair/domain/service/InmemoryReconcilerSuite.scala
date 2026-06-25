@@ -72,6 +72,13 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         assertEquals(recons1.head.status, ReconciliationStatus.InProgress)
         assertEquals(recons1.head.balance, BigDecimal(100))
 
+        // Account should reflect partial reconciliation
+        // In movement: +300 on recon account, Out movements: -100, -100 on recon account
+        // Reconciled: +300 (in) + -100 -100 (out) = 100, Unreconciled: 0
+        val acct1 = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(acct1.reconciledBalance, BigDecimal(100))
+        assertEquals(acct1.unreconciledBalance, BigDecimal(0))
+
         // Post the final "out" movement of 100
         ops.postAmount(data.reportToRecon, 100, referenceID = createID(), Map("id" -> keyID))
 
@@ -81,6 +88,11 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         assertEquals(recons2.size, 1)
         assertEquals(recons2.head.status, ReconciliationStatus.Final)
         assertEquals(recons2.head.balance, BigDecimal(0))
+
+        // Account should be fully reconciled: +300 -100 -100 -100 = 0
+        val acct2 = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(acct2.reconciledBalance, BigDecimal(0))
+        assertEquals(acct2.unreconciledBalance, BigDecimal(0))
 
         // All movements should be reconciled
         val unreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
@@ -106,6 +118,12 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         val noUnreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assert(noUnreconciled.isEmpty)
 
+        // 3 pairs reconciled: each pair is +1000 (in) -1000 (out) = 0 net
+        val acct1 = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(acct1.reconciledBalance, BigDecimal(0))
+        assertEquals(acct1.unreconciledBalance, BigDecimal(0))
+        assertEquals(acct1.balance, BigDecimal(0))
+
         ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
         ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
         ops.postAmount(data.reportToRecon, 1000, referenceID  = createID(), Map("id" -> createID().toString))
@@ -113,3 +131,9 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         reconciler.reconcileAccount(data.reconAccount.id)
         val unreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assertEquals(unreconciled.size, 3)
+
+        // 3 unmatched movements: +1000, +1000 (in), -1000 (out) = +1000 unreconciled
+        val acct2 = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(acct2.reconciledBalance, BigDecimal(0))
+        assertEquals(acct2.unreconciledBalance, BigDecimal(1000))
+        assertEquals(acct2.balance, BigDecimal(1000))
