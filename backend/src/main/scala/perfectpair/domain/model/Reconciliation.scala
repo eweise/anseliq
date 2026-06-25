@@ -1,7 +1,7 @@
 package perfectpair.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.ID
+import perfectpair.common.model.model.{ID, Money}
 import perfectpair.domain.model.ReconciliationStatus.Final
 
 import java.time.OffsetDateTime
@@ -17,7 +17,8 @@ case class Reconciliation(
   specId:        ID,
   appliedRules:  String                 = "",
   description:   String                 = "",
-  status:        ReconciliationStatus   = Final,
+  var status:    ReconciliationStatus   = Final,
+  var balance:   Money                  = 0,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec

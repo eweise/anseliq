@@ -16,14 +16,16 @@ create table recon.fund_flow_config
 
 create table recon.account
 (
-    id           uuid primary key,
-    fund_flow_id uuid                                  not null references recon.fund_flow_config (id) ON DELETE CASCADE,
-    name         text                                  not null,
-    balance      numeric(15, 2),
-    is_recon     bool,
-    properties   jsonb,
-    created_at   timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at   timestamptz default CURRENT_TIMESTAMP not null
+    id                   uuid primary key,
+    fund_flow_id         uuid           not null references recon.fund_flow_config (id) ON DELETE CASCADE,
+    name                 text           not null,
+    balance              numeric(15, 2) not null default 0,
+    reconciled_balance   numeric(15, 2) not null default 0,
+    unreconciled_balance numeric(15, 2) not null default 0,
+    is_recon             bool           not null,
+    properties           jsonb,
+    created_at           timestamptz             default CURRENT_TIMESTAMP not null,
+    updated_at           timestamptz             default CURRENT_TIMESTAMP not null
 );
 
 CREATE INDEX account_props_index
@@ -60,6 +62,7 @@ create table recon.reconciliation
     spec_id       uuid                                  not null REFERENCES recon.reconciliation_spec (id),
     description   text,
     applied_rules text,
+    balance       numeric(15, 2)                        not null default 0,
     status        text                                  not null,
     created_at    timestamptz default CURRENT_TIMESTAMP not null,
     updated_at    timestamptz default CURRENT_TIMESTAMP not null

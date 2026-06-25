@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.model.{Movement, MovementSpec, createID}
+import perfectpair.domain.model.{Movement, MovementSpec, Relationship, ReconciliationSpec, ReconciliationStatus, createID}
 import perfectpair.domain.port.driven.Txn
 import perfectpair.testing.rollBackOnly
 
@@ -35,6 +35,56 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
     data.movementRepo.insert(m)
     m
 
+
+  test("OneToMany partial reconciliation completes across multiple runs"):
+    transact(transactor):
+      rollBackOnly:
+        val data: DataSetup = DataSetup()
+        import data.given
+        val ops = FundFlowOperations()
+
+        given clock: ClockService = ClockServiceLive()
+
+        // Override the reconSpec to use OneToMany
+        val oneToManySpec = ReconciliationSpec(
+          accountId         = data.reconAccount.id,
+          ruleJson          = upickle.write(data.rule),
+          relationship      = Relationship.OneToMany,
+          inMovementSpecId  = data.journalToRecon.id,
+          outMovementSpecId = data.reportToRecon.id
+        )
+        data.reconSpecRepo.delete(data.reconSpec)
+        data.reconSpecRepo.insert(oneToManySpec)
+
+        val keyID = createID().toString
+
+        // Post one "in" movement of 300 and two "out" movements of 100 each
+        ops.postAmount(data.journalToRecon, 300, referenceID = createID(), Map("id" -> keyID))
+        ops.postAmount(data.reportToRecon, 100, referenceID  = createID(), Map("id" -> keyID))
+        ops.postAmount(data.reportToRecon, 100, referenceID  = createID(), Map("id" -> keyID))
+
+        val reconciler = InMemoryReconciler()
+
+        // First reconciliation — should be InProgress with balance 100
+        reconciler.reconcileAccount(data.reconAccount.id)
+        val recons1 = data.reconRepo.findByReconSpecID(oneToManySpec.id)
+        assertEquals(recons1.size, 1)
+        assertEquals(recons1.head.status, ReconciliationStatus.InProgress)
+        assertEquals(recons1.head.balance, BigDecimal(100))
+
+        // Post the final "out" movement of 100
+        ops.postAmount(data.reportToRecon, 100, referenceID = createID(), Map("id" -> keyID))
+
+        // Second reconciliation — should complete to Final with balance 0
+        reconciler.reconcileAccount(data.reconAccount.id)
+        val recons2 = data.reconRepo.findByReconSpecID(oneToManySpec.id)
+        assertEquals(recons2.size, 1)
+        assertEquals(recons2.head.status, ReconciliationStatus.Final)
+        assertEquals(recons2.head.balance, BigDecimal(0))
+
+        // All movements should be reconciled
+        val unreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
+        assert(unreconciled.isEmpty)
 
   test("Post Amount balances and Reconcile"):
     transact(transactor):

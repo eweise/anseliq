@@ -2,7 +2,7 @@ package perfectpair.domain.service
 
 import perfectpair.common.model.*
 import perfectpair.common.model.Direction.{IN, OUT}
-import perfectpair.common.model.model.ID
+import perfectpair.common.model.model.{ID, Zero}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
 import perfectpair.domain.port.driven.*
@@ -41,17 +41,17 @@ class InMemoryReconciler(using
     val reconSpecs = reconSpecRepo.findByAccountID(accountID)
     for reconSpec <- reconSpecs
     do
-      val movementsMap = getMovementsByRule(Map(), reconSpec)
+      val unreconciledMovementsMap = getUnreconciledMovementsByRule(Map(), reconSpec)
 
-      // build a mapping of the two sets of
       val groupedMatches = ListBuffer[(mutable.HashSet[String], mutable.HashSet[String])]()
+      var reconInsertCount = 0
 
       reconSpec.relationship match
         case OneToOne =>
           val rule = reconSpec.rule()
 
-          val inMovements  = movementsMap(reconSpec.inMovementSpecId)
-          val outMovements = movementsMap(reconSpec.outMovementSpecId)
+          val inMovements  = unreconciledMovementsMap(reconSpec.inMovementSpecId)
+          val outMovements = unreconciledMovementsMap(reconSpec.outMovementSpecId)
 
           // find matches
           var inIndex  = 0
@@ -73,80 +73,121 @@ class InMemoryReconciler(using
                 outIndex += 1
           }
 
-        // The IN side is always the One
-        // the OUT side is always the Many
         case OneToMany =>
           val rule = reconSpec.rule()
+          val inMovements = unreconciledMovementsMap(reconSpec.inMovementSpecId)
+          var remainingOutMovements = unreconciledMovementsMap(reconSpec.outMovementSpecId).toBuffer
 
-          val inMovements  = movementsMap(reconSpec.inMovementSpecId)
-          val outMovements = movementsMap(reconSpec.outMovementSpecId)
+          // Phase 1: complete existing InProgress reconciliations
+          val inProgressRecons = reconRepo.findInProgressBySpecId(reconSpec.id)
+          for recon <- inProgressRecons do
+            val reconMovements = movementRepo.findByReconciliationID(recon.id)
+            val inMovement = reconMovements.find(_.movementSpecId == reconSpec.inMovementSpecId)
+            inMovement.foreach { inMov =>
+              val matched = remainingOutMovements.filter(outMov => compareMovements(rule, inMov, outMov) == 0)
+              remainingOutMovements = remainingOutMovements.filterNot(m => matched.exists(_.id == m.id))
 
-          // find matches
-          var inIndex        = 0
-          var outIndex       = 0
-          var inMovementSet  = new mutable.HashSet[String]()
-          var outMovementSet = new mutable.HashSet[String]()
-          groupedMatches.append((inMovementSet, outMovementSet))
-          while (inIndex < inMovements.size && outIndex < outMovements.size) {
-            val inMovement              = inMovements(inIndex)
-            val outMovement             = outMovements(outIndex)
-            val comparison              = compareMovements(rule, inMovement, outMovement)
-            var previousComparisonFound = false
-            comparison match
-              case 0 =>
-                inMovementSet.add(inMovement.id.toString)
-                outMovementSet.add(outMovement.id.toString)
+              for outMov <- matched do
+                outMov.reconciliationId = Some(recon.id)
+                movementRepo.update(outMov)
+                recon.balance = recon.balance - outMov.amount
+
+              if matched.nonEmpty then
+                if recon.balance == Zero then recon.status = ReconciliationStatus.Final
+                reconRepo.update(recon)
+            }
+
+          // Phase 2: match remaining unreconciled movements
+          val outMovements = remainingOutMovements.toSeq
+          var inIndex = 0
+          var outIndex = 0
+          while inIndex < inMovements.size && outIndex < outMovements.size do
+            val inMovement = inMovements(inIndex)
+            val outMovement = outMovements(outIndex)
+            val comparison = compareMovements(rule, inMovement, outMovement)
+            if comparison == 0 then
+              val matchedOuts = ListBuffer(outMovement)
+              outIndex += 1
+              while outIndex < outMovements.size && compareMovements(rule, inMovement, outMovements(outIndex)) == 0 do
+                matchedOuts += outMovements(outIndex)
                 outIndex += 1
-                previousComparisonFound = true
-              case _ =>
-                if comparison < 0 then inIndex += 1 else outIndex += 1
-                if previousComparisonFound then
-                  inMovementSet  = mutable.HashSet[String]()
-                  outMovementSet = mutable.HashSet[String]()
-                  groupedMatches.append((inMovementSet, outMovementSet))
-                  previousComparisonFound = false
-          }
+
+              val now = clock.now
+              var balance = inMovement.amount
+              for out <- matchedOuts do
+                balance = balance - out.amount
+
+              val status = if balance == Zero then ReconciliationStatus.Final
+                           else ReconciliationStatus.InProgress
+
+              val reconciliation = Reconciliation(
+                specId       = reconSpec.id,
+                appliedRules = rule.sql,
+                description  = "",
+                status       = status,
+                balance      = balance,
+                createdAt    = Some(now),
+                updatedAt    = Some(now)
+              )
+              reconRepo.insert(reconciliation)
+              reconInsertCount += 1
+
+              inMovement.reconciliationId = Some(reconciliation.id)
+              movementRepo.update(inMovement)
+              for out <- matchedOuts do
+                out.reconciliationId = Some(reconciliation.id)
+                movementRepo.update(out)
+
+              inIndex += 1
+            else if comparison < 0 then
+              inIndex += 1
+            else
+              outIndex += 1
         case ManyToOne  =>
         case ManyToMany =>
 
-      // Create reconciliations from matches
-      var reconInsertCount = 0
-      for aMatch <- groupedMatches
+      // Create reconciliations from matches (used by OneToOne)
+      for matches <- groupedMatches
       do
         val now = clock.now
         val reconciliation = Reconciliation(
           specId       = reconSpec.id,
           appliedRules = reconSpec.rule().sql,
-          description  = "need a description. probably equality matcher",
+          description  = "",
           createdAt    = Some(now),
           updatedAt    = Some(now)
         )
         reconRepo.insert(reconciliation)
         reconInsertCount += 1
 
-        for inMatch <- aMatch._1
+        var matchBalance = Zero
+        for inMatches <- matches._1
         do
           val inMovement = movementRepo
-            .findById(UUID.fromString(inMatch))
+            .findById(UUID.fromString(inMatches))
             .getOrElse(
-              throw NotFoundError(s"inMovement ${inMatch} not found")
+              throw NotFoundError(s"inMovement ${inMatches} not found")
             )
           inMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(inMovement)
+          matchBalance = matchBalance + inMovement.amount
 
-        for outMatch <- aMatch._2
+        for outMatches <- matches._2
         do
           val outMovement = movementRepo
-            .findById(UUID.fromString(outMatch))
+            .findById(UUID.fromString(outMatches))
             .getOrElse(
-              throw NotFoundError(s"outMovement ${outMatch} not found")
+              throw NotFoundError(s"outMovement ${outMatches} not found")
             )
           outMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(outMovement)
-          reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
+          matchBalance           = matchBalance - outMovement.amount
+          reconciliation.balance = reconciliation.balance + matchBalance
+
+      reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
 
     eventStore.publishEvent(AccountReconciled(accountID = accountID))
-    
+
     ReconciliationResult(
       reconciliationSpecInsertCount = reconciliationSpecInsertCount.toMap,
       processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond
@@ -180,13 +221,13 @@ class InMemoryReconciler(using
         }
       case _ => ??? // todo implement me
 
-  private def getMovementsByRule(
+  private def getUnreconciledMovementsByRule(
     movementSpecs: Map[ID, Seq[Movement]],
     reconSpec:     ReconciliationSpec
   ): Txn[Map[ID, Seq[Movement]]] =
     var msMap        = movementSpecs
-    var inMovements  = getMovements(reconSpec.inMovementSpecId)
-    var outMovements = getMovements(reconSpec.outMovementSpecId)
+    var inMovements  = getUnreconciledMovements(reconSpec.inMovementSpecId)
+    var outMovements = getUnreconciledMovements(reconSpec.outMovementSpecId)
 
     val inComparables = getComparableForAttributes(Seq(), reconSpec.rule(), IN)
     inMovements = doSort(inComparables, inMovements)
@@ -234,7 +275,7 @@ class InMemoryReconciler(using
           case OUT => am.outKey
         comparables :+ comparator
 
-  private def getMovements(movementSpecID: ID): Txn[Seq[Movement]] = {
+  private def getUnreconciledMovements(movementSpecID: ID): Txn[Seq[Movement]] = {
     val movementSpec = movementSpecRepo.findById(movementSpecID).ErrIfNotFound("movementSpec", movementSpecID)
     movementRepo.findUnReconciledByMovementSpec(movementSpec.id)
   }
