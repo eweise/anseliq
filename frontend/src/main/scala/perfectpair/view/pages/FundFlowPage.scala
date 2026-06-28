@@ -2,7 +2,13 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, FundFlowSummaryViewPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import perfectpair.common.model.{
+  AccountPayload,
+  FundFlowPayload,
+  FundFlowSummaryViewPayload,
+  MovementSpecPayload,
+  ReconciliationSpecPayload
+}
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
@@ -12,6 +18,8 @@ import upickle.default.*
 import scala.collection.mutable
 
 object FundFlowPage:
+
+  private val activeTab = Var("Account")
 
   private val boxW      = 140
   private val boxH      = 52
@@ -29,7 +37,6 @@ object FundFlowPage:
   private def renderPage(ff: FundFlowPayload): HtmlElement =
     val ffId              = ff.id.getOrElse("")
     val state             = Var(State())
-    val activeTab         = Var("Account")
     val configureReconBus = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
     val reconcileBus      = EventBus[String]()
@@ -137,14 +144,34 @@ object FundFlowPage:
             div(
               child <-- state.signal.map { s =>
                 Table.create(
-                  Seq("Name", "Balance", "Unreconciled Count", "", "", "", ""),
+                  Seq(
+                    "Name",
+                    "Is Recon?",
+                    "Cash Balance",
+                    "Reconciled Balance",
+                    "Unreconciled Balance",
+                    "Unreconciled Count",
+                    "",
+                    "",
+                    "",
+                    ""
+                  ),
                   s.accounts.sortBy(_.name).map { account =>
-                    val accountId        = account.id.getOrElse("")
-                    val status           = s.reconcileStatuses.getOrElse(accountId, ReconcileStatus.Idle)
-                    val unreconCount     = s.unreconciledCounts.getOrElse(accountId, 0)
+                    val accountId    = account.id.getOrElse("")
+                    val status       = s.reconcileStatuses.getOrElse(accountId, ReconcileStatus.Idle)
+                    val unreconCount = s.unreconciledCounts.getOrElse(accountId, 0)
                     Seq(
-                      span(account.name),
+                      span(cls := "inline-block w-40", account.name),
+                      span(if account.isRecon then "Recon" else ""),
                       span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
+                      span(
+                        cls := "text-right w-full inline-block",
+                        if (account.isRecon) then f"$$${account.reconciledBalance}%.2f" else ""
+                      ),
+                      span(
+                        cls := "text-right w-full inline-block",
+                        if (account.isRecon) then f"$$${account.unreconciledBalance}%.2f" else ""
+                      ),
                       span(cls := "text-right w-full inline-block", unreconCount.toString),
                       if account.isRecon then
                         Buttons.textButton("Recon Specs", Observer[Unit](_ => Nav.toReconSpecs(accountId)))
@@ -228,7 +255,7 @@ object FundFlowPage:
     val accountMenu = s.selectedAccount.flatMap { selected =>
       selected.id.flatMap { id =>
         posOf.get(id).map { (x, y) =>
-          renderAccountMenu(s, selected, ff, x, y + boxH + 4, configureReconBus, state)
+          renderAccountMenu(s, selected, ff, x, y + boxH + 4, configureReconBus, deleteSpecBus, state)
         }
       }
     }.getOrElse(div())
@@ -259,6 +286,7 @@ object FundFlowPage:
     x:                 Int,
     y:                 Int,
     configureReconBus: EventBus[AccountPayload],
+    deleteSpecBus:     EventBus[MovementSpecPayload],
     state:             Var[State]
   ): HtmlElement =
     val editBtn = button(
@@ -282,23 +310,49 @@ object FundFlowPage:
         )
       else div()
 
+    val selectedId = selected.id.getOrElse("")
+    val linkedIds = s.movementSpecs.flatMap { ms =>
+      if ms.outAccountId == selectedId then Some(ms.inAccountId)
+      else if ms.inAccountId == selectedId then Some(ms.outAccountId)
+      else None
+    }.toSet
+
     val linkButtons = s.accounts
-      .filter(_.id != selected.id)
+      .filter(a => a.id != selected.id && !a.id.exists(linkedIds.contains))
       .map { target =>
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
             state.update(_.copy(selectedAccount = None))
-            AppState.editMovementSpec.set(None)
+            AppState.editMovementSpec.set(Some(MovementSpecPayload(
+              outAccountId = selected.id.getOrElse(""),
+              inAccountId  = target.id.getOrElse("")
+            )))
             Nav.toMaintainMovementSpec()
           },
           s"Link to ${target.name}"
         )
       }
 
+    val unlinkButtons = s.movementSpecs
+      .filter(ms => ms.outAccountId == selectedId || ms.inAccountId == selectedId)
+      .flatMap { ms =>
+        val otherId = if ms.outAccountId == selectedId then ms.inAccountId else ms.outAccountId
+        s.accounts.find(_.id.contains(otherId)).map { other =>
+          button(
+            cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600",
+            onClick --> { _ =>
+              state.update(_.copy(selectedAccount = None))
+              deleteSpecBus.emit(ms)
+            },
+            s"Unlink from ${other.name}"
+          )
+        }
+      }
+
     div(
       styleAttr := s"position:absolute;left:${x}px;top:${y}px;z-index:30;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);min-width:160px;overflow:hidden"
-    ).amend((editBtn +: reconBtn +: linkButtons)*)
+    ).amend((editBtn +: reconBtn +: linkButtons ++: unlinkButtons)*)
 
   private def renderMovementSpecMenu(
     spec:          MovementSpecPayload,

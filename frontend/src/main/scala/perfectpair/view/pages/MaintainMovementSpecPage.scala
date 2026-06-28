@@ -52,19 +52,23 @@ object MaintainMovementSpecPage:
         h2(cls := "text-xl font-medium text-md-on-surface mb-7", "Movement Spec"),
         Form.field("name", "Name", initial.name, v => spec.update(_.copy(name = v))),
         child <-- accounts.signal.map { accs =>
+          val selectableAccs =
+            if initial.id.isEmpty && initial.inAccountId.nonEmpty && initial.outAccountId.nonEmpty then
+              accs.filter(a => a.id.contains(initial.inAccountId) || a.id.contains(initial.outAccountId))
+            else accs
           div(
             accountSelect(
               "inAccountId",
               "In Account",
               initial.inAccountId,
-              accs,
+              selectableAccs,
               v => spec.update(_.copy(inAccountId = v))
             ),
             accountSelect(
               "outAccountId",
               "Out Account",
               initial.outAccountId,
-              accs,
+              selectableAccs,
               v => spec.update(_.copy(outAccountId = v))
             )
           )

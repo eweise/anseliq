@@ -125,12 +125,14 @@ case class AccountSummaryViewPayload(
 ) derives ReadWriter
 
 case class AccountPayload(
-  id:         Option[String] = None,
-  name:       String         = "",
-  fundFlowId: String         = "",
-  properties: Properties     = Map(),
-  isRecon:    Boolean        = false,
-  balance:    Money          = 0
+  id:                  Option[String] = None,
+  name:                String         = "",
+  fundFlowId:          String         = "",
+  properties:          Properties     = Map(),
+  isRecon:             Boolean        = false,
+  balance:             Money          = 0,
+  reconciledBalance:   Money          = 0,
+  unreconciledBalance: Money          = 0
 ) extends CanValidate
     derives ReadWriter:
   override def validate(): ValidationErrors =
