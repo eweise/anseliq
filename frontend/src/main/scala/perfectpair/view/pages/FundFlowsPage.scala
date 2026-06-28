@@ -2,7 +2,7 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{DisplayName, FundFlowPayload}
+import perfectpair.common.model.FundFlowPayload
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
@@ -41,17 +41,17 @@ object FundFlowsPage:
             Seq("Name", "Created At", "Updated At", "", ""),
             ffs.sortBy(_.name).map { ff =>
               Seq(
-                span(ff.name),
+                a(
+                  href := "/components/fund-flow",
+                  cls  := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors duration-200",
+                  onClick --> { e =>
+                    e.preventDefault()
+                    Nav.toFundFlow(ff)
+                  },
+                  ff.name
+                ),
                 span(ff.createdAt.map(ViewHelper.formatDateTime).getOrElse("")),
-                span(ff.updatedAt.map(ViewHelper.formatDateTime).getOrElse("")),
-                Buttons.textButton(DisplayName.accounts, Observer[Unit](_ => Nav.toAccounts(ff))),
-                Buttons.textButton(
-                  "Edit",
-                  Observer[Unit](_ =>
-                    AppState.activeFundFlow.set(Some(ff))
-                    Nav.toMaintainFundFlow()
-                  )
-                )
+                span(ff.updatedAt.map(ViewHelper.formatDateTime).getOrElse(""))
               )
             }
           )

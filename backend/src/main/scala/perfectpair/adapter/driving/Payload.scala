@@ -1,5 +1,6 @@
 package perfectpair.adapter.driving
 
+import perfectpair.common.model.model.Money
 import perfectpair.common.model.{ReconRelationship as ComRel, *}
 import perfectpair.domain.model.{Relationship as Rel, *}
 import upickle.default.read as upickleRead
@@ -44,12 +45,14 @@ object Payload:
 
   def accountPayloadFromDomain(account: Account): AccountPayload =
     AccountPayload(
-      fundFlowId = account.fundFlowId.toString,
-      id         = Some(account.id.toString),
-      name       = account.name,
-      isRecon    = account.isRecon,
-      properties = account.properties.props,
-      balance    = account.balance
+      fundFlowId          = account.fundFlowId.toString,
+      id                  = Some(account.id.toString),
+      name                = account.name,
+      isRecon             = account.isRecon,
+      balance             = account.balance,
+      reconciledBalance   = account.reconciledBalance,
+      unreconciledBalance = account.unreconciledBalance,
+      properties          = account.properties.props
     )
 
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
