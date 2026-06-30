@@ -2,13 +2,7 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{
-  AccountPayload,
-  FundFlowPayload,
-  FundFlowSummaryViewPayload,
-  MovementSpecPayload,
-  ReconciliationSpecPayload
-}
+import perfectpair.common.model.*
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
@@ -172,14 +166,7 @@ object FundFlowPage:
                         cls := "text-right w-full inline-block",
                         if (account.isRecon) then f"$$${account.unreconciledBalance}%.2f" else ""
                       ),
-                      span(cls := "text-right w-full inline-block", unreconCount.toString),
-                      if account.isRecon then
-                        Buttons.textButton("Recon Specs", Observer[Unit](_ => Nav.toReconSpecs(accountId)))
-                      else div(),
-                      if account.isRecon then
-                        Buttons.textButton("Reconcile", Observer[Unit](_ => reconcileBus.emit(accountId)))
-                      else div(),
-                      statusBadge(status)
+                      span(cls := "text-right w-full inline-block", unreconCount.toString)
                     )
                   }
                 )
@@ -189,12 +176,6 @@ object FundFlowPage:
         }
       )
     )
-
-  private def statusBadge(status: ReconcileStatus): HtmlElement = status match
-    case ReconcileStatus.Idle       => span()
-    case ReconcileStatus.InProgress => span(cls := "text-xs text-blue-500", "Running...")
-    case ReconcileStatus.Success    => span(cls := "text-xs text-green-600 font-medium", "Done")
-    case ReconcileStatus.Failed(e)  => span(cls := "text-xs text-red-500", s"Error: $e")
 
   private def tabButton(label: String, tabId: String, activeTab: Var[String]): HtmlElement =
     button(
@@ -324,10 +305,14 @@ object FundFlowPage:
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
             state.update(_.copy(selectedAccount = None))
-            AppState.editMovementSpec.set(Some(MovementSpecPayload(
-              outAccountId = selected.id.getOrElse(""),
-              inAccountId  = target.id.getOrElse("")
-            )))
+            AppState.editMovementSpec.set(
+              Some(
+                MovementSpecPayload(
+                  outAccountId = selected.id.getOrElse(""),
+                  inAccountId  = target.id.getOrElse("")
+                )
+              )
+            )
             Nav.toMaintainMovementSpec()
           },
           s"Link to ${target.name}"
