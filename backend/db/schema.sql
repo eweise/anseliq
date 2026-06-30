@@ -71,16 +71,18 @@ create table recon.reconciliation
 
 create table recon.movement
 (
-    id                uuid primary key,
-    reference_id      uuid                                  not null UNIQUE,
-    in_account_id     uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    out_account_id    uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    movement_spec_id  uuid                                  not null REFERENCES recon.movement_spec (id),
-    properties        jsonb,
-    amount            numeric(15, 2)                        not null,
-    reconciliation_id uuid REFERENCES recon.reconciliation (id) ON DELETE CASCADE,
-    created_at        timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at        timestamptz default CURRENT_TIMESTAMP not null
+    id                  uuid primary key,
+    reference_id        uuid                                  not null UNIQUE,
+    in_account_id       uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    in_account_balance  numeric(15, 2)                        not null,
+    out_account_id      uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_balance numeric(15, 2)                        not null,
+    movement_spec_id    uuid                                  not null REFERENCES recon.movement_spec (id),
+    properties          jsonb,
+    amount              numeric(15, 2)                        not null,
+    reconciliation_id   uuid REFERENCES recon.reconciliation (id) ON DELETE CASCADE,
+    created_at          timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at          timestamptz default CURRENT_TIMESTAMP not null
 );
 
 CREATE TABLE recon.file_inventory

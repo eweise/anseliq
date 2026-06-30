@@ -66,14 +66,14 @@ class Ingestor(using
       .map(someParsedLine =>
         val parsedLine = someParsedLine.get
         val movement = Movement(
-          inAccountId    = movementSpec.inAccountId,
-          outAccountId   = movementSpec.outAccountId,
-          amount         = parsedLine.maybeAmount.getOrElse(BigDecimal(0)),
-          properties     = JSONBProps(parsedLine.props),
-          movementSpecId = movementSpec.id
+          inAccountId       = movementSpec.inAccountId,
+          inAccountBalance  = inAccount.balance,
+          outAccountId      = movementSpec.outAccountId,
+          outAccountBalance = outAccount.balance,
+          amount            = parsedLine.maybeAmount.getOrElse(BigDecimal(0)),
+          properties        = JSONBProps(parsedLine.props),
+          movementSpecId    = movementSpec.id
         )
-        inAccount.balance += movement.amount
-        outAccount.balance -= movement.amount
         movement
       )
       .grouped(100)
