@@ -105,3 +105,40 @@ class IngestorSuite extends munit.FunSuite:
           stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, clockService.now)))
         )
         assert(result.isEmpty)
+
+  test("ingest sets inAccountBalance and outAccountBalance from account balances"):
+    val ingestor = Ingestor()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        // journalToRecon: inAccountId = reconAccount, outAccountId = journalAccount
+        data.reconAccount.balance   = BigDecimal(500)
+        data.journalAccount.balance = BigDecimal(300)
+        accountRepo.update(data.reconAccount)
+        accountRepo.update(data.journalAccount)
+        val is = ByteArrayInputStream("value1, value2, value3".getBytes(UTF_8))
+        ingestor.ingest(data.journalToRecon, is)
+        val movements = movementRepo.findAll
+        assert(movements.nonEmpty)
+        assert(movements.forall(_.inAccountBalance == BigDecimal(500)))
+        assert(movements.forall(_.outAccountBalance == BigDecimal(300)))
+
+  test("ingest captures same balance snapshot for all movements in a batch"):
+    val ingestor = Ingestor()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        data.reconAccount.balance   = BigDecimal(1000)
+        data.journalAccount.balance = BigDecimal(200)
+        accountRepo.update(data.reconAccount)
+        accountRepo.update(data.journalAccount)
+        val is = ByteArrayInputStream(
+          """row1, b, c
+            |row2, e, f
+            |row3, h, i""".stripMargin.getBytes(UTF_8)
+        )
+        ingestor.ingest(data.journalToRecon, is)
+        val movements = movementRepo.findAll
+        assertEquals(movements.size, 3)
+        assert(movements.forall(_.inAccountBalance == BigDecimal(1000)))
+        assert(movements.forall(_.outAccountBalance == BigDecimal(200)))

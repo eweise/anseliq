@@ -47,16 +47,6 @@ class FundFlowOperations(using
       .getOrElse:
         throw NotFoundError(s"no account found for ${movementSpec.outAccountId}")
 
-    val movement = Movement(
-      referenceId    = referenceID,
-      amount         = amount,
-      movementSpecId = movementSpec.id,
-      properties     = JSONBProps(properties),
-      inAccountId    = inAccount.id,
-      outAccountId   = outAccount.id
-    )
-    movementRepo.insert(movement)
-
     inAccount.balance             = inAccount.balance + amount
     inAccount.unreconciledBalance = inAccount.unreconciledBalance + amount
     accountRepo.update(inAccount)
@@ -64,6 +54,18 @@ class FundFlowOperations(using
     outAccount.balance             = outAccount.balance - amount
     outAccount.unreconciledBalance = outAccount.unreconciledBalance - amount
     accountRepo.update(outAccount)
+
+    val movement = Movement(
+      referenceId       = referenceID,
+      amount            = amount,
+      movementSpecId    = movementSpec.id,
+      properties        = JSONBProps(properties),
+      inAccountId       = inAccount.id,
+      inAccountBalance  = inAccount.balance,
+      outAccountId      = outAccount.id,
+      outAccountBalance = outAccount.balance
+    )
+    movementRepo.insert(movement)
 
   def createAccount(payload: AccountPayload): Txn[AccountPayload] =
     val newAccount = Account(
@@ -98,16 +100,6 @@ class FundFlowOperations(using
 
     Payload.movementSpecPayloadFromDomain(spec)
 
-  private def updateAccountIsRecon(existing: MovementSpec): Txn[Unit] = {
-    var inAccount = accountRepo.findById(existing.inAccountId).ErrIfNotFound("account", existing.inAccountId)
-    inAccount = inAccount.copy(isRecon = accountRepo.isReconAccount(inAccount.id))
-    accountRepo.update(inAccount)
-
-    var outAccount = accountRepo.findById(existing.outAccountId).ErrIfNotFound("account", existing.outAccountId)
-    outAccount = outAccount.copy(isRecon = accountRepo.isReconAccount(outAccount.id))
-    accountRepo.update(outAccount)
-  }
-
   def updateMovementSpec(idStr: String, payload: MovementSpecPayload): Txn[MovementSpecPayload] =
     val id       = UUID.fromString(idStr)
     var existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
@@ -123,6 +115,16 @@ class FundFlowOperations(using
 
     Payload.movementSpecPayloadFromDomain(existing)
 
+  private def updateAccountIsRecon(existing: MovementSpec): Txn[Unit] = {
+    var inAccount = accountRepo.findById(existing.inAccountId).ErrIfNotFound("account", existing.inAccountId)
+    inAccount = inAccount.copy(isRecon = accountRepo.isReconAccount(inAccount.id))
+    accountRepo.update(inAccount)
+
+    var outAccount = accountRepo.findById(existing.outAccountId).ErrIfNotFound("account", existing.outAccountId)
+    outAccount = outAccount.copy(isRecon = accountRepo.isReconAccount(outAccount.id))
+    accountRepo.update(outAccount)
+  }
+
   def deleteMovementSpec(idStr: String): Txn[Unit] =
     val id       = UUID.fromString(idStr)
     val existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
@@ -134,7 +136,7 @@ class FundFlowOperations(using
       UUID.fromString(payload.accountId.getOrElse(throw IllegalArgumentException("Account ID is required")))
     val inMovementSpecId  = UUID.fromString(payload.inMovementSpecId)
     val outMovementSpecId = UUID.fromString(payload.outMovementSpecId)
-    val ruleJson = upickleWrite(payload.rule)
+    val ruleJson          = upickleWrite(payload.rule)
     println(s"[createReconSpec] payload.rule=${payload.rule} ruleJson=$ruleJson")
     val spec = ReconciliationSpec(
       accountId         = accountId,
