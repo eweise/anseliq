@@ -92,7 +92,7 @@ class InMemoryReconciler(using
                 outMov.reconciliationId = Some(recon.id)
                 movementRepo.update(outMov)
                 recon.balance = recon.balance - outMov.amount
-                reconciledDelta = reconciledDelta + signedAmount(outMov, accountID)
+                reconciledDelta = reconciledDelta + outMov.signedAmountFor(accountID)
 
               if matched.nonEmpty then
                 if recon.balance == Zero then recon.status = ReconciliationStatus.Final
@@ -136,11 +136,11 @@ class InMemoryReconciler(using
 
               inMovement.reconciliationId = Some(reconciliation.id)
               movementRepo.update(inMovement)
-              reconciledDelta = reconciledDelta + signedAmount(inMovement, accountID)
+              reconciledDelta = reconciledDelta + inMovement.signedAmountFor(accountID)
               for out <- matchedOuts do
                 out.reconciliationId = Some(reconciliation.id)
                 movementRepo.update(out)
-                reconciledDelta = reconciledDelta + signedAmount(out, accountID)
+                reconciledDelta = reconciledDelta + out.signedAmountFor(accountID)
 
               inIndex += 1
             else if comparison < 0 then inIndex += 1
@@ -173,7 +173,7 @@ class InMemoryReconciler(using
           inMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(inMovement)
           matchBalance = matchBalance + inMovement.amount
-          reconciledDelta = reconciledDelta + signedAmount(inMovement, accountID)
+          reconciledDelta = reconciledDelta + inMovement.signedAmountFor(accountID)
 
         for outMatches <- matches._2
         do
@@ -186,7 +186,7 @@ class InMemoryReconciler(using
           movementRepo.update(outMovement)
           matchBalance           = matchBalance - outMovement.amount
           reconciliation.balance = reconciliation.balance + matchBalance
-          reconciledDelta = reconciledDelta + signedAmount(outMovement, accountID)
+          reconciledDelta = reconciledDelta + outMovement.signedAmountFor(accountID)
 
       reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
 
@@ -203,9 +203,6 @@ class InMemoryReconciler(using
       reconciliationSpecInsertCount = reconciliationSpecInsertCount.toMap,
       processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond
     )
-
-  private def signedAmount(movement: Movement, accountID: ID): Money =
-    if movement.inAccountId == accountID then movement.amount else -movement.amount
 
   /**
    * Compares two movements based on the rule argument. If the rule is a collection (AND, OR) then
