@@ -88,3 +88,14 @@ class ManualReconciler(using
     reconRepo.update(reconciliation)
 
     eventStore.publishEvent(ReconciliationVoided(reconciliationID = reconciliationId))
+
+  def writeOff(reconciliationId: ID, reason: String): Txn[Unit] =
+    val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
+    if reconciliation.status != ReconciliationStatus.InProgress then
+      throw IllegalStateError(s"reconciliation $reconciliationId is not InProgress")
+
+    reconciliation.adjustmentReason = Some(reason)
+    reconciliation.status = ReconciliationStatus.Final
+    reconRepo.update(reconciliation)
+
+    eventStore.publishEvent(ReconciliationWrittenOff(reconciliationID = reconciliationId, reason = reason))
