@@ -40,6 +40,9 @@ object Nav:
   def toReconciliations(accountId: String): Unit =
     push(s"/components/accounts/$accountId/reconciliations")
 
+  def toManualMatch(accountId: String): Unit =
+    push(s"/components/accounts/$accountId/manual-match")
+
   def toMaintainMovementSpec(): Unit =
     push("/components/maintain-movement-spec")
 
