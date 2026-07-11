@@ -117,7 +117,18 @@ object MaintainReconSpecPage:
         div(
           cls := "flex justify-between mt-6",
           child <-- spec.signal.map { s =>
-            if s.id.isDefined then Buttons.textButton("Delete", Observer[Unit](_ => deleteBus.emit(())))
+            if s.id.isDefined then
+              div(
+                cls := "flex gap-2",
+                Buttons.textButton(
+                  "Reconciliations",
+                  Observer[Unit](_ =>
+                    AppState.editReconSpec.set(Some(s))
+                    Nav.toReconciliations(accountId)
+                  )
+                ),
+                Buttons.textButton("Delete", Observer[Unit](_ => deleteBus.emit(())))
+              )
             else div()
           },
           div(
