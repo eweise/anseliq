@@ -91,13 +91,15 @@ object Payload:
 
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
     ReconciliationPayload(
-      id           = recon.id.toString,
-      reconSpecId  = recon.specId.toString,
-      appliedRules = recon.appliedRules,
-      description  = recon.description,
-      status       = recon.status.toString,
-      createdAt    = recon.createdAt.get,
-      updatedAt    = recon.updatedAt.get
+      id               = recon.id.toString,
+      reconSpecId      = recon.specId.toString,
+      appliedRules     = recon.appliedRules,
+      description      = recon.description,
+      status           = recon.status.toString,
+      balance          = recon.balance,
+      adjustmentReason = recon.adjustmentReason,
+      createdAt        = recon.createdAt.get,
+      updatedAt        = recon.updatedAt.get
     )
 
   def eventPayloadFromDomain(state: EventState): EventPayload =
