@@ -58,14 +58,15 @@ create table recon.reconciliation_spec
 
 create table recon.reconciliation
 (
-    id            uuid primary key,
-    spec_id       uuid                                  not null REFERENCES recon.reconciliation_spec (id),
-    description   text,
-    applied_rules text,
-    balance       numeric(15, 2)                        not null default 0,
-    status        text                                  not null,
-    created_at    timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at    timestamptz default CURRENT_TIMESTAMP not null
+    id                uuid primary key,
+    spec_id           uuid                                  not null REFERENCES recon.reconciliation_spec (id),
+    description       text,
+    applied_rules     text,
+    balance           numeric(15, 2)                        not null default 0,
+    status            text                                  not null,
+    adjustment_reason text,
+    created_at        timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at        timestamptz default CURRENT_TIMESTAMP not null
 );
 
 

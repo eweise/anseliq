@@ -9,7 +9,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum ReconciliationStatus derives DbCodec:
-  case InProgress, Final
+  case InProgress, Final, Voided
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Reconciliation(
@@ -19,6 +19,7 @@ case class Reconciliation(
   description:   String                 = "",
   var status:    ReconciliationStatus   = Final,
   var balance:   Money                  = 0,
+  var adjustmentReason: Option[String]  = None,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec
