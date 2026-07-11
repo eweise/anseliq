@@ -23,6 +23,7 @@ object Routes:
           path("accounts" / segment / "maintain-recon-spec")(accountId => MaintainReconSpecPage(accountId)),
           path("accounts" / segment / "ingest")(accountId => IngestPage(accountId)),
           path("accounts" / segment / "reconciliations")(accountId => ReconciliationsPage(accountId)),
+          path("accounts" / segment / "manual-match")(accountId => ManualMatchPage(accountId)),
           path("accounts")(AccountsPage()),
           path("maintain-movement-spec")(MaintainMovementSpecPage()),
           path("jobs")(JobsPage()),
