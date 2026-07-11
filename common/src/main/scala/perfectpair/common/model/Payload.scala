@@ -104,14 +104,24 @@ case class ReconciliationSpecPayload(
 ) derives ReadWriter
 
 case class ReconciliationPayload(
-  id:            String,
-  reconSpecId:   String,
-  appliedRules:  String,
-  description:   String,
-  status:        String,
-  var createdAt: OffsetDateTime,
-  var updatedAt: OffsetDateTime
+  id:               String,
+  reconSpecId:      String,
+  appliedRules:     String,
+  description:      String,
+  status:           String,
+  balance:          Money,
+  adjustmentReason: Option[String],
+  var createdAt:    OffsetDateTime,
+  var updatedAt:    OffsetDateTime
 ) derives ReadWriter
+
+case class ManualMatchRequest(
+  inMovementIds:  Seq[String],
+  outMovementIds: Seq[String],
+  description:    String = "Manual match"
+) derives ReadWriter
+
+case class WriteOffRequest(reason: String) derives ReadWriter
 
 case class FundFlowSummaryViewPayload(
   fundFlow: FundFlowPayload,

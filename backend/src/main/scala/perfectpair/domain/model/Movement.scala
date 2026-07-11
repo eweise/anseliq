@@ -25,5 +25,8 @@ case class Movement(
 
   def props = this.properties.props
 
+  def signedAmountFor(accountID: ID): Money =
+    if inAccountId == accountID then amount else -amount
+
 object Movement:
   val Table = TableInfo[Movement, Movement, UUID]
