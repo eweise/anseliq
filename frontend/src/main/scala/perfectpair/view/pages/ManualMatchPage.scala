@@ -42,7 +42,6 @@ object ManualMatchPage:
       if selected.contains(id) then selected - id else selected + id
 
     div(
-      onMountCallback { _ => loadBus.emit(()) },
       loadBus.events.flatMapSwitch(_ => loadMovements()) --> {
         case (Right(ins), Right(outs)) =>
           state.update(_.copy(inMovements = ins, outMovements = outs, selectedIn = Set.empty, selectedOut = Set.empty))
@@ -66,6 +65,7 @@ object ManualMatchPage:
           loadBus.emit(())
         case Left(e) => AppState.globalError.set(Some(e))
       },
+      onMountCallback { _ => loadBus.emit(()) },
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center w-full max-w-4xl",
