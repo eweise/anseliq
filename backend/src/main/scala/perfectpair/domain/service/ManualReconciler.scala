@@ -9,7 +9,8 @@ class ManualReconciler(using
   val movementRepo:  MovementRepo,
   val reconRepo:     ReconciliationRepo,
   val reconSpecRepo: ReconciliationSpecRepo,
-  val eventStore:    EventStore
+  val eventStore:    EventStore,
+  val clock:         ClockService
 ):
 
   def matchMovements(
@@ -41,12 +42,15 @@ class ManualReconciler(using
     val balance = inMovements.map(_.amount).sum - outMovements.map(_.amount).sum
     val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
 
+    val now = clock.now
     val reconciliation = Reconciliation(
       specId       = reconSpecId,
       appliedRules = "manual",
       description  = description,
       status       = status,
-      balance      = balance
+      balance      = balance,
+      createdAt    = Some(now),
+      updatedAt    = Some(now)
     )
     reconRepo.insert(reconciliation)
 

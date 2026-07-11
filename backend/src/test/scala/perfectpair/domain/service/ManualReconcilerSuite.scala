@@ -48,6 +48,8 @@ class ManualReconcilerSuite extends munit.FunSuite:
 
         assertEquals(recon.status, ReconciliationStatus.Final)
         assertEquals(recon.balance, BigDecimal(0))
+        assert(recon.createdAt.isDefined, "createdAt must be set on the returned reconciliation, not just the persisted row")
+        assert(recon.updatedAt.isDefined, "updatedAt must be set on the returned reconciliation, not just the persisted row")
 
         val updatedIn  = data.movementRepo.findById(inMovement.id).get
         val updatedOut = data.movementRepo.findById(outMovement.id).get
