@@ -39,6 +39,7 @@ object Main:
     given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
     given ingestor:           Ingestor               = Ingestor()
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
+    given manualReconciler:   ManualReconciler       = ManualReconciler()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
 

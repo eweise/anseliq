@@ -29,6 +29,7 @@ class App(using
   jobManager:         JobManager,
   ingestor:           Ingestor,
   reconciler:         InMemoryReconciler,
+  manualReconciler:   ManualReconciler,
   jobRepo:            JobRepo,
   reconSpecRepo:      ReconciliationSpecRepo,
   eventRepo:          EventRepo
@@ -204,6 +205,31 @@ class App(using
         )
       }
     write("reconciled")
+
+  @cask.route(s"${HttpPath.reconSpec}/:id/manual-match", methods = HttpCmd.POST)
+  def manualMatch(id: String, request: cask.Request): String =
+    val payload = read[ManualMatchRequest](request.text())
+    transact(transactor):
+      val reconciliation = manualReconciler.matchMovements(
+        UUID.fromString(id),
+        payload.inMovementIds.map(UUID.fromString),
+        payload.outMovementIds.map(UUID.fromString),
+        payload.description
+      )
+      write(Payload.reconFromDomain(reconciliation))
+
+  @cask.route(s"${HttpPath.reconciliation}/:id/unmatch", methods = HttpCmd.POST)
+  def unmatchReconciliation(id: String): String =
+    transact(transactor):
+      manualReconciler.unmatch(UUID.fromString(id))
+    write("voided")
+
+  @cask.route(s"${HttpPath.reconciliation}/:id/write-off", methods = HttpCmd.POST)
+  def writeOffReconciliation(id: String, request: cask.Request): String =
+    val payload = read[WriteOffRequest](request.text())
+    transact(transactor):
+      manualReconciler.writeOff(UUID.fromString(id), payload.reason)
+    write("written-off")
 
   // Jobs
   @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)
