@@ -65,12 +65,19 @@ class Ingestor(using
       .filter(_.nonEmpty) // get rid of lines that we don't want
       .map(someParsedLine =>
         val parsedLine = someParsedLine.get
+        val amount     = parsedLine.maybeAmount.getOrElse(BigDecimal(0))
+
+        inAccount.balance             = inAccount.balance + amount
+        inAccount.unreconciledBalance = inAccount.unreconciledBalance + amount
+        outAccount.balance             = outAccount.balance - amount
+        outAccount.unreconciledBalance = outAccount.unreconciledBalance - amount
+
         val movement = Movement(
           inAccountId       = movementSpec.inAccountId,
           inAccountBalance  = inAccount.balance,
           outAccountId      = movementSpec.outAccountId,
           outAccountBalance = outAccount.balance,
-          amount            = parsedLine.maybeAmount.getOrElse(BigDecimal(0)),
+          amount            = amount,
           properties        = JSONBProps(parsedLine.props),
           movementSpecId    = movementSpec.id
         )

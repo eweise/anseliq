@@ -3,6 +3,7 @@ package perfectpair.domain.service
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
+import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.{FileInventory, FileInventoryStatus, FileSourceEntry, S3FileSourceEntry}
 import perfectpair.domain.port.driven.*
@@ -105,6 +106,79 @@ class IngestorSuite extends munit.FunSuite:
           stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, clockService.now)))
         )
         assert(result.isEmpty)
+
+  private def movementSpecWithAmountField(spec: perfectpair.domain.model.MovementSpec) =
+    spec.copy(
+      dataSourceJson = upickle.write(
+        DataSourceConfig(
+          parserConfig = CSVParserConfig(
+            hasHeader         = false,
+            columnDefinitions = Map(1 -> "field1"),
+            amountField       = Some(0)
+          )
+        )
+      )
+    )
+
+  test("ingest advances account balance and unreconciledBalance by the movement amount"):
+    val ingestor = Ingestor()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        data.reconAccount.balance   = BigDecimal(500)
+        data.journalAccount.balance = BigDecimal(300)
+        accountRepo.update(data.reconAccount)
+        accountRepo.update(data.journalAccount)
+        val spec = movementSpecWithAmountField(data.journalToRecon)
+        val is   = ByteArrayInputStream("100,rowA".getBytes(UTF_8))
+        ingestor.ingest(spec, is)
+
+        val updatedInAccount  = accountRepo.findById(data.reconAccount.id).get
+        val updatedOutAccount = accountRepo.findById(data.journalAccount.id).get
+        assertEquals(updatedInAccount.balance, BigDecimal(600))
+        assertEquals(updatedInAccount.unreconciledBalance, BigDecimal(100))
+        assertEquals(updatedOutAccount.balance, BigDecimal(200))
+        assertEquals(updatedOutAccount.unreconciledBalance, BigDecimal(-100))
+
+        val movement = movementRepo.findAll.head
+        assertEquals(movement.inAccountBalance, BigDecimal(600))
+        assertEquals(movement.outAccountBalance, BigDecimal(200))
+
+  test("ingest computes a running balance per movement across a batch"):
+    val ingestor = Ingestor()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        data.reconAccount.balance   = BigDecimal(500)
+        data.journalAccount.balance = BigDecimal(300)
+        accountRepo.update(data.reconAccount)
+        accountRepo.update(data.journalAccount)
+        val spec = movementSpecWithAmountField(data.journalToRecon)
+        val is = ByteArrayInputStream(
+          """100,rowA
+            |50,rowB
+            |25,rowC""".stripMargin.getBytes(UTF_8)
+        )
+        ingestor.ingest(spec, is)
+
+        val movements = movementRepo.findAll
+        assertEquals(movements.size, 3)
+
+        def byAmount(amount: BigDecimal) = movements.find(_.amount == amount).get
+
+        assertEquals(byAmount(100).inAccountBalance, BigDecimal(600))
+        assertEquals(byAmount(100).outAccountBalance, BigDecimal(200))
+        assertEquals(byAmount(50).inAccountBalance, BigDecimal(650))
+        assertEquals(byAmount(50).outAccountBalance, BigDecimal(150))
+        assertEquals(byAmount(25).inAccountBalance, BigDecimal(675))
+        assertEquals(byAmount(25).outAccountBalance, BigDecimal(125))
+
+        val updatedInAccount  = accountRepo.findById(data.reconAccount.id).get
+        val updatedOutAccount = accountRepo.findById(data.journalAccount.id).get
+        assertEquals(updatedInAccount.balance, BigDecimal(675))
+        assertEquals(updatedInAccount.unreconciledBalance, BigDecimal(175))
+        assertEquals(updatedOutAccount.balance, BigDecimal(125))
+        assertEquals(updatedOutAccount.unreconciledBalance, BigDecimal(-175))
 
   test("ingest sets inAccountBalance and outAccountBalance from account balances"):
     val ingestor = Ingestor()
