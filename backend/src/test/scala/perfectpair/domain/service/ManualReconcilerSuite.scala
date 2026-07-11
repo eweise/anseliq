@@ -166,3 +166,80 @@ class ManualReconcilerSuite extends munit.FunSuite:
         manualReconciler.unmatch(recon.id)
         intercept[IllegalStateError]:
           manualReconciler.unmatch(recon.id)
+
+  test("writeOff closes an InProgress reconciliation with a reason and leaves account balances untouched"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 90)
+        val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "residual match")
+        assertEquals(recon.status, ReconciliationStatus.InProgress)
+
+        val beforeWriteOff = data.accountRepo.findById(data.reconAccount.id).get
+
+        manualReconciler.writeOff(recon.id, "bank fee")
+
+        val closed = data.reconRepo.findById(recon.id).get
+        assertEquals(closed.status, ReconciliationStatus.Final)
+        assertEquals(closed.adjustmentReason, Some("bank fee"))
+        assertEquals(closed.balance, BigDecimal(10)) // residual preserved as the historical write-off amount
+
+        val afterWriteOff = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(afterWriteOff.reconciledBalance, beforeWriteOff.reconciledBalance)
+        assertEquals(afterWriteOff.unreconciledBalance, beforeWriteOff.unreconciledBalance)
+
+  test("writeOff on a Final reconciliation errors"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 100)
+        val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "clean match")
+        assertEquals(recon.status, ReconciliationStatus.Final)
+
+        intercept[IllegalStateError]:
+          manualReconciler.writeOff(recon.id, "should not work")
+
+  test("writeOff on a Voided reconciliation errors"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 100)
+        val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "voided match")
+        manualReconciler.unmatch(recon.id)
+
+        intercept[IllegalStateError]:
+          manualReconciler.writeOff(recon.id, "should not work")
+
+  test("after writeOff, InMemoryReconciler no longer tries to top up the reconciliation"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler    = ManualReconciler()
+        val automaticReconciler = InMemoryReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 90)
+        val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "will write off")
+        manualReconciler.writeOff(recon.id, "bank fee")
+
+        // A fresh unmatched out-movement that would otherwise top up this reconciliation's residual
+        createMovement(data.reportToRecon, 10)
+
+        automaticReconciler.reconcileAccount(data.reconAccount.id)
+
+        val stillClosed = data.reconRepo.findById(recon.id).get
+        assertEquals(stillClosed.status, ReconciliationStatus.Final)
+        assertEquals(stillClosed.balance, BigDecimal(10))
