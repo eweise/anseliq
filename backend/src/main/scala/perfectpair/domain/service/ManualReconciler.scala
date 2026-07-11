@@ -64,3 +64,27 @@ class ManualReconciler(using
     eventStore.publishEvent(ReconciliationManuallyMatched(reconciliationID = reconciliation.id))
 
     reconciliation
+
+  def unmatch(reconciliationId: ID): Txn[Unit] =
+    val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
+    if reconciliation.status == ReconciliationStatus.Voided then
+      throw IllegalStateError(s"reconciliation $reconciliationId is already voided")
+
+    val reconSpec = reconSpecRepo.findById(reconciliation.specId).ErrIfNotFound("reconciliation spec", reconciliation.specId)
+    val movements  = movementRepo.findByReconciliationID(reconciliationId)
+
+    var reconciledDelta: Money = Zero
+    for m <- movements do
+      reconciledDelta = reconciledDelta + m.signedAmountFor(reconSpec.accountId)
+      m.reconciliationId = None
+      movementRepo.update(m)
+
+    val account = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
+    account.reconciledBalance   = account.reconciledBalance - reconciledDelta
+    account.unreconciledBalance = account.unreconciledBalance + reconciledDelta
+    accountRepo.update(account)
+
+    reconciliation.status = ReconciliationStatus.Voided
+    reconRepo.update(reconciliation)
+
+    eventStore.publishEvent(ReconciliationVoided(reconciliationID = reconciliationId))

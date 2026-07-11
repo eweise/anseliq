@@ -123,3 +123,46 @@ class ManualReconcilerSuite extends munit.FunSuite:
 
         intercept[IllegalArgumentError]:
           manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(), "no out movements")
+
+  test("unmatch reverses account balances and returns movements to unreconciled"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 60)
+        val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "to undo")
+
+        val beforeUnmatch = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(beforeUnmatch.reconciledBalance, BigDecimal(40)) // +100 -60
+
+        manualReconciler.unmatch(recon.id)
+
+        val voided = data.reconRepo.findById(recon.id).get
+        assertEquals(voided.status, ReconciliationStatus.Voided)
+
+        val updatedIn  = data.movementRepo.findById(inMovement.id).get
+        val updatedOut = data.movementRepo.findById(outMovement.id).get
+        assertEquals(updatedIn.reconciliationId, None)
+        assertEquals(updatedOut.reconciliationId, None)
+
+        val afterUnmatch = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(afterUnmatch.reconciledBalance, BigDecimal(0))
+        assertEquals(afterUnmatch.unreconciledBalance, BigDecimal(0))
+
+  test("unmatch on an already-voided reconciliation errors"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 100)
+        val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "double undo")
+
+        manualReconciler.unmatch(recon.id)
+        intercept[IllegalStateError]:
+          manualReconciler.unmatch(recon.id)
