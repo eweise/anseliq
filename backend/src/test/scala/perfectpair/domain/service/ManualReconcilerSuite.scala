@@ -1,0 +1,125 @@
+package perfectpair.domain.service
+
+import com.augustnagro.magnum.{Transactor, transact}
+import com.typesafe.config.ConfigFactory
+import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
+import perfectpair.domain.DataSetup
+import perfectpair.domain.model.helper.JSONBProps
+import perfectpair.domain.model.{IllegalArgumentError, IllegalStateError, Movement, MovementSpec, ReconciliationStatus}
+import perfectpair.domain.port.driven.Txn
+import perfectpair.testing.rollBackOnly
+
+import javax.sql.DataSource
+
+class ManualReconcilerSuite extends munit.FunSuite:
+  given transactor: Transactor = Transactor(dataSource)
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given clockSvc:   ClockService = ClockServiceLive()
+  given eventRepo:  EventRepoLive()
+  given eventStore: EventStore = EventStore()
+
+  def createMovement(movementSpec: MovementSpec, amount: BigDecimal)(using data: DataSetup): Txn[Movement] =
+    val m = Movement(
+      inAccountId    = movementSpec.inAccountId,
+      outAccountId   = movementSpec.outAccountId,
+      movementSpecId = movementSpec.id,
+      amount         = amount,
+      properties     = JSONBProps(Map())
+    )
+    data.movementRepo.insert(m)
+    m
+
+  test("matchMovements with equal totals creates a Final reconciliation and links both movements"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 100)
+
+        val recon = manualReconciler.matchMovements(
+          data.reconSpec.id,
+          Seq(inMovement.id),
+          Seq(outMovement.id),
+          "test match"
+        )
+
+        assertEquals(recon.status, ReconciliationStatus.Final)
+        assertEquals(recon.balance, BigDecimal(0))
+
+        val updatedIn  = data.movementRepo.findById(inMovement.id).get
+        val updatedOut = data.movementRepo.findById(outMovement.id).get
+        assertEquals(updatedIn.reconciliationId, Some(recon.id))
+        assertEquals(updatedOut.reconciliationId, Some(recon.id))
+
+        val account = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(account.reconciledBalance, BigDecimal(0))     // +100 (in) -100 (out) = 0
+        assertEquals(account.unreconciledBalance, BigDecimal(0))
+
+  test("matchMovements with unequal totals creates an InProgress reconciliation with the residual balance"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement   = createMovement(data.journalToRecon, 300)
+        val outMovement1 = createMovement(data.reportToRecon, 100)
+        val outMovement2 = createMovement(data.reportToRecon, 100)
+
+        val recon = manualReconciler.matchMovements(
+          data.reconSpec.id,
+          Seq(inMovement.id),
+          Seq(outMovement1.id, outMovement2.id),
+          "test partial match"
+        )
+
+        assertEquals(recon.status, ReconciliationStatus.InProgress)
+        assertEquals(recon.balance, BigDecimal(100))
+
+        val account = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(account.reconciledBalance, BigDecimal(100))   // +300 (in) -100 -100 (out) = 100
+        assertEquals(account.unreconciledBalance, BigDecimal(-100))
+
+  test("matchMovements rejects a movement that is already reconciled"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement  = createMovement(data.journalToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 100)
+
+        manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "first match")
+
+        val anotherOut = createMovement(data.reportToRecon, 100)
+        intercept[IllegalArgumentError]:
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(anotherOut.id), "second match")
+
+  test("matchMovements rejects a movement from the wrong movement spec"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val wrongSpecMovement = createMovement(data.reportToRecon, 100) // belongs to outMovementSpecId, passed as "in"
+        val outMovement       = createMovement(data.reportToRecon, 100)
+
+        intercept[IllegalArgumentError]:
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(wrongSpecMovement.id), Seq(outMovement.id), "bad spec")
+
+  test("matchMovements rejects an empty selection on either side"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val inMovement = createMovement(data.journalToRecon, 100)
+
+        intercept[IllegalArgumentError]:
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(), "no out movements")
