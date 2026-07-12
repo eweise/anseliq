@@ -75,7 +75,7 @@ object ManualMatchPage:
             h3(cls := "font-medium mb-2", "In Movements"),
             child <-- state.signal.map { s =>
               Table.create(
-                Seq("", "Reference ID", "Amount", "Properties"),
+                Seq("", "Reference ID", "Amount"),
                 s.inMovements.map(m =>
                   Seq(
                     input(
@@ -83,9 +83,8 @@ object ManualMatchPage:
                       checked <-- state.signal.map(_.selectedIn.contains(m.id)),
                       onClick.mapToUnit --> Observer[Unit](_ => state.update(st => st.copy(selectedIn = toggle(st.selectedIn, m.id))))
                     ),
-                    span(m.referenceId),
-                    span(m.amount.toString),
-                    propertiesCell(m, state)
+                    referenceIdCell(m, state),
+                    span(m.amount.toString)
                   )
                 )
               )
@@ -95,7 +94,7 @@ object ManualMatchPage:
             h3(cls := "font-medium mb-2", "Out Movements"),
             child <-- state.signal.map { s =>
               Table.create(
-                Seq("", "Reference ID", "Amount", "Properties"),
+                Seq("", "Reference ID", "Amount"),
                 s.outMovements.map(m =>
                   Seq(
                     input(
@@ -103,9 +102,8 @@ object ManualMatchPage:
                       checked <-- state.signal.map(_.selectedOut.contains(m.id)),
                       onClick.mapToUnit --> Observer[Unit](_ => state.update(st => st.copy(selectedOut = toggle(st.selectedOut, m.id))))
                     ),
-                    span(m.referenceId),
-                    span(m.amount.toString),
-                    propertiesCell(m, state)
+                    referenceIdCell(m, state),
+                    span(m.amount.toString)
                   )
                 )
               )
@@ -142,15 +140,19 @@ object ManualMatchPage:
   private def toggle(selected: Set[String], id: String): Set[String] =
     if selected.contains(id) then selected - id else selected + id
 
-  private def propertiesCell(m: MovementPayload, state: Var[State]): HtmlElement =
+  private def referenceIdCell(m: MovementPayload, state: Var[State]): HtmlElement =
     div(
-      button(
-        cls := "text-xs text-md-primary hover:underline",
-        typ := "button",
-        onClick.mapToUnit --> Observer[Unit](_ =>
-          state.update(st => st.copy(expandedProperties = toggle(st.expandedProperties, m.id)))
+      div(
+        cls := "flex items-center gap-1",
+        button(
+          cls := "text-xs w-4 text-md-primary hover:underline",
+          typ := "button",
+          onClick.mapToUnit --> Observer[Unit](_ =>
+            state.update(st => st.copy(expandedProperties = toggle(st.expandedProperties, m.id)))
+          ),
+          child.text <-- state.signal.map(s => if s.expandedProperties.contains(m.id) then "−" else "+")
         ),
-        child.text <-- state.signal.map(s => if s.expandedProperties.contains(m.id) then "▼ Properties" else "▶ Properties")
+        span(m.referenceId)
       ),
       child <-- state.signal.map { s =>
         if s.expandedProperties.contains(m.id) then
