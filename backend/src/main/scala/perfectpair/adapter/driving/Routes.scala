@@ -1,6 +1,7 @@
 package perfectpair.adapter.driving
 
 import com.augustnagro.magnum.*
+import com.typesafe.scalalogging.StrictLogging
 import perfectpair.common.http.HttpPath
 import perfectpair.common.model.*
 import perfectpair.domain.model.*
@@ -33,7 +34,8 @@ class App(using
   jobRepo:            JobRepo,
   reconSpecRepo:      ReconciliationSpecRepo,
   eventRepo:          EventRepo
-) extends cask.MainRoutes:
+) extends cask.MainRoutes,
+      StrictLogging:
 
   val prefixPath = "/api/v1"
   val loginPath  = s"$prefixPath / login"
@@ -252,7 +254,7 @@ class App(using
   def reconSpecsByaccountID(accountID: String): String =
     transact(transactor):
       val specs = reconSpecRepo.findByAccountID(UUID.fromString(accountID))
-      specs.foreach(s => println(s"[reconSpecsByaccountID] id=${s.id} ruleJson=${s.ruleJson} rule=${s.rule()}"))
+      specs.foreach(s => logger.debug(s"[reconSpecsByaccountID] id=${s.id} ruleJson=${s.ruleJson} rule=${s.rule()}"))
       val payload = specs.map(Payload.reconSpecPayloadFromDomain)
       write(payload)
 
@@ -319,5 +321,5 @@ class App(using
         )
       else delegate(ctx, Map.empty).map(response => response.copy(headers = response.headers ++ corsHeaders))
 
-  println("Initializing backend")
+  logger.info("Initializing backend")
   initialize()
