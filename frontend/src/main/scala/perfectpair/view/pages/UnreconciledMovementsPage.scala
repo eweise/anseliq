@@ -44,6 +44,7 @@ object UnreconciledMovementsPage:
           }
         ),
         Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
+        Buttons.textButton("Manual Match", Observer[Unit](_ => Nav.toManualMatch(accountId))),
         child <-- state.signal.map { s =>
           val nameById = s.accounts.flatMap(a => a.id.map(_ -> a.name)).toMap
           Table.create(
