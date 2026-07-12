@@ -1,6 +1,7 @@
 package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
+import com.typesafe.scalalogging.StrictLogging
 import ox.scheduling.{Schedule, repeat}
 import perfectpair.common.model.model.ID
 import perfectpair.common.model.{FileInventoryInfo, IngestionInfo, JobInfo, ReconciliationInfo}
@@ -11,7 +12,7 @@ import perfectpair.domain.port.driven.{JobRepo, Txn}
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
-class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSource):
+class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) extends StrictLogging:
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
     val jobId = submitJob(jobType, referenceID)
@@ -105,20 +106,21 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
           getNextAvailableJob(jobType)
         }
         jobOpt.foreach(fn)
-      catch case ex: Exception =>
-        println(s"Error polling for $jobType job, will retry in ${pollingSeconds}s: ${ex.getMessage}")
+      catch
+        case ex: Exception =>
+          logger.error(s"Error polling for $jobType job, will retry in ${pollingSeconds}s", ex)
     }
 
   def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =
-    jobRepo
-      .getNextJob(jobType)
-      .map(job =>
-        jobRepo.update(
-          job.copy(
-            jobStatus = InProgress,
-            updatedAt = Some(clock.now)
-          )
+    val job = jobRepo.getNextJob(jobType)
+    val results = job.map(job =>
+      jobRepo.update(
+        job.copy(
+          jobStatus = InProgress,
+          updatedAt = Some(clock.now)
         )
-        val found = jobRepo.findById(job.id).get
-        found
       )
+      val found = jobRepo.findById(job.id).get
+      found
+    )
+    results

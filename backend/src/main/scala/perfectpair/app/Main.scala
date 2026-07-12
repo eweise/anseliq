@@ -2,6 +2,7 @@ package perfectpair.app
 
 import com.augustnagro.magnum.*
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.Logger
 import ox.*
 import ox.scheduling.{Schedule, repeat}
 import perfectpair.adapter.driven.*
@@ -43,6 +44,7 @@ object Main:
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
 
+    val logger = Logger(getClass.getName)
     supervised:
 
       /**
@@ -68,12 +70,14 @@ object Main:
                   processingTimeSeconds       = reconcilationResult.processingTimeSeconds
                 )
                 jobManager.completeJob(job.id, jobInfo)
-            catch case ex: Exception => ex.printStackTrace()
+            catch
+              case ex: Exception =>
+                ex.printStackTrace()
+                throw ex
           }
         catch
           case ex: Exception =>
-            println("failed poll for Reconciliation job")
-            ex.printStackTrace()
+            logger.error("failed poll for Reconciliation job", ex)
 
       /**
        * INGESTION. Listens for New Files. If found then submits ingestion job
@@ -81,15 +85,15 @@ object Main:
       fork:
         try
           eventStore.consumeEvent(classOf[NewFileDetected], 5, 10): event =>
-            println(s"found NewFileDetected event: $event")
+            logger.info(s"found NewFileDetected event: $event")
             val fileInventory = fileInventoryRepo
               .findById(event.fileInventoryID)
               .ErrIfNotFound("FileInventory", event.fileInventoryID)
             jobManager.submitJob(Ingestion, fileInventory.id)
         catch
           case ex: Exception =>
-            println("failed eventStore.consumeEvent")
-            ex.printStackTrace()
+            logger.error("failed eventStore.consumeEvent", ex)
+            throw ex
 
       /**
        * INGESTION. Processes Ingestion jobs
@@ -97,14 +101,18 @@ object Main:
       fork:
         jobManager.pollForJob(JobType.Ingestion, 5): job =>
           transact(Transactor(dataSource = given_DataSource)):
-            val results = ingestor.ingestFileFromInventory(job.referenceId)
-            jobManager.completeJob(
-              job.id,
-              IngestionInfo( // fixme. should remove these info objects and use events instead
-                numberOfRecordsIngested = results.recordCount,
-                processingTimeSeconds   = results.ingestionTimeSeconds
+            try {
+              val results = ingestor.ingestFileFromInventory(job.referenceId)
+              jobManager.completeJob(
+                job.id,
+                IngestionInfo( // fixme. should remove these info objects and use events instead
+                  numberOfRecordsIngested = results.recordCount,
+                  processingTimeSeconds   = results.ingestionTimeSeconds
+                )
               )
-            )
+            } catch
+              case ex: Exception =>
+                throw new Exception(s"process ingestion jobs. job.referenceId = ${job.referenceId}", ex)
 
       /**
        * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs
@@ -112,7 +120,7 @@ object Main:
       fork:
         try
           eventStore.consumeEvent(classOf[MoneyMovementsIngested], 5, 10) { event =>
-            println(s"found ingestion job $event")
+            logger.info(s"found ingestion job $event")
             val movementSpec = movementSpecRepo
               .findById(event.movementSpecID)
               .ErrIfNotFound("movementSpec", event.movementSpecID)
@@ -137,7 +145,7 @@ object Main:
               jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
           catch
             case ex: Exception =>
-              println(s"Error submitting CreateFileInventory job, will retry in 1m: ${ex.getMessage}")
+              logger.error(s"Error submitting CreateFileInventory job, will retry in 1m", ex)
         }
 
       val s3FileSourceFactory = S3FileSourceFactory()
@@ -154,7 +162,7 @@ object Main:
               movementSpecRepo.findAll.foreach: spec =>
                 val s3FileSource = s3FileSourceFactory.createFileSource(spec.dataSourceConfig().connectionConfig)
                 val newFiles     = ingestor.detectAndQueue(spec.id, s3FileSource)
-                println(s"File inventory scan: queued ${newFiles.size} new S3 files")
+                logger.info(s"File inventory scan: queued ${newFiles.size} new S3 files")
                 filesQueued += newFiles.size
 
               jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = filesQueued))

@@ -28,7 +28,6 @@ class PopulateS3Buckets extends munit.FunSuite:
     s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
 
     val buckets = s3Client.listBuckets()
-    println(buckets)
 
     for i <- 0 until 10 do {
       var bankContents     = ""
@@ -58,4 +57,3 @@ class PopulateS3Buckets extends munit.FunSuite:
     }
 
     val objects = s3Client.listObjectsV2(ListObjectsV2Request.builder().bucket(bucket).build())
-    println(objects.contents())
