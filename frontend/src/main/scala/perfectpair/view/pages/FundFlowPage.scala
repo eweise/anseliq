@@ -154,6 +154,14 @@ object FundFlowPage:
                     val accountId    = account.id.getOrElse("")
                     val status       = s.reconcileStatuses.getOrElse(accountId, ReconcileStatus.Idle)
                     val unreconCount = s.unreconciledCounts.getOrElse(accountId, 0)
+                    val unreconCell =
+                      if account.isRecon then
+                        span(
+                          cls := "text-right w-full inline-block text-blue-600 hover:underline cursor-pointer",
+                          onClick --> (_ => Nav.toUnreconciledMovements(accountId)),
+                          unreconCount.toString
+                        )
+                      else span(cls := "text-right w-full inline-block", unreconCount.toString)
                     Seq(
                       span(cls := "inline-block w-40", account.name),
                       span(if account.isRecon then "Recon" else "Source"),
@@ -166,7 +174,7 @@ object FundFlowPage:
                         cls := "text-right w-full inline-block",
                         if (account.isRecon) then f"$$${account.unreconciledBalance}%.2f" else ""
                       ),
-                      span(cls := "text-right w-full inline-block", unreconCount.toString)
+                      unreconCell
                     )
                   }
                 )
