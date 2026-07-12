@@ -17,7 +17,7 @@ object Table:
         tbody(
           rows.map(row =>
             tr(cls := "bg-neutral-primary border-b border-default").amend(
-              row.map(col => td(cls := "px-6 py-4", col))*
+              row.map(col => td(cls := "px-6 py-4 align-top", col))*
             )
           )*
         )
