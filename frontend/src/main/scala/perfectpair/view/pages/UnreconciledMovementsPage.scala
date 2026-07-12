@@ -2,7 +2,7 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, MovementPayload, MovementSpecPayload}
+import perfectpair.common.model.{AccountPayload, MovementPayload}
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
@@ -16,11 +16,9 @@ object UnreconciledMovementsPage:
     movements: Seq[MovementPayload] = Seq.empty
   )
 
-  def apply(): HtmlElement =
-    val spec   = AppState.editMovementSpec.now().getOrElse(MovementSpecPayload())
-    val specId = spec.id.getOrElse("")
-    val ffId   = AppState.activeFundFlow.now().flatMap(_.id).getOrElse("")
-    val state  = Var(State())
+  def apply(accountId: String): HtmlElement =
+    val ffId  = AppState.activeFundFlow.now().flatMap(_.id).getOrElse("")
+    val state = Var(State())
 
     div(
       ApiClient
@@ -29,7 +27,7 @@ object UnreconciledMovementsPage:
         case Left(e)     => AppState.globalError.set(Some(e))
       },
       ApiClient.get[Seq[MovementPayload]](
-        HttpPath.url(s"${HttpPath.movements}/$specId/unreconciled"),
+        HttpPath.url(s"${HttpPath.account}/$accountId/unreconciled-movements"),
         SessionStore.token
       ) --> {
         case Right(ms) => state.update(_.copy(movements = ms))
@@ -38,7 +36,13 @@ object UnreconciledMovementsPage:
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center",
-        h2(cls := "text-2xl font-medium mb-6", s"${spec.name} — Unreconciled Movements"),
+        h2(
+          cls := "text-2xl font-medium mb-6",
+          child.text <-- state.signal.map { s =>
+            val name = s.accounts.find(_.id.contains(accountId)).map(_.name).getOrElse(accountId)
+            s"$name — Unreconciled Movements"
+          }
+        ),
         Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
         child <-- state.signal.map { s =>
           val nameById = s.accounts.flatMap(a => a.id.map(_ -> a.name)).toMap

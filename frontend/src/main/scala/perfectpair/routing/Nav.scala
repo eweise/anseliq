@@ -48,4 +48,5 @@ object Nav:
 
   def toJobs(): Unit = push("/components/jobs")
 
-  def toUnreconciledMovements(): Unit = push("/components/unreconciled-movements")
+  def toUnreconciledMovements(accountId: String): Unit =
+    push(s"/components/accounts/$accountId/unreconciled-movements")
