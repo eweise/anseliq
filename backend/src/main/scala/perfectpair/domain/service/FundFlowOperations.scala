@@ -1,5 +1,6 @@
 package perfectpair.domain.service
 
+import com.typesafe.scalalogging.StrictLogging
 import perfectpair.adapter.driving.Payload
 import perfectpair.common.model.model.{ID, Money, Properties}
 import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
@@ -16,7 +17,7 @@ class FundFlowOperations(using
   val movementRepo:       MovementRepo,
   val movementSpecRepo:   MovementSpecRepo,
   val reconSpecRepo:      ReconciliationSpecRepo
-):
+) extends StrictLogging:
 
   def createFundFlow(payload: FundFlowPayload): Txn[FundFlowPayload] =
     val fundFlow = Payload.fundFlowPayloadToDomain(payload)
@@ -100,6 +101,16 @@ class FundFlowOperations(using
 
     Payload.movementSpecPayloadFromDomain(spec)
 
+  private def updateAccountIsRecon(existing: MovementSpec): Txn[Unit] = {
+    var inAccount = accountRepo.findById(existing.inAccountId).ErrIfNotFound("account", existing.inAccountId)
+    inAccount = inAccount.copy(isRecon = accountRepo.isReconAccount(inAccount.id))
+    accountRepo.update(inAccount)
+
+    var outAccount = accountRepo.findById(existing.outAccountId).ErrIfNotFound("account", existing.outAccountId)
+    outAccount = outAccount.copy(isRecon = accountRepo.isReconAccount(outAccount.id))
+    accountRepo.update(outAccount)
+  }
+
   def updateMovementSpec(idStr: String, payload: MovementSpecPayload): Txn[MovementSpecPayload] =
     val id       = UUID.fromString(idStr)
     var existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
@@ -115,16 +126,6 @@ class FundFlowOperations(using
 
     Payload.movementSpecPayloadFromDomain(existing)
 
-  private def updateAccountIsRecon(existing: MovementSpec): Txn[Unit] = {
-    var inAccount = accountRepo.findById(existing.inAccountId).ErrIfNotFound("account", existing.inAccountId)
-    inAccount = inAccount.copy(isRecon = accountRepo.isReconAccount(inAccount.id))
-    accountRepo.update(inAccount)
-
-    var outAccount = accountRepo.findById(existing.outAccountId).ErrIfNotFound("account", existing.outAccountId)
-    outAccount = outAccount.copy(isRecon = accountRepo.isReconAccount(outAccount.id))
-    accountRepo.update(outAccount)
-  }
-
   def deleteMovementSpec(idStr: String): Txn[Unit] =
     val id       = UUID.fromString(idStr)
     val existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
@@ -137,7 +138,7 @@ class FundFlowOperations(using
     val inMovementSpecId  = UUID.fromString(payload.inMovementSpecId)
     val outMovementSpecId = UUID.fromString(payload.outMovementSpecId)
     val ruleJson          = upickleWrite(payload.rule)
-    println(s"[createReconSpec] payload.rule=${payload.rule} ruleJson=$ruleJson")
+    logger.debug(s"[createReconSpec] payload.rule=${payload.rule} ruleJson=$ruleJson")
     val spec = ReconciliationSpec(
       accountId         = accountId,
       agingLimit        = payload.agingLimit,
@@ -147,14 +148,14 @@ class FundFlowOperations(using
       ruleJson          = ruleJson
     )
     reconSpecRepo.insert(spec)
-    println(s"[createReconSpec] spec.rule()=${spec.rule()}")
+    logger.debug(s"[createReconSpec] spec.rule()=${spec.rule()}")
     Payload.reconSpecPayloadFromDomain(spec)
 
   def updateReconSpec(idStr: String, payload: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
     val id       = UUID.fromString(idStr)
     var existing = reconSpecRepo.findById(id).ErrIfNotFound("reconciliation spec", id)
     val ruleJson = upickleWrite(payload.rule)
-    println(s"[updateReconSpec] payload.rule=${payload.rule} ruleJson=$ruleJson")
+    logger.debug(s"[updateReconSpec] payload.rule=${payload.rule} ruleJson=$ruleJson")
     existing = existing.copy(
       agingLimit        = payload.agingLimit,
       relationship      = Payload.reconRelationshipToDomain(payload.relationship),
@@ -163,7 +164,7 @@ class FundFlowOperations(using
       ruleJson          = ruleJson
     )
     reconSpecRepo.update(existing)
-    println(s"[updateReconSpec] existing.rule()=${existing.rule()}")
+    logger.debug(s"[updateReconSpec] existing.rule()=${existing.rule()}")
     Payload.reconSpecPayloadFromDomain(existing)
 
   def deleteReconSpec(idStr: String): Txn[Unit] =
