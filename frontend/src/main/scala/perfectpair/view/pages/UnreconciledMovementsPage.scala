@@ -2,7 +2,7 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, MovementPayload}
+import perfectpair.common.model.{AccountPayload, MovementPayload, ReconciliationSpecPayload}
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
@@ -12,8 +12,9 @@ import upickle.default.*
 object UnreconciledMovementsPage:
 
   case class State(
-    accounts:  Seq[AccountPayload]  = Seq.empty,
-    movements: Seq[MovementPayload] = Seq.empty
+    accounts:   Seq[AccountPayload]           = Seq.empty,
+    movements:  Seq[MovementPayload]          = Seq.empty,
+    reconSpecs: Seq[ReconciliationSpecPayload] = Seq.empty
   )
 
   def apply(accountId: String): HtmlElement =
@@ -33,6 +34,13 @@ object UnreconciledMovementsPage:
         case Right(ms) => state.update(_.copy(movements = ms))
         case Left(e)   => AppState.globalError.set(Some(e))
       },
+      ApiClient.get[Seq[ReconciliationSpecPayload]](
+        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+        SessionStore.token
+      ) --> {
+        case Right(specs) => state.update(_.copy(reconSpecs = specs))
+        case Left(e)      => AppState.globalError.set(Some(e))
+      },
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center",
@@ -44,7 +52,13 @@ object UnreconciledMovementsPage:
           }
         ),
         Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
-        Buttons.textButton("Manual Match", Observer[Unit](_ => Nav.toManualMatch(accountId))),
+        Buttons.textButton(
+          "Manual Match",
+          Observer[Unit](_ =>
+            AppState.editReconSpec.set(state.now().reconSpecs.headOption)
+            Nav.toManualMatch(accountId)
+          )
+        ),
         child <-- state.signal.map { s =>
           val nameById = s.accounts.flatMap(a => a.id.map(_ -> a.name)).toMap
           Table.create(
