@@ -12,12 +12,13 @@ import upickle.default.*
 object ManualMatchPage:
 
   case class State(
-    inMovements:  Seq[MovementPayload] = Seq.empty,
-    outMovements: Seq[MovementPayload] = Seq.empty,
-    selectedIn:   Set[String]          = Set.empty,
-    selectedOut:  Set[String]          = Set.empty,
-    description:  String               = "Manual match",
-    message:      Option[String]       = None
+    inMovements:        Seq[MovementPayload] = Seq.empty,
+    outMovements:       Seq[MovementPayload] = Seq.empty,
+    selectedIn:         Set[String]          = Set.empty,
+    selectedOut:        Set[String]          = Set.empty,
+    expandedProperties: Set[String]          = Set.empty,
+    description:        String               = "Manual match",
+    message:            Option[String]       = None
   )
 
   def apply(accountId: String): HtmlElement =
@@ -37,9 +38,6 @@ object ManualMatchPage:
           SessionStore.token
         )
       )
-
-    def toggle(selected: Set[String], id: String): Set[String] =
-      if selected.contains(id) then selected - id else selected + id
 
     div(
       loadBus.events.flatMapSwitch(_ => loadMovements()) --> {
@@ -77,7 +75,7 @@ object ManualMatchPage:
             h3(cls := "font-medium mb-2", "In Movements"),
             child <-- state.signal.map { s =>
               Table.create(
-                Seq("", "Reference ID", "Amount"),
+                Seq("", "Reference ID", "Amount", "Properties"),
                 s.inMovements.map(m =>
                   Seq(
                     input(
@@ -86,7 +84,8 @@ object ManualMatchPage:
                       onClick.mapToUnit --> Observer[Unit](_ => state.update(st => st.copy(selectedIn = toggle(st.selectedIn, m.id))))
                     ),
                     span(m.referenceId),
-                    span(m.amount.toString)
+                    span(m.amount.toString),
+                    propertiesCell(m, state)
                   )
                 )
               )
@@ -96,7 +95,7 @@ object ManualMatchPage:
             h3(cls := "font-medium mb-2", "Out Movements"),
             child <-- state.signal.map { s =>
               Table.create(
-                Seq("", "Reference ID", "Amount"),
+                Seq("", "Reference ID", "Amount", "Properties"),
                 s.outMovements.map(m =>
                   Seq(
                     input(
@@ -105,7 +104,8 @@ object ManualMatchPage:
                       onClick.mapToUnit --> Observer[Unit](_ => state.update(st => st.copy(selectedOut = toggle(st.selectedOut, m.id))))
                     ),
                     span(m.referenceId),
-                    span(m.amount.toString)
+                    span(m.amount.toString),
+                    propertiesCell(m, state)
                   )
                 )
               )
@@ -137,4 +137,34 @@ object ManualMatchPage:
           )
         )
       )
+    )
+
+  private def toggle(selected: Set[String], id: String): Set[String] =
+    if selected.contains(id) then selected - id else selected + id
+
+  private def propertiesCell(m: MovementPayload, state: Var[State]): HtmlElement =
+    div(
+      button(
+        cls := "text-xs text-md-primary hover:underline",
+        typ := "button",
+        onClick.mapToUnit --> Observer[Unit](_ =>
+          state.update(st => st.copy(expandedProperties = toggle(st.expandedProperties, m.id)))
+        ),
+        child.text <-- state.signal.map(s => if s.expandedProperties.contains(m.id) then "▼ Properties" else "▶ Properties")
+      ),
+      child <-- state.signal.map { s =>
+        if s.expandedProperties.contains(m.id) then
+          table(
+            cls := "mt-1 text-xs border border-gray-200",
+            tbody(
+              m.properties.toSeq.sortBy(_._1).map { case (k, v) =>
+                tr(
+                  td(cls := "px-2 py-1 font-medium border-b border-gray-100", k),
+                  td(cls := "px-2 py-1 border-b border-gray-100", v)
+                )
+              }*
+            )
+          )
+        else div()
+      }
     )
