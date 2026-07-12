@@ -6,7 +6,7 @@ import perfectpair.common.model.{ManualMatchRequest, MovementPayload, Reconcilia
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.view.components.{Buttons, Icons, Table}
 import upickle.default.*
 
 object ManualMatchPage:
@@ -145,12 +145,12 @@ object ManualMatchPage:
       div(
         cls := "flex items-center gap-1",
         button(
-          cls := "text-xs w-4 text-md-primary hover:underline",
+          cls := "cursor-pointer",
           typ := "button",
           onClick.mapToUnit --> Observer[Unit](_ =>
             state.update(st => st.copy(expandedProperties = toggle(st.expandedProperties, m.id)))
           ),
-          child.text <-- state.signal.map(s => if s.expandedProperties.contains(m.id) then "−" else "+")
+          child <-- state.signal.map(s => if s.expandedProperties.contains(m.id) then Icons.minusCircle else Icons.plusCircle)
         ),
         span(m.referenceId)
       ),

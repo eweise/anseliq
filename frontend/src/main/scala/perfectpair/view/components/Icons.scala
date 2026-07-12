@@ -58,6 +58,16 @@ object Icons:
     """<svg class="w-5 h-5 text-gray-500 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M8 10V7a4 4 0 1 1 8 0v3h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2-3a2 2 0 1 1 4 0v3h-4V7Zm2 6a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0v-3a1 1 0 0 1 1-1Z" clip-rule="evenodd"/></svg>"""
   )
 
+  // defs, not vals: unlike the other icons above (each referenced at most once per page),
+  // these are rendered once per row in a dynamic list, so each call must return a fresh node.
+  def plusCircle: HtmlElement = icon(
+    """<svg class="w-5 h-5 text-md-primary" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clip-rule="evenodd"/></svg>"""
+  )
+
+  def minusCircle: HtmlElement = icon(
+    """<svg class="w-5 h-5 text-md-primary" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>"""
+  )
+
   val github: HtmlElement = icon(
     """<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-800 dark:text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.387.6.113.82-.263.82-.583 0-.287-.012-1.237-.018-2.243-3.338.737-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.73.083-.73 1.205.084 1.84 1.237 1.84 1.237 1.07 1.833 2.807 1.303 3.492.997.108-.774.417-1.303.76-1.603-2.665-.305-5.467-1.332-5.467-5.933 0-1.31.467-2.382 1.237-3.222-.124-.303-.537-1.523.117-3.176 0 0 1.01-.322 3.303 1.23.963-.268 1.99-.402 3.015-.408 1.025.006 2.052.14 3.015.408 2.292-1.552 3.303-1.23 3.303-1.23.654 1.653.241 2.873.118 3.176.77.84 1.236 1.912 1.236 3.222 0 4.61-2.807 5.625-5.479 5.922.428.37.81 1.104.81 2.224 0 1.606-.014 2.904-.014 3.297 0 .323.217.7.824.582C20.565 21.797 24 17.296 24 12 24 5.37 18.63 0 12 0z"/></svg>"""
   )
