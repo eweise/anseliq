@@ -156,6 +156,13 @@ class App(using
       val payload   = movements.map(Payload.movementfromDomainModel)
       write(payload)
 
+  @cask.route(s"${HttpPath.account}/:id/unreconciled-movements", methods = HttpCmd.GET)
+  def unreconciledMovementsByAccount(id: String): String =
+    transact(transactor):
+      val movements = movementRepo.findUnReconciledByAccount(UUID.fromString(id))
+      val payload   = movements.map(Payload.movementfromDomainModel)
+      write(payload)
+
   @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
