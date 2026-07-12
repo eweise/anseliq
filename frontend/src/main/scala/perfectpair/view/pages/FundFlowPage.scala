@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.view.components.Table
 import upickle.default.*
 
 import scala.collection.mutable
@@ -140,7 +140,7 @@ object FundFlowPage:
                 Table.create(
                   Seq(
                     "Name",
-                    "Is Recon?",
+                    "Account Type",
                     "Cash Balance",
                     "Reconciled Balance",
                     "Unreconciled Balance",
@@ -156,7 +156,7 @@ object FundFlowPage:
                     val unreconCount = s.unreconciledCounts.getOrElse(accountId, 0)
                     Seq(
                       span(cls := "inline-block w-40", account.name),
-                      span(if account.isRecon then "Recon" else ""),
+                      span(if account.isRecon then "Recon" else "Source"),
                       span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
                       span(
                         cls := "text-right w-full inline-block",
