@@ -27,7 +27,7 @@ object FundFlowsPage:
         cls := "w-full px-8",
         div(
           cls := "flex justify-between items-center my-8",
-          h2(cls := "text-xl font-medium", "Fund Flows"),
+          h2(cls := "text-xl font-medium", "Ledgers"),
           Buttons.linkButton(
             "Create",
             Observer[Unit](_ =>
