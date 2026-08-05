@@ -30,3 +30,4 @@ project/project/metals.sbt
 project/metals.sbt
 
 .worktrees
+backend/db/snapshot.dump

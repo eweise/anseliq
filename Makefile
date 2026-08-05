@@ -7,6 +7,8 @@ PG_DB_HOSTNAME := localhost
 PG_PASSWORD := postgres
 CURRENT_DIR = $(shell pwd)
 POSTGRES_BIN= /Library/PostgreSQL/18/bin
+DB_NAME := recon_db
+DB_SNAPSHOT_FILE := $(CURRENT_DIR)/backend/db/snapshot.dump
 
 
 #start-postgres:
@@ -21,3 +23,11 @@ create-db: delete-db
 
 delete-db:
 	$(POSTGRES_BIN)/psql -p 5432 -Upostgres -c "drop database if exists recon_db"
+
+snapshot-db:
+	$(POSTGRES_BIN)/pg_dump -p $(PG_DB_ROOT) -U$(PG_DB_USER) -Fc -f $(DB_SNAPSHOT_FILE) $(DB_NAME)
+	@echo "Snapshot written to $(DB_SNAPSHOT_FILE)"
+
+restore-db: delete-db
+	$(POSTGRES_BIN)/createdb -p $(PG_DB_ROOT) -U$(PG_DB_USER) $(DB_NAME)
+	$(POSTGRES_BIN)/pg_restore -p $(PG_DB_ROOT) -U$(PG_DB_USER) -d $(DB_NAME) $(DB_SNAPSHOT_FILE)
