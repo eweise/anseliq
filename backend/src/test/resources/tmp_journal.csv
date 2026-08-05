@@ -1,0 +1,5 @@
+record_date, transaction_id, amount, description
+2025-03-05,987,50.89,correction
+2025-03-04,123,120.50,posted to bank
+2025-03-04,456,-50,reversal
+2025-03-05,789,100.11,another posting
