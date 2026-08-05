@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.http.ApiClient
 import perfectpair.state.{AppState, SessionStore}
 import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Form, Table}
+import perfectpair.view.components.{Form, Icons, Table}
 import upickle.default.*
 
 object EventsPage:
@@ -35,15 +35,24 @@ object EventsPage:
         cls := "w-full max-w-5xl",
         h2(cls := "text-2xl font-medium mb-6", "Events"),
         div(
-          cls := "mb-6 max-w-xs",
-          Form.selectField(
-            "event-type-select",
-            "Event Type",
-            eventTypeOptions,
-            state.now().selectedEventType,
-            v =>
-              state.update(s => s.copy(selectedEventType = v, events = Seq.empty))
-              fetchBus.emit(v)
+          cls := "mb-6 flex items-end gap-3",
+          div(
+            cls := "max-w-xs",
+            Form.selectField(
+              "event-type-select",
+              "Event Type",
+              eventTypeOptions,
+              state.now().selectedEventType,
+              v =>
+                state.update(s => s.copy(selectedEventType = v, events = Seq.empty))
+                fetchBus.emit(v)
+            )
+          ),
+          button(
+            cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-10 h-10 rounded-full hover:bg-green-500",
+            typ := "button",
+            onClick --> (_ => fetchBus.emit(state.now().selectedEventType)),
+            Icons.refresh
           )
         ),
         child <-- state.signal.map { s =>
