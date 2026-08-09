@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.domain.model.*
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
-import perfectpair.domain.service.{FundFlowCache, FundFlowOperations}
+import perfectpair.domain.service.{FundFlowCache, FundFlowOperations, Ledger}
 
 import java.util.UUID
 
@@ -82,6 +82,8 @@ class DataSetup(using dbTx: DbTx) {
   movementSpecRepo.insert(reportToRecon)
 
   given accountRepo:        AccountRepo            = AccountRepoLive()
+
+  given ledger:             Ledger                 = Ledger()
 
   given fundFlowCache:      FundFlowCache          = FundFlowCache(fundFlowConfigRepo)
 
