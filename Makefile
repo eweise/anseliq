@@ -16,6 +16,12 @@ DB_SNAPSHOT_FILE := $(CURRENT_DIR)/backend/db/snapshot.dump
 
 #PG_DB_ROOT ?= 5400
 
+start-localstack:
+	localstack start -d
+
+stop-localstack:
+	localstack stop
+
 
 create-db: delete-db
 	@echo "$(CURRENT_DIR)"

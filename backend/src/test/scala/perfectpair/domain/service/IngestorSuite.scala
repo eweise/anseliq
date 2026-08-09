@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
 import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
 import perfectpair.domain.DataSetup
-import perfectpair.domain.model.{FileInventory, FileInventoryStatus, FileSourceEntry, S3FileSourceEntry}
+import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 import perfectpair.testing.rollBackOnly
 
@@ -15,10 +15,13 @@ import java.util.UUID
 import javax.sql.DataSource
 
 class IngestorSuite extends munit.FunSuite:
-  given clockService:ClockService = ClockServiceLive()
-  given transactor: Transactor = Transactor(dataSource)
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given eventRepo:  EventRepo  = EventRepoLive()
+  given transactor:   Transactor   = Transactor(dataSource)
+
+  given clockService: ClockService = ClockServiceLive()
+
+  given dataSource:   DataSource   = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+
+  given eventRepo:    EventRepo    = EventRepoLive()
 
   given eventStore: EventStore = EventStore()
 
@@ -31,6 +34,8 @@ class IngestorSuite extends munit.FunSuite:
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
 
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
+
+  given ledger: Ledger = Ledger()
 
   def stubSource(entries: Vector[FileSourceEntry], system: String = "S3") = new FileSource:
     val sourceSystem = system
@@ -55,6 +60,7 @@ class IngestorSuite extends munit.FunSuite:
       updatedAt           = None
     )
 
+
   test("Post Amount balances"):
     val ingestor = Ingestor()
     transact(transactor):
@@ -62,7 +68,7 @@ class IngestorSuite extends munit.FunSuite:
         val data: DataSetup = DataSetup()
         val is = ByteArrayInputStream("""value1, value2, value3
                                         |value4, value5, value6""".stripMargin.getBytes(UTF_8))
-        ingestor.ingest(data.journalToRecon, is)
+        ingestor.ingest(data.journalToRecon, InMemoryFileSourceEntry("test"), is)
         val allMovements = movementRepo.findAll
         assert(allMovements.exists(_.properties.props.exists((key, value) => key == "field1" && value == "value1")))
 
@@ -77,7 +83,6 @@ class IngestorSuite extends munit.FunSuite:
         val result = ingestor.detectAndQueue(UUID.randomUUID(), stubSource(entries))
         assertEquals(result.size, 2)
         assert(result.forall(_.status == FileInventoryStatus.QUEUED))
-//        assertEquals(fileInventoryRepo.findAll.size, 2)
 
   test("detectAndQueue skips files already in the inventory"):
     transact(transactor):
@@ -131,14 +136,14 @@ class IngestorSuite extends munit.FunSuite:
         accountRepo.update(data.journalAccount)
         val spec = movementSpecWithAmountField(data.journalToRecon)
         val is   = ByteArrayInputStream("100,rowA".getBytes(UTF_8))
-        ingestor.ingest(spec, is)
+        ingestor.ingest(spec, InMemoryFileSourceEntry("test"), is)
 
         val updatedInAccount  = accountRepo.findById(data.reconAccount.id).get
         val updatedOutAccount = accountRepo.findById(data.journalAccount.id).get
-        assertEquals(updatedInAccount.balance, BigDecimal(600))
-        assertEquals(updatedInAccount.unreconciledBalance, BigDecimal(100))
-        assertEquals(updatedOutAccount.balance, BigDecimal(200))
-        assertEquals(updatedOutAccount.unreconciledBalance, BigDecimal(-100))
+        assertEquals(updatedInAccount.balance, BigDecimal(600), "inAccount.balance")
+        assertEquals(updatedInAccount.unreconciledBalance, BigDecimal(100), "inAccount.unreconciledBalance")
+        assertEquals(updatedOutAccount.balance, BigDecimal(200), "outAccount.balance")
+        assertEquals(updatedOutAccount.unreconciledBalance, BigDecimal(-100), "outAccount.unreconciledBalance")
 
         val movement = movementRepo.findAll.head
         assertEquals(movement.inAccountBalance, BigDecimal(600))
@@ -159,7 +164,7 @@ class IngestorSuite extends munit.FunSuite:
             |50,rowB
             |25,rowC""".stripMargin.getBytes(UTF_8)
         )
-        ingestor.ingest(spec, is)
+        ingestor.ingest(spec, InMemoryFileSourceEntry("test"), is)
 
         val movements = movementRepo.findAll
         assertEquals(movements.size, 3)
@@ -191,7 +196,7 @@ class IngestorSuite extends munit.FunSuite:
         accountRepo.update(data.reconAccount)
         accountRepo.update(data.journalAccount)
         val is = ByteArrayInputStream("value1, value2, value3".getBytes(UTF_8))
-        ingestor.ingest(data.journalToRecon, is)
+        ingestor.ingest(data.journalToRecon, InMemoryFileSourceEntry("test"), is)
         val movements = movementRepo.findAll
         assert(movements.nonEmpty)
         assert(movements.forall(_.inAccountBalance == BigDecimal(500)))
@@ -211,7 +216,7 @@ class IngestorSuite extends munit.FunSuite:
             |row2, e, f
             |row3, h, i""".stripMargin.getBytes(UTF_8)
         )
-        ingestor.ingest(data.journalToRecon, is)
+        ingestor.ingest(data.journalToRecon, InMemoryFileSourceEntry("test"), is)
         val movements = movementRepo.findAll
         assertEquals(movements.size, 3)
         assert(movements.forall(_.inAccountBalance == BigDecimal(1000)))

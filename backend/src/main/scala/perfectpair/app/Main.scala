@@ -38,6 +38,7 @@ object Main:
     given eventStore:         EventStore             = EventStore()
     given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
     given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
+    given ledger:             Ledger                 = Ledger()
     given ingestor:           Ingestor               = Ingestor()
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
     given manualReconciler:   ManualReconciler       = ManualReconciler()

@@ -8,7 +8,7 @@ import perfectpair.common.model.Interval.Day
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.OneToMany
 import perfectpair.domain.port.driven.*
-import perfectpair.domain.service.{ClockService, ClockServiceLive, EventStore, InMemoryReconciler, Ingestor}
+import perfectpair.domain.service.*
 import perfectpair.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
@@ -32,6 +32,7 @@ class EndToEndSuite extends munit.FunSuite {
   given eventStore:         EventStore             = EventStore()
   given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
   given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
+  given ledger:             Ledger                 = Ledger()
   given ingestor:           Ingestor               = Ingestor()
   given reconciler:         InMemoryReconciler     = InMemoryReconciler()
 
@@ -119,8 +120,16 @@ class EndToEndSuite extends munit.FunSuite {
         reconSpecRepo.insert(reconSpec)
 
         // Ingest some files
-        ingestor.ingest(reportToRecon, ByteArrayInputStream(reportFile1.getBytes(UTF_8)))
-        ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile1.getBytes(UTF_8)))
+        ingestor.ingest(
+          reportToRecon,
+          InMemoryFileSourceEntry("report"),
+          ByteArrayInputStream(reportFile1.getBytes(UTF_8))
+        )
+        ingestor.ingest(
+          journalToRecon,
+          InMemoryFileSourceEntry("journal"),
+          ByteArrayInputStream(journalFile1.getBytes(UTF_8))
+        )
 
         // Reconcile the data
         reconciler.reconcileAccount(reconAccount.id)
@@ -232,8 +241,16 @@ class EndToEndSuite extends munit.FunSuite {
         reconSpecRepo.insert(reconSpec)
 
         // Ingest some files
-        ingestor.ingest(reportToRecon, ByteArrayInputStream(reportFile1.getBytes(UTF_8)))
-        ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile1.getBytes(UTF_8)))
+        ingestor.ingest(
+          reportToRecon,
+          InMemoryFileSourceEntry("report"),
+          ByteArrayInputStream(reportFile1.getBytes(UTF_8))
+        )
+        ingestor.ingest(
+          journalToRecon,
+          InMemoryFileSourceEntry("journal"),
+          ByteArrayInputStream(journalFile1.getBytes(UTF_8))
+        )
 
         // Reconcile the data
         reconciler.reconcileAccount(reconAccount.id)
@@ -345,16 +362,24 @@ class EndToEndSuite extends munit.FunSuite {
         reconSpecRepo.insert(reconSpec)
 
         // Ingest some files
-        ingestor.ingest(reconToReport, ByteArrayInputStream(reportFile.getBytes(UTF_8)))
-        ingestor.ingest(journalToRecon, ByteArrayInputStream(journalFile.getBytes(UTF_8)))
+        ingestor.ingest(
+          reconToReport,
+          InMemoryFileSourceEntry("report"),
+          ByteArrayInputStream(reportFile.getBytes(UTF_8))
+        )
+        ingestor.ingest(
+          journalToRecon,
+          InMemoryFileSourceEntry("journal"),
+          ByteArrayInputStream(journalFile.getBytes(UTF_8))
+        )
 
         // Reconcile the data
         reconciler.reconcileAccount(reconAccount.id)
         val allReconMovements  = movementRepo.findByAccount(reconAccount.id)
         val updateReconAccount = accountRepo.findById(reconAccount.id).get
-        assertEquals(updateReconAccount.balance, BigDecimal(250))
+        assertEquals(updateReconAccount.balance, BigDecimal(250), "reconAccount.balance 250")
         val reconciliations = reconRepo.findAll
-        assertEquals(reconciliations.size, 1)
+        assertEquals(reconciliations.size, 1, "recon size = 1")
 
         // add up movement from reconcilation. See if the amount matches
         val reconciledMovements = movementRepo.findByReconciliationID(reconciliations.head.id)

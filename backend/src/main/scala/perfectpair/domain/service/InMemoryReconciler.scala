@@ -91,7 +91,7 @@ class InMemoryReconciler(using
               for outMov <- matched do
                 outMov.reconciliationId = Some(recon.id)
                 movementRepo.update(outMov)
-                recon.balance = recon.balance - outMov.amount
+                recon.balance   = recon.balance - outMov.amount
                 reconciledDelta = reconciledDelta + outMov.signedAmountFor(accountID)
 
               if matched.nonEmpty then
@@ -172,7 +172,7 @@ class InMemoryReconciler(using
             )
           inMovement.reconciliationId = Some(reconciliation.id)
           movementRepo.update(inMovement)
-          matchBalance = matchBalance + inMovement.amount
+          matchBalance    = matchBalance + inMovement.amount
           reconciledDelta = reconciledDelta + inMovement.signedAmountFor(accountID)
 
         for outMatches <- matches._2
@@ -186,13 +186,15 @@ class InMemoryReconciler(using
           movementRepo.update(outMovement)
           matchBalance           = matchBalance - outMovement.amount
           reconciliation.balance = reconciliation.balance + matchBalance
-          reconciledDelta = reconciledDelta + outMovement.signedAmountFor(accountID)
+          reconciledDelta        = reconciledDelta + outMovement.signedAmountFor(accountID)
 
       reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
 
-    val account = accountRepo.findById(accountID).getOrElse(
-      throw NotFoundError(s"account $accountID not found")
-    )
+    val account = accountRepo
+      .findById(accountID)
+      .getOrElse(
+        throw NotFoundError(s"account $accountID not found")
+      )
     account.reconciledBalance   = account.reconciledBalance + reconciledDelta
     account.unreconciledBalance = account.unreconciledBalance - reconciledDelta
     accountRepo.update(account)

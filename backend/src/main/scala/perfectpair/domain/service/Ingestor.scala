@@ -1,10 +1,10 @@
 package perfectpair.domain.service
 
+import com.fasterxml.uuid.Generators
 import ox.flow.Flow
 import perfectpair.common.model.model.ID
 import perfectpair.domain.model.*
 import perfectpair.domain.model.FileInventoryStatus.COMPLETED
-import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.port.driven.*
 
 import java.io.InputStream
@@ -16,6 +16,7 @@ case class IngestionResult(
 )
 
 class Ingestor(using
+  val ledger:            Ledger,
   val movementRepo:      MovementRepo,
   val movementSpecRepo:  MovementSpecRepo,
   val accountRepo:       AccountRepo,
@@ -39,11 +40,16 @@ class Ingestor(using
     val connectionConfig = movementSpec.dataSourceConfig().connectionConfig
     val fileSource       = fileSourceFactory.createFileSource(connectionConfig)
 
-    val inputStream = fileSource.getFile(fileInventory.fileSourceEntry())
+    val fileSourceEntry = fileInventory.fileSourceEntry()
+    val inputStream     = fileSource.getFile(fileSourceEntry)
 
-    ingest(movementSpec, inputStream)
+    ingest(movementSpec, fileSourceEntry, inputStream)
 
-  def ingest(movementSpec: MovementSpec, is: InputStream): Txn[IngestionResult] =
+  def ingest(
+    movementSpec:    MovementSpec,
+    fileSourceEntry: FileSourceEntry,
+    is:              InputStream
+  ): Txn[IngestionResult] =
     var lineCounter = 0
     val beginTime   = now()
     val parser      = Parser(movementSpec.dataSourceConfig().parserConfig)
@@ -67,29 +73,24 @@ class Ingestor(using
         val parsedLine = someParsedLine.get
         val amount     = parsedLine.maybeAmount.getOrElse(BigDecimal(0))
 
-        inAccount.balance             = inAccount.balance + amount
-        inAccount.unreconciledBalance = inAccount.unreconciledBalance + amount
-        outAccount.balance             = outAccount.balance - amount
-        outAccount.unreconciledBalance = outAccount.unreconciledBalance - amount
+        lineCounter += 1
 
-        val movement = Movement(
-          inAccountId       = movementSpec.inAccountId,
-          inAccountBalance  = inAccount.balance,
-          outAccountId      = movementSpec.outAccountId,
-          outAccountBalance = outAccount.balance,
-          amount            = amount,
-          properties        = JSONBProps(parsedLine.props),
-          movementSpecId    = movementSpec.id
+        val idempotencyId = Generators
+          .nameBasedGenerator()
+          .generate(s"${fileSourceEntry.name} $lineCounter")
+
+        MovementRequest(
+          amount      = amount,
+          referenceId = idempotencyId,
+          properties  = parsedLine.props
         )
-        movement
       )
       .grouped(100)
-      .runForeach { movements =>
-        lineCounter += movements.size
-        movementRepo.insertAll(movements)
-        accountRepo.update(inAccount)
-        accountRepo.update(outAccount)
-      }
+      .runForeach: requests =>
+        ledger.recordMovements(
+          movementSpec     = movementSpec,
+          movementRequests = requests
+        )
 
     eventStore.publishEvent(MoneyMovementsIngested(movementSpecID = movementSpec.id))
 

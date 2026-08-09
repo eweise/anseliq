@@ -11,6 +11,14 @@ import java.util.UUID
 class AccountRepoLive extends Repo[Account, Account, UUID] with AccountRepo:
   val a = Account.Table
 
+  def findByIdForUpdate(id: ID): Txn[Option[Account]] =
+    sql"""
+        SELECT ${a.all}
+        FROM $a AS a
+        WHERE id = $id
+        FOR UPDATE
+      """.query[Account].run().headOption
+
   override def findById(id: UUID)(using DbCon): Option[Account] =
     sql"""
       SELECT ${a.all}, balance, created_at, updated_at
