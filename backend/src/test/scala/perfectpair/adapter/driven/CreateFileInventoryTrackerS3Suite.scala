@@ -4,8 +4,8 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.common.model.S3ConnectionConfig
 import perfectpair.domain.model.{FileInventoryStatus, S3FileSourceEntry}
-import perfectpair.domain.port.driven.{AccountRepo, EventRepo, FileInventoryRepo, MovementRepo, MovementSpecRepo}
-import perfectpair.domain.service.{ClockService, ClockServiceLive, EventStore, Ingestor}
+import perfectpair.domain.port.driven.*
+import perfectpair.domain.service.*
 import perfectpair.testing.rollBackOnly
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.core.sync.RequestBody
@@ -39,8 +39,8 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   given movementRepo:      MovementRepo      = MovementRepoLive()
   given accountRepo:       AccountRepo       = AccountRepoLive()
   given movementSpecRepo:  MovementSpecRepo  = MovementSpecRepoLive()
+  given ledger:            Ledger            = Ledger()
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
-  given fileSourceFactory: S3FileSourceFactory()
 
   override def beforeAll(): Unit =
     s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
@@ -62,6 +62,8 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
       RequestBody.fromString(content)
     )
 
+  given fileSourceFactory: S3FileSourceFactory()
+
   test("detectAndQueue queues all S3 files not yet in inventory"):
     put("reports/jan.csv")
     put("reports/feb.csv")
@@ -72,7 +74,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
         val ingestor       = Ingestor()
         val source         = S3FileSource(S3ConnectionConfig(bucket, "reports/"), s3Client)
         val result         = ingestor.detectAndQueue(movementSpecID, source)
-        assertEquals(result.size, 3)
+        assertEquals(result.size, 3, s"results from movementSpecID ${movementSpecID}")
         assert(result.forall(_.status == FileInventoryStatus.QUEUED))
         assert(result.forall(_.sourceSystem == "S3"))
         assertEquals(

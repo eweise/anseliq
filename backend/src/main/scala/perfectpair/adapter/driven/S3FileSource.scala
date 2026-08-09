@@ -35,7 +35,7 @@ class S3FileSource(con: S3ConnectionConfig, s3Client: S3Client) extends FileSour
     val req = ListObjectsV2Request
       .builder()
       .bucket(con.s3Bucket)
-      .prefix(s"${con.filePath}/")
+      .prefix(s"${con.filePath.stripSuffix("/")}/")
       .build()
 
     var bucketName = ""
