@@ -5,7 +5,7 @@ import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
 
 class ManualReconciler(using
-  val accountRepo:   AccountRepo,
+  val ledger:        Ledger,
   val movementRepo:  MovementRepo,
   val reconRepo:     ReconciliationRepo,
   val reconSpecRepo: ReconciliationSpecRepo,
@@ -54,16 +54,7 @@ class ManualReconciler(using
     )
     reconRepo.insert(reconciliation)
 
-    var reconciledDelta: Money = Zero
-    for m <- inMovements ++ outMovements do
-      m.reconciliationId = Some(reconciliation.id)
-      movementRepo.update(m)
-      reconciledDelta = reconciledDelta + m.signedAmountFor(reconSpec.accountId)
-
-    val account = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
-    account.reconciledBalance   = account.reconciledBalance + reconciledDelta
-    account.unreconciledBalance = account.unreconciledBalance - reconciledDelta
-    accountRepo.update(account)
+    ledger.reconcile(inMovements ++ outMovements, reconciliation.id, reconSpec.accountId)
 
     eventStore.publishEvent(ReconciliationManuallyMatched(reconciliationID = reconciliation.id))
 
@@ -77,16 +68,7 @@ class ManualReconciler(using
     val reconSpec = reconSpecRepo.findById(reconciliation.specId).ErrIfNotFound("reconciliation spec", reconciliation.specId)
     val movements  = movementRepo.findByReconciliationID(reconciliationId)
 
-    var reconciledDelta: Money = Zero
-    for m <- movements do
-      reconciledDelta = reconciledDelta + m.signedAmountFor(reconSpec.accountId)
-      m.reconciliationId = None
-      movementRepo.update(m)
-
-    val account = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
-    account.reconciledBalance   = account.reconciledBalance - reconciledDelta
-    account.unreconciledBalance = account.unreconciledBalance + reconciledDelta
-    accountRepo.update(account)
+    ledger.unreconcile(movements, reconSpec.accountId)
 
     reconciliation.status = ReconciliationStatus.Voided
     reconRepo.update(reconciliation)

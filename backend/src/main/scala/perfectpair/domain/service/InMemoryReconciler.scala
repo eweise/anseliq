@@ -21,7 +21,7 @@ case class ReconciliationResult(
   def totalCount: Int = reconciliationSpecInsertCount.values.sum
 
 class InMemoryReconciler(using
-  val accountRepo:        AccountRepo,
+  val ledger:             Ledger,
   val movementRepo:       MovementRepo,
   val reconSpecRepo:      ReconciliationSpecRepo,
   val movementSpecRepo:   MovementSpecRepo,
@@ -37,7 +37,6 @@ class InMemoryReconciler(using
   def reconcileAccount(accountID: ID): Txn[ReconciliationResult] =
     val beginTime                     = Instant.now()
     val reconciliationSpecInsertCount = scala.collection.mutable.Map[ID, Int]()
-    var reconciledDelta: Money = Zero
 
     val reconSpecs = reconSpecRepo.findByAccountID(accountID)
     for reconSpec <- reconSpecs
@@ -88,13 +87,10 @@ class InMemoryReconciler(using
               val matched = remainingOutMovements.filter(outMov => compareMovements(rule, inMov, outMov) == 0)
               remainingOutMovements = remainingOutMovements.filterNot(m => matched.exists(_.id == m.id))
 
-              for outMov <- matched do
-                outMov.reconciliationId = Some(recon.id)
-                movementRepo.update(outMov)
-                recon.balance   = recon.balance - outMov.amount
-                reconciledDelta = reconciledDelta + outMov.signedAmountFor(accountID)
+              for outMov <- matched do recon.balance = recon.balance - outMov.amount
 
               if matched.nonEmpty then
+                ledger.reconcile(matched.toSeq, recon.id, accountID)
                 if recon.balance == Zero then recon.status = ReconciliationStatus.Final
                 reconRepo.update(recon)
             }
@@ -134,13 +130,7 @@ class InMemoryReconciler(using
               reconRepo.insert(reconciliation)
               reconInsertCount += 1
 
-              inMovement.reconciliationId = Some(reconciliation.id)
-              movementRepo.update(inMovement)
-              reconciledDelta = reconciledDelta + inMovement.signedAmountFor(accountID)
-              for out <- matchedOuts do
-                out.reconciliationId = Some(reconciliation.id)
-                movementRepo.update(out)
-                reconciledDelta = reconciledDelta + out.signedAmountFor(accountID)
+              ledger.reconcile(inMovement +: matchedOuts.toSeq, reconciliation.id, accountID)
 
               inIndex += 1
             else if comparison < 0 then inIndex += 1
@@ -162,6 +152,8 @@ class InMemoryReconciler(using
         reconRepo.insert(reconciliation)
         reconInsertCount += 1
 
+        val matchedMovements = ListBuffer[Movement]()
+
         var matchBalance = Zero
         for inMatches <- matches._1
         do
@@ -170,10 +162,8 @@ class InMemoryReconciler(using
             .getOrElse(
               throw NotFoundError(s"inMovement ${inMatches} not found")
             )
-          inMovement.reconciliationId = Some(reconciliation.id)
-          movementRepo.update(inMovement)
-          matchBalance    = matchBalance + inMovement.amount
-          reconciledDelta = reconciledDelta + inMovement.signedAmountFor(accountID)
+          matchedMovements += inMovement
+          matchBalance = matchBalance + inMovement.amount
 
         for outMatches <- matches._2
         do
@@ -182,22 +172,13 @@ class InMemoryReconciler(using
             .getOrElse(
               throw NotFoundError(s"outMovement ${outMatches} not found")
             )
-          outMovement.reconciliationId = Some(reconciliation.id)
-          movementRepo.update(outMovement)
+          matchedMovements += outMovement
           matchBalance           = matchBalance - outMovement.amount
           reconciliation.balance = reconciliation.balance + matchBalance
-          reconciledDelta        = reconciledDelta + outMovement.signedAmountFor(accountID)
+
+        ledger.reconcile(matchedMovements.toSeq, reconciliation.id, accountID)
 
       reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
-
-    val account = accountRepo
-      .findById(accountID)
-      .getOrElse(
-        throw NotFoundError(s"account $accountID not found")
-      )
-    account.reconciledBalance   = account.reconciledBalance + reconciledDelta
-    account.unreconciledBalance = account.unreconciledBalance - reconciledDelta
-    accountRepo.update(account)
 
     eventStore.publishEvent(AccountReconciled(accountID = accountID))
 
