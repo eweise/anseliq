@@ -47,6 +47,32 @@ class ReconcilerSuite extends munit.FunSuite:
         val journalAfterReconciled = movementRepo.findById(journalMovement.id).get
         assert(journalAfterReconciled.reconciliationId.nonEmpty)
 
+  test("reconcileAccount matches movements sharing the same id and marks both sides reconciled"):
+    val movementRepo = MovementRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data: DataSetup = DataSetup()
+        val reconciler = Reconciler(
+          accountRepo        = data.accountRepo,
+          movementRepo       = data.movementRepo,
+          movementSpecRepo   = data.movementSpecRepo,
+          reconSpecRepo      = data.reconSpecRepo,
+          reconRepo          = data.reconRepo,
+          fundFlowConfigRepo = data.fundFlowConfigRepo
+        )
+
+        val idToMatch       = "match-me"
+        val journalMovement = createMovement(data, data.journalToRecon, idToMatch)
+        val reportMovement  = createMovement(data, data.reportToRecon, idToMatch)
+
+        reconciler.reconcileAccount(data.reconAccount)
+
+        val journalAfter = movementRepo.findById(journalMovement.id).get
+        val reportAfter  = movementRepo.findById(reportMovement.id).get
+        assert(journalAfter.reconciliationId.nonEmpty, "journal movement should be reconciled")
+        assert(reportAfter.reconciliationId.nonEmpty, "report movement should be reconciled")
+        assertEquals(journalAfter.reconciliationId, reportAfter.reconciliationId)
+
   def createMovement(data: DataSetup, movementSpec: MovementSpec, idValue: String): Txn[Movement] =
     val m = Movement(
       inAccountId    = movementSpec.inAccountId,

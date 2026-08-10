@@ -210,14 +210,14 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         )
 
         val sqlStr                        = rule.sql
-        val results                       = movementRepo.findEqualityMatches(sqlStr)
+        val results                       = movementRepo.findEqualityMatches(sqlStr, data.reportToRecon.id, data.journalToRecon.id)
         val (inMovementId, outMovementId) = results.head
         assertEquals(inReconMovement.id.toString, inMovementId)
         assertEquals(outReconMovement.id.toString, outMovementId)
 
         // Let's see if the AND rule works
         val sqlStrWithAnd                               = AndRule(List(rule, rule)).sql
-        val resultsWithAnd                              = movementRepo.findEqualityMatches(sqlStrWithAnd)
+        val resultsWithAnd                              = movementRepo.findEqualityMatches(sqlStrWithAnd, data.reportToRecon.id, data.journalToRecon.id)
         val (inMovementIdWithAnd, outMovementIdWithAnd) = resultsWithAnd.head
         assertEquals(inReconMovement.id.toString, inMovementIdWithAnd)
         assertEquals(outReconMovement.id.toString, outMovementIdWithAnd)
