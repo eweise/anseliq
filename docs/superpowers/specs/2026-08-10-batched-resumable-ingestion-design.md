@@ -55,15 +55,39 @@ in the app (`grep` for `Flyway` under `backend/src/main` finds nothing);
 schema changes are made directly in `schema.sql`, applied via `make
 create-db` / `make restore-db`.
 
+### A new method, not a rewrite of `ingest`
+
+`ingest(movementSpec, fileSourceEntry, is): Txn[IngestionResult]` stays
+exactly as it is today — same signature, same ambient-transaction
+behavior, same idempotency-key formula (`lineCounter` over accepted
+lines). Every existing caller and test keeps working unchanged.
+
+The batching/checkpoint/resume behavior lives in a new method,
+`ingestResumable`, added alongside it. The two are kept fully separate
+(no shared parsing helper) specifically so nothing about `ingest`'s
+existing behavior — including its idempotency-key formula — can change
+as a side effect of this work: reusing a shared helper that also serves
+`ingestResumable`'s checkpoint-based key formula would mean changing
+`ingest`'s keys too, which would break dedup for any file re-ingested
+through `ingest` after this change (old rows keyed by the old formula,
+a new attempt using a new formula would no longer collide with them via
+`ON CONFLICT`, producing duplicates). A small amount of duplicated
+parsing logic between the two methods is the deliberate, safer trade-off.
+
+`ingestFileFromInventory` (the production, job-driven path) switches from
+calling `ingest` to calling `ingestResumable`; nothing else changes what
+it calls `ingest`.
+
 ### Checkpoint = raw line index, unified with the idempotency key
 
-`Ingestor.ingest` currently threads two different counters: the raw
-`zipWithIndex` line number (used only to detect the header row) and a
-separately incremented `lineCounter` (used to build the idempotency key,
-counting only lines that parsed and passed the filter). This design
-collapses them into one: **the raw `zipWithIndex` line index is used both
-as the checkpoint value and as the idempotency-key input.** Concretely,
-the raw index is carried through the filter step instead of being dropped:
+`ingestResumable` needs one counter, not `ingest`'s two (the raw
+`zipWithIndex` line number, used only to detect the header row today, and
+a separately incremented `lineCounter` used to build the idempotency key
+over accepted lines only). This design collapses them into one, for
+`ingestResumable` specifically: **the raw `zipWithIndex` line index is
+used both as the checkpoint value and as the idempotency-key input.**
+Concretely, the raw index is carried through the filter step instead of
+being dropped:
 
 ```scala
 Flow
@@ -85,13 +109,13 @@ This removes the need to track "raw lines skipped" and "accepted lines
 counted" as two separate numbers that would otherwise have to stay in
 sync across a resume.
 
-### `Ingestor` owns its own transactions
+### `ingestResumable` owns its own transactions
 
 `Ingestor` gains a `Transactor` dependency (added to its existing `using`
-clause alongside `ledger`, `movementRepo`, etc.). `ingest` stops being
-`Txn[IngestionResult]` and becomes a plain method — it calls
-`transact(transactor) { ... }` itself, once per batch. Each batch's
-transaction contains, atomically:
+clause alongside `ledger`, `movementRepo`, etc.), used only by
+`ingestResumable`. Unlike `ingest`, `ingestResumable` is a plain method,
+not `Txn[T]` — it calls `transact(transactor) { ... }` itself, once per
+batch. Each batch's transaction contains, atomically:
 
 1. `ledger.recordMovements(...)` for that batch (existing behavior,
    unchanged).
@@ -105,14 +129,14 @@ batch's data changes, a crash mid-batch can never leave the checkpoint
 ahead of — or behind — the data it describes: either both happened, or
 neither did.
 
-`ingest`'s new signature:
+`ingestResumable`'s signature:
 
 ```scala
 case class BatchProgress(linesProcessedInBatch: Int, lastLineInBatch: Long)
 enum BatchDecision:
   case Commit, Rollback
 
-def ingest(
+def ingestResumable(
   movementSpec:    MovementSpec,
   fileSourceEntry: FileSourceEntry,
   is:              InputStream,
@@ -122,11 +146,13 @@ def ingest(
 ): IngestionResult
 ```
 
-`IngestionResult` gains a `lastProcessedLine: Option[Long]` field (the
-checkpoint after this call — `None` if no batch committed) so a caller
-that isn't going through `FileInventory` at all (e.g. a unit test calling
-`ingest` directly) still has what it needs to resume manually:
-`ingest(..., startingLine = result.lastProcessedLine.map(_ + 1).getOrElse(0))`.
+`IngestionResult` (already shared with `ingest`, which keeps populating it
+the same way it does today) gains a `lastProcessedLine: Option[Long]`
+field (the checkpoint after this call — `None` if no batch committed,
+always `None` when produced by `ingest`) so a caller that isn't going
+through `FileInventory` at all (e.g. a unit test calling `ingestResumable`
+directly) still has what it needs to resume manually:
+`ingestResumable(..., startingLine = result.lastProcessedLine.map(_ + 1).getOrElse(0))`.
 
 ### The commit/rollback callback
 
@@ -140,14 +166,14 @@ decision is `Rollback`:
 - That batch's transaction is rolled back (mirroring today's
   `rollBackOnly` helper — same "roll back this connection" mechanism, just
   scoped to one batch instead of one whole test).
-- `ingest` stops immediately, as if the process had crashed at that point.
-  It does not attempt further batches.
+- `ingestResumable` stops immediately, as if the process had crashed at
+  that point. It does not attempt further batches.
 - The checkpoint remains at the last *committed* batch (the rolled-back
   batch's checkpoint update never took effect).
 
-A resume test then calls `ingest` again (or `ingestFileFromInventory`) and
-asserts it picks up from the last committed checkpoint rather than
-reprocessing from line 0.
+A resume test then calls `ingestResumable` again (or
+`ingestFileFromInventory`) and asserts it picks up from the last committed
+checkpoint rather than reprocessing from line 0.
 
 ### Resuming a file
 
@@ -156,8 +182,8 @@ reprocessing from line 0.
 1. Look up `FileInventory` and `MovementSpec` in one short, separate
    `transact(transactor) { ... }` block (a plain read — these lookups are
    `Txn[T]` today and still need an ambient `DbTx` for that one block, but
-   `ingestFileFromInventory` as a whole is no longer itself `Txn[T]`, for
-   the same reason `ingest` isn't: it now owns its transactions rather
+   `ingestFileFromInventory` as a whole is no longer itself `Txn[T]`: it
+   now calls `ingestResumable`, which owns its own transactions rather
    than borrowing the caller's).
 2. Compute `startingLine = fileInventory.lastProcessedLine.map(_ + 1).getOrElse(0L)`
    (`lastProcessedLine` becomes `Option[Long] = None` on a fresh
@@ -166,7 +192,7 @@ reprocessing from line 0.
 3. Open the file via `fileSource.getFile(fileSourceEntry)` (unchanged —
    still a full re-read from the start of the stream; only the in-memory
    `.drop(startingLine)` skips already-processed lines, since plain
-   `InputStream`s aren't seekable by line) and call `ingest(...,
+   `InputStream`s aren't seekable by line) and call `ingestResumable(...,
    startingLine = startingLine)`.
 4. After the stream is exhausted (not stopped early by a `Rollback`),
    commit a final small transaction setting
@@ -196,8 +222,8 @@ ingestion job loop.
 
 - Automatic retry/orchestration for a file that stopped mid-way (e.g. a
   poller that finds stale `PROCESSING` files and resubmits them as jobs).
-  This design makes resuming *possible* and *correct* when `ingest` is
-  called again for the same file; deciding *when* to call it again after
+  This design makes resuming *possible* and *correct* when `ingestResumable`
+  is called again for the same file; deciding *when* to call it again after
   a real crash is existing job-orchestration territory
   (`JobManager.scala`, which already has known gaps flagged inline —
   `// todo I think the txn is rolled back at this point :(`,
@@ -209,61 +235,61 @@ ingestion job loop.
   given line is never reprocessed once its batch has committed, so the
   double-counting risk described in "Problem" above cannot occur through
   the resume path this design adds. It remains a latent risk only if
-  `ingest` were ever called a second time over a line range that was
-  already committed by some *other* means (outside this design's control)
-  — worth knowing about, not worth fixing here.
+  `ingestResumable` were ever called a second time over a line range that
+  was already committed by some *other* means (outside this design's
+  control) — worth knowing about, not worth fixing here. `ingest` itself
+  is untouched and carries whatever risk it already carried before this
+  change, unchanged.
 
 ## Test impact
 
-**Unaffected:** existing `IngestorSuite`/`ReconcilerSuite` tests. Their
-inputs are small enough to fit in a single batch/transaction either way,
-and they don't rely on the outer-`rollBackOnly`-wraps-everything assumption
-in a way this change breaks.
+**Unaffected:** existing `IngestorSuite`/`ReconcilerSuite` tests, and
+every other existing caller of `ingest`. `ingest` itself doesn't change —
+same signature, same ambient-transaction behavior, same idempotency-key
+formula — so nothing that calls it needs to change. This was the reason
+for adding `ingestResumable` as a separate method rather than rewriting
+`ingest` in place: doing the latter would have broken every existing
+`IngestorSuite` test, since they all construct `DataSetup()` inside an
+outer `rollBackOnly` block immediately before calling `ingest`, and a
+rewritten `ingest` opening its own separate connection per batch wouldn't
+be able to see those still-uncommitted accounts.
 
 **New tests**, using real commits (no savepoints) and explicit teardown
 (delete the rows they created) instead of relying on an enclosing
 `rollBackOnly`:
 
-- A batch commits and is durable even if a later batch fails: ingest a
-  small multi-batch input with `onBatchComplete` returning `Rollback` on
-  the last batch, then verify (in a fresh, separate transaction) that
-  earlier batches' movements and balance updates are visible, the last
-  batch's are not, and `FileInventory.lastProcessedLine` reflects only the
-  committed batches.
-- Resuming picks up where it left off: run the above, then call `ingest`
-  again with `startingLine` derived from the first call's
-  `IngestionResult.lastProcessedLine`, and confirm the previously-skipped
-  rows get processed exactly once (no duplicate movements, correct final
-  balance) and none of the already-committed rows are reprocessed.
+- A batch commits and is durable even if a later batch fails: call
+  `ingestResumable` on a small multi-batch input with `onBatchComplete`
+  returning `Rollback` on the last batch, then verify (in a fresh,
+  separate transaction) that earlier batches' movements and balance
+  updates are visible, the last batch's are not, and
+  `FileInventory.lastProcessedLine` reflects only the committed batches.
+- Resuming picks up where it left off: run the above, then call
+  `ingestResumable` again with `startingLine` derived from the first
+  call's `IngestionResult.lastProcessedLine`, and confirm the
+  previously-skipped rows get processed exactly once (no duplicate
+  movements, correct final balance) and none of the already-committed
+  rows are reprocessed.
 
-**Existing test requiring an update:**
-`LargeFileIngestionReconciliationSuite`
-(`backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`)
-currently wraps its whole call to `ingestor.ingest(...)` in
-`transact(transactor): rollBackOnly: ...`. Once `Ingestor` manages its own
-per-batch transactions internally (on its own connection, via its own
-`Transactor`), that outer `rollBackOnly` no longer provides real isolation
-for the ingestion calls — they commit for real on their own connection
-regardless of what the outer transaction does. This test must be updated
-to explicitly delete the rows/accounts/file-inventory records it created
-(or otherwise reset the affected accounts) at the end, rather than relying
-on rollback. This is a direct, necessary consequence of this change, not
-optional cleanup.
+These new tests, and `LargeFileIngestionReconciliationSuite`
+(`backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`,
+which switches from calling `ingest` to calling `ingestResumable` since
+it's specifically exercising the large/batched path) all need:
 
-This has a second, correctness-level consequence beyond cleanup: `DataSetup()`
-(which creates the `reconAccount`/`journalAccount`/`reportAccount` and the
-`MovementSpec`s the test ingests against) can no longer be constructed
-inside an uncommitted outer `rollBackOnly` transaction either. Under
-Postgres's default read-committed isolation, a row inserted by one
-connection isn't visible to a different connection until it commits — and
-`Ingestor`'s per-batch commits run on their own connection via its own
-`Transactor`. If `DataSetup()`'s accounts are still sitting in an
-uncommitted outer transaction when `Ingestor` starts its first batch,
-`Ledger.recordMovements`'s `accountRepo.findByIdForUpdate(...)` won't find
-them and will throw `NotFoundError`. So `DataSetup()` must be committed
-(e.g. its own `transact(transactor) { DataSetup() }` call, no
-`rollBackOnly`) before `ingest` is called — and its rows become part of
-what the test's teardown has to clean up.
+- Explicit teardown (delete the rows they created) instead of relying on
+  an enclosing `rollBackOnly`, since `ingestResumable`'s batches commit
+  for real on their own connection regardless of what any outer
+  transaction does.
+- `DataSetup()` committed on its own — e.g. `transact(transactor) {
+  DataSetup() }`, no `rollBackOnly` — *before* calling `ingestResumable`.
+  Under Postgres's default read-committed isolation, a row inserted by
+  one connection isn't visible to a different connection until it
+  commits, and `ingestResumable`'s batches run on their own connection.
+  If `DataSetup()`'s accounts were still sitting in an uncommitted outer
+  transaction when `ingestResumable` starts its first batch,
+  `Ledger.recordMovements`'s `accountRepo.findByIdForUpdate(...)` would
+  throw `NotFoundError`. `DataSetup()`'s rows become part of what each
+  test's teardown has to clean up too.
 
 ## Out-of-scope-but-adjacent findings
 
