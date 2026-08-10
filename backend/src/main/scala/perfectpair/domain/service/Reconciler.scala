@@ -28,7 +28,12 @@ class Reconciler(
     val reconSpecs = reconSpecRepo.findByAccountID(account.id)
     for reconSpec <- reconSpecs
     do
-      val matches = movementRepo.findEqualityMatches(reconSpec.rule().sql, reconSpec.relationship)
+      val matches = movementRepo.findEqualityMatches(
+        reconSpec.rule().sql,
+        reconSpec.inMovementSpecId,
+        reconSpec.outMovementSpecId,
+        reconSpec.relationship
+      )
 
       // build a mapping of the two sets of
       val groupedMatches = ListBuffer[(ListBuffer[String], ListBuffer[String])]()

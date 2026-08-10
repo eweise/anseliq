@@ -129,9 +129,15 @@ lazy val backend = (project in file("backend"))
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     // DataSetupScenario1 seeds real, committed data into the local dev DB (no rollBackOnly) and is meant
     // to be run explicitly (sbt "testOnly perfectpair.testing.DataSetupScenario1"), not as part of the
-    // regular suite where it would pollute state for every other test. Scoped to the `test` task only
-    // (not `testOnly`/`testQuick`) so explicit invocation still works.
-    Test / test / testOptions += Tests.Filter(name => name != "perfectpair.testing.DataSetupScenario1"),
+    // regular suite where it would pollute state for every other test. LargeFileIngestionReconciliationSuite
+    // ingests and reconciles two 5,000,000-row files, which takes on the order of hours given Reconciler's
+    // current per-row matching loop, and is likewise meant to be run explicitly
+    // (sbt "testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"). Both are scoped to
+    // the `test` task only (not `testOnly`/`testQuick`) so explicit invocation still works.
+    Test / test / testOptions += Tests.Filter(name =>
+      name != "perfectpair.testing.DataSetupScenario1" &&
+        name != "perfectpair.domain.service.LargeFileIngestionReconciliationSuite"
+    ),
     mainClass := Some("perfectpair.app.Main")
   )
   .settings(

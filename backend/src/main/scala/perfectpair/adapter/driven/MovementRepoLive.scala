@@ -79,8 +79,10 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
     """.query[Int].run().head
 
   def findEqualityMatches(
-    sqlCriteria:  String,
-    relationship: Relationship = OneToOne
+    sqlCriteria:       String,
+    inMovementSpecId:  ID,
+    outMovementSpecId: ID,
+    relationship:      Relationship = OneToOne
   ): Txn[Vector[(MovementInID, MovementOutID)]] =
     val criteria = SqlLiteral(sqlCriteria)
     val orderingClause = SqlLiteral(
@@ -95,6 +97,8 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       JOIN $m AS move_out
       ON move_in.in_account_id = move_out.out_account_id
       where 1 = 1
+      AND move_in.movement_spec_id = $inMovementSpecId
+      AND move_out.movement_spec_id = $outMovementSpecId
       AND $criteria
       $orderingClause
     """.query[(String, String)].run()
