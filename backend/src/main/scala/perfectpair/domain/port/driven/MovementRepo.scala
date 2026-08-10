@@ -14,6 +14,8 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
   def findByAccount(accountID:                       ID): Txn[Vector[Movement]]
   def findByReconciliationID(reconciliationID:       ID): Txn[Vector[Movement]]
   def findEqualityMatches(
-    sqlCriteria:  String,
-    relationship: Relationship
+    sqlCriteria:       String,
+    inMovementSpecId:  ID,
+    outMovementSpecId: ID,
+    relationship:      Relationship
   ): Txn[Vector[(MovementInID, MovementOutID)]]
