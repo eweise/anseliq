@@ -56,9 +56,7 @@ case class StringAttributeMatchRule(
     val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
     val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
     val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
-    s""" move_in.movement_spec_id = ''
-       | and move_out.movement_spec_id = ''
-       | and $inModifiedFrag = $outModifiedFrag""".stripMargin
+    s"$inModifiedFrag = $outModifiedFrag"
 
 case class DateAttributeMatchRule(
   inKey:  DateAttribute,
@@ -72,9 +70,7 @@ case class DateAttributeMatchRule(
     val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
     val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
     val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
-    s""" move_in.movement_spec_id = ''
-       | and move_out.movement_spec_id = ''
-       | and $inModifiedFrag = $outModifiedFrag""".stripMargin
+    s"$inModifiedFrag = $outModifiedFrag"
 
 sealed abstract class Attribute[A](val key: String) extends Ordering[String]:
   def modifySQL(frag: String): String
