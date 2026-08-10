@@ -62,10 +62,15 @@ cache path (streamed line-by-line via `BufferedWriter`, never holding all
 rows in memory), then returns the `File`. Re-running the test suite reuses
 the cached file instantly.
 
-Cache location: `backend/src/test/resources/large-fixtures/journal-5000000.csv`
-and `.../report-5000000.csv`. The `large-fixtures/` subdirectory is added to
-`.gitignore` so these files (hundreds of MB) are never committed, while
-still living alongside other test resources for discoverability.
+Cache location: `backend/target/large-fixtures/journal-5000000.csv` and
+`.../report-5000000.csv` — deliberately **outside** `src/test/resources`.
+Anything under `src/test/resources` gets copied by sbt's resource pipeline
+into `target/.../test-classes/` on every `Test/compile` or resource
+processing step, regardless of whether the excluded test ever runs; putting
+hundreds of MB there would slow down the ordinary build/test cycle, which
+defeats the point of excluding the test. `target/` is already covered by
+the root `.gitignore` (`target` pattern), so no gitignore changes are
+needed and the files are never committed.
 
 Row format (no header): `id,amount`, e.g. `"482913,187.00"`.
 
