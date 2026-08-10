@@ -98,6 +98,51 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
         val unreconciled = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id)
         assert(unreconciled.isEmpty)
 
+  test("OneToOne match with unequal amounts persists a nonzero balance and stays InProgress"):
+    transact(transactor):
+      rollBackOnly:
+        val data: DataSetup = DataSetup()
+        import data.given
+        val ops = FundFlowOperations()
+
+        given clock: ClockService = ClockServiceLive()
+        val reconciler = InMemoryReconciler()
+
+        // data.reconSpec is OneToOne by default, matching on the "id" property.
+        val keyID = createID().toString
+        ops.postAmount(data.journalToRecon, 100, referenceID = createID(), Map("id" -> keyID))
+        ops.postAmount(data.reportToRecon, 90, referenceID   = createID(), Map("id" -> keyID))
+
+        reconciler.reconcileAccount(data.reconAccount.id)
+
+        // Re-fetch from the repo (not the in-memory object the reconciler mutated) so this
+        // catches a balance that was computed but never persisted.
+        val recons = data.reconRepo.findByReconSpecID(data.reconSpec.id)
+        assertEquals(recons.size, 1)
+        assertEquals(recons.head.balance, BigDecimal(10), "100 (in) - 90 (out) = 10 residual balance")
+        assertEquals(recons.head.status, ReconciliationStatus.InProgress, "a nonzero balance must not be marked Final")
+
+  test("OneToOne match with equal amounts is Final with a zero balance"):
+    transact(transactor):
+      rollBackOnly:
+        val data: DataSetup = DataSetup()
+        import data.given
+        val ops = FundFlowOperations()
+
+        given clock: ClockService = ClockServiceLive()
+        val reconciler = InMemoryReconciler()
+
+        val keyID = createID().toString
+        ops.postAmount(data.journalToRecon, 100, referenceID = createID(), Map("id" -> keyID))
+        ops.postAmount(data.reportToRecon, 100, referenceID  = createID(), Map("id" -> keyID))
+
+        reconciler.reconcileAccount(data.reconAccount.id)
+
+        val recons = data.reconRepo.findByReconSpecID(data.reconSpec.id)
+        assertEquals(recons.size, 1)
+        assertEquals(recons.head.balance, BigDecimal(0))
+        assertEquals(recons.head.status, ReconciliationStatus.Final)
+
   test("Post Amount balances and Reconcile"):
     transact(transactor):
       rollBackOnly:

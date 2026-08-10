@@ -176,6 +176,9 @@ class InMemoryReconciler(using
           matchBalance           = matchBalance - outMovement.amount
           reconciliation.balance = reconciliation.balance + matchBalance
 
+        reconciliation.status =
+          if reconciliation.balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
+        reconRepo.update(reconciliation)
         ledger.reconcile(matchedMovements.toSeq, reconciliation.id, accountID)
 
       reconciliationSpecInsertCount.put(reconSpec.id, reconInsertCount)
