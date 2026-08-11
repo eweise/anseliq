@@ -37,25 +37,46 @@ class Ingestor(using
   val transactor:        Transactor
 ):
 
-  def ingestFileFromInventory(fileInventoryID: ID): Txn[IngestionResult] =
-    val fileInventory = fileInventoryRepo
-      .findById(fileInventoryID)
-      .ErrIfNotFound("FileInventory", fileInventoryID)
-
-    // fixme there is probably a better way to make the relationship between file source
-    val entry = fileInventory.fileSourceEntry()
-
-    val movementSpec = movementSpecRepo
-      .findById(fileInventory.movementSpecId)
-      .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
+  def ingestFileFromInventory(
+    fileInventoryID: ID,
+    batchSize:       Int                           = 100,
+    onBatchComplete: BatchProgress => BatchDecision = _ => BatchDecision.Commit
+  ): IngestionResult =
+    val (fileInventory, movementSpec) = transact(transactor):
+      val fileInventory = fileInventoryRepo
+        .findById(fileInventoryID)
+        .ErrIfNotFound("FileInventory", fileInventoryID)
+      val movementSpec = movementSpecRepo
+        .findById(fileInventory.movementSpecId)
+        .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
+      (fileInventory, movementSpec)
 
     val connectionConfig = movementSpec.dataSourceConfig().connectionConfig
-    val fileSource       = fileSourceFactory.createFileSource(connectionConfig)
+    val fileSource        = fileSourceFactory.createFileSource(connectionConfig)
+    val fileSourceEntry    = fileInventory.fileSourceEntry()
+    val inputStream          = fileSource.getFile(fileSourceEntry)
+    val startingLine       = fileInventory.lastProcessedLine.map(_ + 1).getOrElse(0L)
 
-    val fileSourceEntry = fileInventory.fileSourceEntry()
-    val inputStream     = fileSource.getFile(fileSourceEntry)
+    val result = ingestResumable(
+      movementSpec     = movementSpec,
+      fileSourceEntry  = fileSourceEntry,
+      is               = inputStream,
+      startingLine     = startingLine,
+      batchSize        = batchSize,
+      fileInventoryID  = Some(fileInventory.id),
+      onBatchComplete  = onBatchComplete
+    )
 
-    ingest(movementSpec, fileSourceEntry, inputStream)
+    if result.completed then
+      transact(transactor):
+        fileInventoryRepo.update(
+          fileInventoryRepo
+            .findById(fileInventory.id)
+            .ErrIfNotFound("FileInventory", fileInventory.id)
+            .copy(status = FileInventoryStatus.COMPLETED)
+        )
+
+    result
 
   def ingest(
     movementSpec:    MovementSpec,
