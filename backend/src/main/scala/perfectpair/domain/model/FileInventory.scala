@@ -7,7 +7,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 enum FileInventoryStatus derives DbCodec:
-  case QUEUED, COMPLETED
+  case QUEUED, PROCESSING, COMPLETED
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class FileInventory(
@@ -19,6 +19,7 @@ case class FileInventory(
   lastModifiedAt:      OffsetDateTime,
   status:              FileInventoryStatus,
   lastProcessedAt:     Option[OffsetDateTime],
+  lastProcessedLine:   Option[Long] = None,
   updatedAt:           Option[OffsetDateTime]
 ) derives DbCodec:
 
