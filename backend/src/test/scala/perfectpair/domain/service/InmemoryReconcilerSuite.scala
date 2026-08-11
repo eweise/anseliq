@@ -2,11 +2,11 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
+import perfectpair.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.{Movement, MovementSpec, Relationship, ReconciliationSpec, ReconciliationStatus, createID}
-import perfectpair.domain.port.driven.Txn
+import perfectpair.domain.port.driven.{JobRepo, Txn}
 import perfectpair.testing.rollBackOnly
 
 import java.util.UUID
@@ -22,6 +22,8 @@ class InmemoryReconcilerSuite extends munit.FunSuite:
   given eventRepo : EventRepoLive()
 
   given eventStore: EventStore = EventStore()
+
+  given jobRepo: JobRepo = JobRepoLive()
 
   def createMovement(data: DataSetup, movementSpec: MovementSpec, idValue: String): Txn[Movement] =
     val m = Movement(
