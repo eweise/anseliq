@@ -24,6 +24,7 @@ object Main:
   def main(args: Array[String]): Unit =
 
     given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
+    given transactor:         Transactor             = Transactor(dataSource = given_DataSource)
     given clock:              ClockService           = ClockServiceLive()
     given jobRepo:            JobRepo                = JobRepoLive()
     given jobManager:         JobManager             = JobManager()
@@ -101,9 +102,9 @@ object Main:
        */
       fork:
         jobManager.pollForJob(JobType.Ingestion, 5): job =>
-          transact(Transactor(dataSource = given_DataSource)):
-            try {
-              val results = ingestor.ingestFileFromInventory(job.referenceId)
+          try {
+            val results = ingestor.ingestFileFromInventory(job.referenceId)
+            transact(Transactor(dataSource = given_DataSource)):
               jobManager.completeJob(
                 job.id,
                 IngestionInfo( // fixme. should remove these info objects and use events instead
@@ -111,9 +112,9 @@ object Main:
                   processingTimeSeconds   = results.ingestionTimeSeconds
                 )
               )
-            } catch
-              case ex: Exception =>
-                throw new Exception(s"process ingestion jobs. job.referenceId = ${job.referenceId}", ex)
+          } catch
+            case ex: Exception =>
+              throw new Exception(s"process ingestion jobs. job.referenceId = ${job.referenceId}", ex)
 
       /**
        * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs

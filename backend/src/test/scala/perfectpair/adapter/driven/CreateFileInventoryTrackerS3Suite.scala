@@ -2,8 +2,9 @@ package perfectpair.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.common.model.S3ConnectionConfig
-import perfectpair.domain.model.{FileInventoryStatus, S3FileSourceEntry}
+import perfectpair.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
+import perfectpair.domain.DataSetup
+import perfectpair.domain.model.{FileInventory, FileInventoryStatus, MoneyMovementsIngested, MovementSpec, S3FileSourceEntry}
 import perfectpair.domain.port.driven.*
 import perfectpair.domain.service.*
 import perfectpair.testing.rollBackOnly
@@ -112,3 +113,83 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
         val second = ingestor.detectAndQueue(movementSpecID, source)
         assertEquals(second.size, 1)
         assertEquals(second.head.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key, s"incremental/new.csv")
+
+  private def csvSpec(spec: MovementSpec): MovementSpec =
+    spec.copy(
+      dataSourceJson = upickle.write(
+        DataSourceConfig(
+          parserConfig = CSVParserConfig(
+            hasHeader         = false,
+            columnDefinitions = Map(0 -> "id"),
+            amountField       = Some(1)
+          ),
+          // ingestFileFromInventory (unlike ingest/ingestResumable called directly) actually calls
+          // fileSourceFactory.createFileSource(connectionConfig) to fetch the file, and
+          // DataSourceConfig.connectionConfig defaults to S3ConnectionConfig("", "") (empty bucket) —
+          // must point at the real test bucket or the fetch fails against a nonexistent bucket.
+          connectionConfig = S3ConnectionConfig(bucket, "resume-test/")
+        )
+      )
+    )
+
+  test("ingestFileFromInventory resumes from the persisted checkpoint and marks COMPLETED only once finished"):
+    put("resume-test/journal.csv", "1,10\n2,20\n3,30\n4,40\n5,50")
+
+    val data = transact(transactor)(DataSetup())
+
+    transact(transactor):
+      movementSpecRepo.update(csvSpec(data.journalToRecon))
+
+    val s3Entry = S3FileSourceEntry(
+      bucket         = bucket,
+      key            = "resume-test/journal.csv",
+      fileSizeBytes  = 0L,
+      lastModifiedAt = clockService.now
+    )
+    val fileInventory = FileInventory(
+      movementSpecId      = data.journalToRecon.id,
+      sourceSystem        = "S3",
+      fileSourceEntryJson = upickle.write(s3Entry),
+      fileSizeBytes       = 0L,
+      lastModifiedAt      = clockService.now,
+      status              = FileInventoryStatus.QUEUED,
+      lastProcessedAt     = None,
+      updatedAt           = None
+    )
+    transact(transactor)(fileInventoryRepo.insert(fileInventory))
+
+    try
+      val ingestor = Ingestor()
+
+      val first = ingestor.ingestFileFromInventory(
+        fileInventory.id,
+        batchSize       = 2,
+        onBatchComplete = progress => if progress.lastLineInBatch == 4 then BatchDecision.Rollback else BatchDecision.Commit
+      )
+      assertEquals(first.completed, false)
+      assertEquals(first.recordCount, 4)
+
+      val afterFirst = transact(transactor)(fileInventoryRepo.findById(fileInventory.id).get)
+      assertEquals(afterFirst.status, FileInventoryStatus.PROCESSING)
+      assertEquals(afterFirst.lastProcessedLine, Some(3L))
+
+      val second = ingestor.ingestFileFromInventory(fileInventory.id)
+      assertEquals(second.completed, true)
+      assertEquals(second.recordCount, 1, "only the previously-uncommitted 5th row")
+
+      val afterSecond = transact(transactor)(fileInventoryRepo.findById(fileInventory.id).get)
+      assertEquals(afterSecond.status, FileInventoryStatus.COMPLETED)
+
+      val allMovements = transact(transactor)(movementRepo.findByAccount(data.reconAccount.id))
+      assertEquals(allMovements.size, 5)
+      assertEquals(allMovements.map(_.amount).sum, BigDecimal(10 + 20 + 30 + 40 + 50))
+    finally
+      transact(transactor):
+        val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
+        eventRepo
+          .findByEventType("MoneyMovementsIngested")
+          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
+          .foreach(es => eventRepo.deleteById(es.id))
+        fileInventoryRepo.deleteById(fileInventory.id)
+        data.reconSpecRepo.deleteById(data.reconSpec.id)
+        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)

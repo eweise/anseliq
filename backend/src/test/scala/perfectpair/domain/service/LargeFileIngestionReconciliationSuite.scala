@@ -54,36 +54,46 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 
   test("ingesting and reconciling two 5,000,000-row files nets the recon account to zero"):
     val ingestor = Ingestor()
-    transact(transactor):
-      rollBackOnly:
-        val data = DataSetup()
+    val data     = transact(transactor)(DataSetup())
+    try
+      val journalSpec = csvSpec(data.journalToRecon)
+      val reportSpec  = csvSpec(data.reportToRecon)
 
-        val journalSpec = csvSpec(data.journalToRecon)
-        val reportSpec  = csvSpec(data.reportToRecon)
+      val journalStream = BufferedInputStream(FileInputStream(LargeFileFixtures.journalFile()), 1 << 20)
+      try ingestor.ingestResumable(journalSpec, InMemoryFileSourceEntry("journal-large"), journalStream)
+      finally journalStream.close()
 
-        val journalStream = BufferedInputStream(FileInputStream(LargeFileFixtures.journalFile()), 1 << 20)
-        try ingestor.ingest(journalSpec, InMemoryFileSourceEntry("journal-large"), journalStream)
-        finally journalStream.close()
+      val reportStream = BufferedInputStream(FileInputStream(LargeFileFixtures.reportFile()), 1 << 20)
+      try ingestor.ingestResumable(reportSpec, InMemoryFileSourceEntry("report-large"), reportStream)
+      finally reportStream.close()
 
-        val reportStream = BufferedInputStream(FileInputStream(LargeFileFixtures.reportFile()), 1 << 20)
-        try ingestor.ingest(reportSpec, InMemoryFileSourceEntry("report-large"), reportStream)
-        finally reportStream.close()
+      val reconciler = Reconciler(
+        accountRepo        = data.accountRepo,
+        movementRepo       = data.movementRepo,
+        movementSpecRepo   = data.movementSpecRepo,
+        reconSpecRepo      = data.reconSpecRepo,
+        reconRepo          = data.reconRepo,
+        fundFlowConfigRepo = data.fundFlowConfigRepo
+      )
+      transact(transactor)(reconciler.reconcileAccount(data.reconAccount))
 
-        val reconciler = Reconciler(
-          accountRepo        = data.accountRepo,
-          movementRepo       = data.movementRepo,
-          movementSpecRepo   = data.movementSpecRepo,
-          reconSpecRepo      = data.reconSpecRepo,
-          reconRepo          = data.reconRepo,
-          fundFlowConfigRepo = data.fundFlowConfigRepo
-        )
-        reconciler.reconcileAccount(data.reconAccount)
-
-        val reconAccountAfter = accountRepo.findById(data.reconAccount.id).get
-        assertEquals(reconAccountAfter.balance, BigDecimal(0), "reconAccount.balance")
-        assertEquals(reconAccountAfter.unreconciledBalance, BigDecimal(0), "reconAccount.unreconciledBalance")
-        assertEquals(
-          movementRepo.countUnreconciledByAccount(data.reconAccount.id),
-          0,
-          "movements left unreconciled on the recon account"
-        )
+      val reconAccountAfter = transact(transactor)(accountRepo.findById(data.reconAccount.id).get)
+      assertEquals(reconAccountAfter.balance, BigDecimal(0), "reconAccount.balance")
+      assertEquals(reconAccountAfter.unreconciledBalance, BigDecimal(0), "reconAccount.unreconciledBalance")
+      assertEquals(
+        transact(transactor)(movementRepo.countUnreconciledByAccount(data.reconAccount.id)),
+        0,
+        "movements left unreconciled on the recon account"
+      )
+    finally
+      transact(transactor):
+        val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
+        eventRepo
+          .findByEventType("MoneyMovementsIngested")
+          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
+          .foreach(es => eventRepo.deleteById(es.id))
+        // reconciliation.spec_id -> reconciliation_spec has no ON DELETE CASCADE, so any
+        // reconciliations reconcileAccount created must go before the spec they reference.
+        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        data.reconSpecRepo.deleteById(data.reconSpec.id)
+        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)

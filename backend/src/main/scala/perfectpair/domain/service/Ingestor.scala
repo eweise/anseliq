@@ -1,6 +1,8 @@
 package perfectpair.domain.service
 
+import com.augustnagro.magnum.{DbTx, Transactor, transact}
 import com.fasterxml.uuid.Generators
+import com.typesafe.scalalogging.Logger
 import ox.flow.Flow
 import perfectpair.common.model.model.ID
 import perfectpair.domain.model.*
@@ -12,8 +14,17 @@ import java.time.Instant.now
 
 case class IngestionResult(
   recordCount:          Int,
-  ingestionTimeSeconds: Long
+  ingestionTimeSeconds: Long,
+  lastProcessedLine:    Option[Long] = None,
+  completed:            Boolean      = true
 )
+
+case class BatchProgress(linesProcessedInBatch: Int, lastLineInBatch: Long)
+
+enum BatchDecision:
+  case Commit, Rollback
+
+private case object IngestionStopped extends RuntimeException
 
 class Ingestor(using
   val ledger:            Ledger,
@@ -22,34 +33,57 @@ class Ingestor(using
   val accountRepo:       AccountRepo,
   val eventStore:        EventStore,
   val fileInventoryRepo: FileInventoryRepo,
-  val fileSourceFactory: FileSourceFactory
+  val fileSourceFactory: FileSourceFactory,
+  val transactor:        Transactor
 ):
 
-  def ingestFileFromInventory(fileInventoryID: ID): Txn[IngestionResult] =
-    val fileInventory = fileInventoryRepo
-      .findById(fileInventoryID)
-      .ErrIfNotFound("FileInventory", fileInventoryID)
-
-    // fixme there is probably a better way to make the relationship between file source
-    val entry = fileInventory.fileSourceEntry()
-
-    val movementSpec = movementSpecRepo
-      .findById(fileInventory.movementSpecId)
-      .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
+  def ingestFileFromInventory(
+    fileInventoryID: ID,
+    batchSize:       Int                           = 100,
+    onBatchComplete: BatchProgress => BatchDecision = _ => BatchDecision.Commit
+  ): IngestionResult =
+    val (fileInventory, movementSpec) = transact(transactor):
+      val fileInventory = fileInventoryRepo
+        .findById(fileInventoryID)
+        .ErrIfNotFound("FileInventory", fileInventoryID)
+      val movementSpec = movementSpecRepo
+        .findById(fileInventory.movementSpecId)
+        .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
+      (fileInventory, movementSpec)
 
     val connectionConfig = movementSpec.dataSourceConfig().connectionConfig
-    val fileSource       = fileSourceFactory.createFileSource(connectionConfig)
+    val fileSource        = fileSourceFactory.createFileSource(connectionConfig)
+    val fileSourceEntry    = fileInventory.fileSourceEntry()
+    val inputStream          = fileSource.getFile(fileSourceEntry)
+    val startingLine       = fileInventory.lastProcessedLine.map(_ + 1).getOrElse(0L)
 
-    val fileSourceEntry = fileInventory.fileSourceEntry()
-    val inputStream     = fileSource.getFile(fileSourceEntry)
+    val result = ingestResumable(
+      movementSpec     = movementSpec,
+      fileSourceEntry  = fileSourceEntry,
+      is               = inputStream,
+      startingLine     = startingLine,
+      batchSize        = batchSize,
+      fileInventoryID  = Some(fileInventory.id),
+      onBatchComplete  = onBatchComplete
+    )
 
-    ingest(movementSpec, fileSourceEntry, inputStream)
+    if result.completed then
+      transact(transactor):
+        fileInventoryRepo.update(
+          fileInventoryRepo
+            .findById(fileInventory.id)
+            .ErrIfNotFound("FileInventory", fileInventory.id)
+            .copy(status = FileInventoryStatus.COMPLETED)
+        )
+
+    result
 
   def ingest(
     movementSpec:    MovementSpec,
     fileSourceEntry: FileSourceEntry,
     is:              InputStream
   ): Txn[IngestionResult] =
+    val logger      = Logger(getClass.getName)
     var lineCounter = 0
     val beginTime   = now()
     val parser      = Parser(movementSpec.dataSourceConfig().parserConfig)
@@ -85,8 +119,9 @@ class Ingestor(using
           properties  = parsedLine.props
         )
       )
-      .grouped(100)
+      .grouped(1000)
       .runForeach: requests =>
+        logger.debug(s"ingesting ${movementSpec.name} linecount=$lineCounter")
         ledger.recordMovements(
           movementSpec     = movementSpec,
           movementRequests = requests
@@ -97,6 +132,78 @@ class Ingestor(using
     IngestionResult(
       recordCount          = lineCounter,
       ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond
+    )
+
+  def ingestResumable(
+    movementSpec:    MovementSpec,
+    fileSourceEntry: FileSourceEntry,
+    is:              InputStream,
+    startingLine:    Long                           = 0,
+    batchSize:       Int                            = 100,
+    fileInventoryID: Option[ID]                      = None,
+    onBatchComplete: BatchProgress => BatchDecision  = _ => BatchDecision.Commit
+  ): IngestionResult =
+    val beginTime = now()
+    val parser    = Parser(movementSpec.dataSourceConfig().parserConfig)
+
+    var recordCount       = 0
+    var lastCommittedLine = Option.empty[Long]
+    var completed         = true
+
+    try
+      Flow
+        .fromInputStream(is)
+        .linesUtf8
+        .zipWithIndex
+        .drop(startingLine.toInt)
+        .map((line, idx) => (idx, parser.parse(line, idx)))
+        .collect { case (idx, Some(parsedLine)) =>
+          val amount = parsedLine.maybeAmount.getOrElse(BigDecimal(0))
+          val idempotencyId = Generators
+            .nameBasedGenerator()
+            .generate(s"${fileSourceEntry.name} $idx")
+          (idx, MovementRequest(amount = amount, referenceId = idempotencyId, properties = parsedLine.props))
+        }
+        .grouped(batchSize)
+        .runForeach: batch =>
+          val lastLineInBatch = batch.last._1
+          val requests        = batch.map(_._2)
+
+          val decision = transact(transactor):
+            ledger.recordMovements(movementSpec = movementSpec, movementRequests = requests)
+
+            fileInventoryID.foreach: id =>
+              val fileInventory = fileInventoryRepo.findById(id).ErrIfNotFound("FileInventory", id)
+              fileInventoryRepo.update(
+                fileInventory.copy(
+                  lastProcessedLine = Some(lastLineInBatch),
+                  status            = FileInventoryStatus.PROCESSING
+                )
+              )
+
+            val progress      = BatchProgress(linesProcessedInBatch = batch.size, lastLineInBatch = lastLineInBatch)
+            val batchDecision = onBatchComplete(progress)
+            if batchDecision == BatchDecision.Rollback then summon[DbTx].connection.rollback()
+            batchDecision
+
+          decision match
+            case BatchDecision.Commit =>
+              recordCount       += batch.size
+              lastCommittedLine  = Some(lastLineInBatch)
+            case BatchDecision.Rollback =>
+              completed = false
+              throw IngestionStopped
+    catch case IngestionStopped => ()
+
+    if lastCommittedLine.isDefined then
+      transact(transactor):
+        eventStore.publishEvent(MoneyMovementsIngested(movementSpecID = movementSpec.id))
+
+    IngestionResult(
+      recordCount          = recordCount,
+      ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond,
+      lastProcessedLine    = lastCommittedLine,
+      completed            = completed
     )
 
   def detectAndQueue(movementSpecID: ID, source: FileSource): Txn[Vector[FileInventory]] =
