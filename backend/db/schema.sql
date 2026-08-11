@@ -107,6 +107,11 @@ CREATE INDEX movement_movement_spec_fk ON recon.movement (movement_spec_id);
 CREATE INDEX movement_in_account_fk ON recon.movement (in_account_id);
 CREATE INDEX movement_out_account_fk ON recon.movement (out_account_id);
 
+-- Matches the WHERE clause of findUnreconciledPage/findUnreconciledByExactMatchKey exactly, so
+-- reconciliation's keyset-paginated scan of a spec's unreconciled movements doesn't have to walk
+-- every already-reconciled row for that spec first. Shrinks automatically as movements reconcile.
+CREATE INDEX movement_unreconciled_by_spec ON recon.movement (movement_spec_id) WHERE reconciliation_id IS NULL;
+
 CREATE INDEX movement_props_index
     ON recon.movement
         USING GIN (properties jsonb_path_ops);
