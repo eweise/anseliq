@@ -3,7 +3,7 @@ package perfectpair.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.domain.DataSetup
-import perfectpair.domain.model.Job
+import perfectpair.domain.model.{Job, JobStatus, JobType}
 import perfectpair.domain.model.JobType.Ingestion
 import perfectpair.testing.rollBackOnly
 
@@ -31,3 +31,18 @@ class JobRepoLiveSuite extends munit.FunSuite:
         assert(foundJob.nonEmpty)
         val foundJobsByType = jobRepo.findByJobType(Ingestion)
         assertEquals(foundJobsByType.size, 1)
+
+  test("progressJson round-trips through the database"):
+    val jobRepo = JobRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val job = Job(
+          referenceId = UUID.randomUUID(),
+          jobType     = JobType.Reconciliation,
+          jobStatus   = JobStatus.InProgress
+        )
+        jobRepo.insert(job)
+        assertEquals(jobRepo.findById(job.id).get.progressJson, None)
+
+        jobRepo.update(job.copy(progressJson = Some("""{"foo":"bar"}""")))
+        assertEquals(jobRepo.findById(job.id).get.progressJson, Some("""{"foo":"bar"}"""))
