@@ -25,3 +25,8 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
     afterKey:       Option[String],
     pageSize:       Int
   ): Txn[Vector[Movement]]
+  def findUnreconciledByExactMatchKey(
+    movementSpecId: ID,
+    matchKeyExpr:   String,
+    keyValue:       String
+  ): Txn[Vector[Movement]]

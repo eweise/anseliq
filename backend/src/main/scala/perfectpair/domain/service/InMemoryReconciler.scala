@@ -375,6 +375,174 @@ class InMemoryReconciler(using
 
     (totalMatches, ReconciliationCheckpoint(lastInMatchKey = lastInKey, lastOutMatchKey = lastOutKey), stopped)
 
+  /**
+   * Phase 1 of OneToMany: complete existing InProgress reconciliations against newly-unreconciled
+   * out-movements sharing their in-movement's match key. Bounded by however many reconciliations
+   * are currently InProgress (not by the size of the backlog), so — unlike Phase 2 — this doesn't
+   * need pagination: findInProgressBySpecId and the per-reconciliation exact-key lookup are both
+   * small, targeted queries. Each reconciliation's completion commits as its own small transaction.
+   */
+  private def completeInProgressReconciliations(reconSpec: ReconciliationSpec, accountId: ID): Unit =
+    val rule    = reconSpec.rule()
+    val outExpr = matchKeyExpr(rule, OUT, "a")
+
+    val inProgressRecons = transact(transactor)(reconRepo.findInProgressBySpecId(reconSpec.id))
+    for recon <- inProgressRecons do
+      transact(transactor):
+        val reconMovements = movementRepo.findByReconciliationID(recon.id)
+        reconMovements.find(_.movementSpecId == reconSpec.inMovementSpecId).foreach: inMov =>
+          val inKey   = matchKeyValue(rule, IN, inMov)
+          val matched = movementRepo.findUnreconciledByExactMatchKey(reconSpec.outMovementSpecId, outExpr, inKey)
+
+          if matched.nonEmpty then
+            var newBalance: Money = recon.balance
+            val updatedOuts = matched.map: outMov =>
+              outMov.reconciliationId = Some(recon.id)
+              newBalance = newBalance - outMov.amount
+              outMov
+            movementRepo.updateAll(updatedOuts)
+            ledger.markReconciled(accountId, matched.map(_.signedAmountFor(accountId)).sum)
+
+            recon.balance = newBalance
+            if newBalance == Zero then recon.status = ReconciliationStatus.Final
+            reconRepo.update(recon)
+
+  /**
+   * Phase 2 of OneToMany: stream both sides via keyset pagination (same mechanics as
+   * reconcileOneToOneStreaming), grouping consecutive out-rows sharing the same key as the
+   * current in-row into one reconciliation. A group can span a page boundary transparently,
+   * since ensureOut() already fetches the next page on demand whenever the current one runs out —
+   * the "does the group continue" check and "do we need more rows" check are the same check.
+   */
+  private def reconcileOneToManyStreaming(
+    reconSpec:       ReconciliationSpec,
+    accountId:       ID,
+    startCheckpoint: ReconciliationCheckpoint,
+    batchSize:       Int,
+    jobId:           Option[ID],
+    allCheckpoints:  Map[ID, ReconciliationCheckpoint],
+    onBatchComplete: SpecBatchProgress => BatchDecision
+  ): (Int, ReconciliationCheckpoint, Boolean) =
+    val rule    = reconSpec.rule()
+    val inExpr  = matchKeyExpr(rule, IN, "a")
+    val outExpr = matchKeyExpr(rule, OUT, "a")
+
+    var inPage     = fetchPage(reconSpec.inMovementSpecId, inExpr, startCheckpoint.lastInMatchKey)
+    var outPage    = fetchPage(reconSpec.outMovementSpecId, outExpr, startCheckpoint.lastOutMatchKey)
+    var inIdx      = 0
+    var outIdx     = 0
+    var lastInKey  = startCheckpoint.lastInMatchKey
+    var lastOutKey = startCheckpoint.lastOutMatchKey
+    var totalGroups = 0
+
+    // Each pending group is (inMovement, outMovements-for-that-group)
+    val pendingGroups = ListBuffer[(Movement, Vector[Movement])]()
+
+    def ensureIn(): Boolean =
+      if inIdx < inPage.size then true
+      else if inPage.size < pageSize then false
+      else
+        inPage = fetchPage(reconSpec.inMovementSpecId, inExpr, lastInKey)
+        inIdx = 0
+        inPage.nonEmpty
+
+    def ensureOut(): Boolean =
+      if outIdx < outPage.size then true
+      else if outPage.size < pageSize then false
+      else
+        outPage = fetchPage(reconSpec.outMovementSpecId, outExpr, lastOutKey)
+        outIdx = 0
+        outPage.nonEmpty
+
+    def commitBatch(): Unit =
+      val groups = pendingGroups.toVector
+      pendingGroups.clear()
+
+      val checkpoint = ReconciliationCheckpoint(lastInMatchKey = lastInKey, lastOutMatchKey = lastOutKey)
+
+      val decision = transact(transactor):
+        val now = clock.now
+        var batchDelta: Money = Zero
+
+        for (inMov, outMovs) <- groups do
+          var balance = inMov.amount
+          for out <- outMovs do balance = balance - out.amount
+          val status = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
+
+          val reconciliation = Reconciliation(
+            specId       = reconSpec.id,
+            appliedRules = rule.sql,
+            status       = status,
+            balance      = balance,
+            createdAt    = Some(now),
+            updatedAt    = Some(now)
+          )
+          reconRepo.insert(reconciliation)
+
+          inMov.reconciliationId = Some(reconciliation.id)
+          val updatedMovements = outMovs.map: outMov =>
+            outMov.reconciliationId = Some(reconciliation.id)
+            outMov
+          movementRepo.updateAll(inMov +: updatedMovements)
+
+          batchDelta = batchDelta + inMov.signedAmountFor(accountId) + outMovs.map(_.signedAmountFor(accountId)).sum
+
+        ledger.markReconciled(accountId, batchDelta)
+
+        jobId.foreach: id =>
+          val job = jobRepo.findById(id).ErrIfNotFound("Job", id)
+          val updatedCheckpoints = allCheckpoints + (reconSpec.id -> checkpoint)
+          jobRepo.update(job.copy(progressJson = Some(upickle.write(updatedCheckpoints))))
+
+        val progress      = SpecBatchProgress(reconSpec.id, groups.size, checkpoint)
+        val batchDecision = onBatchComplete(progress)
+        if batchDecision == BatchDecision.Rollback then summon[DbTx].connection.rollback()
+        batchDecision
+
+      decision match
+        case BatchDecision.Commit =>
+          totalGroups += groups.size
+        case BatchDecision.Rollback =>
+          throw ReconciliationStopped
+
+    var stopped = false
+    try
+      while ensureIn() && ensureOut() do
+        val inMovement = inPage(inIdx)
+        val inKey      = matchKeyValue(rule, IN, inMovement)
+        val outKey     = matchKeyValue(rule, OUT, outPage(outIdx))
+        val comparison = inKey.compareTo(outKey)
+
+        if comparison == 0 then
+          val groupOuts = ListBuffer[Movement]()
+          groupOuts += outPage(outIdx)
+          lastOutKey = Some(outKey)
+          outIdx += 1
+          var continueGroup = true
+          while continueGroup && ensureOut() do
+            val nextOutKey = matchKeyValue(rule, OUT, outPage(outIdx))
+            if nextOutKey == inKey then
+              groupOuts += outPage(outIdx)
+              lastOutKey = Some(nextOutKey)
+              outIdx += 1
+            else continueGroup = false
+
+          pendingGroups += (inMovement -> groupOuts.toVector)
+          lastInKey = Some(inKey)
+          inIdx += 1
+          if pendingGroups.size >= batchSize then commitBatch()
+        else if comparison < 0 then
+          lastInKey = Some(inKey)
+          inIdx += 1
+        else
+          lastOutKey = Some(outKey)
+          outIdx += 1
+
+      if pendingGroups.nonEmpty then commitBatch()
+    catch case ReconciliationStopped => stopped = true
+
+    (totalGroups, ReconciliationCheckpoint(lastInMatchKey = lastInKey, lastOutMatchKey = lastOutKey), stopped)
+
   def reconcileAccountResumable(
     accountId:       ID,
     batchSize:       Int                                = 500,
@@ -409,7 +577,14 @@ class InMemoryReconciler(using
               completed = false
               break()
           case OneToMany =>
-            throw UnsupportedOperationException("reconcileAccountResumable does not support OneToMany yet")
+            completeInProgressReconciliations(reconSpec, accountId)
+            val (matchCount, endingCheckpoint, stopped) =
+              reconcileOneToManyStreaming(reconSpec, accountId, startCheckpoint, batchSize, jobId, checkpoints, onBatchComplete)
+            specCounts += (reconSpec.id  -> matchCount)
+            checkpoints += (reconSpec.id -> endingCheckpoint)
+            if stopped then
+              completed = false
+              break()
           case ManyToOne | ManyToMany =>
             specCounts += (reconSpec.id -> 0)
 
