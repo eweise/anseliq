@@ -96,6 +96,7 @@ CREATE TABLE recon.file_inventory
     last_modified_at       TIMESTAMP WITH TIME ZONE NOT NULL,
     status                 TEXT                     NOT NULL DEFAULT 'QUEUED',
     last_processed_at      TIMESTAMP WITH TIME ZONE,
+    last_processed_line    BIGINT,
     updated_at             TIMESTAMP WITH TIME ZONE          DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_source_path UNIQUE (source_system, file_source_entry_json)
 );
