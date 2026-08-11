@@ -7,7 +7,7 @@ import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
-import perfectpair.testing.{LargeFileFixtures, rollBackOnly}
+import perfectpair.testing.LargeFileFixtures
 
 import java.io.{BufferedInputStream, FileInputStream}
 import javax.sql.DataSource
@@ -19,9 +19,9 @@ import javax.sql.DataSource
 class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
   given transactor: Transactor = Transactor(dataSource)
 
-  given clockService: ClockService = ClockServiceLive()
-
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+
+  given clockService: ClockService = ClockServiceLive()
 
   given eventRepo: EventRepo = EventRepoLive()
 
@@ -59,11 +59,11 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
       val journalSpec = csvSpec(data.journalToRecon)
       val reportSpec  = csvSpec(data.reportToRecon)
 
-      val journalStream = BufferedInputStream(FileInputStream(LargeFileFixtures.journalFile()), 1 << 20)
+      val journalStream = BufferedInputStream(FileInputStream(LargeFileFixtures.journalFile()), 1 << 10000)
       try ingestor.ingestResumable(journalSpec, InMemoryFileSourceEntry("journal-large"), journalStream)
       finally journalStream.close()
 
-      val reportStream = BufferedInputStream(FileInputStream(LargeFileFixtures.reportFile()), 1 << 20)
+      val reportStream = BufferedInputStream(FileInputStream(LargeFileFixtures.reportFile()), 1 << 10000)
       try ingestor.ingestResumable(reportSpec, InMemoryFileSourceEntry("report-large"), reportStream)
       finally reportStream.close()
 

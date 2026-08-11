@@ -1,5 +1,7 @@
 package perfectpair.domain.service
 
+import com.typesafe.scalalogging.Logger
+import net.logstash.logback.argument.StructuredArguments.kv
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
 import perfectpair.domain.port.driven.*
@@ -24,7 +26,8 @@ class Reconciler(
 ):
 
   def reconcileAccount(account: Account): Txn[Unit] =
-
+    val logger = Logger(getClass.getName)
+    logger.info("reconcile account", kv("account_id", account.id))
     val reconSpecs = reconSpecRepo.findByAccountID(account.id)
     for reconSpec <- reconSpecs
     do
@@ -34,6 +37,8 @@ class Reconciler(
         reconSpec.outMovementSpecId,
         reconSpec.relationship
       )
+
+      logger.debug("found matches", kv("matches_size", matches.size))
 
       // build a mapping of the two sets of
       val groupedMatches = ListBuffer[(ListBuffer[String], ListBuffer[String])]()
@@ -60,12 +65,15 @@ class Reconciler(
         case ManyToOne  =>
         case ManyToMany =>
 
+      var insertCount = 0
       for aMatch <- groupedMatches
       do
         val reconciliation = Reconciliation(
           specId       = reconSpec.id,
           appliedRules = reconSpec.ruleJson
         )
+        insertCount += 1
+        logger.debug("inserting reconciliation", kv("insert_count", insertCount))
         reconRepo.insert(reconciliation)
 
         for inMatch <- aMatch._1

@@ -108,6 +108,7 @@ lazy val backend = (project in file("backend"))
     version := "0.1.0",
     libraryDependencies ++= Seq(
       "ch.qos.logback"              % "logback-classic"     % Dependencies.LogbackClassic,
+      "net.logstash.logback"        % "logstash-logback-encoder" % Dependencies.LogstashEncoder,
       "org.fusesource.jansi"        % "jansi"               % Dependencies.Jansi,
       "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.5",
       "com.fasterxml.uuid"          % "java-uuid-generator" % "5.2.0",
