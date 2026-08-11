@@ -2,11 +2,11 @@ package perfectpair.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
+import perfectpair.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.helper.JSONBProps
 import perfectpair.domain.model.{IllegalArgumentError, IllegalStateError, Movement, MovementSpec, ReconciliationStatus}
-import perfectpair.domain.port.driven.Txn
+import perfectpair.domain.port.driven.{JobRepo, Txn}
 import perfectpair.testing.rollBackOnly
 
 import javax.sql.DataSource
@@ -17,6 +17,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
   given clockSvc:   ClockService = ClockServiceLive()
   given eventRepo:  EventRepoLive()
   given eventStore: EventStore = EventStore()
+  given jobRepo:    JobRepo = JobRepoLive()
 
   def createMovement(movementSpec: MovementSpec, amount: BigDecimal)(using data: DataSetup): Txn[Movement] =
     val m = Movement(

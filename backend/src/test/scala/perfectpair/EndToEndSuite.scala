@@ -30,6 +30,7 @@ class EndToEndSuite extends munit.FunSuite {
   given accountRepo:        AccountRepo            = AccountRepoLive()
   given eventRepo:          EventRepo              = EventRepoLive()
   given eventStore:         EventStore             = EventStore()
+  given jobRepo:            JobRepo                = JobRepoLive()
   given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
   given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
   given ledger:             Ledger                 = Ledger()
