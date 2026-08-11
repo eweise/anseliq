@@ -138,3 +138,24 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       AND movement_spec_id = $movementSpecId
       AND $keyExpr = $keyValue
     """.query[Movement].run()
+
+  // Bulk-links each movement to its own reconciliation in one statement, touching only the
+  // reconciliation_id column — unlike the generic updateAll (which rewrites every column,
+  // including the full properties JSONB blob, and fires once per row via JDBC batching, i.e.
+  // still one statement execution per row server-side). Embedding the ids as literal SQL text
+  // (rather than bind parameters) is safe here specifically because ID is always a UUID: its
+  // toString is a fixed, closed hex+hyphen format that cannot contain quotes or SQL
+  // metacharacters, unlike arbitrary user-supplied strings.
+  def setReconciliationIds(idPairs: Iterable[(ID, ID)]): Txn[Unit] =
+    if idPairs.nonEmpty then
+      val valuesClause = SqlLiteral(
+        idPairs
+          .map { case (movementId, reconciliationId) => s"('$movementId'::uuid, '$reconciliationId'::uuid)" }
+          .mkString(", ")
+      )
+      sql"""
+        UPDATE $m AS a
+        SET reconciliation_id = v.reconciliation_id
+        FROM (VALUES $valuesClause) AS v(id, reconciliation_id)
+        WHERE a.id = v.id
+      """.update.run()

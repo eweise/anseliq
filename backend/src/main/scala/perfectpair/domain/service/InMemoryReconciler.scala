@@ -9,6 +9,7 @@ import perfectpair.common.model.model.{ID, Money, Zero}
 import perfectpair.domain.model.*
 import perfectpair.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
 import perfectpair.domain.port.driven.*
+import perfectpair.util.PerfLogger
 
 import java.time.Instant
 import java.util.UUID
@@ -52,7 +53,7 @@ class InMemoryReconciler(using
   val jobRepo:            JobRepo
 ):
 
-  private val pageSize = 500
+  private val pageSize = 10000
 
   /**
    * Main reconciliation method
@@ -218,10 +219,13 @@ class InMemoryReconciler(using
 
   def reconcileAccountResumable(
     accountId:       ID,
-    batchSize:       Int                                = 500,
+    batchSize:       Int                                = 10000,
     jobId:           Option[ID]                         = None,
     onBatchComplete: SpecBatchProgress => BatchDecision = _ => BatchDecision.Commit
   ): ReconciliationResumableResult =
+    val logger = Logger(getClass.getName)
+    logger.info("reconcileAccountResumable", kv("account_id", accountId), kv("batch_size", batchSize))
+
     val beginTime = Instant.now()
 
     val startingCheckpoints: Map[ID, ReconciliationCheckpoint] =
@@ -242,6 +246,8 @@ class InMemoryReconciler(using
         val startCheckpoint = checkpoints.getOrElse(reconSpec.id, ReconciliationCheckpoint())
         reconSpec.relationship match
           case OneToOne =>
+            logger.debug("processing OneToOne")
+
             val (matchCount, endingCheckpoint, stopped) =
               reconcileOneToOneStreaming(
                 reconSpec,
@@ -324,7 +330,8 @@ class InMemoryReconciler(using
     afterKey:       Option[String]
   ): Vector[Movement] =
     transact(transactor):
-      movementRepo.findUnreconciledPage(movementSpecId, matchKeyExpr, afterKey, pageSize)
+      PerfLogger.time("fetchPage"):
+        movementRepo.findUnreconciledPage(movementSpecId, matchKeyExpr, afterKey, pageSize)
 
   /**
    * Streams both sides of a OneToOne match via keyset pagination instead of loading every
@@ -344,6 +351,7 @@ class InMemoryReconciler(using
     allCheckpoints:  Map[ID, ReconciliationCheckpoint],
     onBatchComplete: SpecBatchProgress => BatchDecision
   ): (Int, ReconciliationCheckpoint, Boolean) =
+    val logger  = Logger(getClass.getName)
     val rule    = reconSpec.rule()
     val inExpr  = matchKeyExpr(rule, IN, "a")
     val outExpr = matchKeyExpr(rule, OUT, "a")
@@ -379,6 +387,7 @@ class InMemoryReconciler(using
       pendingMatches.clear()
 
       val checkpoint = ReconciliationCheckpoint(lastInMatchKey = lastInKey, lastOutMatchKey = lastOutKey)
+      logger.info("committing batch", kv("checkpoint", checkpoint))
 
       val decision = transact(transactor):
         val now = clock.now
@@ -387,13 +396,13 @@ class InMemoryReconciler(using
         reconRepo.insertAll(reconciliations)
 
         var batchDelta: Money = Zero
-        val updatedMovements = matches.zip(reconciliations).flatMap { case ((inMov, outMov), recon) =>
+        val idPairs = matches.zip(reconciliations).flatMap { case ((inMov, outMov), recon) =>
           inMov.reconciliationId  = Some(recon.id)
           outMov.reconciliationId = Some(recon.id)
           batchDelta              = batchDelta + inMov.signedAmountFor(accountId) + outMov.signedAmountFor(accountId)
-          Seq(inMov, outMov)
+          Seq(inMov.id -> recon.id, outMov.id -> recon.id)
         }
-        movementRepo.updateAll(updatedMovements)
+        movementRepo.setReconciliationIds(idPairs)
 
         // One markReconciled call for the whole batch's net delta, rather than one per match —
         // ledger.reconcile (unchanged, still used by reconcileAccount) does the equivalent sum
@@ -418,27 +427,28 @@ class InMemoryReconciler(using
 
     var stopped = false
     try
-      while ensureIn() && ensureOut() do
-        val inMovement  = inPage(inIdx)
-        val outMovement = outPage(outIdx)
-        val inKey       = matchKeyValue(rule, IN, inMovement)
-        val outKey      = matchKeyValue(rule, OUT, outMovement)
-        val comparison  = inKey.compareTo(outKey)
+      PerfLogger.time("create pending batches"):
+        while ensureIn() && ensureOut() do
+          val inMovement  = inPage(inIdx)
+          val outMovement = outPage(outIdx)
+          val inKey       = matchKeyValue(rule, IN, inMovement)
+          val outKey      = matchKeyValue(rule, OUT, outMovement)
+          val comparison  = inKey.compareTo(outKey)
 
-        comparison match
-          case 0 =>
-            pendingMatches += (inMovement -> outMovement)
-            lastInKey  = Some(inKey)
-            lastOutKey = Some(outKey)
-            inIdx += 1
-            outIdx += 1
-            if pendingMatches.size >= batchSize then commitBatch()
-          case x if x < 0 =>
-            lastInKey = Some(inKey)
-            inIdx += 1
-          case _ =>
-            lastOutKey = Some(outKey)
-            outIdx += 1
+          comparison match
+            case 0 =>
+              pendingMatches += (inMovement -> outMovement)
+              lastInKey  = Some(inKey)
+              lastOutKey = Some(outKey)
+              inIdx += 1
+              outIdx += 1
+              if pendingMatches.size >= batchSize then commitBatch()
+            case x if x < 0 =>
+              lastInKey = Some(inKey)
+              inIdx += 1
+            case _ =>
+              lastOutKey = Some(outKey)
+              outIdx += 1
 
       if pendingMatches.nonEmpty then commitBatch()
     catch case ReconciliationStopped => stopped = true
@@ -468,11 +478,8 @@ class InMemoryReconciler(using
 
             if matched.nonEmpty then
               var newBalance: Money = recon.balance
-              val updatedOuts = matched.map: outMov =>
-                outMov.reconciliationId = Some(recon.id)
-                newBalance              = newBalance - outMov.amount
-                outMov
-              movementRepo.updateAll(updatedOuts)
+              for outMov <- matched do newBalance = newBalance - outMov.amount
+              movementRepo.setReconciliationIds(matched.map(_.id -> recon.id))
               ledger.markReconciled(accountId, matched.map(_.signedAmountFor(accountId)).sum)
 
               recon.balance                           = newBalance
@@ -536,6 +543,8 @@ class InMemoryReconciler(using
         val now = clock.now
         var batchDelta: Money = Zero
 
+        val idPairs = ListBuffer[(ID, ID)]()
+
         for (inMov, outMovs) <- groups do
           var balance = inMov.amount
           for out <- outMovs do balance = balance - out.amount
@@ -551,14 +560,12 @@ class InMemoryReconciler(using
           )
           reconRepo.insert(reconciliation)
 
-          inMov.reconciliationId = Some(reconciliation.id)
-          val updatedMovements = outMovs.map: outMov =>
-            outMov.reconciliationId = Some(reconciliation.id)
-            outMov
-          movementRepo.updateAll(inMov +: updatedMovements)
+          idPairs += (inMov.id -> reconciliation.id)
+          for outMov <- outMovs do idPairs += (outMov.id -> reconciliation.id)
 
           batchDelta = batchDelta + inMov.signedAmountFor(accountId) + outMovs.map(_.signedAmountFor(accountId)).sum
 
+        movementRepo.setReconciliationIds(idPairs)
         ledger.markReconciled(accountId, batchDelta)
 
         jobId.foreach: id =>
