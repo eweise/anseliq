@@ -24,6 +24,7 @@ case class Job(
   jobType:       JobType,
   jobStatus:     JobStatus              = Submitted,
   jobInfoJson:   Option[String]         = None,
+  progressJson:  Option[String]         = None,
   errorMessage:  Option[String]         = None,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None

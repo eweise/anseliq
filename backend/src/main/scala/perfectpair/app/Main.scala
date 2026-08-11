@@ -57,14 +57,14 @@ object Main:
         try
           jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
             try
+              val account = transact(Transactor(dataSource = given_DataSource)):
+                accountRepo
+                  .findById(job.referenceId)
+                  .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
+
+              val reconcilationResult = reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
+
               transact(Transactor(dataSource = given_DataSource)):
-                val account =
-                  accountRepo
-                    .findById(job.referenceId)
-                    .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
-
-                val reconcilationResult = reconciler.reconcileAccount(account.id)
-
                 val jobInfo = ReconciliationInfo(
                   accountId                   = account.id.toString,
                   accountName                 = account.name,
