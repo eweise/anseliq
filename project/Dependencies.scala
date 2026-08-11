@@ -9,4 +9,5 @@ object Dependencies {
   val Jansi            = "2.4.0"
   val ZioLogging       = "2.4.0"
   val LogbackClassic   = "1.5.16"
+  val LogstashEncoder  = "8.0"
 }
