@@ -52,6 +52,8 @@ class InMemoryReconciler(using
   val jobRepo:            JobRepo
 ):
 
+  private val pageSize = 500
+
   /**
    * Main reconciliation method
    */
@@ -65,7 +67,7 @@ class InMemoryReconciler(using
     val reconSpecs = reconSpecRepo.findByAccountID(accountId)
     for reconSpec <- reconSpecs
     do
-      val unreconciledMovementsMap = getUnreconciledMovementsByRule(Map(), reconSpec)
+      val unreconciledMovementsMap = getUnreconciledMovementsByRule(reconSpec)
 
       val groupedMatches   = ListBuffer[(mutable.HashSet[String], mutable.HashSet[String])]()
       var reconInsertCount = 0
@@ -214,6 +216,76 @@ class InMemoryReconciler(using
       processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond
     )
 
+  def reconcileAccountResumable(
+    accountId:       ID,
+    batchSize:       Int                                = 500,
+    jobId:           Option[ID]                         = None,
+    onBatchComplete: SpecBatchProgress => BatchDecision = _ => BatchDecision.Commit
+  ): ReconciliationResumableResult =
+    val beginTime = Instant.now()
+
+    val startingCheckpoints: Map[ID, ReconciliationCheckpoint] =
+      jobId
+        .flatMap(id => transact(transactor)(jobRepo.findById(id)))
+        .flatMap(_.progressJson)
+        .map(upickle.read[Map[ID, ReconciliationCheckpoint]](_))
+        .getOrElse(Map.empty)
+
+    val reconSpecs = transact(transactor)(reconSpecRepo.findByAccountID(accountId))
+
+    var specCounts  = Map.empty[ID, Int]
+    var checkpoints = startingCheckpoints
+    var completed   = true
+
+    boundary:
+      for reconSpec <- reconSpecs do
+        val startCheckpoint = checkpoints.getOrElse(reconSpec.id, ReconciliationCheckpoint())
+        reconSpec.relationship match
+          case OneToOne =>
+            val (matchCount, endingCheckpoint, stopped) =
+              reconcileOneToOneStreaming(
+                reconSpec,
+                accountId,
+                startCheckpoint,
+                batchSize,
+                jobId,
+                checkpoints,
+                onBatchComplete
+              )
+            specCounts += (reconSpec.id  -> matchCount)
+            checkpoints += (reconSpec.id -> endingCheckpoint)
+            if stopped then
+              completed = false
+              break()
+          case OneToMany =>
+            completeInProgressReconciliations(reconSpec, accountId)
+            val (matchCount, endingCheckpoint, stopped) =
+              reconcileOneToManyStreaming(
+                reconSpec,
+                accountId,
+                startCheckpoint,
+                batchSize,
+                jobId,
+                checkpoints,
+                onBatchComplete
+              )
+            specCounts += (reconSpec.id  -> matchCount)
+            checkpoints += (reconSpec.id -> endingCheckpoint)
+            if stopped then
+              completed = false
+              break()
+          case ManyToOne | ManyToMany =>
+            specCounts += (reconSpec.id -> 0)
+
+    if specCounts.values.sum > 0 then
+      transact(transactor)(eventStore.publishEvent(AccountReconciled(accountID = accountId)))
+
+    ReconciliationResumableResult(
+      reconciliationSpecInsertCount = specCounts,
+      processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond,
+      completed                     = completed
+    )
+
   // v1 scope: single-attribute rules only (StringAttributeMatchRule / DateAttributeMatchRule),
   // and only when the attribute has no modifier — StringAttribute.modifySQL/DateAttribute.modifySQL
   // assume a JSONB-bracket-access fragment and (for String, when a modifier is present) cast it to
@@ -246,8 +318,6 @@ class InMemoryReconciler(using
       case s: StringAttribute => s.getValue(movement.props)
       case d: DateAttribute   => d.getValue(movement.props).toString
 
-  private val pageSize = 500
-
   private def fetchPage(
     movementSpecId: ID,
     matchKeyExpr:   String,
@@ -258,12 +328,12 @@ class InMemoryReconciler(using
 
   /**
    * Streams both sides of a OneToOne match via keyset pagination instead of loading every
-   * unreconciled movement into memory, and commits every `batchSize` matches in its own
-   * transaction instead of one transaction for the whole account. If `jobId` is provided, the
-   * checkpoint for this spec is persisted on that job's progressJson inside each batch's
-   * transaction, so a crashed attempt can be resumed by calling this again with the same jobId —
-   * but a fresh call (no jobId, or a different job) always starts from startCheckpoint with no
-   * additional lower bound, so late-arriving movements are never permanently skipped.
+   * unreconciled movement into memory, and commits every `batchSize` matches in its own transaction
+   * instead of one transaction for the whole account. If `jobId` is provided, the checkpoint for
+   * this spec is persisted on that job's progressJson inside each batch's transaction, so a crashed
+   * attempt can be resumed by calling this again with the same jobId — but a fresh call (no jobId,
+   * or a different job) always starts from startCheckpoint with no additional lower bound, so
+   * late-arriving movements are never permanently skipped.
    */
   private def reconcileOneToOneStreaming(
     reconSpec:       ReconciliationSpec,
@@ -293,7 +363,7 @@ class InMemoryReconciler(using
       else if inPage.size < pageSize then false
       else
         inPage = fetchPage(reconSpec.inMovementSpecId, inExpr, lastInKey)
-        inIdx = 0
+        inIdx  = 0
         inPage.nonEmpty
 
     def ensureOut(): Boolean =
@@ -301,7 +371,7 @@ class InMemoryReconciler(using
       else if outPage.size < pageSize then false
       else
         outPage = fetchPage(reconSpec.outMovementSpecId, outExpr, lastOutKey)
-        outIdx = 0
+        outIdx  = 0
         outPage.nonEmpty
 
     def commitBatch(): Unit =
@@ -318,9 +388,9 @@ class InMemoryReconciler(using
 
         var batchDelta: Money = Zero
         val updatedMovements = matches.zip(reconciliations).flatMap { case ((inMov, outMov), recon) =>
-          inMov.reconciliationId = Some(recon.id)
+          inMov.reconciliationId  = Some(recon.id)
           outMov.reconciliationId = Some(recon.id)
-          batchDelta = batchDelta + inMov.signedAmountFor(accountId) + outMov.signedAmountFor(accountId)
+          batchDelta              = batchDelta + inMov.signedAmountFor(accountId) + outMov.signedAmountFor(accountId)
           Seq(inMov, outMov)
         }
         movementRepo.updateAll(updatedMovements)
@@ -331,7 +401,7 @@ class InMemoryReconciler(using
         ledger.markReconciled(accountId, batchDelta)
 
         jobId.foreach: id =>
-          val job = jobRepo.findById(id).ErrIfNotFound("Job", id)
+          val job                = jobRepo.findById(id).ErrIfNotFound("Job", id)
           val updatedCheckpoints = allCheckpoints + (reconSpec.id -> checkpoint)
           jobRepo.update(job.copy(progressJson = Some(upickle.write(updatedCheckpoints))))
 
@@ -358,7 +428,7 @@ class InMemoryReconciler(using
         comparison match
           case 0 =>
             pendingMatches += (inMovement -> outMovement)
-            lastInKey = Some(inKey)
+            lastInKey  = Some(inKey)
             lastOutKey = Some(outKey)
             inIdx += 1
             outIdx += 1
@@ -390,29 +460,31 @@ class InMemoryReconciler(using
     for recon <- inProgressRecons do
       transact(transactor):
         val reconMovements = movementRepo.findByReconciliationID(recon.id)
-        reconMovements.find(_.movementSpecId == reconSpec.inMovementSpecId).foreach: inMov =>
-          val inKey   = matchKeyValue(rule, IN, inMov)
-          val matched = movementRepo.findUnreconciledByExactMatchKey(reconSpec.outMovementSpecId, outExpr, inKey)
+        reconMovements
+          .find(_.movementSpecId == reconSpec.inMovementSpecId)
+          .foreach: inMov =>
+            val inKey   = matchKeyValue(rule, IN, inMov)
+            val matched = movementRepo.findUnreconciledByExactMatchKey(reconSpec.outMovementSpecId, outExpr, inKey)
 
-          if matched.nonEmpty then
-            var newBalance: Money = recon.balance
-            val updatedOuts = matched.map: outMov =>
-              outMov.reconciliationId = Some(recon.id)
-              newBalance = newBalance - outMov.amount
-              outMov
-            movementRepo.updateAll(updatedOuts)
-            ledger.markReconciled(accountId, matched.map(_.signedAmountFor(accountId)).sum)
+            if matched.nonEmpty then
+              var newBalance: Money = recon.balance
+              val updatedOuts = matched.map: outMov =>
+                outMov.reconciliationId = Some(recon.id)
+                newBalance              = newBalance - outMov.amount
+                outMov
+              movementRepo.updateAll(updatedOuts)
+              ledger.markReconciled(accountId, matched.map(_.signedAmountFor(accountId)).sum)
 
-            recon.balance = newBalance
-            if newBalance == Zero then recon.status = ReconciliationStatus.Final
-            reconRepo.update(recon)
+              recon.balance                           = newBalance
+              if newBalance == Zero then recon.status = ReconciliationStatus.Final
+              reconRepo.update(recon)
 
   /**
    * Phase 2 of OneToMany: stream both sides via keyset pagination (same mechanics as
-   * reconcileOneToOneStreaming), grouping consecutive out-rows sharing the same key as the
-   * current in-row into one reconciliation. A group can span a page boundary transparently,
-   * since ensureOut() already fetches the next page on demand whenever the current one runs out —
-   * the "does the group continue" check and "do we need more rows" check are the same check.
+   * reconcileOneToOneStreaming), grouping consecutive out-rows sharing the same key as the current
+   * in-row into one reconciliation. A group can span a page boundary transparently, since
+   * ensureOut() already fetches the next page on demand whenever the current one runs out — the
+   * "does the group continue" check and "do we need more rows" check are the same check.
    */
   private def reconcileOneToManyStreaming(
     reconSpec:       ReconciliationSpec,
@@ -427,12 +499,12 @@ class InMemoryReconciler(using
     val inExpr  = matchKeyExpr(rule, IN, "a")
     val outExpr = matchKeyExpr(rule, OUT, "a")
 
-    var inPage     = fetchPage(reconSpec.inMovementSpecId, inExpr, startCheckpoint.lastInMatchKey)
-    var outPage    = fetchPage(reconSpec.outMovementSpecId, outExpr, startCheckpoint.lastOutMatchKey)
-    var inIdx      = 0
-    var outIdx     = 0
-    var lastInKey  = startCheckpoint.lastInMatchKey
-    var lastOutKey = startCheckpoint.lastOutMatchKey
+    var inPage      = fetchPage(reconSpec.inMovementSpecId, inExpr, startCheckpoint.lastInMatchKey)
+    var outPage     = fetchPage(reconSpec.outMovementSpecId, outExpr, startCheckpoint.lastOutMatchKey)
+    var inIdx       = 0
+    var outIdx      = 0
+    var lastInKey   = startCheckpoint.lastInMatchKey
+    var lastOutKey  = startCheckpoint.lastOutMatchKey
     var totalGroups = 0
 
     // Each pending group is (inMovement, outMovements-for-that-group)
@@ -443,7 +515,7 @@ class InMemoryReconciler(using
       else if inPage.size < pageSize then false
       else
         inPage = fetchPage(reconSpec.inMovementSpecId, inExpr, lastInKey)
-        inIdx = 0
+        inIdx  = 0
         inPage.nonEmpty
 
     def ensureOut(): Boolean =
@@ -451,7 +523,7 @@ class InMemoryReconciler(using
       else if outPage.size < pageSize then false
       else
         outPage = fetchPage(reconSpec.outMovementSpecId, outExpr, lastOutKey)
-        outIdx = 0
+        outIdx  = 0
         outPage.nonEmpty
 
     def commitBatch(): Unit =
@@ -490,7 +562,7 @@ class InMemoryReconciler(using
         ledger.markReconciled(accountId, batchDelta)
 
         jobId.foreach: id =>
-          val job = jobRepo.findById(id).ErrIfNotFound("Job", id)
+          val job                = jobRepo.findById(id).ErrIfNotFound("Job", id)
           val updatedCheckpoints = allCheckpoints + (reconSpec.id -> checkpoint)
           jobRepo.update(job.copy(progressJson = Some(upickle.write(updatedCheckpoints))))
 
@@ -543,60 +615,6 @@ class InMemoryReconciler(using
 
     (totalGroups, ReconciliationCheckpoint(lastInMatchKey = lastInKey, lastOutMatchKey = lastOutKey), stopped)
 
-  def reconcileAccountResumable(
-    accountId:       ID,
-    batchSize:       Int                                = 500,
-    jobId:           Option[ID]                          = None,
-    onBatchComplete: SpecBatchProgress => BatchDecision  = _ => BatchDecision.Commit
-  ): ReconciliationResumableResult =
-    val beginTime = Instant.now()
-
-    val startingCheckpoints: Map[ID, ReconciliationCheckpoint] =
-      jobId
-        .flatMap(id => transact(transactor)(jobRepo.findById(id)))
-        .flatMap(_.progressJson)
-        .map(upickle.read[Map[ID, ReconciliationCheckpoint]](_))
-        .getOrElse(Map.empty)
-
-    val reconSpecs = transact(transactor)(reconSpecRepo.findByAccountID(accountId))
-
-    var specCounts  = Map.empty[ID, Int]
-    var checkpoints = startingCheckpoints
-    var completed   = true
-
-    boundary:
-      for reconSpec <- reconSpecs do
-        val startCheckpoint = checkpoints.getOrElse(reconSpec.id, ReconciliationCheckpoint())
-        reconSpec.relationship match
-          case OneToOne =>
-            val (matchCount, endingCheckpoint, stopped) =
-              reconcileOneToOneStreaming(reconSpec, accountId, startCheckpoint, batchSize, jobId, checkpoints, onBatchComplete)
-            specCounts += (reconSpec.id  -> matchCount)
-            checkpoints += (reconSpec.id -> endingCheckpoint)
-            if stopped then
-              completed = false
-              break()
-          case OneToMany =>
-            completeInProgressReconciliations(reconSpec, accountId)
-            val (matchCount, endingCheckpoint, stopped) =
-              reconcileOneToManyStreaming(reconSpec, accountId, startCheckpoint, batchSize, jobId, checkpoints, onBatchComplete)
-            specCounts += (reconSpec.id  -> matchCount)
-            checkpoints += (reconSpec.id -> endingCheckpoint)
-            if stopped then
-              completed = false
-              break()
-          case ManyToOne | ManyToMany =>
-            specCounts += (reconSpec.id -> 0)
-
-    if specCounts.values.sum > 0 then
-      transact(transactor)(eventStore.publishEvent(AccountReconciled(accountID = accountId)))
-
-    ReconciliationResumableResult(
-      reconciliationSpecInsertCount = specCounts,
-      processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond,
-      completed                     = completed
-    )
-
   /**
    * Compares two movements based on the rule argument. If the rule is a collection (AND, OR) then
    * it aggregates the collection of rule outcomes.
@@ -626,10 +644,8 @@ class InMemoryReconciler(using
       case _ => ??? // todo implement me
 
   private def getUnreconciledMovementsByRule(
-    movementSpecs: Map[ID, Seq[Movement]],
-    reconSpec:     ReconciliationSpec
+    reconSpec: ReconciliationSpec
   ): Txn[Map[ID, Seq[Movement]]] =
-    var msMap        = movementSpecs
     var inMovements  = getUnreconciledMovements(reconSpec.inMovementSpecId)
     var outMovements = getUnreconciledMovements(reconSpec.outMovementSpecId)
 
