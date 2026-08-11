@@ -112,9 +112,15 @@ CREATE INDEX movement_out_account_fk ON recon.movement (out_account_id);
 -- every already-reconciled row for that spec first. Shrinks automatically as movements reconcile.
 CREATE INDEX movement_unreconciled_by_spec ON recon.movement (movement_spec_id) WHERE reconciliation_id IS NULL;
 
+-- fastupdate=false: ingestion already batches thousands of rows per transaction (see
+-- Ledger.recordMovements), so fastupdate's pending-list buffering doesn't help throughput here —
+-- it just defers cost into large, unpredictable synchronous merge stalls as the index grows.
+-- Measured on a 1M-row synthetic ingest: fastupdate on took 67.7s total (worst batch 1.6s from a
+-- merge stall); off took 18.4s total (worst batch 0.4s, smooth growth).
 CREATE INDEX movement_props_index
     ON recon.movement
-        USING GIN (properties jsonb_path_ops);
+        USING GIN (properties jsonb_path_ops)
+        WITH (fastupdate = false);
 
 
 create table recon.job
