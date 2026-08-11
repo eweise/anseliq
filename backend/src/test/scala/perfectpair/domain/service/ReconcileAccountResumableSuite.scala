@@ -3,6 +3,7 @@ package perfectpair.domain.service
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import perfectpair.adapter.driven.*
+import perfectpair.common.model.{StringAttribute, StringAttributeMatchRule}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.*
 import perfectpair.domain.model.helper.JSONBProps
@@ -141,4 +142,63 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assert(allReconciled)
     finally
       transact(transactor)(jobRepo.deleteById(job.id))
+      teardown(data)
+
+  // Uses its own MovementSpecs (not data.journalToRecon/reportToRecon) so these groupId-keyed
+  // movements never get scanned by the account's existing OneToOne spec, which expects an "id"
+  // property and would throw trying to match on movements that only carry "groupId".
+  private def oneToManySpec(data: DataSetup): (MovementSpec, MovementSpec, ReconciliationSpec) =
+    val inSpec = MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id)
+    val outSpec = MovementSpec(outAccountId = data.reconAccount.id, inAccountId = data.reportAccount.id)
+    val rule = StringAttributeMatchRule(inKey = StringAttribute(key = "groupId"), outKey = StringAttribute(key = "groupId"))
+    val spec = ReconciliationSpec(
+      accountId         = data.reconAccount.id,
+      relationship      = Relationship.OneToMany,
+      ruleJson          = upickle.write(rule),
+      inMovementSpecId  = inSpec.id,
+      outMovementSpecId = outSpec.id
+    )
+    transact(transactor):
+      movementSpecRepo.insert(inSpec)
+      movementSpecRepo.insert(outSpec)
+      data.reconSpecRepo.insert(spec)
+    (inSpec, outSpec, spec)
+
+  test("OneToMany groups multiple out-movements against one in-movement, including a group spanning a page boundary"):
+    val data                        = transact(transactor)(DataSetup())
+    val (inSpec, outSpec, spec) = oneToManySpec(data)
+    try
+      transact(transactor):
+        // one in-movement worth 100, matched by three out-movements (40 + 40 + 20) all sharing groupId "g1"
+        movementRepo.insert(
+          Movement(
+            inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
+            amount = 100, properties = JSONBProps(Map("groupId" -> "g1"))
+          )
+        )
+        for amount <- Seq(BigDecimal(40), BigDecimal(40), BigDecimal(20))
+        do
+          movementRepo.insert(
+            Movement(
+              inAccountId = outSpec.inAccountId, outAccountId = outSpec.outAccountId, movementSpecId = outSpec.id,
+              amount = amount, properties = JSONBProps(Map("groupId" -> "g1"))
+            )
+          )
+
+      val reconciler = InMemoryReconciler()
+      // pageSize forced small enough that the 3-row out-group can't fit in one page fetch,
+      // proving the peek-ahead logic correctly extends the group across a page boundary.
+      val result = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+
+      assertEquals(result.completed, true)
+      assertEquals(result.reconciliationSpecInsertCount(spec.id), 1, "one reconciliation covering the whole group")
+
+      val reconciliations = transact(transactor)(data.reconRepo.findByReconSpecID(spec.id))
+      assertEquals(reconciliations.size, 1)
+      assertEquals(reconciliations.head.status, ReconciliationStatus.Final)
+      assertEquals(reconciliations.head.balance, BigDecimal(0))
+    finally
+      transact(transactor):
+        data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        data.reconSpecRepo.deleteById(spec.id)
       teardown(data)

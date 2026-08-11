@@ -124,3 +124,17 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       ORDER BY $keyExpr
       LIMIT $pageSize
     """.query[Movement].run()
+
+  def findUnreconciledByExactMatchKey(
+    movementSpecId: ID,
+    matchKeyExpr:   String,
+    keyValue:       String
+  ): Txn[Vector[Movement]] =
+    val keyExpr = SqlLiteral(matchKeyExpr)
+    sql"""
+      SELECT ${m.all}
+      FROM $m AS a
+      WHERE reconciliation_id IS NULL
+      AND movement_spec_id = $movementSpecId
+      AND $keyExpr = $keyValue
+    """.query[Movement].run()
