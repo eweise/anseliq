@@ -127,6 +127,15 @@ lazy val backend = (project in file("backend"))
       "software.amazon.awssdk"      % "s3"                  % "2.29.0"
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    // Most tests isolate themselves with rollBackOnly, but a few (e.g. IngestResumableSuite) commit
+    // real data for real, briefly, before their own teardown deletes it — because they exercise
+    // Ingestor.ingestResumable's batched commits, which by design commit on their own connection
+    // regardless of any enclosing transaction. Running test classes in parallel (sbt's default) lets
+    // another concurrently-running test's unfiltered query (e.g. LedgerSuite's movementRepo.findAll.head)
+    // transiently see that real data and pick up the wrong row. Serializing test execution removes the
+    // race entirely; the whole backend suite is fast enough (low single-digit seconds) that this isn't
+    // a meaningful cost.
+    Test / parallelExecution := false,
     // DataSetupScenario1 seeds real, committed data into the local dev DB (no rollBackOnly) and is meant
     // to be run explicitly (sbt "testOnly perfectpair.testing.DataSetupScenario1"), not as part of the
     // regular suite where it would pollute state for every other test. LargeFileIngestionReconciliationSuite
