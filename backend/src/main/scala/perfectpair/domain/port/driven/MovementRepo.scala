@@ -19,3 +19,9 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
     outMovementSpecId: ID,
     relationship:      Relationship
   ): Txn[Vector[(MovementInID, MovementOutID)]]
+  def findUnreconciledPage(
+    movementSpecId: ID,
+    matchKeyExpr:   String,
+    afterKey:       Option[String],
+    pageSize:       Int
+  ): Txn[Vector[Movement]]

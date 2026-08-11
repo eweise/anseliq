@@ -102,3 +102,25 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       AND $criteria
       $orderingClause
     """.query[(String, String)].run()
+
+  def findUnreconciledPage(
+    movementSpecId: ID,
+    matchKeyExpr:   String,
+    afterKey:       Option[String],
+    pageSize:       Int
+  ): Txn[Vector[Movement]] =
+    val keyExpr = SqlLiteral(matchKeyExpr)
+    // No lower bound needed on the first page: match keys come from real business
+    // identifiers and are never empty strings in practice, so "> ''" is equivalent
+    // to "no filter" while still letting afterKey be a plain, safely-parameterized
+    // bind value rather than a conditionally-included raw SQL fragment.
+    val after = afterKey.getOrElse("")
+    sql"""
+      SELECT ${m.all}
+      FROM $m AS a
+      WHERE reconciliation_id IS NULL
+      AND movement_spec_id = $movementSpecId
+      AND $keyExpr > $after
+      ORDER BY $keyExpr
+      LIMIT $pageSize
+    """.query[Movement].run()

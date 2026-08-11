@@ -292,3 +292,39 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         val data      = DataSetup()
         val movements = movementRepo.findByAccount(data.reconAccount.id)
         assertEquals(movements.size, 0)
+
+  test("findUnreconciledPage orders by the match key expression and pages via afterKey"):
+    val movementRepo = MovementRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+
+        for id <- Seq("30", "10", "20")
+        do
+          movementRepo.insert(
+            Movement(
+              inAccountId    = data.journalAccount.id,
+              outAccountId   = data.reconAccount.id,
+              movementSpecId = data.journalToRecon.id,
+              amount         = 100,
+              properties     = JSONBProps(Map("id" -> id))
+            )
+          )
+
+        val matchKeyExpr = "a.properties['props'] ->> 'id'"
+
+        val firstPage = movementRepo.findUnreconciledPage(
+          movementSpecId = data.journalToRecon.id,
+          matchKeyExpr    = matchKeyExpr,
+          afterKey        = None,
+          pageSize        = 2
+        )
+        assertEquals(firstPage.map(_.properties.props("id")), Vector("10", "20"))
+
+        val secondPage = movementRepo.findUnreconciledPage(
+          movementSpecId = data.journalToRecon.id,
+          matchKeyExpr    = matchKeyExpr,
+          afterKey        = Some(firstPage.last.properties.props("id")),
+          pageSize        = 2
+        )
+        assertEquals(secondPage.map(_.properties.props("id")), Vector("30"))
