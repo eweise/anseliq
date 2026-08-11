@@ -118,6 +118,7 @@ create table recon.job
     job_type      text                                  not null,
     job_status    text                                  not null,
     job_info_json text,
+    progress_json text,
     reference_id  uuid                                  not null,
     error_message text,
     created_at    timestamptz default CURRENT_TIMESTAMP not null,
