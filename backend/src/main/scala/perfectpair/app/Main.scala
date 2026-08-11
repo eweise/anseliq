@@ -24,6 +24,7 @@ object Main:
   def main(args: Array[String]): Unit =
 
     given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
+    given transactor:         Transactor             = Transactor(dataSource = given_DataSource)
     given clock:              ClockService           = ClockServiceLive()
     given jobRepo:            JobRepo                = JobRepoLive()
     given jobManager:         JobManager             = JobManager()
