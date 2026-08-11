@@ -328,3 +328,49 @@ class MovementRepoLiveSuite extends munit.FunSuite:
           pageSize        = 2
         )
         assertEquals(secondPage.map(_.properties.props("id")), Vector("30"))
+
+  test("setReconciliationIds bulk-links each movement to its own reconciliation in one statement"):
+    val movementRepo = MovementRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+
+        val m1 = Movement(
+          inAccountId = data.journalAccount.id, outAccountId = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id, amount = 100, properties = JSONBProps(Map("id" -> "1"))
+        )
+        val m2 = Movement(
+          inAccountId = data.journalAccount.id, outAccountId = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id, amount = 200, properties = JSONBProps(Map("id" -> "2"))
+        )
+        val m3 = Movement(
+          inAccountId = data.journalAccount.id, outAccountId = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id, amount = 300, properties = JSONBProps(Map("id" -> "3"))
+        )
+        movementRepo.insert(m1)
+        movementRepo.insert(m2)
+        movementRepo.insert(m3)
+
+        val reconRepo = ReconciliationRepoLive()
+        val recon1    = Reconciliation(specId = data.reconSpec.id)
+        val recon2    = Reconciliation(specId = data.reconSpec.id)
+        reconRepo.insert(recon1)
+        reconRepo.insert(recon2)
+
+        // m1 and m3 both link to recon1, m2 links to a different reconciliation (recon2),
+        // proving one statement can set different reconciliation_id values per row.
+        movementRepo.setReconciliationIds(Seq(m1.id -> recon1.id, m2.id -> recon2.id, m3.id -> recon1.id))
+
+        assertEquals(movementRepo.findById(m1.id).get.reconciliationId, Some(recon1.id))
+        assertEquals(movementRepo.findById(m2.id).get.reconciliationId, Some(recon2.id))
+        assertEquals(movementRepo.findById(m3.id).get.reconciliationId, Some(recon1.id))
+
+        // Every other column must be untouched by the narrow update.
+        assertEquals(movementRepo.findById(m2.id).get.amount, BigDecimal(200))
+        assertEquals(movementRepo.findById(m2.id).get.properties.props("id"), "2")
+
+  test("setReconciliationIds does nothing for an empty input"):
+    val movementRepo = MovementRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        movementRepo.setReconciliationIds(Seq.empty)

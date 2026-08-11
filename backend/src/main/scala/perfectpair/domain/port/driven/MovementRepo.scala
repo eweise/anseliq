@@ -30,3 +30,4 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
     matchKeyExpr:   String,
     keyValue:       String
   ): Txn[Vector[Movement]]
+  def setReconciliationIds(idPairs: Iterable[(ID, ID)]): Txn[Unit]
