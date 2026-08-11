@@ -202,17 +202,23 @@ class App(using
   @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
   def reoncileAccount(id: String, request: cask.Request): String =
     val accountId = UUID.fromString(id)
-    transact(transactor):
+    val (account, job) = transact(transactor):
       val account = accountRepo.findById(accountId).getOrElse(throw NotFoundError(s"Account $id not found"))
-      jobManager.submitAndProcessJob(JobType.Reconciliation, accountId) { job =>
-        val reconcilationResult = reconciler.reconcileAccount(account.id)
-        ReconciliationInfo(
-          accountId                   = account.id.toString,
-          accountName                 = account.name,
-          reconciliationsCreatedCount = reconcilationResult.totalCount,
-          processingTimeSeconds       = reconcilationResult.processingTimeSeconds
-        )
-      }
+      val jobId   = jobManager.submitJob(JobType.Reconciliation, accountId)
+      val job     = jobRepo.findById(jobId).ErrIfNotFound("Job", jobId)
+      jobRepo.update(job.copy(jobStatus = JobStatus.InProgress))
+      (account, job)
+
+    val reconcilationResult = reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
+
+    transact(transactor):
+      val jobInfo = ReconciliationInfo(
+        accountId                   = account.id.toString,
+        accountName                 = account.name,
+        reconciliationsCreatedCount = reconcilationResult.totalCount,
+        processingTimeSeconds       = reconcilationResult.processingTimeSeconds
+      )
+      jobManager.completeJob(job.id, jobInfo)
     write("reconciled")
 
   @cask.route(s"${HttpPath.reconSpec}/:id/manual-match", methods = HttpCmd.POST)

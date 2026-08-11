@@ -16,6 +16,7 @@ def mapKeyToMovement(keys: Array[String], outMovements: Vector[Movement]) =
       outKey -> movement
     .toMap
 
+@deprecated
 class Reconciler(
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,
