@@ -119,14 +119,18 @@ before finalizing).
 
 Every `batchSize` matches (or groups, for `OneToMany`) commit as their
 own transaction — mirroring `ingestResumable`'s per-batch `transact(...)`.
-`Reconciliation` inserts use `reconRepo.insertAll(...)` (a bulk method
-`DomainRepo` already provides) instead of looping individual `insert`
-calls. `ledger.reconcile(...)` is still called per match/group, unchanged
-— it's not touched by this design (see "Out of scope" below) — so each
-batch still makes up to `batchSize` calls to it, each internally looping
-its own small number of movement updates. The improvement here is that
-this work now happens inside a *bounded* transaction (`batchSize` matches
-worth), not that every individual write within a batch is itself bulked.
+Within a batch, writes are bulked rather than looped: `Reconciliation`
+inserts use `reconRepo.insertAll(...)`, movement updates use
+`movementRepo.updateAll(...)` (both bulk methods `DomainRepo` already
+provides), and `ledger.reconcile`'s per-movement account-balance
+bookkeeping is folded into a single `ledger.markReconciled(accountId,
+batchDelta)` call per batch — summing each match's
+`Movement.signedAmountFor(accountId)` across the whole batch first,
+rather than calling `markReconciled` once per match. `Ledger.reconcile`
+itself is untouched (still used by unmodified `reconcileAccount`); this
+design's writes just don't route through it, since a batch's worth of
+matches can be applied more efficiently in bulk than `Ledger.reconcile`'s
+one-reconciliation-at-a-time contract allows.
 
 `InMemoryReconciler` gains a `Transactor` dependency, exactly as
 `Ingestor` did, since `reconcileAccountResumable` owns its own
@@ -221,11 +225,8 @@ that separate connection):
 
 ## Out-of-scope-but-adjacent findings
 
-- `Ledger.reconcile` loops `movementRepo.update(m)` individually per
-  movement, and `reconcileAccountResumable` still calls it once per
-  match/group, unchanged. Batching those individual updates too (e.g.
-  giving `Ledger` a bulk variant that accepts multiple
-  reconciliation-groups at once) is a valid further optimization within
-  each already-bounded batch, but isn't required to fix the two problems
-  this design targets (unbounded memory, unbounded transaction
-  duration), so it's left for later.
+- `Ledger.reconcile` (which loops `movementRepo.update(m)` individually
+  per movement) stays exactly as it is — `reconcileAccount` keeps using
+  it unchanged. `reconcileAccountResumable` doesn't route through it at
+  all, for the reasons above; this isn't a gap to leave for later, it's
+  already handled.
