@@ -27,7 +27,12 @@ object Routes:
           path("accounts" / segment / "unreconciled-movements")(accountId => UnreconciledMovementsPage(accountId)),
           path("maintain-movement-spec")(MaintainMovementSpecPage()),
           path("jobs")(JobsPage()),
-          path("events")(EventsPage())
+          path("events")(EventsPage()),
+          path("coming-soon" / "exceptions")(ComingSoonPage("Exceptions & Disputes")),
+          path("coming-soon" / "recon-rules")(ComingSoonPage("Recon Rules")),
+          path("coming-soon" / "reports")(ComingSoonPage("Reports & Analytics")),
+          path("coming-soon" / "users")(ComingSoonPage("Users & Roles")),
+          path("coming-soon" / "settings")(ComingSoonPage("Settings"))
         )
       },
       noneMatched(runEffect(BrowserNavigation.pushState(url = "/login")))
