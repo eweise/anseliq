@@ -8,7 +8,7 @@ import perfectpair.common.model.{FundFlowPayload, LoginSuccess}
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.Icons
+import perfectpair.view.components.{Buttons, Icons}
 import upickle.default.*
 import zio.json.*
 
@@ -60,19 +60,14 @@ object LoginPage:
         case Left(err) =>
           state.update(_.copy(error = Some(err)))
       },
-      cls := "h-screen flex justify-center bg-base-150",
+      cls := "h-screen flex justify-center bg-md-surface-variant dark:bg-gray-900",
       div(
-        cls := "w-full max-w-sm my-auto p-4 bg-white border border-gray-200 rounded-lg shadow-sm sm:p-6 md:p-8",
-        h5(cls := "text-xl font-medium text-gray-900 mb-4", "Login"),
+        cls := "w-full max-w-sm my-auto p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm sm:p-6 md:p-8",
+        h2(cls := "text-xl font-medium text-md-on-surface mb-4", "Login"),
         formField("Username", "text", Icons.user, v => state.update(_.copy(username = v))),
         formField("Password", "password", Icons.lock, v => state.update(_.copy(password = v))),
         child <-- state.signal.map(_.error.fold(div())(msg => p(cls := "text-red-500 mb-2", msg))),
-        button(
-          cls := "w-full text-white bg-purple-700 hover:bg-purple-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center mt-4",
-          typ := "button",
-          onClick --> (_ => loginBus.emit(())),
-          "Login"
-        )
+        div(cls := "mt-4 text-center", Buttons.linkButton("Login", Observer[Unit](_ => loginBus.emit(()))))
       )
     )
 
