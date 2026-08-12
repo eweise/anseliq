@@ -86,7 +86,8 @@ object ManualMatchPage:
                     referenceIdCell(m, state),
                     span(m.amount.toString)
                   )
-                )
+                ),
+                numCols = Set(2)
               )
             }
           ),
@@ -105,7 +106,8 @@ object ManualMatchPage:
                     referenceIdCell(m, state),
                     span(m.amount.toString)
                   )
-                )
+                ),
+                numCols = Set(2)
               )
             }
           )

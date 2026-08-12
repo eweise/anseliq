@@ -69,7 +69,8 @@ object UnreconciledMovementsPage:
                 span(nameById.getOrElse(m.inAccountId, m.inAccountId)),
                 span(nameById.getOrElse(m.outAccountId, m.outAccountId))
               )
-            )
+            ),
+            numCols = Set(1)
           )
         }
       )
