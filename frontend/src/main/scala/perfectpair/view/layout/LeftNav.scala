@@ -15,21 +15,13 @@ object LeftNav:
         ul(
           cls := "space-y-2",
           navItem("Home", "/", Icons.home),
-//          fundFlowNavSection(),
           navItem("Ledgers", "/components/fund-flows", Icons.document),
           navItem("Jobs", "/components/jobs", Icons.document),
           navItem("Events", "/components/events", Icons.document),
           navSeparator(),
-          navItem("Dashboard", "#", Icons.dashboard),
-          navItem("Profile", "#", Icons.user),
-          navItem("Settings", "#", Icons.settings),
-          navSeparator(),
-          navItem("Analytics", "#", Icons.chart),
-          navItem("Reports", "#", Icons.document),
-          navSeparator(),
           li(
             button(
-              cls := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-purple-100 transition-colors duration-200 w-full text-left",
+              cls := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-md-primary-container transition-colors duration-200 w-full text-left",
               onClick --> (_ =>
                 SessionStore.clear()
                 Nav.push("/login")
@@ -46,7 +38,7 @@ object LeftNav:
     li(
       a(
         href := itemHref,
-        cls  := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors duration-200",
+        cls  := "flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-md-primary-container transition-colors duration-200",
         span(cls := "w-5 h-5", icon),
         span(lbl)
       )
