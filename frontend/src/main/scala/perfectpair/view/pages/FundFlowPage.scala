@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{PageHeader, Table}
+import perfectpair.view.components.{Buttons, PageHeader, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -119,14 +119,12 @@ object FundFlowPage:
             div(
               div(
                 cls := "mb-4",
-                button(
-                  cls := "px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700",
-                  typ := "button",
-                  onClick --> { _ =>
+                Buttons.linkButton(
+                  "New Account",
+                  Observer[Unit](_ =>
                     state.update(_.copy(selectedAccount = None, selectedMovementSpec = None))
                     Nav.toMaintainAccount(None)
-                  },
-                  "New Account"
+                  )
                 )
               ),
               child <-- state.signal.map { s =>
