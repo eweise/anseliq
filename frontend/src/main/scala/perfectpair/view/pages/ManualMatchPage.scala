@@ -6,7 +6,7 @@ import perfectpair.common.model.{ManualMatchRequest, MovementPayload, Reconcilia
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, Icons, Table}
+import perfectpair.view.components.{Buttons, Icons, PageHeader, Table}
 import upickle.default.*
 
 object ManualMatchPage:
@@ -67,7 +67,7 @@ object ManualMatchPage:
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center w-full max-w-4xl",
-        h2(cls := "text-2xl font-medium mb-6", "Manual Match"),
+        PageHeader.title("Manual Match"),
         Buttons.linkButton("Back", Observer[Unit](_ => Nav.toReconciliations(accountId))),
         div(
           cls := "grid grid-cols-2 gap-4 mt-6 text-left",

@@ -7,7 +7,7 @@ import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
 import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.view.components.{Buttons, PageHeader, Table}
 import upickle.default.*
 
 object FundFlowsPage:
@@ -27,7 +27,7 @@ object FundFlowsPage:
         cls := "w-full px-8",
         div(
           cls := "flex justify-between items-center my-8",
-          h2(cls := "text-xl font-medium", "Ledgers"),
+          PageHeader.title("Ledgers"),
           Buttons.linkButton(
             "Create",
             Observer[Unit](_ =>

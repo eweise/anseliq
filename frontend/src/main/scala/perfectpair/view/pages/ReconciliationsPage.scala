@@ -7,7 +7,7 @@ import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
 import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.view.components.{Buttons, PageHeader, Table}
 import upickle.default.*
 
 object ReconciliationsPage:
@@ -60,7 +60,7 @@ object ReconciliationsPage:
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center",
-        h2(cls := "text-2xl font-medium mb-6", "Reconciliations"),
+        PageHeader.title("Reconciliations"),
         Buttons.linkButton("Back to Recon Specs", Observer[Unit](_ => Nav.toReconSpecs(accountId))),
         Buttons.textButton("Manual Match", Observer[Unit](_ => Nav.toManualMatch(accountId))),
         child <-- state.signal.map { s =>

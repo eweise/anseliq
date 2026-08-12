@@ -8,7 +8,7 @@ import perfectpair.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Rec
 import perfectpair.http.ApiClient
 import perfectpair.state.{AppState, SessionStore}
 import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Form, Icons, Table}
+import perfectpair.view.components.{Form, Icons, PageHeader, Table}
 import upickle.default.*
 
 object JobsPage:
@@ -32,7 +32,7 @@ object JobsPage:
       cls := "flex flex-col items-center mb-8 pt-20 px-8 w-full",
       div(
         cls := "w-full max-w-5xl",
-        h2(cls := "text-2xl font-medium mb-6", "Jobs"),
+        PageHeader.title("Jobs"),
         div(
           cls := "mb-6 flex items-end gap-3",
           div(
