@@ -7,7 +7,7 @@ import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
 import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Buttons, PageHeader, Table}
+import perfectpair.view.components.{Buttons, PageHeader, Pill, Table}
 import upickle.default.*
 
 object ReconciliationsPage:
@@ -17,6 +17,15 @@ object ReconciliationsPage:
     writeOffReasonBy: Map[String, String]        = Map.empty, // reconciliation id -> in-progress reason text
     editingWriteOff:  Option[String]              = None        // reconciliation id currently showing the reason field
   )
+
+  private def statusPill(r: ReconciliationPayload): HtmlElement =
+    val (label, tone) = r.status match
+      case "InProgress"                                    => "In Progress" -> Pill.Tone.Warning
+      case "Final" if r.adjustmentReason.exists(_.nonEmpty) => "Written Off" -> Pill.Tone.Serious
+      case "Final"                                          => "Final"      -> Pill.Tone.Good
+      case "Voided"                                         => "Voided"     -> Pill.Tone.Neutral
+      case other                                            => other        -> Pill.Tone.Neutral
+    Pill(label, tone)
 
   def apply(accountId: String): HtmlElement =
     val spec   = AppState.editReconSpec.now().getOrElse(ReconciliationSpecPayload())
@@ -69,7 +78,7 @@ object ReconciliationsPage:
             s.recons.map(r =>
               Seq(
                 span(r.description),
-                span(r.status),
+                statusPill(r),
                 span(r.appliedRules),
                 span(r.balance.toString),
                 span(r.adjustmentReason.getOrElse("")),
@@ -102,7 +111,8 @@ object ReconciliationsPage:
                     )
                 )
               )
-            )
+            ),
+            numCols = Set(3)
           )
         }
       )
