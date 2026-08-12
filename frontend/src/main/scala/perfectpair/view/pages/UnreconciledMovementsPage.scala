@@ -6,7 +6,7 @@ import perfectpair.common.model.{AccountPayload, MovementPayload, Reconciliation
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.view.components.{Buttons, PageHeader, Table}
 import upickle.default.*
 
 object UnreconciledMovementsPage:
@@ -44,8 +44,7 @@ object UnreconciledMovementsPage:
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center",
-        h2(
-          cls := "text-2xl font-medium mb-6",
+        PageHeader.title(
           child.text <-- state.signal.map { s =>
             val name = s.accounts.find(_.id.contains(accountId)).map(_.name).getOrElse(accountId)
             s"$name — Unreconciled Movements"

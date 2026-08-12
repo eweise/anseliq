@@ -177,7 +177,7 @@ import com.raquo.laminar.api.L.*
 
 object PageHeader:
   def title(mods: Modifier[HtmlElement]*): HtmlElement =
-    h2(cls := "text-2xl font-medium mb-6", mods*)
+    h2((cls := "text-2xl font-medium mb-6") +: mods*)
 ```
 
 - [ ] **Step 2: Compile check**

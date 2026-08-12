@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.Table
+import perfectpair.view.components.{PageHeader, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -102,7 +102,7 @@ object FundFlowPage:
       cls := "flex flex-col items-center mb-8 pt-20 w-full",
       div(
         cls := "w-full max-w-5xl px-8",
-        h2(cls := "text-2xl font-medium mb-6", ff.name)
+        PageHeader.title(ff.name)
       ),
       div(
         cls := "w-full border-b border-gray-200 mb-6",
