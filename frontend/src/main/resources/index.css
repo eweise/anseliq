@@ -10,6 +10,16 @@
         font-family: "Inter";
         font-weight: 400;
     }
+
+    :root {
+        --md-primary: #6d28d9;
+        --md-primary-container: #f1ecfd;
+    }
+
+    .dark {
+        --md-primary: #a78bfa;
+        --md-primary-container: #362a5c;
+    }
 }
 
 @layer utilities {

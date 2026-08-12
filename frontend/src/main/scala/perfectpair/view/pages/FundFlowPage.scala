@@ -6,7 +6,7 @@ import perfectpair.common.model.*
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, PageHeader, Table}
+import perfectpair.view.components.{Buttons, Pill, PageHeader, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -162,7 +162,7 @@ object FundFlowPage:
                       else span(cls := "text-right w-full inline-block", unreconCount.toString)
                     Seq(
                       span(cls := "inline-block w-40", account.name),
-                      span(if account.isRecon then "Recon" else "Source"),
+                      if account.isRecon then Pill("Recon", Pill.Tone.Accent) else Pill("Source", Pill.Tone.Neutral),
                       span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
                       span(
                         cls := "text-right w-full inline-block",
@@ -174,7 +174,8 @@ object FundFlowPage:
                       ),
                       unreconCell
                     )
-                  }
+                  },
+                  numCols = Set(2, 3, 4, 5)
                 )
               }
             )
@@ -404,8 +405,8 @@ object FundFlowPage:
     accounts.foreach { acc =>
       acc.id.foreach { id =>
         posOf.get(id).foreach { (x, y) =>
-          val fill   = if acc.isRecon then "#f3f0ff" else "white"
-          val stroke = if acc.isRecon then "#7c3aed" else "#d1d5db"
+          val fill   = if acc.isRecon then "var(--md-primary-container)" else "white"
+          val stroke = if acc.isRecon then "var(--md-primary)" else "#d1d5db"
           sb.append(
             s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />"""
           )
