@@ -26,7 +26,7 @@ object MainLayout:
       button(
         cls := "flex items-center justify-center w-9 h-9 rounded-full text-gray-600 dark:text-gray-300 hover:bg-md-primary-container dark:hover:bg-md-primary-container-dark transition-colors",
         typ := "button",
-        onClick --> (_ => AppState.darkMode.update(!_)),
+        onClick --> (_ => AppState.toggleDarkMode()),
         child <-- AppState.darkMode.signal.map(d => if d then Icons.sun else Icons.moon)
       )
     )
