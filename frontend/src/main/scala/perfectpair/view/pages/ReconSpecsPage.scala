@@ -6,7 +6,7 @@ import perfectpair.common.model.{MovementSpecPayload, ReconciliationSpecPayload}
 import perfectpair.http.ApiClient
 import perfectpair.routing.Nav
 import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, Table}
+import perfectpair.view.components.{Buttons, Pill, Table}
 import upickle.default.*
 
 object ReconSpecsPage:
@@ -51,7 +51,7 @@ object ReconSpecsPage:
             s.reconSpecs.map { spec =>
               Seq(
                 span(spec.agingLimit.toString),
-                span(spec.relationship.toString),
+                Pill(spec.relationship.toString, Pill.Tone.Accent),
                 div(
                   cls := "flex gap-2",
                   Buttons.textButton(
@@ -77,7 +77,8 @@ object ReconSpecsPage:
                   )
                 )
               )
-            }
+            },
+            numCols = Set(0)
           )
         }
       )
