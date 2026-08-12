@@ -25,7 +25,6 @@ object Routes:
           path("accounts" / segment / "reconciliations")(accountId => ReconciliationsPage(accountId)),
           path("accounts" / segment / "manual-match")(accountId => ManualMatchPage(accountId)),
           path("accounts" / segment / "unreconciled-movements")(accountId => UnreconciledMovementsPage(accountId)),
-          path("accounts")(AccountsPage()),
           path("maintain-movement-spec")(MaintainMovementSpecPage()),
           path("jobs")(JobsPage()),
           path("events")(EventsPage())

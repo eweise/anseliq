@@ -2,7 +2,7 @@ package perfectpair.routing
 
 import frontroute.BrowserNavigation
 import org.scalajs.dom
-import perfectpair.common.model.{AccountPayload, FundFlowPayload}
+import perfectpair.common.model.FundFlowPayload
 import perfectpair.state.AppState
 
 object Nav:
@@ -15,10 +15,6 @@ object Nav:
   def toFundFlow(ff: FundFlowPayload): Unit =
     AppState.activeFundFlow.set(Some(ff))
     push("/components/fund-flow")
-
-  def toAccounts(ff: FundFlowPayload): Unit =
-    AppState.activeFundFlow.set(Some(ff))
-    push("/components/accounts")
 
   def toMaintainFundFlow(): Unit =
     push("/components/maintain-fund-flow")
