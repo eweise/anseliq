@@ -11,3 +11,9 @@
         font-weight: 400;
     }
 }
+
+@layer utilities {
+    .num {
+        font-variant-numeric: tabular-nums;
+    }
+}
