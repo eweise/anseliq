@@ -16,13 +16,13 @@ object Form:
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
       label(
         forId := id,
-        cls   := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
+        cls   := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide text-md-on-surface-variant dark:text-gray-400",
         lbl
       ),
       input(
         idAttr       := id,
         defaultValue := value,
-        cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
+        cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-base focus:outline-none rounded",
         onInput.mapToValue --> Observer[String](inputFn),
         if !enabled then disabled := true else emptyMod,
         inContext { el => updates --> Observer[String](v => el.ref.value = v) }
@@ -40,12 +40,12 @@ object Form:
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
       label(
         forId := id,
-        cls   := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
+        cls   := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide text-md-on-surface-variant dark:text-gray-400",
         lbl
       ),
       select(
         idAttr := id,
-        cls    := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
+        cls    := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-base focus:outline-none rounded",
         onMountCallback(ctx => ctx.thisNode.ref.value = selected),
         onChange.mapToValue --> Observer[String](changeFn)
       ).amend(options.map((v, optLbl) => option(value := v, optLbl))*)
