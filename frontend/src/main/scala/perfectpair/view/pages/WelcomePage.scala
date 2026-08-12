@@ -21,7 +21,7 @@ object WelcomePage:
         case Right(RandomMessage(text)) => message.set(Some(text))
         case Left(err)                  => AppState.globalError.set(Some(err))
       },
-      cls := "flex flex-col items-center mb-8",
+      cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8",
         h1(cls := "mb-2 text-4xl font-bold tracking-tight text-gray-900 dark:text-white", "PerfectPair")
