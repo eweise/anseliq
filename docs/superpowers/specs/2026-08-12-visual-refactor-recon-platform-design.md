@@ -91,17 +91,11 @@ Renders `span(cls := "...", text)` with the tone's `md-*-bg` background and `md-
 color, matching the mockup's pill treatment. Used for reconciliation `status` and account
 `isRecon`/SLA-style indicators.
 
-### `Card.scala` (new)
-
-```scala
-object Card:
-  def apply(content: HtmlElement*): HtmlElement =
-    div(cls := "bg-white dark:bg-gray-800 border border-md-outline dark:border-gray-700 rounded-lg shadow-sm", content)
-```
-
-Thin wrapper used to replace ad hoc `div` wrappers around page content sections (e.g. around
-`Table.create(...)` calls) so content reads as a bounded surface rather than floating on the
-page background.
+No separate `Card` wrapper component is needed: the `Table.scala` rewrite above already gives
+tables their own bordered/shadowed surface, so every in-scope page's list content is a bounded
+card the moment `Table.create` is fixed — wrapping it in a second card would just double the
+border/shadow. If a later pass needs to card-wrap non-table content, that's a small, contained
+addition at that point rather than dead abstraction added now.
 
 ## Nav Shell
 
@@ -153,13 +147,14 @@ and a non-functional search input would mislead users into thinking it works.
 ## Per-Page Changes
 
 - **`FundFlowPage`**: Accounts tab table passes `numCols` for Cash/Reconciled/Unreconciled
-  Balance and Unreconciled Count; `isRecon` badge and future status indicators use `Pill`.
+  Balance and Unreconciled Count; the "Account Type" column (currently plain `span("Recon"|
+  "Source")` text) becomes a `Pill` — `Accent` tone for "Recon", `Neutral` for "Source".
   Configuration tab: the hand-built SVG diagram's hardcoded `#7c3aed`/`#f3f0ff` account-node
   colors are replaced with the new `md-primary`/`md-primary-container` token values (via CSS
   custom properties passed into the generated SVG string, since it's built outside Laminar's
   `cls :=` mechanism).
-- **`ReconSpecsPage`**: table wrapped in `Card`; `relationship` rendered as a `Pill` (tone
-  `Accent`); `Aging Limit` in `numCols`.
+- **`ReconSpecsPage`**: `relationship` rendered as a `Pill` (tone `Accent`); `Aging Limit` in
+  `numCols`.
 - **`ReconciliationsPage`**: `status` rendered via `Pill`. The backend has no distinct
   "written off" status — `ManualReconciler.writeOff` sets `status = Final` with
   `adjustmentReason` populated (confirmed in `ManualReconciler.scala:83-84`) — so the mapping
@@ -168,10 +163,9 @@ and a non-functional search input would mislead users into thinking it works.
   `Final` with `adjustmentReason` set→Serious "Written Off", `Voided`→Neutral "Voided". No new
   data, just a more informative label than the raw status string. `Balance` in `numCols`.
   Write-off/unmatch controls stay inline in the Actions cell as today — no drawer.
-- **`ManualMatchPage`**: In/Out movement tables wrapped in `Card`; `Amount` in `numCols`. No
+- **`ManualMatchPage`**: `Amount` in `numCols` on both the In and Out movement tables. No
   suggested-matches panel.
-- **`UnreconciledMovementsPage`**: table wrapped in `Card`; `Amount` in `numCols`. No aging
-  column.
+- **`UnreconciledMovementsPage`**: `Amount` in `numCols`. No aging column.
 
 ## Out of Scope
 
