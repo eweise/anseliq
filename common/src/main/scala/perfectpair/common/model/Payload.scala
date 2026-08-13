@@ -190,11 +190,6 @@ case class RaiseDisputeRequest(
   detail:      Option[String] = None
 ) derives ReadWriter
 
-case class UpdateDisputeStatusRequest(
-  status:         DisputeStatusPayload,
-  resolutionNote: Option[String] = None
-) derives ReadWriter
-
 case class DisputePayload(
   id:              String,
   referenceId:     String,
@@ -202,12 +197,30 @@ case class DisputePayload(
   category:        DisputeCategoryPayload,
   detail:          Option[String],
   status:          DisputeStatusPayload,
-  resolutionNote:  Option[String],
   accountId:       String,
   accountName:     String,
   referenceLabel:  String,
   createdAt:       OffsetDateTime,
   updatedAt:       OffsetDateTime
+) derives ReadWriter
+
+case class DisputeCommentPayload(
+  id:        String,
+  body:      Option[String],
+  newStatus: Option[DisputeStatusPayload],
+  createdAt: OffsetDateTime
+) derives ReadWriter
+
+case class DisputeDetailPayload(
+  dispute:        DisputePayload,
+  movement:       Option[MovementPayload],
+  reconciliation: Option[ReconciliationPayload],
+  comments:       Seq[DisputeCommentPayload]
+) derives ReadWriter
+
+case class AddDisputeCommentRequest(
+  body:      Option[String]              = None,
+  newStatus: Option[DisputeStatusPayload] = None
 ) derives ReadWriter
 
 def combineAccountsAndMovementSpecs(
