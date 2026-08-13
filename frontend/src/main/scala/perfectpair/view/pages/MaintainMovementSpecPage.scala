@@ -46,10 +46,10 @@ object MaintainMovementSpecPage:
         case Right(_) => Nav.back()
         case Left(e)  => AppState.globalError.set(Some(e))
       },
-      cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4",
+      cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
-        cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface mb-7", "Movement Spec"),
+        cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
+        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Movement Spec"),
         Form.field("name", "Name", initial.name, v => spec.update(_.copy(name = v))),
         child <-- accounts.signal.map { accs =>
           val selectableAccs =
@@ -93,12 +93,12 @@ object MaintainMovementSpecPage:
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
       label(
         forId := id,
-        cls   := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
+        cls   := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide text-md-on-surface-variant dark:text-gray-400",
         lbl
       ),
       select(
         idAttr := id,
-        cls    := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-base focus:outline-none rounded",
+        cls    := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-base focus:outline-none rounded",
         onMountCallback(ctx => ctx.thisNode.ref.value = selected),
         onChange.mapToValue --> Observer[String](changeFn)
       ).amend(accounts.map(a => option(value := a.id.getOrElse(""), a.name))*)

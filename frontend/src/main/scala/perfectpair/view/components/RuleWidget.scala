@@ -66,7 +66,7 @@ object RuleWidget:
 
     val el = div(
       cls := "border-t border-md-outline pt-5 mt-2",
-      p(cls := "text-sm font-medium text-md-on-surface mb-4", "Matching Rule"),
+      p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200 mb-4", "Matching Rule"),
       Form.selectField(
         "ruleType",
         "Rule Type",
@@ -120,7 +120,7 @@ object RuleWidget:
       cls := "border border-md-outline rounded p-3 mb-3",
       div(
         cls := "flex justify-between items-center mb-2",
-        p(cls := "text-sm font-medium text-md-on-surface", s"Rule ${index + 1}"),
+        p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200", s"Rule ${index + 1}"),
         button(
           cls := "text-md-error text-sm px-2",
           typ := "button",
