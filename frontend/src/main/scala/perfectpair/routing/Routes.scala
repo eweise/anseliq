@@ -28,7 +28,7 @@ object Routes:
           path("maintain-movement-spec")(MaintainMovementSpecPage()),
           path("jobs")(JobsPage()),
           path("events")(EventsPage()),
-          path("coming-soon" / "exceptions")(ComingSoonPage("Exceptions & Disputes")),
+          path("exceptions")(ExceptionsPage()),
           path("coming-soon" / "recon-rules")(ComingSoonPage("Recon Rules")),
           path("coming-soon" / "reports")(ComingSoonPage("Reports & Analytics")),
           path("coming-soon" / "users")(ComingSoonPage("Users & Roles")),
