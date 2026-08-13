@@ -13,9 +13,8 @@ import upickle.default.*
 object ReconciliationsPage:
 
   case class State(
-    recons:           Seq[ReconciliationPayload] = Seq.empty,
-    writeOffReasonBy: Map[String, String]        = Map.empty, // reconciliation id -> in-progress reason text
-    editingWriteOff:  Option[String]              = None        // reconciliation id currently showing the reason field
+    recons:          Seq[ReconciliationPayload] = Seq.empty,
+    editingWriteOff: Option[String]             = None // reconciliation id currently showing the reason field
   )
 
   private def statusPill(r: ReconciliationPayload): HtmlElement =
@@ -33,7 +32,7 @@ object ReconciliationsPage:
     val state  = Var(State())
     val loadBus     = EventBus[Unit]()
     val unmatchBus  = EventBus[String]()
-    val writeOffBus = EventBus[String]()
+    val writeOffBus = EventBus[(String, String)]()
 
     def load() =
       ApiClient.get[Seq[ReconciliationPayload]](
@@ -52,8 +51,7 @@ object ReconciliationsPage:
         case Right(_) => loadBus.emit(())
         case Left(e)  => AppState.globalError.set(Some(e))
       },
-      writeOffBus.events.flatMapSwitch { reconId =>
-        val reason = state.now().writeOffReasonBy.getOrElse(reconId, "")
+      writeOffBus.events.flatMapSwitch { (reconId, reason) =>
         ApiClient.postRaw(
           HttpPath.url(s"${HttpPath.reconciliation}/$reconId/write-off"),
           write(WriteOffRequest(reason)),
@@ -92,17 +90,7 @@ object ReconciliationsPage:
                       cls := "flex flex-col gap-1",
                       (if r.status == "InProgress" then
                          if s.editingWriteOff.contains(r.id) then
-                           div(
-                             cls := "flex gap-1",
-                             input(
-                               typ         := "text",
-                               placeholder := "reason",
-                               onInput.mapToValue --> Observer[String](v =>
-                                 state.update(st => st.copy(writeOffReasonBy = st.writeOffReasonBy + (r.id -> v)))
-                               )
-                             ),
-                             Buttons.textButton("Confirm", Observer[Unit](_ => writeOffBus.emit(r.id)))
-                           )
+                           writeOffInput(r.id, writeOffBus)
                          else
                            Buttons.textButton("Write Off", Observer[Unit](_ => state.update(_.copy(editingWriteOff = Some(r.id)))))
                        else
@@ -116,4 +104,20 @@ object ReconciliationsPage:
           )
         }
       )
+    )
+
+  // A local Var, not the page-level State: writing every keystroke into the outer State would trigger the
+  // `child <-- state.signal.map(...)` above to rebuild the whole table on each keystroke, destroying and
+  // recreating this very input element and dropping whatever had been typed so far. Scoping the reason to a
+  // Var created only when this element is built keeps typing from touching outer State at all.
+  private def writeOffInput(reconId: String, writeOffBus: EventBus[(String, String)]): HtmlElement =
+    val reasonVar = Var("")
+    div(
+      cls := "flex gap-1",
+      input(
+        typ         := "text",
+        placeholder := "reason",
+        onInput.mapToValue --> Observer[String](v => reasonVar.set(v))
+      ),
+      Buttons.textButton("Confirm", Observer[Unit](_ => writeOffBus.emit((reconId, reasonVar.now()))))
     )
