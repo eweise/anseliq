@@ -7,9 +7,8 @@ import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
 import perfectpair.domain.DataSetup
 import perfectpair.domain.model.*
 import perfectpair.domain.port.driven.*
-import perfectpair.testing.LargeFileFixtures
 
-import java.io.{BufferedInputStream, FileInputStream}
+import java.util.UUID
 import javax.sql.DataSource
 
 // Excluded from the normal `sbt test` cycle in build.sbt — ingests and reconciles
@@ -17,7 +16,9 @@ import javax.sql.DataSource
 // current per-row (non-batched) matching loop. Run explicitly with:
 //   sbt "backend/testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"
 class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
-  given transactor: Transactor = Transactor(dataSource)
+  given transactor: Transactor =
+    Transactor(dataSource)
+//    Transactor(dataSource, SqlLogger.logSlowQueries(FiniteDuration(5, TimeUnit.SECONDS)), _ => ())
 
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
@@ -63,38 +64,39 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
   test("ingesting and reconciling two 5,000,000-row files nets the recon account to zero"):
     val ingestor = Ingestor()
     val data     = transact(transactor)(DataSetup())
-    try
-//      val journalSpec = csvSpec(data.journalToRecon)
-//      val reportSpec  = csvSpec(data.reportToRecon)
+//    try
+//    val journalSpec = csvSpec(data.journalToRecon)
+//    val reportSpec  = csvSpec(data.reportToRecon)
 //
-//      val journalStream = BufferedInputStream(FileInputStream(LargeFileFixtures.journalFile()), 1 << 10000)
-//      try ingestor.ingestResumable(journalSpec, InMemoryFileSourceEntry("journal-large"), journalStream)
-//      finally journalStream.close()
+//    val journalStream = BufferedInputStream(FileInputStream(LargeFileFixtures.journalFile()), 1 << 10000)
+//    try ingestor.ingestResumable(journalSpec, InMemoryFileSourceEntry("journal-large"), journalStream)
+//    finally journalStream.close()
 //
-//      val reportStream = BufferedInputStream(FileInputStream(LargeFileFixtures.reportFile()), 1 << 10000)
-//      try ingestor.ingestResumable(reportSpec, InMemoryFileSourceEntry("report-large"), reportStream)
-//      finally reportStream.close()
+//    val reportStream = BufferedInputStream(FileInputStream(LargeFileFixtures.reportFile()), 1 << 10000)
+//    try ingestor.ingestResumable(reportSpec, InMemoryFileSourceEntry("report-large"), reportStream)
+//    finally reportStream.close()
 
-      val reconciler = InMemoryReconciler()
-      transact(transactor)(reconciler.reconcileAccount(data.reconAccount.id))
+    val reconciler     = InMemoryReconciler()
+    val reconAccountId = UUID.fromString("00000000-007b-7c70-a4b1-6eb83731ebd5")
+    transact(transactor)(reconciler.reconcileAccountResumable(reconAccountId))
 
-      val reconAccountAfter = transact(transactor)(accountRepo.findById(data.reconAccount.id).get)
-      assertEquals(reconAccountAfter.balance, BigDecimal(0), "reconAccount.balance")
-      assertEquals(reconAccountAfter.unreconciledBalance, BigDecimal(0), "reconAccount.unreconciledBalance")
-      assertEquals(
-        transact(transactor)(movementRepo.countUnreconciledByAccount(data.reconAccount.id)),
-        0,
-        "movements left unreconciled on the recon account"
-      )
-    finally
-      transact(transactor):
-        val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
-        eventRepo
-          .findByEventType("MoneyMovementsIngested")
-          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
-          .foreach(es => eventRepo.deleteById(es.id))
-        // reconciliation.spec_id -> reconciliation_spec has no ON DELETE CASCADE, so any
-        // reconciliations reconcileAccount created must go before the spec they reference.
-        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
-        data.reconSpecRepo.deleteById(data.reconSpec.id)
-        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+    val reconAccountAfter = transact(transactor)(accountRepo.findById(reconAccountId).get)
+    assertEquals(reconAccountAfter.balance, BigDecimal(0), "reconAccount.balance")
+    assertEquals(reconAccountAfter.unreconciledBalance, BigDecimal(0), "reconAccount.unreconciledBalance")
+    assertEquals(
+      transact(transactor)(movementRepo.countUnreconciledByAccount(reconAccountId)),
+      0,
+      "movements left unreconciled on the recon account"
+    )
+//    finally
+//      transact(transactor):
+//        val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
+//        eventRepo
+//          .findByEventType("MoneyMovementsIngested")
+//          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
+//          .foreach(es => eventRepo.deleteById(es.id))
+//        // reconciliation.spec_id -> reconciliation_spec has no ON DELETE CASCADE, so any
+//        // reconciliations reconcileAccount created must go before the spec they reference.
+//        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
+//        data.reconSpecRepo.deleteById(data.reconSpec.id)
+//        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
