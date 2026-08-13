@@ -66,6 +66,10 @@ object LeftNav:
       a(
         href := item.href,
         cls  := "flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-md-primary-container dark:hover:bg-md-primary-container-dark transition-colors duration-200",
+        onClick --> { e =>
+          e.preventDefault()
+          Nav.push(item.href)
+        },
         span(cls := "w-5 h-5", item.icon),
         span(item.label)
       )
