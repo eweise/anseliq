@@ -28,12 +28,21 @@ object ExceptionDetailPage:
     case DisputeStatusPayload.Escalated     => Pill.Tone.Critical
     case DisputeStatusPayload.Resolved      => Pill.Tone.Good
 
+  // Mirrors the DisputeService.addComment rule server-side: a body is required for a plain comment
+  // (no status change) and for a Resolved transition, so we can reject a bad submission before it
+  // ever reaches the backend rather than surfacing a raw 500/stack trace to the user.
+  private def bodyRequired(newStatus: Option[DisputeStatusPayload]): Boolean = newStatus match
+    case None                              => true
+    case Some(DisputeStatusPayload.Resolved) => true
+    case Some(_)                             => false
+
   def apply(id: String): HtmlElement =
-    val state       = Var(State())
-    val loadBus     = EventBus[Unit]()
-    val submitBus   = EventBus[(Option[DisputeStatusPayload], Option[String])]()
-    val statusVar   = Var("")
-    val bodyVar     = Var("")
+    val state          = Var(State())
+    val loadBus         = EventBus[Unit]()
+    val submitBus       = EventBus[(Option[DisputeStatusPayload], Option[String])]()
+    val statusVar       = Var("")
+    val bodyVar         = Var("")
+    val validationError = Var(Option.empty[String])
 
     def load() =
       ApiClient.get[DisputeDetailPayload](HttpPath.url(s"${HttpPath.dispute}/$id"), SessionStore.token)
@@ -54,6 +63,7 @@ object ExceptionDetailPage:
           state.update(_.copy(detail = Some(d)))
           statusVar.set("")
           bodyVar.set("")
+          validationError.set(None)
         case Left(e) => AppState.globalError.set(Some(e))
       },
       onMountCallback { _ => loadBus.emit(()) },
@@ -75,7 +85,7 @@ object ExceptionDetailPage:
               targetDetails(d),
               h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
               div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
-              commentForm(statusVar, bodyVar, submitBus)
+              commentForm(statusVar, bodyVar, validationError, submitBus)
             )
         }
       )
@@ -123,28 +133,46 @@ object ExceptionDetailPage:
     )
 
   private def commentForm(
-    statusVar: Var[String],
-    bodyVar:   Var[String],
-    submitBus: EventBus[(Option[DisputeStatusPayload], Option[String])]
+    statusVar:       Var[String],
+    bodyVar:         Var[String],
+    validationError: Var[Option[String]],
+    submitBus:       EventBus[(Option[DisputeStatusPayload], Option[String])]
   ): HtmlElement =
     div(
       cls := "border-t border-md-outline pt-4",
-      Form.selectField("newStatus", "Change status", statusOptions, "", v => statusVar.set(v)),
+      Form.selectField(
+        "newStatus",
+        "Change status",
+        statusOptions,
+        "",
+        v =>
+          statusVar.set(v)
+          validationError.set(None)
+      ),
       div(
-        cls := "mb-4",
+        cls := "mb-1",
         input(
           typ         := "text",
           placeholder := "Add a comment",
           cls         := "w-full px-4 py-3.5 border border-md-outline rounded text-md-on-surface dark:text-white bg-transparent",
-          onInput.mapToValue --> Observer[String](v => bodyVar.set(v))
+          onInput.mapToValue --> Observer[String] { v =>
+            bodyVar.set(v)
+            validationError.set(None)
+          }
         )
+      ),
+      child.maybe <-- validationError.signal.map(
+        _.map(msg => div(cls := "text-sm text-red-600 dark:text-red-400 mb-3", msg))
       ),
       Buttons.linkButton(
         "Post",
         Observer[Unit](_ =>
           val newStatus = DisputeStatusPayload.values.find(_.toString == statusVar.now())
           val body      = Some(bodyVar.now()).filter(_.nonEmpty)
-          submitBus.emit((newStatus, body))
+          if bodyRequired(newStatus) && body.isEmpty then
+            validationError.set(Some("A comment is required for this change."))
+          else
+            submitBus.emit((newStatus, body))
         )
       )
     )
