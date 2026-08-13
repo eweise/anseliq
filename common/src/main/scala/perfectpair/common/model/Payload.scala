@@ -174,6 +174,42 @@ case class MovementSpecAndAccounts(
   outAccount: AccountPayload
 ) derives ReadWriter
 
+enum DisputeTargetPayload derives ReadWriter:
+  case Movement, Reconciliation
+
+enum DisputeCategoryPayload derives ReadWriter:
+  case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality
+
+enum DisputeStatusPayload derives ReadWriter:
+  case New, Investigating, Escalated, Resolved
+
+case class RaiseDisputeRequest(
+  referenceId: String,
+  targetType:  DisputeTargetPayload,
+  category:    DisputeCategoryPayload,
+  detail:      Option[String] = None
+) derives ReadWriter
+
+case class UpdateDisputeStatusRequest(
+  status:         DisputeStatusPayload,
+  resolutionNote: Option[String] = None
+) derives ReadWriter
+
+case class DisputePayload(
+  id:              String,
+  referenceId:     String,
+  targetType:      DisputeTargetPayload,
+  category:        DisputeCategoryPayload,
+  detail:          Option[String],
+  status:          DisputeStatusPayload,
+  resolutionNote:  Option[String],
+  accountId:       String,
+  accountName:     String,
+  referenceLabel:  String,
+  createdAt:       OffsetDateTime,
+  updatedAt:       OffsetDateTime
+) derives ReadWriter
+
 def combineAccountsAndMovementSpecs(
   accounts:      Seq[AccountPayload],
   movementSpecs: Seq[MovementSpecPayload]
