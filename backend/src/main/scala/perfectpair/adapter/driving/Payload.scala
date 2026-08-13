@@ -148,3 +148,60 @@ object Payload:
       properties       = dmMovement.properties.props,
       reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull
     )
+
+  def disputeTargetToDomain(p: DisputeTargetPayload): DisputeTarget = p match
+    case DisputeTargetPayload.Movement       => DisputeTarget.Movement
+    case DisputeTargetPayload.Reconciliation => DisputeTarget.Reconciliation
+
+  def disputeTargetFromDomain(d: DisputeTarget): DisputeTargetPayload = d match
+    case DisputeTarget.Movement       => DisputeTargetPayload.Movement
+    case DisputeTarget.Reconciliation => DisputeTargetPayload.Reconciliation
+
+  def disputeCategoryToDomain(p: DisputeCategoryPayload): DisputeCategory = p match
+    case DisputeCategoryPayload.AmountMismatch     => DisputeCategory.AmountMismatch
+    case DisputeCategoryPayload.MissingCounterpart => DisputeCategory.MissingCounterpart
+    case DisputeCategoryPayload.Duplicate          => DisputeCategory.Duplicate
+    case DisputeCategoryPayload.TimingDifference   => DisputeCategory.TimingDifference
+    case DisputeCategoryPayload.DataQuality        => DisputeCategory.DataQuality
+
+  def disputeCategoryFromDomain(d: DisputeCategory): DisputeCategoryPayload = d match
+    case DisputeCategory.AmountMismatch     => DisputeCategoryPayload.AmountMismatch
+    case DisputeCategory.MissingCounterpart => DisputeCategoryPayload.MissingCounterpart
+    case DisputeCategory.Duplicate          => DisputeCategoryPayload.Duplicate
+    case DisputeCategory.TimingDifference   => DisputeCategoryPayload.TimingDifference
+    case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
+
+  def disputeStatusToDomain(p: DisputeStatusPayload): DisputeStatus = p match
+    case DisputeStatusPayload.New           => DisputeStatus.New
+    case DisputeStatusPayload.Investigating => DisputeStatus.Investigating
+    case DisputeStatusPayload.Escalated     => DisputeStatus.Escalated
+    case DisputeStatusPayload.Resolved      => DisputeStatus.Resolved
+
+  def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
+    case DisputeStatus.New           => DisputeStatusPayload.New
+    case DisputeStatus.Investigating => DisputeStatusPayload.Investigating
+    case DisputeStatus.Escalated     => DisputeStatusPayload.Escalated
+    case DisputeStatus.Resolved      => DisputeStatusPayload.Resolved
+
+  /** accountId/accountName/referenceLabel must be resolved by the caller (see Routes.scala) since which
+    * repos to query depends on dispute.targetType. */
+  def disputePayloadFromDomain(
+    dispute:        Dispute,
+    accountId:      String,
+    accountName:    String,
+    referenceLabel: String
+  ): DisputePayload =
+    DisputePayload(
+      id             = dispute.id.toString,
+      referenceId    = dispute.referenceId.toString,
+      targetType     = disputeTargetFromDomain(dispute.targetType),
+      category       = disputeCategoryFromDomain(dispute.category),
+      detail         = dispute.detail,
+      status         = disputeStatusFromDomain(dispute.status),
+      resolutionNote = dispute.resolutionNote,
+      accountId      = accountId,
+      accountName    = accountName,
+      referenceLabel = referenceLabel,
+      createdAt      = dispute.createdAt.get,
+      updatedAt      = dispute.updatedAt.get
+    )

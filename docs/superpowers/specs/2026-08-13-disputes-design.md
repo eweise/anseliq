@@ -199,7 +199,7 @@ Add to `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`, follow
 `HttpCmd`/`HttpPath` conventions:
 
 ```scala
-@cask.route(HttpPath.disputes, methods = HttpCmd.POST)                  // raise
+@cask.route(HttpPath.dispute, methods = HttpCmd.POST)                    // raise
 @cask.route(HttpPath.disputes, methods = HttpCmd.GET)                    // list — all disputes, unfiltered
 @cask.route(s"${HttpPath.dispute}/:id/status", methods = HttpCmd.PUT)    // transition status / resolve
 ```
