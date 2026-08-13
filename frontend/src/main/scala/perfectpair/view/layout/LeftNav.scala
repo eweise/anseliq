@@ -16,7 +16,7 @@ object LeftNav:
     )),
     NavGroup("Reconcile", Seq(
       NavItem("Ledgers", "/components/fund-flows", Icons.document),
-      NavItem("Exceptions & Disputes", "/components/coming-soon/exceptions", Icons.document)
+      NavItem("Exceptions & Disputes", "/components/exceptions", Icons.document)
     )),
     NavGroup("Configure", Seq(
       NavItem("Recon Rules", "/components/coming-soon/recon-rules", Icons.settings),
