@@ -35,6 +35,7 @@ class App(using
   reconSpecRepo:      ReconciliationSpecRepo,
   eventRepo:          EventRepo,
   disputeRepo:        DisputeRepo,
+  disputeCommentRepo: DisputeCommentRepo,
   disputeService:     DisputeService
 ) extends cask.MainRoutes,
       StrictLogging:
@@ -272,17 +273,35 @@ class App(using
       }
       write(payload)
 
-  @cask.route(s"${HttpPath.dispute}/:id/status", methods = HttpCmd.PUT)
-  def updateDisputeStatus(id: String, request: cask.Request): String =
-    val payload = read[UpdateDisputeStatusRequest](request.text())
+  @cask.route(s"${HttpPath.dispute}/:id", methods = HttpCmd.GET)
+  def getDispute(id: String): String =
     transact(transactor):
-      val dispute = disputeService.updateStatus(
+      val dispute = disputeRepo.findById(UUID.fromString(id)).ErrIfNotFound("dispute", UUID.fromString(id))
+      write(disputeDetail(dispute))
+
+  @cask.route(s"${HttpPath.dispute}/:id/comments", methods = HttpCmd.POST)
+  def addDisputeComment(id: String, request: cask.Request): String =
+    val payload = read[AddDisputeCommentRequest](request.text())
+    transact(transactor):
+      disputeService.addComment(
         UUID.fromString(id),
-        Payload.disputeStatusToDomain(payload.status),
-        payload.resolutionNote
+        payload.body,
+        payload.newStatus.map(Payload.disputeStatusToDomain)
       )
-      val (accountId, accountName, referenceLabel) = disputeContext(dispute)
-      write(Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel))
+      val dispute = disputeRepo.findById(UUID.fromString(id)).ErrIfNotFound("dispute", UUID.fromString(id))
+      write(disputeDetail(dispute))
+
+  private def disputeDetail(dispute: Dispute): Txn[DisputeDetailPayload] =
+    val (accountId, accountName, referenceLabel) = disputeContext(dispute)
+    val disputePayload = Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel)
+    val movementPayload = dispute.targetType match
+      case DisputeTarget.Movement => movementRepo.findById(dispute.referenceId).map(Payload.movementfromDomainModel)
+      case DisputeTarget.Reconciliation => None
+    val reconPayload = dispute.targetType match
+      case DisputeTarget.Reconciliation => reconRepo.findById(dispute.referenceId).map(Payload.reconFromDomain)
+      case DisputeTarget.Movement => None
+    val comments = disputeCommentRepo.findByDisputeId(dispute.id).map(Payload.disputeCommentPayloadFromDomain)
+    DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments)
 
   private def disputeContext(dispute: Dispute): Txn[(String, String, String)] =
     dispute.targetType match

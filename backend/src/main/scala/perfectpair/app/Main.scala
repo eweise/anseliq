@@ -44,6 +44,7 @@ object Main:
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
     given manualReconciler:   ManualReconciler       = ManualReconciler()
     given disputeRepo:        DisputeRepo            = DisputeRepoLive()
+    given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
     given disputeService:     DisputeService         = DisputeService()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
