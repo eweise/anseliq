@@ -2,7 +2,7 @@ package perfectpair.view.pages
 
 import com.raquo.laminar.api.L.*
 import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{DisputePayload, DisputeStatusPayload, UpdateDisputeStatusRequest}
+import perfectpair.common.model.{DisputePayload, DisputeStatusPayload, DisputeTargetPayload, UpdateDisputeStatusRequest}
 import perfectpair.http.ApiClient
 import perfectpair.state.{AppState, SessionStore}
 import perfectpair.view.components.{Buttons, PageHeader, Pill, Table}
@@ -11,9 +11,8 @@ import upickle.default.*
 object ExceptionsPage:
 
   case class State(
-    disputes:           Seq[DisputePayload] = Seq.empty,
-    resolutionReasonBy: Map[String, String] = Map.empty, // dispute id -> in-progress reason text
-    editingResolution:  Option[String]      = None        // dispute id currently showing the reason field
+    disputes:          Seq[DisputePayload] = Seq.empty,
+    editingResolution: Option[String]      = None // dispute id currently showing the reason field
   )
 
   def apply(): HtmlElement =
@@ -48,7 +47,7 @@ object ExceptionsPage:
         PageHeader.title("Exceptions & Disputes"),
         child <-- state.signal.map { s =>
           Table.create(
-            Seq("Status", "Category", "Account", "Reference", "Detail", "Actions"),
+            Seq("Status", "Category", "Type", "Account", "Reference", "Detail", "Actions"),
             s.disputes.map(d => renderRow(d, s, state, updateStatusBus))
           )
         }
@@ -61,6 +60,10 @@ object ExceptionsPage:
     case DisputeStatusPayload.Escalated     => Pill.Tone.Critical
     case DisputeStatusPayload.Resolved      => Pill.Tone.Good
 
+  private def targetLabel(targetType: DisputeTargetPayload): String = targetType match
+    case DisputeTargetPayload.Movement       => "Movement"
+    case DisputeTargetPayload.Reconciliation => "Reconciliation"
+
   private def renderRow(
     d:               DisputePayload,
     s:               State,
@@ -70,6 +73,7 @@ object ExceptionsPage:
     Seq(
       Pill(d.status.toString, statusTone(d.status)),
       Pill(d.category.toString, Pill.Tone.Accent),
+      Pill(targetLabel(d.targetType), Pill.Tone.Neutral),
       span(d.accountName),
       span(d.referenceLabel),
       span(d.detail.getOrElse("")),
@@ -102,22 +106,29 @@ object ExceptionsPage:
            Observer[Unit](_ => updateStatusBus.emit((d.id, DisputeStatusPayload.Investigating, None)))
          )
        else if s.editingResolution.contains(d.id) then
-         div(
-           cls := "flex gap-1",
-           input(
-             typ         := "text",
-             placeholder := "resolution note",
-             onInput.mapToValue --> Observer[String](v =>
-               state.update(st => st.copy(resolutionReasonBy = st.resolutionReasonBy + (d.id -> v)))
-             )
-           ),
-           Buttons.textButton(
-             "Confirm",
-             Observer[Unit](_ =>
-               updateStatusBus.emit((d.id, DisputeStatusPayload.Resolved, s.resolutionReasonBy.get(d.id)))
-             )
-           )
-         )
+         resolutionInput(d, updateStatusBus)
        else
          Buttons.textButton("Resolve", Observer[Unit](_ => state.update(_.copy(editingResolution = Some(d.id))))))
+    )
+
+  // A local Var, not the page-level State: writing every keystroke into the outer State would trigger the
+  // `child <-- state.signal.map(...)` at the top of this page to rebuild the whole table on each keystroke,
+  // destroying and recreating this very input element and dropping whatever had been typed so far. Scoping
+  // the note to a Var created only when this element is built keeps typing from touching outer State at all.
+  private def resolutionInput(
+    d:               DisputePayload,
+    updateStatusBus: EventBus[(String, DisputeStatusPayload, Option[String])]
+  ): HtmlElement =
+    val noteVar = Var("")
+    div(
+      cls := "flex gap-1",
+      input(
+        typ         := "text",
+        placeholder := "resolution note",
+        onInput.mapToValue --> Observer[String](v => noteVar.set(v))
+      ),
+      Buttons.textButton(
+        "Confirm",
+        Observer[Unit](_ => updateStatusBus.emit((d.id, DisputeStatusPayload.Resolved, Some(noteVar.now()))))
+      )
     )
