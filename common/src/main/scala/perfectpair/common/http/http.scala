@@ -17,6 +17,8 @@ object HttpPath:
   val reconSpec       = s"$prefix/recon-spec"
   val reconciliations = s"$prefix/reconciliations"
   val reconciliation  = s"$prefix/reconciliation"
+  val disputes        = s"$prefix/disputes"
+  val dispute         = s"$prefix/dispute"
   val jobs            = s"$prefix/jobs"
   val events          = s"$prefix/events"
 
