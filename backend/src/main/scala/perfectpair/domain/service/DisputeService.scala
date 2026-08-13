@@ -6,6 +6,7 @@ import perfectpair.domain.port.driven.*
 
 class DisputeService(using
   disputeRepo:  DisputeRepo,
+  commentRepo:  DisputeCommentRepo,
   movementRepo: MovementRepo,
   reconRepo:    ReconciliationRepo,
   eventStore:   EventStore,
@@ -31,14 +32,25 @@ class DisputeService(using
     eventStore.publishEvent(DisputeRaised(disputeID = dispute.id))
     dispute
 
-  def updateStatus(disputeId: ID, newStatus: DisputeStatus, resolutionNote: Option[String]): Txn[Dispute] =
+  def addComment(disputeId: ID, body: Option[String], newStatus: Option[DisputeStatus]): Txn[DisputeComment] =
     val dispute = disputeRepo.findById(disputeId).ErrIfNotFound("dispute", disputeId)
-    if newStatus == DisputeStatus.Resolved && resolutionNote.forall(_.isBlank) then
-      throw IllegalArgumentError("resolutionNote", "required when resolving a dispute")
 
-    dispute.status = newStatus
-    resolutionNote.foreach(n => dispute.resolutionNote = Some(n))
-    dispute.updatedAt = Some(clock.now)
-    disputeRepo.update(dispute)
-    eventStore.publishEvent(DisputeStatusChanged(disputeID = dispute.id, newStatus = newStatus.toString))
-    dispute
+    val bodyRequired = newStatus match
+      case None                         => true
+      case Some(DisputeStatus.Resolved) => true
+      case Some(_)                      => false
+    if bodyRequired && body.forall(_.isBlank) then
+      throw IllegalArgumentError("body", "required for this entry")
+
+    newStatus.foreach { s =>
+      dispute.status = s
+      dispute.updatedAt = Some(clock.now)
+      disputeRepo.update(dispute)
+      eventStore.publishEvent(DisputeStatusChanged(disputeID = dispute.id, newStatus = s.toString))
+    }
+
+    val comment = commentRepo.insertReturning(
+      DisputeComment(disputeId = disputeId, body = body, newStatus = newStatus, createdAt = Some(clock.now))
+    )
+    eventStore.publishEvent(DisputeCommentAdded(disputeID = disputeId, commentID = comment.id))
+    comment
