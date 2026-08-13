@@ -43,6 +43,8 @@ object Main:
     given ingestor:           Ingestor               = Ingestor()
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
     given manualReconciler:   ManualReconciler       = ManualReconciler()
+    given disputeRepo:        DisputeRepo            = DisputeRepoLive()
+    given disputeService:     DisputeService         = DisputeService()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
 

@@ -33,7 +33,9 @@ class App(using
   manualReconciler:   ManualReconciler,
   jobRepo:            JobRepo,
   reconSpecRepo:      ReconciliationSpecRepo,
-  eventRepo:          EventRepo
+  eventRepo:          EventRepo,
+  disputeRepo:        DisputeRepo,
+  disputeService:     DisputeService
 ) extends cask.MainRoutes,
       StrictLogging:
 
@@ -245,6 +247,54 @@ class App(using
     transact(transactor):
       manualReconciler.writeOff(UUID.fromString(id), payload.reason)
     write("written-off")
+
+  // Disputes
+  @cask.route(HttpPath.dispute, methods = HttpCmd.POST)
+  def raiseDispute(request: cask.Request): String =
+    val payload = read[RaiseDisputeRequest](request.text())
+    transact(transactor):
+      val dispute = disputeService.raise(
+        UUID.fromString(payload.referenceId),
+        Payload.disputeTargetToDomain(payload.targetType),
+        Payload.disputeCategoryToDomain(payload.category),
+        payload.detail
+      )
+      val (accountId, accountName, referenceLabel) = disputeContext(dispute)
+      write(Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel))
+
+  @cask.route(HttpPath.disputes, methods = HttpCmd.GET)
+  def listDisputes(): String =
+    transact(transactor):
+      val disputes = disputeRepo.findAll
+      val payload = disputes.map { d =>
+        val (accountId, accountName, referenceLabel) = disputeContext(d)
+        Payload.disputePayloadFromDomain(d, accountId, accountName, referenceLabel)
+      }
+      write(payload)
+
+  @cask.route(s"${HttpPath.dispute}/:id/status", methods = HttpCmd.PUT)
+  def updateDisputeStatus(id: String, request: cask.Request): String =
+    val payload = read[UpdateDisputeStatusRequest](request.text())
+    transact(transactor):
+      val dispute = disputeService.updateStatus(
+        UUID.fromString(id),
+        Payload.disputeStatusToDomain(payload.status),
+        payload.resolutionNote
+      )
+      val (accountId, accountName, referenceLabel) = disputeContext(dispute)
+      write(Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel))
+
+  private def disputeContext(dispute: Dispute): Txn[(String, String, String)] =
+    dispute.targetType match
+      case DisputeTarget.Movement =>
+        val movement = movementRepo.findById(dispute.referenceId).ErrIfNotFound("movement", dispute.referenceId)
+        val account  = accountRepo.findById(movement.inAccountId).ErrIfNotFound("account", movement.inAccountId)
+        (account.id.toString, account.name, movement.referenceId.toString)
+      case DisputeTarget.Reconciliation =>
+        val recon     = reconRepo.findById(dispute.referenceId).ErrIfNotFound("reconciliation", dispute.referenceId)
+        val reconSpec = reconSpecRepo.findById(recon.specId).ErrIfNotFound("reconciliation spec", recon.specId)
+        val account   = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
+        (account.id.toString, account.name, recon.description)
 
   // Jobs
   @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)
