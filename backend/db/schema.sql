@@ -85,6 +85,19 @@ create table recon.dispute
 CREATE INDEX dispute_reference_id ON recon.dispute (reference_id);
 CREATE INDEX dispute_status_created_at ON recon.dispute (status, created_at);
 
+ALTER TABLE recon.dispute DROP COLUMN resolution_note;
+
+create table recon.dispute_comment
+(
+    id         uuid primary key,
+    dispute_id uuid not null REFERENCES recon.dispute (id) ON DELETE CASCADE,
+    body       text,
+    new_status text,
+    created_at timestamptz default CURRENT_TIMESTAMP not null
+);
+
+CREATE INDEX dispute_comment_dispute_id ON recon.dispute_comment (dispute_id, created_at);
+
 
 create table recon.movement
 (

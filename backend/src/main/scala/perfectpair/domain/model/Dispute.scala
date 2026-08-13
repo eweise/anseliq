@@ -20,16 +20,27 @@ enum DisputeStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Dispute(
-  @Id id:            ID                     = createID(),
-  referenceId:       ID,
-  targetType:        DisputeTarget,
-  category:          DisputeCategory,
-  detail:            Option[String]         = None,
-  var status:         DisputeStatus          = DisputeStatus.New,
-  var resolutionNote: Option[String]         = None,
-  var createdAt:      Option[OffsetDateTime] = None,
-  var updatedAt:      Option[OffsetDateTime] = None
+  @Id id:       ID                     = createID(),
+  referenceId:  ID,
+  targetType:   DisputeTarget,
+  category:     DisputeCategory,
+  detail:       Option[String]         = None,
+  var status:    DisputeStatus          = DisputeStatus.New,
+  var createdAt: Option[OffsetDateTime] = None,
+  var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object Dispute:
   val Table = TableInfo[Dispute, Dispute, UUID]
+
+@Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
+case class DisputeComment(
+  @Id id:        ID                     = createID(),
+  disputeId:     ID,
+  body:          Option[String]         = None,
+  newStatus:     Option[DisputeStatus]  = None,
+  var createdAt: Option[OffsetDateTime] = None
+) derives DbCodec
+
+object DisputeComment:
+  val Table = TableInfo[DisputeComment, DisputeComment, UUID]
