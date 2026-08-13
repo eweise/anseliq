@@ -45,10 +45,10 @@ object IngestPage:
         case (specId, Right(_)) => statuses.update(_.updated(specId, UploadStatus.Done))
         case (specId, Left(e))  => statuses.update(_.updated(specId, UploadStatus.Failed(e)))
       },
-      cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4",
+      cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
-        cls := "bg-white rounded-xl shadow-md w-full max-w-lg p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface mb-2", "Ingest Files"),
+        cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-lg p-8",
+        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-2", "Ingest Files"),
         child <-- movementSpecs.signal.map { specs =>
           val relevantIds = Set(reconSpec.inMovementSpecId, reconSpec.outMovementSpecId)
           val relevant    = specs.filter(ms => ms.id.exists(relevantIds.contains)).distinctBy(_.id)

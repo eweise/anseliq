@@ -29,10 +29,10 @@ object MaintainFundFlowPage:
         case Right(_) => Nav.toFundFlows()
         case Left(e)  => AppState.globalError.set(Some(e))
       },
-      cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4",
+      cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
-        cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface mb-7", "Fund Flow"),
+        cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
+        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Fund Flow"),
         Form.field("name", "Name", initial.name, v => ff.update(_.copy(name = v))),
         initial.createdAt.fold(div())(ca =>
           Form.field("created_at", "Created At", ViewHelper.formatDateTime(ca), enabled = false)

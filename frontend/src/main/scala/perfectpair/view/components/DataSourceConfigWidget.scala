@@ -85,7 +85,7 @@ object DataSourceConfigWidget:
               if s.hasHeader then span(cls := "text-white text-xs leading-none", "✓") else span()
             )
           ),
-          span(cls := "text-sm text-md-on-surface", "Has Header Row")
+          span(cls := "text-sm text-md-on-surface dark:text-gray-200", "Has Header Row")
         ),
         div(
           cls <-- state.signal.map(s =>
@@ -172,12 +172,12 @@ object DataSourceConfigWidget:
             div(
               cls := "relative border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
               label(
-                cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
+                cls := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide text-md-on-surface-variant dark:text-gray-400",
                 "Bucket"
               ),
               input(
                 typ          := "text",
-                cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-sm focus:outline-none rounded",
+                cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-sm focus:outline-none rounded",
                 defaultValue := initialState.s3Bucket,
                 onInput.mapToValue --> Observer[String](v => state.update(_.copy(s3Bucket = v)))
               )
@@ -185,12 +185,12 @@ object DataSourceConfigWidget:
             div(
               cls := "relative border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
               label(
-                cls := "absolute -top-2.5 left-3 bg-white px-1 text-xs font-medium tracking-wide text-md-on-surface-variant",
+                cls := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide text-md-on-surface-variant dark:text-gray-400",
                 "File Path"
               ),
               input(
                 typ          := "text",
-                cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface text-sm focus:outline-none rounded",
+                cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-sm focus:outline-none rounded",
                 defaultValue := initialState.s3FilePath,
                 onInput.mapToValue --> Observer[String](v => state.update(_.copy(s3FilePath = v)))
               )

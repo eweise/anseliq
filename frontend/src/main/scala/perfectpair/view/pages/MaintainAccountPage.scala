@@ -42,10 +42,10 @@ object MaintainAccountPage:
         case Right(_) => Nav.back()
         case Left(e)  => AppState.globalError.set(Some(e))
       },
-      cls := "min-h-screen bg-md-surface-variant flex items-start justify-center pt-20 px-4",
+      cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
-        cls := "bg-white rounded-xl shadow-md w-full max-w-md p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface mb-7", "Account"),
+        cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
+        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Account"),
         Form.field("name", "Name", initial.name, v => account.update(_.copy(name = v)), updates = setNameBus.events),
         div(
           cls := "flex justify-end gap-2 mt-6",
