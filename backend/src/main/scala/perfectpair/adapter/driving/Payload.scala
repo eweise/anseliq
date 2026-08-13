@@ -198,10 +198,17 @@ object Payload:
       category       = disputeCategoryFromDomain(dispute.category),
       detail         = dispute.detail,
       status         = disputeStatusFromDomain(dispute.status),
-      resolutionNote = dispute.resolutionNote,
       accountId      = accountId,
       accountName    = accountName,
       referenceLabel = referenceLabel,
       createdAt      = dispute.createdAt.get,
       updatedAt      = dispute.updatedAt.get
+    )
+
+  def disputeCommentPayloadFromDomain(c: DisputeComment): DisputeCommentPayload =
+    DisputeCommentPayload(
+      id        = c.id.toString,
+      body      = c.body,
+      newStatus = c.newStatus.map(disputeStatusFromDomain),
+      createdAt = c.createdAt.get
     )
