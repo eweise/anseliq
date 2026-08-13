@@ -69,6 +69,22 @@ create table recon.reconciliation
     updated_at        timestamptz default CURRENT_TIMESTAMP not null
 );
 
+create table recon.dispute
+(
+    id              uuid primary key,
+    reference_id    uuid not null,
+    target_type     text not null,
+    category        text not null,
+    detail          text,
+    status          text not null default 'new',
+    resolution_note text,
+    created_at      timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at      timestamptz default CURRENT_TIMESTAMP not null
+);
+
+CREATE INDEX dispute_reference_id ON recon.dispute (reference_id);
+CREATE INDEX dispute_status_created_at ON recon.dispute (status, created_at);
+
 
 create table recon.movement
 (
