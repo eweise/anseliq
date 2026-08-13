@@ -3,8 +3,8 @@ package perfectpair.domain.service
 class SubsetSum:
 
   /**
-   * Determines whether any subset of the given set sums to the target value. Uses a bottom-up
-   * dynamic programming approach with a 2D boolean table.
+   * NOT CURRENTLY USED. Determines whether any subset of the given set sums to the target value.
+   * Uses a bottom-up dynamic programming approach with a 2D boolean table.
    *
    * @param set
    *   the array of non-negative integers

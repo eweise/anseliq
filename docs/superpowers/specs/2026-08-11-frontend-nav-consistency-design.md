@@ -39,22 +39,22 @@ rest of the app never happened. This closes that gap and removes dead/orphaned n
 
 ## `PageHeader` Component
 
-New shared component in `view/components/PageHeader.scala`, extracted from the convention already
-used by `EventsPage`/`JobsPage`/`ReconciliationsPage` (the majority pattern — `text-2xl`):
+Page outer-wrapper structure actually varies for good reason (`EventsPage`/`JobsPage` use a
+`max-w-5xl` inner content wrapper; `ReconciliationsPage`/`ManualMatchPage`/
+`UnreconciledMovementsPage` don't; `FundFlowsPage` puts its title next to a "Create" button in a
+`justify-between` row rather than stacked). Forcing all of them through one rigid wrapper
+component would restructure working layouts to fix what is actually only a title-level drift.
+
+Scope `PageHeader` narrowly to just the title element — the one thing that's actually
+inconsistent (`text-2xl` everywhere except `FundFlowsPage`'s `text-xl`):
 
 ```scala
 object PageHeader:
-  def apply(title: String, extra: Modifier[HtmlElement]*): HtmlElement =
-    div(
-      cls := "flex flex-col items-center mb-8 pt-20 px-8 w-full",
-      h2(cls := "text-2xl font-medium mb-6", title),
-      extra
-    )
+  def title(text: String): HtmlElement = h2(cls := "text-2xl font-medium mb-6", text)
 ```
 
-`extra` covers cases like `FundFlowsPage`'s "New Fund Flow" button sitting next to/under the
-title. Pages keep their own content below the header call; this only replaces the
-title+wrapper boilerplate, not the whole page body.
+Each page keeps its own wrapper/layout; only the `h2(cls := "text-2xl font-medium mb-6", ...)` /
+`h2(cls := "text-xl font-medium", ...)` call is replaced with `PageHeader.title(...)`.
 
 ## Files Changed
 
@@ -64,9 +64,9 @@ title+wrapper boilerplate, not the whole page body.
 4. `frontend/src/main/scala/perfectpair/routing/Nav.scala` — remove `toAccounts`
 5. `frontend/src/main/scala/perfectpair/view/pages/LoginPage.scala` — migrate to `md-*` tokens, add dark-mode classes, align header/spacing
 6. `frontend/src/main/scala/perfectpair/view/pages/WelcomePage.scala` — align header/spacing
-7. `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala` — fix the raw `bg-blue-600` "New Account" button; adopt shared header component
-8. New: `frontend/src/main/scala/perfectpair/view/components/PageHeader.scala` — shared list-page header (title + consistent top padding)
-9. Adopt `PageHeader` in: `EventsPage.scala`, `FundFlowsPage.scala`, `JobsPage.scala`, `ManualMatchPage.scala`, `ReconciliationsPage.scala`, `UnreconciledMovementsPage.scala`
+7. `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala` — fix the raw `bg-blue-600` "New Account" button; adopt `PageHeader.title` for its already-correct title (DRY, zero visual change)
+8. New: `frontend/src/main/scala/perfectpair/view/components/PageHeader.scala` — shared title helper (see above)
+9. Adopt `PageHeader.title` in: `EventsPage.scala`, `FundFlowsPage.scala` (fixes its `text-xl` drift), `JobsPage.scala`, `ManualMatchPage.scala`, `ReconciliationsPage.scala`, `UnreconciledMovementsPage.scala`
 
 ## Out of Scope
 
