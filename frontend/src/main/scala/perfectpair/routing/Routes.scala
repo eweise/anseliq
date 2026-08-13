@@ -29,6 +29,7 @@ object Routes:
           path("jobs")(JobsPage()),
           path("events")(EventsPage()),
           path("exceptions")(ExceptionsPage()),
+          path("exceptions" / segment)(id => ExceptionDetailPage(id)),
           path("coming-soon" / "recon-rules")(ComingSoonPage("Recon Rules")),
           path("coming-soon" / "reports")(ComingSoonPage("Reports & Analytics")),
           path("coming-soon" / "users")(ComingSoonPage("Users & Roles")),
