@@ -73,7 +73,7 @@ object ExceptionDetailPage:
                 Pill(d.dispute.targetType.toString, Pill.Tone.Neutral)
               ),
               targetDetails(d),
-              h3(cls := "font-medium mt-6 mb-2", "Thread"),
+              h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
               div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
               commentForm(statusVar, bodyVar, submitBus)
             )
@@ -85,7 +85,9 @@ object ExceptionDetailPage:
     div(
       cls := "border border-md-outline rounded-lg p-4 mb-4",
       div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400 mb-2", s"Account: ${d.dispute.accountName}"),
-      d.dispute.detail.map(det => div(cls := "text-sm mb-2", s"Raised with: $det")).getOrElse(div()),
+      d.dispute.detail
+        .map(det => div(cls := "text-sm mb-2 text-md-on-surface dark:text-gray-200", s"Raised with: $det"))
+        .getOrElse(div()),
       (d.movement, d.reconciliation) match
         case (Some(m), _) => movementDetails(m)
         case (_, Some(r)) => reconciliationDetails(r)
@@ -94,7 +96,7 @@ object ExceptionDetailPage:
 
   private def movementDetails(m: MovementPayload): HtmlElement =
     div(
-      cls := "text-sm space-y-1",
+      cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
       div(s"Reference ID: ${m.referenceId}"),
       div(s"Amount: ${m.amount}"),
       div(s"In Account: ${m.inAccountId}"),
@@ -103,7 +105,7 @@ object ExceptionDetailPage:
 
   private def reconciliationDetails(r: ReconciliationPayload): HtmlElement =
     div(
-      cls := "text-sm space-y-1",
+      cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
       div(s"Description: ${r.description}"),
       div(s"Applied Rules: ${r.appliedRules}"),
       div(s"Balance: ${r.balance}"),
@@ -116,7 +118,7 @@ object ExceptionDetailPage:
     div(
       cls := "border-l-2 border-md-outline pl-3",
       c.newStatus.map(s => Pill(s"→ ${s.toString}", statusTone(s))).getOrElse(div()),
-      c.body.map(b => div(cls := "text-sm mt-1", b)).getOrElse(div()),
+      c.body.map(b => div(cls := "text-sm mt-1 text-md-on-surface dark:text-gray-200", b)).getOrElse(div()),
       div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mt-1", ViewHelper.formatDateTime(c.createdAt))
     )
 
