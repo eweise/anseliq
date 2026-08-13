@@ -43,7 +43,7 @@ object ExceptionsPage:
       onMountCallback { _ => loadBus.emit(()) },
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
-        cls := "my-8 text-center w-full max-w-5xl",
+        cls := "my-8 text-center w-full max-w-7xl",
         PageHeader.title("Exceptions & Disputes"),
         child <-- state.signal.map { s =>
           Table.create(
