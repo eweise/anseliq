@@ -81,6 +81,8 @@ class DataSetup(using dbTx: DbTx) {
   given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
 
   given disputeRepo:        DisputeRepo            = DisputeRepoLive()
+
+  given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
   movementSpecRepo.insert(reportToRecon)
 
   given accountRepo:        AccountRepo            = AccountRepoLive()

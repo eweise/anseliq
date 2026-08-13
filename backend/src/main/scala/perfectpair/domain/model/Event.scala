@@ -25,3 +25,5 @@ case class ReconciliationWrittenOff(id: ID = UUID.randomUUID(), reconciliationID
 case class DisputeRaised(id: ID = UUID.randomUUID(), disputeID: ID) extends Event
 
 case class DisputeStatusChanged(id: ID = UUID.randomUUID(), disputeID: ID, newStatus: String) extends Event
+
+case class DisputeCommentAdded(id: ID = UUID.randomUUID(), disputeID: ID, commentID: ID) extends Event

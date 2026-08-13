@@ -46,7 +46,6 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(dispute.category, DisputeCategory.MissingCounterpart)
         assertEquals(dispute.detail, Some("no match found"))
         assertEquals(dispute.status, DisputeStatus.New)
-        assertEquals(dispute.resolutionNote, None)
         assert(dispute.createdAt.isDefined, "createdAt must be set on the returned dispute, not just the persisted row")
 
         val persisted = data.disputeRepo.findById(dispute.id).get
@@ -91,7 +90,7 @@ class DisputeServiceSuite extends munit.FunSuite:
         intercept[NotFoundError]:
           disputeService.raise(java.util.UUID.randomUUID(), DisputeTarget.Reconciliation, DisputeCategory.TimingDifference, None)
 
-  test("updateStatus to Resolved without a resolutionNote errors"):
+  test("addComment to Resolved without a body errors"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -102,9 +101,9 @@ class DisputeServiceSuite extends munit.FunSuite:
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
 
         intercept[IllegalArgumentError]:
-          disputeService.updateStatus(dispute.id, DisputeStatus.Resolved, None)
+          disputeService.addComment(dispute.id, None, Some(DisputeStatus.Resolved))
 
-  test("updateStatus to Resolved with a resolutionNote succeeds"):
+  test("addComment to Resolved with a body succeeds and updates the dispute's status"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -114,12 +113,15 @@ class DisputeServiceSuite extends munit.FunSuite:
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
 
-        val resolved = disputeService.updateStatus(dispute.id, DisputeStatus.Resolved, Some("was a re-ingested duplicate, deleted downstream"))
+        val comment = disputeService.addComment(dispute.id, Some("was a re-ingested duplicate, deleted downstream"), Some(DisputeStatus.Resolved))
 
-        assertEquals(resolved.status, DisputeStatus.Resolved)
-        assertEquals(resolved.resolutionNote, Some("was a re-ingested duplicate, deleted downstream"))
+        assertEquals(comment.body, Some("was a re-ingested duplicate, deleted downstream"))
+        assertEquals(comment.newStatus, Some(DisputeStatus.Resolved))
 
-  test("updateStatus to a non-Resolved status does not require a resolutionNote"):
+        val updated = data.disputeRepo.findById(dispute.id).get
+        assertEquals(updated.status, DisputeStatus.Resolved)
+
+  test("addComment to a non-Resolved status does not require a body"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -129,12 +131,15 @@ class DisputeServiceSuite extends munit.FunSuite:
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
 
-        val investigating = disputeService.updateStatus(dispute.id, DisputeStatus.Investigating, None)
+        val comment = disputeService.addComment(dispute.id, None, Some(DisputeStatus.Investigating))
 
-        assertEquals(investigating.status, DisputeStatus.Investigating)
-        assertEquals(investigating.resolutionNote, None)
+        assertEquals(comment.newStatus, Some(DisputeStatus.Investigating))
+        assertEquals(comment.body, None)
 
-  test("updateStatus can reopen a Resolved dispute"):
+        val updated = data.disputeRepo.findById(dispute.id).get
+        assertEquals(updated.status, DisputeStatus.Investigating)
+
+  test("addComment can reopen a Resolved dispute"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -143,8 +148,57 @@ class DisputeServiceSuite extends munit.FunSuite:
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
-        disputeService.updateStatus(dispute.id, DisputeStatus.Resolved, Some("thought this was done"))
+        disputeService.addComment(dispute.id, Some("thought this was done"), Some(DisputeStatus.Resolved))
 
-        val reopened = disputeService.updateStatus(dispute.id, DisputeStatus.Investigating, None)
+        disputeService.addComment(dispute.id, None, Some(DisputeStatus.Investigating))
 
+        val reopened = data.disputeRepo.findById(dispute.id).get
         assertEquals(reopened.status, DisputeStatus.Investigating)
+
+  test("addComment with no status change requires a body"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+
+        intercept[IllegalArgumentError]:
+          disputeService.addComment(dispute.id, None, None)
+
+  test("addComment with no status change and a body just adds a comment, leaving status unchanged"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+
+        val comment = disputeService.addComment(dispute.id, Some("still looking into this"), None)
+
+        assertEquals(comment.body, Some("still looking into this"))
+        assertEquals(comment.newStatus, None)
+
+        val unchanged = data.disputeRepo.findById(dispute.id).get
+        assertEquals(unchanged.status, DisputeStatus.New)
+
+  test("comments are returned in chronological order"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+
+        disputeService.addComment(dispute.id, Some("first"), None)
+        disputeService.addComment(dispute.id, Some("second"), Some(DisputeStatus.Investigating))
+        disputeService.addComment(dispute.id, Some("third"), None)
+
+        val thread = data.disputeCommentRepo.findByDisputeId(dispute.id)
+        assertEquals(thread.map(_.body), Vector(Some("first"), Some("second"), Some("third")))
