@@ -11,14 +11,48 @@ import upickle.default.*
 
 object MaintainMovementSpecPage:
 
-  def apply(): HtmlElement =
+  private enum LoadState:
+    case Loading
+    case Ready(spec: MovementSpecPayload)
+
+  def apply(outAccountId: String, inAccountId: String, id: String): HtmlElement =
     AppState.activeFundFlow.now() match
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
-      case Some(ff) => renderPage(ff)
+      case Some(ff) => renderPage(outAccountId, inAccountId, id, ff)
 
-  private def renderPage(ff: onparity.common.model.FundFlowPayload): HtmlElement =
-    val ffId     = ff.id.getOrElse("")
-    val initial  = AppState.editMovementSpec.now().getOrElse(MovementSpecPayload())
+  private def renderPage(
+    outAccountId: String,
+    inAccountId:  String,
+    id:           String,
+    ff:           onparity.common.model.FundFlowPayload
+  ): HtmlElement =
+    val ffId       = ff.id.getOrElse("")
+    val blank      = MovementSpecPayload(outAccountId = outAccountId, inAccountId = inAccountId)
+    val loadState  = Var[LoadState](if id == "new" then LoadState.Ready(blank) else LoadState.Loading)
+    val loadBus    = EventBus[Unit]()
+
+    div(
+      loadBus.events.flatMapSwitch(_ =>
+        ApiClient.get[Seq[MovementSpecPayload]](
+          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          SessionStore.token
+        )
+      ) --> {
+        case Right(specs) => loadState.set(LoadState.Ready(specs.find(_.id.contains(id)).getOrElse(blank)))
+        case Left(e)      => AppState.globalError.set(Some(e))
+      },
+      onMountCallback { _ => if id != "new" then loadBus.emit(()) },
+      child <-- loadState.signal.map {
+        case LoadState.Loading =>
+          div(
+            cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-center justify-center pt-20 px-4",
+            span(cls := "text-md-on-surface-variant", "Loading...")
+          )
+        case LoadState.Ready(initial) => renderForm(ffId, initial)
+      }
+    )
+
+  private def renderForm(ffId: String, initial: MovementSpecPayload): HtmlElement =
     val spec     = Var(initial)
     val accounts = Var(Seq.empty[AccountPayload])
     val saveBus  = EventBus[Unit]()

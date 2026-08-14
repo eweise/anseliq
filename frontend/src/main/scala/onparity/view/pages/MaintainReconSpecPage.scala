@@ -11,14 +11,46 @@ import upickle.default.*
 
 object MaintainReconSpecPage:
 
-  def apply(accountId: String): HtmlElement =
+  private enum LoadState:
+    case Loading
+    case Ready(spec: Option[ReconciliationSpecPayload])
+
+  def apply(accountId: String, reconSpecId: String): HtmlElement =
     AppState.activeFundFlow.now() match
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
-      case Some(ff) => renderPage(accountId, ff)
+      case Some(ff) => renderPage(accountId, reconSpecId, ff)
 
-  private def renderPage(accountId: String, ff: onparity.common.model.FundFlowPayload): HtmlElement =
-    val ffId          = ff.id.getOrElse("")
-    val initialSpec   = AppState.editReconSpec.now()
+  private def renderPage(accountId: String, reconSpecId: String, ff: onparity.common.model.FundFlowPayload): HtmlElement =
+    val ffId       = ff.id.getOrElse("")
+    val loadState  = Var[LoadState](if reconSpecId == "new" then LoadState.Ready(None) else LoadState.Loading)
+    val loadBus    = EventBus[Unit]()
+
+    div(
+      loadBus.events.flatMapSwitch(_ =>
+        ApiClient.get[Seq[ReconciliationSpecPayload]](
+          HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+          SessionStore.token
+        )
+      ) --> {
+        case Right(specs) => loadState.set(LoadState.Ready(specs.find(_.id.contains(reconSpecId))))
+        case Left(e)      => AppState.globalError.set(Some(e))
+      },
+      onMountCallback { _ => if reconSpecId != "new" then loadBus.emit(()) },
+      child <-- loadState.signal.map {
+        case LoadState.Loading =>
+          div(
+            cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-center justify-center pt-20 px-4",
+            span(cls := "text-md-on-surface-variant", "Loading...")
+          )
+        case LoadState.Ready(initialSpec) => renderForm(accountId, ffId, initialSpec)
+      }
+    )
+
+  private def renderForm(
+    accountId:   String,
+    ffId:        String,
+    initialSpec: Option[ReconciliationSpecPayload]
+  ): HtmlElement =
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
     val spec = Var(
       initialSpec.getOrElse(
@@ -122,10 +154,7 @@ object MaintainReconSpecPage:
                 cls := "flex gap-2",
                 Buttons.textButton(
                   "Reconciliations",
-                  Observer[Unit](_ =>
-                    AppState.editReconSpec.set(Some(s))
-                    Nav.toReconciliations(accountId)
-                  )
+                  Observer[Unit](_ => Nav.toReconciliations(accountId, s.id.getOrElse("")))
                 ),
                 Buttons.textButton("Delete", Observer[Unit](_ => deleteBus.emit(())))
               )

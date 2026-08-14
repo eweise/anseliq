@@ -20,12 +20,20 @@ object Routes:
           path("maintain-fund-flow")(MaintainFundFlowPage()),
           path("accounts" / segment / "maintain")(accountId => MaintainAccountPage(accountId)),
           path("accounts" / segment / "recon-specs")(accountId => ReconSpecsPage(accountId)),
-          path("accounts" / segment / "maintain-recon-spec")(accountId => MaintainReconSpecPage(accountId)),
-          path("accounts" / segment / "ingest")(accountId => IngestPage(accountId)),
-          path("accounts" / segment / "reconciliations")(accountId => ReconciliationsPage(accountId)),
-          path("accounts" / segment / "manual-match")(accountId => ManualMatchPage(accountId)),
+          path("accounts" / segment / "maintain-recon-spec" / segment)((accountId, reconSpecId) =>
+            MaintainReconSpecPage(accountId, reconSpecId)
+          ),
+          path("accounts" / segment / "ingest" / segment)((accountId, reconSpecId) => IngestPage(accountId, reconSpecId)),
+          path("accounts" / segment / "reconciliations" / segment)((accountId, reconSpecId) =>
+            ReconciliationsPage(accountId, reconSpecId)
+          ),
+          path("accounts" / segment / "manual-match" / segment)((accountId, reconSpecId) =>
+            ManualMatchPage(accountId, reconSpecId)
+          ),
           path("accounts" / segment / "unreconciled-movements")(accountId => UnreconciledMovementsPage(accountId)),
-          path("maintain-movement-spec")(MaintainMovementSpecPage()),
+          path("maintain-movement-spec" / segment / segment / segment)((outAccountId, inAccountId, id) =>
+            MaintainMovementSpecPage(outAccountId, inAccountId, id)
+          ),
           path("jobs")(JobsPage()),
           path("events")(EventsPage()),
           path("exceptions")(ExceptionsPage()),

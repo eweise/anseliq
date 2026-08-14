@@ -21,26 +21,39 @@ object ManualMatchPage:
     message:            Option[String]       = None
   )
 
-  def apply(accountId: String): HtmlElement =
-    val spec   = AppState.editReconSpec.now().getOrElse(ReconciliationSpecPayload())
-    val specId = spec.id.getOrElse("")
-    val state  = Var(State())
+  def apply(accountId: String, reconSpecId: String): HtmlElement =
+    val spec     = Var(ReconciliationSpecPayload())
+    val state    = Var(State())
     val loadBus  = EventBus[Unit]()
+    val movementsBus = EventBus[ReconciliationSpecPayload]()
     val matchBus = EventBus[Unit]()
 
-    def loadMovements() =
+    def loadReconSpec() =
+      ApiClient.get[Seq[ReconciliationSpecPayload]](
+        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+        SessionStore.token
+      )
+
+    def loadMovements(s: ReconciliationSpecPayload) =
       ApiClient.get[Seq[MovementPayload]](
-        HttpPath.url(s"${HttpPath.movements}/${spec.inMovementSpecId}/unreconciled"),
+        HttpPath.url(s"${HttpPath.movements}/${s.inMovementSpecId}/unreconciled"),
         SessionStore.token
       ).combineWith(
         ApiClient.get[Seq[MovementPayload]](
-          HttpPath.url(s"${HttpPath.movements}/${spec.outMovementSpecId}/unreconciled"),
+          HttpPath.url(s"${HttpPath.movements}/${s.outMovementSpecId}/unreconciled"),
           SessionStore.token
         )
       )
 
     div(
-      loadBus.events.flatMapSwitch(_ => loadMovements()) --> {
+      loadBus.events.flatMapSwitch(_ => loadReconSpec()) --> {
+        case Right(specs) =>
+          val found = specs.find(_.id.contains(reconSpecId)).getOrElse(ReconciliationSpecPayload())
+          spec.set(found)
+          movementsBus.emit(found)
+        case Left(e) => AppState.globalError.set(Some(e))
+      },
+      movementsBus.events.flatMapSwitch(loadMovements) --> {
         case (Right(ins), Right(outs)) =>
           state.update(_.copy(inMovements = ins, outMovements = outs, selectedIn = Set.empty, selectedOut = Set.empty))
         case (Left(e), _) => AppState.globalError.set(Some(e))
@@ -49,7 +62,7 @@ object ManualMatchPage:
       matchBus.events.flatMapSwitch { _ =>
         val s = state.now()
         ApiClient.post[ReconciliationPayload, ManualMatchRequest](
-          HttpPath.url(s"${HttpPath.reconSpec}/$specId/manual-match"),
+          HttpPath.url(s"${HttpPath.reconSpec}/${spec.now().id.getOrElse("")}/manual-match"),
           ManualMatchRequest(
             inMovementIds  = s.selectedIn.toSeq,
             outMovementIds = s.selectedOut.toSeq,
@@ -60,7 +73,7 @@ object ManualMatchPage:
       } --> {
         case Right(recon) =>
           state.update(_.copy(message = Some(s"Match saved as ${recon.status}")))
-          loadBus.emit(())
+          movementsBus.emit(spec.now())
         case Left(e) => AppState.globalError.set(Some(e))
       },
       onMountCallback { _ => loadBus.emit(()) },
@@ -68,7 +81,7 @@ object ManualMatchPage:
       div(
         cls := "my-8 text-center w-full max-w-4xl",
         PageHeader.title("Manual Match"),
-        Buttons.linkButton("Back", Observer[Unit](_ => Nav.toReconciliations(accountId))),
+        Buttons.linkButton("Back", Observer[Unit](_ => Nav.toReconciliations(accountId, reconSpecId))),
         div(
           cls := "grid grid-cols-2 gap-4 mt-6 text-left",
           div(

@@ -40,10 +40,7 @@ object ReconSpecsPage:
         cls := "my-8 text-center",
         Buttons.linkButton(
           "Add Recon Spec",
-          Observer[Unit](_ =>
-            AppState.editReconSpec.set(None)
-            Nav.toMaintainReconSpec(accountId)
-          )
+          Observer[Unit](_ => Nav.toMaintainReconSpec(accountId))
         ),
         child <-- state.signal.map { s =>
           Table.create(
@@ -56,24 +53,15 @@ object ReconSpecsPage:
                   cls := "flex gap-2",
                   Buttons.textButton(
                     "Ingest Files",
-                    Observer[Unit](_ =>
-                      AppState.editReconSpec.set(Some(spec))
-                      Nav.toIngest(accountId)
-                    )
+                    Observer[Unit](_ => Nav.toIngest(accountId, spec.id.getOrElse("")))
                   ),
                   Buttons.textButton(
                     "Edit",
-                    Observer[Unit](_ =>
-                      AppState.editReconSpec.set(Some(spec))
-                      Nav.toMaintainReconSpec(accountId)
-                    )
+                    Observer[Unit](_ => Nav.toMaintainReconSpec(accountId, spec.id.getOrElse("")))
                   ),
                   Buttons.textButton(
                     "Reconciliations",
-                    Observer[Unit](_ =>
-                      AppState.editReconSpec.set(Some(spec))
-                      Nav.toReconciliations(accountId)
-                    )
+                    Observer[Unit](_ => Nav.toReconciliations(accountId, spec.id.getOrElse("")))
                   )
                 )
               )

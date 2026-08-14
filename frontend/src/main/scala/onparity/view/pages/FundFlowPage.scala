@@ -67,8 +67,8 @@ object FundFlowPage:
           .map(res => (account, res))
       } --> {
         case (account, Right(specs)) =>
-          AppState.editReconSpec.set(specs.headOption)
-          Nav.toMaintainReconSpec(account.id.get)
+          val reconSpecId = specs.headOption.flatMap(_.id).getOrElse("new")
+          Nav.toMaintainReconSpec(account.id.get, reconSpecId)
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
       deleteSpecBus.events.flatMapSwitch { spec =>
@@ -312,15 +312,7 @@ object FundFlowPage:
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
             state.update(_.copy(selectedAccount = None))
-            AppState.editMovementSpec.set(
-              Some(
-                MovementSpecPayload(
-                  outAccountId = selected.id.getOrElse(""),
-                  inAccountId  = target.id.getOrElse("")
-                )
-              )
-            )
-            Nav.toMaintainMovementSpec()
+            Nav.toMaintainMovementSpec(selected.id.getOrElse(""), target.id.getOrElse(""))
           },
           s"Link to ${target.name}"
         )
@@ -360,8 +352,7 @@ object FundFlowPage:
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick --> { _ =>
           state.update(_.copy(selectedMovementSpec = None))
-          AppState.editMovementSpec.set(Some(spec))
-          Nav.toMaintainMovementSpec()
+          Nav.toMaintainMovementSpec(spec.outAccountId, spec.inAccountId, spec.id.getOrElse("new"))
         },
         "Edit Relationship"
       ),
