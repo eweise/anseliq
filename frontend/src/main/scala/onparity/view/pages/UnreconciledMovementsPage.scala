@@ -54,8 +54,8 @@ object UnreconciledMovementsPage:
         Buttons.textButton(
           "Manual Match",
           Observer[Unit](_ =>
-            AppState.editReconSpec.set(state.now().reconSpecs.headOption)
-            Nav.toManualMatch(accountId)
+            val specId = state.now().reconSpecs.headOption.flatMap(_.id).getOrElse("")
+            Nav.toManualMatch(accountId, specId)
           )
         ),
         child <-- state.signal.map { s =>

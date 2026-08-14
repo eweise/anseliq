@@ -16,19 +16,26 @@ object IngestPage:
     case Idle, Reading, Uploading, Done
     case Failed(msg: String)
 
-  def apply(accountId: String): HtmlElement =
+  def apply(accountId: String, reconSpecId: String): HtmlElement =
     AppState.activeFundFlow.now() match
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
-      case Some(ff) => renderPage(accountId, ff)
+      case Some(ff) => renderPage(accountId, reconSpecId, ff)
 
-  private def renderPage(accountId: String, ff: onparity.common.model.FundFlowPayload): HtmlElement =
-    val reconSpec     = AppState.editReconSpec.now().getOrElse(ReconciliationSpecPayload())
+  private def renderPage(accountId: String, reconSpecId: String, ff: onparity.common.model.FundFlowPayload): HtmlElement =
+    val reconSpec     = Var(ReconciliationSpecPayload())
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
     val statuses      = Var(Map.empty[String, UploadStatus])
     val ffId          = ff.id.getOrElse("")
     val fileReadBus   = EventBus[(String, String)]()
 
     div(
+      ApiClient.get[Seq[ReconciliationSpecPayload]](
+        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+        SessionStore.token
+      ) --> {
+        case Right(specs) => specs.find(_.id.contains(reconSpecId)).foreach(reconSpec.set)
+        case Left(e)      => AppState.globalError.set(Some(e))
+      },
       ApiClient.get[Seq[MovementSpecPayload]](
         HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
         SessionStore.token
@@ -49,8 +56,8 @@ object IngestPage:
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-lg p-8",
         h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-2", "Ingest Files"),
-        child <-- movementSpecs.signal.map { specs =>
-          val relevantIds = Set(reconSpec.inMovementSpecId, reconSpec.outMovementSpecId)
+        child <-- movementSpecs.signal.combineWith(reconSpec.signal).map { (specs, rs) =>
+          val relevantIds = Set(rs.inMovementSpecId, rs.outMovementSpecId)
           val relevant    = specs.filter(ms => ms.id.exists(relevantIds.contains)).distinctBy(_.id)
           div(cls := "space-y-4").amend(
             relevant.map { ms =>

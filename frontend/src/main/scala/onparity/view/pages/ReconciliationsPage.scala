@@ -2,7 +2,7 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.{ReconciliationPayload, ReconciliationSpecPayload, WriteOffRequest}
+import onparity.common.model.{ReconciliationPayload, WriteOffRequest}
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.{AppState, SessionStore}
@@ -26,10 +26,8 @@ object ReconciliationsPage:
       case other                                            => other        -> Pill.Tone.Neutral
     Pill(label, tone)
 
-  def apply(accountId: String): HtmlElement =
-    val spec   = AppState.editReconSpec.now().getOrElse(ReconciliationSpecPayload())
-    val specId = spec.id.getOrElse("")
-    val state  = Var(State())
+  def apply(accountId: String, specId: String): HtmlElement =
+    val state = Var(State())
     val loadBus     = EventBus[Unit]()
     val unmatchBus  = EventBus[String]()
     val writeOffBus = EventBus[(String, String)]()
@@ -69,7 +67,7 @@ object ReconciliationsPage:
         cls := "my-8 text-center",
         PageHeader.title("Reconciliations"),
         Buttons.linkButton("Back to Recon Specs", Observer[Unit](_ => Nav.toReconSpecs(accountId))),
-        Buttons.textButton("Manual Match", Observer[Unit](_ => Nav.toManualMatch(accountId))),
+        Buttons.textButton("Manual Match", Observer[Unit](_ => Nav.toManualMatch(accountId, specId))),
         child <-- state.signal.map { s =>
           Table.create(
             Seq("Description", "Status", "Applied Rules", "Balance", "Adjustment Reason", "Created At", "Updated At", "Actions"),

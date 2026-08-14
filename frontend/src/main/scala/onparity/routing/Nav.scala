@@ -27,20 +27,20 @@ object Nav:
   def toReconSpecs(accountId: String): Unit =
     push(s"/components/accounts/$accountId/recon-specs")
 
-  def toMaintainReconSpec(accountId: String): Unit =
-    push(s"/components/accounts/$accountId/maintain-recon-spec")
+  def toMaintainReconSpec(accountId: String, reconSpecId: String = "new"): Unit =
+    push(s"/components/accounts/$accountId/maintain-recon-spec/$reconSpecId")
 
-  def toIngest(accountId: String): Unit =
-    push(s"/components/accounts/$accountId/ingest")
+  def toIngest(accountId: String, reconSpecId: String): Unit =
+    push(s"/components/accounts/$accountId/ingest/$reconSpecId")
 
-  def toReconciliations(accountId: String): Unit =
-    push(s"/components/accounts/$accountId/reconciliations")
+  def toReconciliations(accountId: String, reconSpecId: String): Unit =
+    push(s"/components/accounts/$accountId/reconciliations/$reconSpecId")
 
-  def toManualMatch(accountId: String): Unit =
-    push(s"/components/accounts/$accountId/manual-match")
+  def toManualMatch(accountId: String, reconSpecId: String): Unit =
+    push(s"/components/accounts/$accountId/manual-match/$reconSpecId")
 
-  def toMaintainMovementSpec(): Unit =
-    push("/components/maintain-movement-spec")
+  def toMaintainMovementSpec(outAccountId: String, inAccountId: String, id: String = "new"): Unit =
+    push(s"/components/maintain-movement-spec/$outAccountId/$inAccountId/$id")
 
   def toJobs(): Unit = push("/components/jobs")
 
