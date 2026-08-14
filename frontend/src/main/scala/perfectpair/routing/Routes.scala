@@ -31,7 +31,7 @@ object Routes:
           path("exceptions")(ExceptionsPage()),
           path("exceptions" / segment)(id => ExceptionDetailPage(id)),
           path("coming-soon" / "recon-rules")(ComingSoonPage("Recon Rules")),
-          path("coming-soon" / "reports")(ComingSoonPage("Reports & Analytics")),
+          path("reports")(ReportsPage()),
           path("coming-soon" / "users")(ComingSoonPage("Users & Roles")),
           path("coming-soon" / "settings")(ComingSoonPage("Settings"))
         )

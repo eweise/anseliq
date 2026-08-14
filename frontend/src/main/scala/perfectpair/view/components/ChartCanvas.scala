@@ -32,6 +32,13 @@ object ChartCanvas:
             y = js.Dynamic.literal(ticks = js.Dynamic.literal(color = textColor), grid = js.Dynamic.literal(color = gridColor))
           )
 
+      // A legend only earns its keep with multiple series to distinguish (the doughnut's categories);
+      // a single-series bar chart's one dataset has no name worth labeling, so Chart.js would only
+      // show a stray "undefined" swatch for it.
+      val legendConfig =
+        if chartType == "doughnut" then js.Dynamic.literal(display = true, labels = js.Dynamic.literal(color = textColor))
+        else js.Dynamic.literal(display = false)
+
       val config = js.Dynamic.literal(
         `type` = chartType,
         data = js.Dynamic.literal(
@@ -47,7 +54,7 @@ object ChartCanvas:
         options = js.Dynamic.literal(
           responsive = true,
           indexAxis  = if horizontal then "y" else "x",
-          plugins    = js.Dynamic.literal(legend = js.Dynamic.literal(labels = js.Dynamic.literal(color = textColor))),
+          plugins    = js.Dynamic.literal(legend = legendConfig),
           scales     = scalesConfig
         )
       )

@@ -23,7 +23,7 @@ object LeftNav:
       NavItem("Jobs", "/components/jobs", Icons.chart)
     )),
     NavGroup("Insights", Seq(
-      NavItem("Reports & Analytics", "/components/coming-soon/reports", Icons.chart),
+      NavItem("Reports & Analytics", "/components/reports", Icons.chart),
       NavItem("Events", "/components/events", Icons.document)
     )),
     NavGroup("Admin", Seq(
