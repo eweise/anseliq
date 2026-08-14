@@ -15,9 +15,9 @@
 | File | Change |
 |------|--------|
 | `frontend/tailwind.config.js` | Add `md-*` color tokens under `theme.extend.colors` |
-| `frontend/src/main/scala/perfectpair/view/components/Form.scala` | Replace classes with M3 outlined field pattern |
-| `frontend/src/main/scala/perfectpair/view/components/Buttons.scala` | Replace `linkButton` with pill style; add `textButton` |
-| `frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala` | Wrap in elevated card, add Cancel button |
+| `frontend/src/main/scala/onparity/view/components/Form.scala` | Replace classes with M3 outlined field pattern |
+| `frontend/src/main/scala/onparity/view/components/Buttons.scala` | Replace `linkButton` with pill style; add `textButton` |
+| `frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala` | Wrap in elevated card, add Cancel button |
 
 ---
 
@@ -77,14 +77,14 @@ git commit -m "feat(frontend): add Material Design 3 color tokens to Tailwind"
 ## Task 2: Update Form.scala with M3 outlined field style
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/components/Form.scala`
+- Modify: `frontend/src/main/scala/onparity/view/components/Form.scala`
 
 The M3 outlined field places a floating label that sits on top of the top border edge using absolute positioning. The label always appears above (static float — no animation needed). An error state changes both the border and label to `md-error`.
 
 - [ ] **Step 1: Replace `Form.scala` with the M3 implementation**
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
 import tyrian.Html
 import tyrian.Html.*
@@ -123,7 +123,7 @@ Note: The border is on the outer `div` (not the `input`) so that `focus-within:`
 - [ ] **Step 2: Compile to verify no Scala errors**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastOptJS" 2>&1 | grep -E "(error|warning|success)" | tail -20
+cd /Users/eweise/projects/onparity && sbt "frontend/fastOptJS" 2>&1 | grep -E "(error|warning|success)" | tail -20
 ```
 
 Expected: compilation succeeds with no errors.
@@ -131,7 +131,7 @@ Expected: compilation succeeds with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/Form.scala
+git add frontend/src/main/scala/onparity/view/components/Form.scala
 git commit -m "feat(frontend): update Form.field to Material Design 3 outlined style"
 ```
 
@@ -140,7 +140,7 @@ git commit -m "feat(frontend): update Form.field to Material Design 3 outlined s
 ## Task 3: Update Buttons.scala with M3 pill buttons
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/components/Buttons.scala`
+- Modify: `frontend/src/main/scala/onparity/view/components/Buttons.scala`
 
 M3 buttons use fully-rounded pill shapes (`rounded-full`). Two variants:
 - **`linkButton`** — filled (primary background, white text). Used for the primary action (Save).
@@ -149,7 +149,7 @@ M3 buttons use fully-rounded pill shapes (`rounded-full`). Two variants:
 - [ ] **Step 1: Replace `Buttons.scala` with the M3 implementation**
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
 import tyrian.Html
 import tyrian.Html.*
@@ -171,7 +171,7 @@ object Buttons:
 - [ ] **Step 2: Compile to verify no Scala errors**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastOptJS" 2>&1 | grep -E "(error|warning|success)" | tail -20
+cd /Users/eweise/projects/onparity && sbt "frontend/fastOptJS" 2>&1 | grep -E "(error|warning|success)" | tail -20
 ```
 
 Expected: compilation succeeds with no errors.
@@ -179,7 +179,7 @@ Expected: compilation succeeds with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/Buttons.scala
+git add frontend/src/main/scala/onparity/view/components/Buttons.scala
 git commit -m "feat(frontend): update Buttons to Material Design 3 pill style"
 ```
 
@@ -188,19 +188,19 @@ git commit -m "feat(frontend): update Buttons to Material Design 3 pill style"
 ## Task 4: Wrap MaintainFundFlowView in an elevated card
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala`
 
 The page background uses `bg-md-surface-variant` (light purple-grey). The form sits inside a white card with rounded corners and a drop shadow. A "Fund Flow" heading sits above the fields. The actions row has Cancel (textButton) and Save (linkButton) right-aligned.
 
 - [ ] **Step 1: Replace `MaintainFundFlowView.scala` with the elevated card layout**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.FundFlowPayload
-import perfectpair.model.Msg
-import perfectpair.page.Page
-import perfectpair.view.components.{Buttons, Form}
+import onparity.common.model.FundFlowPayload
+import onparity.model.Msg
+import onparity.page.Page
+import onparity.view.components.{Buttons, Form}
 import tyrian.Html
 import tyrian.Html.*
 
@@ -240,7 +240,7 @@ object MaintainFundFlowView:
 - [ ] **Step 2: Compile to verify no Scala errors**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastOptJS" 2>&1 | grep -E "(error|warning|success)" | tail -20
+cd /Users/eweise/projects/onparity && sbt "frontend/fastOptJS" 2>&1 | grep -E "(error|warning|success)" | tail -20
 ```
 
 Expected: compilation succeeds with no errors.
@@ -248,7 +248,7 @@ Expected: compilation succeeds with no errors.
 - [ ] **Step 3: Visual verification — start the dev server**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/devServer"
+cd /Users/eweise/projects/onparity && sbt "frontend/devServer"
 ```
 
 Open the browser and navigate to the MaintainFundFlow page. Verify:
@@ -263,6 +263,6 @@ Open the browser and navigate to the MaintainFundFlow page. Verify:
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala
+git add frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala
 git commit -m "feat(frontend): apply Material Design 3 elevated card layout to MaintainFundFlow"
 ```

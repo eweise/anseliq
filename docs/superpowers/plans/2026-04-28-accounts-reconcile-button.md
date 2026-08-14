@@ -12,10 +12,10 @@
 
 ## Files
 
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
   - Add `reconcileAccount(accountId: String)` function
   - Add `reconcileDecoder(accountId: String)` in `ResponseDecoders`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/AccountsView.scala`
   - Add `ReconcileStatus` enum
   - Add `reconcileStatuses` field to `Model`
   - Add `ReconcileAccount` and `ReconcileResult` to `Msg`
@@ -27,7 +27,7 @@
 ### Task 1: Add HTTP helper for reconcile
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 There are no automated frontend tests; verification is by compilation and manual browser testing.
 
@@ -58,7 +58,7 @@ def reconcileAccount(accountId: String): Cmd[Task, Msg.SendHttpRequestWithAccess
 - [ ] **Step 3: Verify compilation**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastLinkJS"
+cd /Users/eweise/projects/onparity && sbt "frontend/fastLinkJS"
 ```
 
 Expected: BUILD SUCCESS with no errors.
@@ -66,7 +66,7 @@ Expected: BUILD SUCCESS with no errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/util/HttpHelper.scala
+git add frontend/src/main/scala/onparity/util/HttpHelper.scala
 git commit -m "feat: add reconcileAccount HTTP helper"
 ```
 
@@ -75,17 +75,17 @@ git commit -m "feat: add reconcileAccount HTTP helper"
 ### Task 2: Update AccountsView with button and status badge
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/AccountsView.scala`
 
 - [ ] **Step 1: Replace the contents of `AccountsView.scala` with the updated version**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.{AccountPayload, FundFlowPayload}
+import onparity.model.Msg as AppMsg
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -162,7 +162,7 @@ object AccountsView:
 - [ ] **Step 2: Verify compilation**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastLinkJS"
+cd /Users/eweise/projects/onparity && sbt "frontend/fastLinkJS"
 ```
 
 Expected: BUILD SUCCESS with no errors.
@@ -170,7 +170,7 @@ Expected: BUILD SUCCESS with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala
+git add frontend/src/main/scala/onparity/view/pages/AccountsView.scala
 git commit -m "feat: add reconcile button with status badge to AccountsView"
 ```
 
@@ -181,7 +181,7 @@ git commit -m "feat: add reconcile button with status badge to AccountsView"
 - [ ] **Step 1: Start the backend**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/run"
+cd /Users/eweise/projects/onparity && sbt "backend/run"
 ```
 
 - [ ] **Step 2: Start the frontend dev server**
@@ -189,7 +189,7 @@ cd /Users/eweise/projects/perfectpair && sbt "backend/run"
 In a separate terminal:
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/devServer"
+cd /Users/eweise/projects/onparity && sbt "frontend/devServer"
 ```
 
 - [ ] **Step 3: Test the happy path**

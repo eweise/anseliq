@@ -12,30 +12,30 @@
 
 ## Files
 
-- Create: `frontend/src/main/scala/perfectpair/view/pages/MaintainMovementSpecsView.scala`
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/MaintainMovementSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala`
 
 ---
 
 ### Task 1: Create MaintainMovementSpecsView
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/MaintainMovementSpecsView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/MaintainMovementSpecsView.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.util.PayloadAction.*
-import perfectpair.util.{HttpHelper, PayloadAction, PrettyLogger}
-import perfectpair.view.components.{Buttons, Form}
+import onparity.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
+import onparity.model.Msg as AppMsg
+import onparity.util.PayloadAction.*
+import onparity.util.{HttpHelper, PayloadAction, PrettyLogger}
+import onparity.view.components.{Buttons, Form}
 import tyrian.EmptyAttribute
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
@@ -136,7 +136,7 @@ object MaintainMovementSpecsView:
 ### Task 2: Update model.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
 - [ ] **Step 1: Add `NavigateToMaintainMovementSpec` to the AppMsg enum**
 
@@ -175,7 +175,7 @@ After the `movementSpecsModel = MovementSpecsView.Model()` line in `Model.init`,
 ### Task 3: Update Page.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
 
 - [ ] **Step 1: Add `Page.MaintainMovementSpec`**
 
@@ -202,17 +202,17 @@ After the `Page.MovementSpecs` object, add:
 ### Task 4: Update WebApp.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Add `MaintainMovementSpecsView` to the import**
 
 Change the import line:
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MovementSpecsView}
+import onparity.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MovementSpecsView}
 ```
 to:
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView}
+import onparity.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView}
 ```
 
 - [ ] **Step 2: Add handler for `NavigateToMaintainMovementSpec`**
@@ -232,7 +232,7 @@ After the `Msg.NavigateToMovementSpecs` case, add:
 ### Task 5: Update HttpHelper
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 - [ ] **Step 1: Add `createMovementSpec` and `updateMovementSpec` functions**
 
@@ -252,9 +252,9 @@ After `fetchAccountsForMovementSpecs`, add:
     )
 ```
 
-Note: `Created` and `Updated` come from `perfectpair.util.PayloadAction.*` — add this import if not already present:
+Note: `Created` and `Updated` come from `onparity.util.PayloadAction.*` — add this import if not already present:
 ```scala
-import perfectpair.util.PayloadAction.*
+import onparity.util.PayloadAction.*
 ```
 
 - [ ] **Step 2: Add `movementSpecDecoder` to `ResponseDecoders`**
@@ -277,17 +277,17 @@ After `movementSpecsAccountsDecoder`, add:
 ### Task 6: Update MovementSpecsView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala`
 
 - [ ] **Step 1: Replace the full file contents**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecAndAccounts, MovementSpecPayload, zipAccountsAndMovementSpecs}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.{AccountPayload, FundFlowPayload, MovementSpecAndAccounts, MovementSpecPayload, zipAccountsAndMovementSpecs}
+import onparity.model.Msg as AppMsg
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -361,12 +361,12 @@ Expected: success with no errors.
 
 ```bash
 git add \
-  frontend/src/main/scala/perfectpair/view/pages/MaintainMovementSpecsView.scala \
-  frontend/src/main/scala/perfectpair/model/model.scala \
-  frontend/src/main/scala/perfectpair/page/Page.scala \
-  frontend/src/main/scala/perfectpair/main/WebApp.scala \
-  frontend/src/main/scala/perfectpair/util/HttpHelper.scala \
-  frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala
+  frontend/src/main/scala/onparity/view/pages/MaintainMovementSpecsView.scala \
+  frontend/src/main/scala/onparity/model/model.scala \
+  frontend/src/main/scala/onparity/page/Page.scala \
+  frontend/src/main/scala/onparity/main/WebApp.scala \
+  frontend/src/main/scala/onparity/util/HttpHelper.scala \
+  frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala
 git commit -m "feat: add MaintainMovementSpecsView with create/edit and account dropdowns"
 ```
 

@@ -22,8 +22,8 @@
 
 **Files:**
 - Modify: `backend/db/schema.sql` (the `recon.job` table)
-- Modify: `backend/src/main/scala/perfectpair/domain/model/Job.scala`
-- Test: `backend/src/test/scala/perfectpair/adapter/driven/JobRepoLiveSuite.scala` (new file, or add to an existing one if `JobRepoLiveSuite` already exists — check first)
+- Modify: `backend/src/main/scala/onparity/domain/model/Job.scala`
+- Test: `backend/src/test/scala/onparity/adapter/driven/JobRepoLiveSuite.scala` (new file, or add to an existing one if `JobRepoLiveSuite` already exists — check first)
 
 **Interfaces:**
 - Produces: `Job.progressJson: Option[String] = None`, mapped to a new nullable `progress_json TEXT` column. Read/written by Task 3's `reconcileAccountResumable`.
@@ -32,17 +32,17 @@
 
 Run: `find backend/src/test -iname "JobRepo*"`
 
-If `JobRepoLiveSuite.scala` (or similar) already exists, add the new test there following its existing style. If not, create a new one following the pattern used by `backend/src/test/scala/perfectpair/adapter/driven/FileInventoryRepoLiveSuite.scala` (added during the ingestion work) — same `given transactor`/`given dataSource` setup, `rollBackOnly` for isolation.
+If `JobRepoLiveSuite.scala` (or similar) already exists, add the new test there following its existing style. If not, create a new one following the pattern used by `backend/src/test/scala/onparity/adapter/driven/FileInventoryRepoLiveSuite.scala` (added during the ingestion work) — same `given transactor`/`given dataSource` setup, `rollBackOnly` for isolation.
 
 - [ ] **Step 2: Write the failing test**
 
 ```scala
-package perfectpair.adapter.driven
+package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.domain.model.{Job, JobStatus, JobType}
-import perfectpair.testing.rollBackOnly
+import onparity.domain.model.{Job, JobStatus, JobType}
+import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -67,11 +67,11 @@ class JobRepoLiveSuite extends munit.FunSuite:
         assertEquals(jobRepo.findById(job.id).get.progressJson, Some("""{"foo":"bar"}"""))
 ```
 
-Add `import perfectpair.domain.model.createID` if `createID` isn't already reachable (check how other tests construct IDs — e.g. `perfectpair.domain.model.createID` per `ReconcilerSuite.scala`'s existing `import perfectpair.domain.model.{Movement, MovementSpec, createID}`).
+Add `import onparity.domain.model.createID` if `createID` isn't already reachable (check how other tests construct IDs — e.g. `onparity.domain.model.createID` per `ReconcilerSuite.scala`'s existing `import onparity.domain.model.{Movement, MovementSpec, createID}`).
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.JobRepoLiveSuite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.JobRepoLiveSuite"`
 
 Expected: FAIL to compile — `Job` has no `progressJson` parameter yet.
 
@@ -116,7 +116,7 @@ Apply directly to the local database (do not `make create-db`, which drops the w
 /Library/PostgreSQL/18/bin/psql -p 5432 -Upostgres -d recon_db -c "ALTER TABLE recon.job ADD COLUMN IF NOT EXISTS progress_json TEXT;"
 ```
 
-In `backend/src/main/scala/perfectpair/domain/model/Job.scala`, replace:
+In `backend/src/main/scala/onparity/domain/model/Job.scala`, replace:
 
 ```scala
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
@@ -151,7 +151,7 @@ case class Job(
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.JobRepoLiveSuite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.JobRepoLiveSuite"`
 
 Expected: PASS.
 
@@ -165,8 +165,8 @@ Expected: PASS, same count as before plus the new test.
 
 ```bash
 git add backend/db/schema.sql \
-        backend/src/main/scala/perfectpair/domain/model/Job.scala \
-        backend/src/test/scala/perfectpair/adapter/driven/JobRepoLiveSuite.scala
+        backend/src/main/scala/onparity/domain/model/Job.scala \
+        backend/src/test/scala/onparity/adapter/driven/JobRepoLiveSuite.scala
 git commit -m "Add progressJson to Job for per-attempt reconciliation checkpoints
 
 Groundwork for resumable reconciliation: a place to persist how far a
@@ -180,16 +180,16 @@ unlike jobInfoJson which is only set once on completion."
 ### Task 2: Keyset-paginated unreconciled-movements query
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala`
-- Test: `backend/src/test/scala/perfectpair/adapter/driven/MovementRepoLiveSuite.scala` (add to the existing suite)
+- Modify: `backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driven/MovementRepoLive.scala`
+- Test: `backend/src/test/scala/onparity/adapter/driven/MovementRepoLiveSuite.scala` (add to the existing suite)
 
 **Interfaces:**
 - Produces: `MovementRepo.findUnreconciledPage(movementSpecId: ID, matchKeyExpr: String, afterKey: Option[String], pageSize: Int): Txn[Vector[Movement]]` — returns up to `pageSize` unreconciled movements for `movementSpecId`, ordered by `matchKeyExpr`, with `matchKeyExpr > afterKey` (or `matchKeyExpr > ""` when `afterKey` is `None` — see note below). Used by Task 3.
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `backend/src/test/scala/perfectpair/adapter/driven/MovementRepoLiveSuite.scala` (after the existing tests, following the file's established style — `DataSetup()` inside `rollBackOnly`, `MovementRepoLive()` constructed fresh per test):
+Add to `backend/src/test/scala/onparity/adapter/driven/MovementRepoLiveSuite.scala` (after the existing tests, following the file's established style — `DataSetup()` inside `rollBackOnly`, `MovementRepoLive()` constructed fresh per test):
 
 ```scala
   test("findUnreconciledPage orders by the match key expression and pages via afterKey"):
@@ -233,13 +233,13 @@ Note on the expected values: `properties['props']['id']` extracts the JSONB valu
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.MovementRepoLiveSuite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.MovementRepoLiveSuite"`
 
 Expected: FAIL to compile — `findUnreconciledPage` doesn't exist yet.
 
 - [ ] **Step 3: Add the method**
 
-In `backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala`, add to the `MovementRepo` trait (after `findEqualityMatches`):
+In `backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala`, add to the `MovementRepo` trait (after `findEqualityMatches`):
 
 ```scala
   def findUnreconciledPage(
@@ -250,7 +250,7 @@ In `backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala`, a
   ): Txn[Vector[Movement]]
 ```
 
-In `backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala`, add (after `findEqualityMatches`):
+In `backend/src/main/scala/onparity/adapter/driven/MovementRepoLive.scala`, add (after `findEqualityMatches`):
 
 ```scala
   def findUnreconciledPage(
@@ -278,7 +278,7 @@ In `backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala`, a
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.MovementRepoLiveSuite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.MovementRepoLiveSuite"`
 
 Expected: PASS.
 
@@ -291,9 +291,9 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala \
-        backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala \
-        backend/src/test/scala/perfectpair/adapter/driven/MovementRepoLiveSuite.scala
+git add backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala \
+        backend/src/main/scala/onparity/adapter/driven/MovementRepoLive.scala \
+        backend/src/test/scala/onparity/adapter/driven/MovementRepoLiveSuite.scala
 git commit -m "Add MovementRepo.findUnreconciledPage for keyset-paginated matching
 
 Orders unreconciled movements by a caller-supplied match-key SQL
@@ -307,12 +307,12 @@ memory and sorting it in the JVM."
 ### Task 3: `reconcileAccountResumable` — streaming `OneToOne`
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala`
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala:26-44` (add `given Transactor` if not already present — check first, since `Main.scala` already gained one during the ingestion work; only add if missing)
-- Test: `backend/src/test/scala/perfectpair/domain/service/ReconcileAccountResumableSuite.scala` (new file)
+- Modify: `backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala`
+- Modify: `backend/src/main/scala/onparity/app/Main.scala:26-44` (add `given Transactor` if not already present — check first, since `Main.scala` already gained one during the ingestion work; only add if missing)
+- Test: `backend/src/test/scala/onparity/domain/service/ReconcileAccountResumableSuite.scala` (new file)
 
 **Interfaces:**
-- Consumes: `MovementRepo.findUnreconciledPage` (Task 2), `Job.progressJson` (Task 1), `BatchDecision` (already defined in `Ingestor.scala`, same `perfectpair.domain.service` package — reused, not redefined).
+- Consumes: `MovementRepo.findUnreconciledPage` (Task 2), `Job.progressJson` (Task 1), `BatchDecision` (already defined in `Ingestor.scala`, same `onparity.domain.service` package — reused, not redefined).
 - Produces:
   - `case class ReconciliationCheckpoint(lastInMatchKey: Option[String] = None, lastOutMatchKey: Option[String] = None)`
   - `case class SpecBatchProgress(specId: ID, matchesInBatch: Int, checkpoint: ReconciliationCheckpoint)`
@@ -323,19 +323,19 @@ Read the **actual current content** of `InMemoryReconciler.scala` before editing
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `backend/src/test/scala/perfectpair/domain/service/ReconcileAccountResumableSuite.scala`:
+Create `backend/src/test/scala/onparity/domain/service/ReconcileAccountResumableSuite.scala`:
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.*
-import perfectpair.common.model.{StringAttribute, StringAttributeMatchRule}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.*
-import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.port.driven.*
+import onparity.adapter.driven.*
+import onparity.common.model.{StringAttribute, StringAttributeMatchRule}
+import onparity.domain.DataSetup
+import onparity.domain.model.*
+import onparity.domain.model.helper.JSONBProps
+import onparity.domain.port.driven.*
 
 import javax.sql.DataSource
 
@@ -467,23 +467,23 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       teardown(data)
 ```
 
-Note: `data.reconSpec.rule()` (set up by `DataSetup`, per `backend/src/test/scala/perfectpair/domain/DataSetup.scala`) is already a `StringAttributeMatchRule(inKey = StringAttribute(key = "id"), outKey = StringAttribute(key = "id"))` with `relationship = OneToOne` (the default) — no changes needed to `DataSetup` for this task.
+Note: `data.reconSpec.rule()` (set up by `DataSetup`, per `backend/src/test/scala/onparity/domain/DataSetup.scala`) is already a `StringAttributeMatchRule(inKey = StringAttribute(key = "id"), outKey = StringAttribute(key = "id"))` with `relationship = OneToOne` (the default) — no changes needed to `DataSetup` for this task.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReconcileAccountResumableSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReconcileAccountResumableSuite"`
 
 Expected: FAIL to compile — `reconcileAccountResumable`, `ReconciliationCheckpoint`, and `SpecBatchProgress` don't exist yet.
 
 - [ ] **Step 3: Confirm (or add) `given Transactor` in `Main.scala`**
 
-Run: `grep -n "given transactor" backend/src/main/scala/perfectpair/app/Main.scala`
+Run: `grep -n "given transactor" backend/src/main/scala/onparity/app/Main.scala`
 
 If it's already there (added during the ingestion work), skip this step. If not, add `given transactor: Transactor = Transactor(dataSource = given_DataSource)` right after the `given DataSource = ...` line, same as was done for `Ingestor`.
 
 - [ ] **Step 4: Add the new types and `Transactor` dependency**
 
-In `backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala`, add the import for `Transactor`/`transact`. Find the current import block (it will include the uncommitted `com.typesafe.scalalogging.Logger` / `net.logstash.logback.argument.StructuredArguments.kv` lines) and add:
+In `backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala`, add the import for `Transactor`/`transact`. Find the current import block (it will include the uncommitted `com.typesafe.scalalogging.Logger` / `net.logstash.logback.argument.StructuredArguments.kv` lines) and add:
 
 ```scala
 import com.augustnagro.magnum.{Transactor, transact}
@@ -536,7 +536,7 @@ For each file found (`EndToEndSuite.scala`, `InmemoryReconcilerSuite.scala`, `Ma
 
 - [ ] **Step 6: Add the match-key helpers and `reconcileAccountResumable`**
 
-In `backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala`, add these private helpers (near `compareMovements`, since they serve the same purpose for the streaming path):
+In `backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala`, add these private helpers (near `compareMovements`, since they serve the same purpose for the streaming path):
 
 ```scala
   private def matchKeyAttribute(rule: Rule, direction: Direction): StringAttribute | DateAttribute =
@@ -734,7 +734,7 @@ This mirrors the existing `OneToOne` branch of `reconcileAccount` (`InMemoryReco
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReconcileAccountResumableSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReconcileAccountResumableSuite"`
 
 Expected: PASS.
 
@@ -747,9 +747,9 @@ Expected: PASS.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala \
-        backend/src/main/scala/perfectpair/app/Main.scala \
-        backend/src/test/scala/perfectpair/domain/service/ReconcileAccountResumableSuite.scala
+git add backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala \
+        backend/src/main/scala/onparity/app/Main.scala \
+        backend/src/test/scala/onparity/domain/service/ReconcileAccountResumableSuite.scala
 git commit -m "Add InMemoryReconciler.reconcileAccountResumable for OneToOne
 
 reconcileAccount stays untouched. reconcileAccountResumable streams both
@@ -768,8 +768,8 @@ movements are never permanently skipped. OneToMany is not yet supported
 ### Task 4: Extend `reconcileAccountResumable` to `OneToMany`
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala`
-- Test: `backend/src/test/scala/perfectpair/domain/service/ReconcileAccountResumableSuite.scala`
+- Modify: `backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala`
+- Test: `backend/src/test/scala/onparity/domain/service/ReconcileAccountResumableSuite.scala`
 
 **Interfaces:**
 - Consumes: everything from Task 3.
@@ -779,7 +779,7 @@ movements are never permanently skipped. OneToMany is not yet supported
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `backend/src/test/scala/perfectpair/domain/service/ReconcileAccountResumableSuite.scala`. These need a `OneToMany` `ReconciliationSpec` — `DataSetup` doesn't provide one by default, so build it inline the same way `DataSetup` builds its own (`backend/src/test/scala/perfectpair/domain/DataSetup.scala:57-91`), or add a small local helper in the test file that inserts a second `ReconciliationSpec` with `relationship = OneToMany` on `data.reconAccount`, reusing `data.journalToRecon`/`data.reportToRecon` as the in/out specs. Check `ReconciliationSpec`'s constructor (`backend/src/main/scala/perfectpair/domain/model/ReconciliationSpec.scala`) for the exact fields required.
+Add to `backend/src/test/scala/onparity/domain/service/ReconcileAccountResumableSuite.scala`. These need a `OneToMany` `ReconciliationSpec` — `DataSetup` doesn't provide one by default, so build it inline the same way `DataSetup` builds its own (`backend/src/test/scala/onparity/domain/DataSetup.scala:57-91`), or add a small local helper in the test file that inserts a second `ReconciliationSpec` with `relationship = OneToMany` on `data.reconAccount`, reusing `data.journalToRecon`/`data.reportToRecon` as the in/out specs. Check `ReconciliationSpec`'s constructor (`backend/src/main/scala/onparity/domain/model/ReconciliationSpec.scala`) for the exact fields required.
 
 ```scala
   private def oneToManySpec(data: DataSetup): ReconciliationSpec =
@@ -836,7 +836,7 @@ Add to `backend/src/test/scala/perfectpair/domain/service/ReconcileAccountResuma
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReconcileAccountResumableSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReconcileAccountResumableSuite"`
 
 Expected: FAIL — `reconcileAccountResumable` currently throws `UnsupportedOperationException` for `OneToMany`.
 
@@ -850,7 +850,7 @@ Replace the `case OneToMany => throw UnsupportedOperationException(...)` branch 
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReconcileAccountResumableSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReconcileAccountResumableSuite"`
 
 Expected: PASS (all tests from Task 3 and Task 4).
 
@@ -863,8 +863,8 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala \
-        backend/src/test/scala/perfectpair/domain/service/ReconcileAccountResumableSuite.scala
+git add backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala \
+        backend/src/test/scala/onparity/domain/service/ReconcileAccountResumableSuite.scala
 git commit -m "Extend reconcileAccountResumable to OneToMany
 
 Streams both the existing-InProgress-reconciliation completion phase
@@ -880,8 +880,8 @@ that's already checking whether the group continues."
 ### Task 5: Wire `Main.scala` and `Routes.scala` to the new method
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala:55-81`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala:202-216`
+- Modify: `backend/src/main/scala/onparity/app/Main.scala:55-81`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Routes.scala:202-216`
 
 **Interfaces:**
 - Consumes: `reconcileAccountResumable` (Tasks 3-4).
@@ -1002,7 +1002,7 @@ Currently (`Routes.scala:202-216`):
     write("reconciled")
 ```
 
-Check `JobManager.submitJob`'s exact signature (`JobManager.scala:38-45`) before wiring this in — confirm it returns the job's `ID` as shown above, and that `JobStatus`/`JobType` are already in scope in `Routes.scala` (they should be, via the existing `import perfectpair.domain.model.*`).
+Check `JobManager.submitJob`'s exact signature (`JobManager.scala:38-45`) before wiring this in — confirm it returns the job's `ID` as shown above, and that `JobStatus`/`JobType` are already in scope in `Routes.scala` (they should be, via the existing `import onparity.domain.model.*`).
 
 - [ ] **Step 3: Run the full backend suite**
 
@@ -1013,8 +1013,8 @@ Expected: PASS. (Note: this doesn't exercise `Main.scala`'s job-poller loop or t
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/app/Main.scala \
-        backend/src/main/scala/perfectpair/adapter/driving/Routes.scala
+git add backend/src/main/scala/onparity/app/Main.scala \
+        backend/src/main/scala/onparity/adapter/driving/Routes.scala
 git commit -m "Point production reconciliation call sites at reconcileAccountResumable
 
 Main.scala's async job poller and Routes.scala's manual HTTP trigger

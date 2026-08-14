@@ -29,9 +29,9 @@ object FundFlowsView:
 
   case class Model(fundFlows: Seq[FundFlowPayload] = Seq())
 
-  def update(model: Model, msg: Msg): (Model, Cmd[Task, perfectpair.model.Msg]) = ...
+  def update(model: Model, msg: Msg): (Model, Cmd[Task, onparity.model.Msg]) = ...
 
-  def view(model: Model): Html[perfectpair.model.Msg] = ...
+  def view(model: Model): Html[onparity.model.Msg] = ...
 ```
 
 Pages reference the top-level `Msg` directly for navigation and global actions (e.g. `Msg.NavigateTo(Page.Home)`). Page-internal state changes travel as wrapped variants (e.g. `Msg.FundFlowsMsg(FundFlowsView.Msg.SelectFundFlow(ff))`).
@@ -148,7 +148,7 @@ def update(model: Model): Msg => (Model, Cmd[Task, Msg]) =
 No new files. Each existing view file expands to include `Msg`, `Model`, and `update`:
 
 ```
-frontend/src/main/scala/perfectpair/
+frontend/src/main/scala/onparity/
   model/
     model.scala                    ← Msg (globals + wrappers), Model (page fields + user)
   page/

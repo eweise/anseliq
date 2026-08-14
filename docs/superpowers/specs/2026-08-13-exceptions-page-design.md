@@ -12,19 +12,19 @@ spec scoped "raise" as a later addition.
 
 ## Page
 
-`frontend/src/main/scala/perfectpair/view/pages/ExceptionsPage.scala`, structured like
+`frontend/src/main/scala/onparity/view/pages/ExceptionsPage.scala`, structured like
 `ReconciliationsPage.scala` (top-level page, no back button — `EventsPage`/`JobsPage` are the closer
 precedent since those are also flat nav destinations with no parent context):
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{DisputePayload, DisputeStatusPayload, UpdateDisputeStatusRequest}
-import perfectpair.http.ApiClient
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, PageHeader, Pill, Table}
+import onparity.common.http.HttpPath
+import onparity.common.model.{DisputePayload, DisputeStatusPayload, UpdateDisputeStatusRequest}
+import onparity.http.ApiClient
+import onparity.state.{AppState, SessionStore}
+import onparity.view.components.{Buttons, PageHeader, Pill, Table}
 import upickle.default.*
 
 object ExceptionsPage:

@@ -49,7 +49,7 @@ functionality that doesn't exist yet; a dark-mode toggle is added (there current
 **Files:**
 - Modify: `frontend/tailwind.config.js`
 - Modify: `frontend/src/main/resources/index.css`
-- Modify: `frontend/src/main/scala/perfectpair/view/components/Table.scala`
+- Modify: `frontend/src/main/scala/onparity/view/components/Table.scala`
 
 **Interfaces:**
 - Produces: `Table.create(headers: Seq[String], rows: Seq[Seq[HtmlElement]], numCols: Set[Int] = Set.empty): HtmlElement` — the `numCols` param is new and defaults to empty, so every existing call site keeps compiling unchanged.
@@ -140,10 +140,10 @@ variants plus the four status-color pairs. Every existing usage of `md-primary` 
 }
 ```
 
-- [ ] **Step 3: Rewrite `frontend/src/main/scala/perfectpair/view/components/Table.scala`**
+- [ ] **Step 3: Rewrite `frontend/src/main/scala/onparity/view/components/Table.scala`**
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
 import com.raquo.laminar.api.L.*
 
@@ -196,7 +196,7 @@ done (`Ctrl-C`).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/tailwind.config.js frontend/src/main/resources/index.css frontend/src/main/scala/perfectpair/view/components/Table.scala
+git add frontend/tailwind.config.js frontend/src/main/resources/index.css frontend/src/main/scala/onparity/view/components/Table.scala
 git commit -m "Fix unstyled Table component and adopt new violet/status design tokens
 
 Table.scala referenced Tailwind classes (bg-neutral-primary-soft, text-body,
@@ -210,8 +210,8 @@ param for tabular-nums alignment, used by later reconciliation-page work."
 ### Task 2: `Pill.scala` + `ReconciliationsPage` status pills
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/components/Pill.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala`
+- Create: `frontend/src/main/scala/onparity/view/components/Pill.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala`
 
 **Interfaces:**
 - Consumes: `Table.create(..., numCols: Set[Int])` from Task 1.
@@ -221,7 +221,7 @@ param for tabular-nums alignment, used by later reconciliation-page work."
 - [ ] **Step 1: Create `Pill.scala`**
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
 import com.raquo.laminar.api.L.*
 
@@ -251,7 +251,7 @@ valid Scala).
 Add `Pill` to the import on line 10:
 
 ```scala
-import perfectpair.view.components.{Buttons, PageHeader, Pill, Table}
+import onparity.view.components.{Buttons, PageHeader, Pill, Table}
 ```
 
 Add a private helper above `apply` (after the `case class State` block, before `def apply`):
@@ -341,7 +341,7 @@ dev server.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/Pill.scala frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala
+git add frontend/src/main/scala/onparity/view/components/Pill.scala frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala
 git commit -m "Add Pill component and use it for reconciliation status
 
 Derives a four-way status label (In Progress / Final / Written Off / Voided)
@@ -353,7 +353,7 @@ from ReconciliationPayload's existing status + adjustmentReason fields."
 ### Task 3: `ReconSpecsPage` relationship pill
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsPage.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ReconSpecsPage.scala`
 
 **Interfaces:**
 - Consumes: `Pill.apply`/`Pill.Tone` from Task 2, `Table.create(..., numCols)` from Task 1.
@@ -361,7 +361,7 @@ from ReconciliationPayload's existing status + adjustmentReason fields."
 - [ ] **Step 1: Update the import**
 
 ```scala
-import perfectpair.view.components.{Buttons, Pill, Table}
+import onparity.view.components.{Buttons, Pill, Table}
 ```
 
 - [ ] **Step 2: Replace the relationship cell and add `numCols`**
@@ -420,7 +420,7 @@ renders as a violet pill and `Aging Limit` is right-aligned. Stop the dev server
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ReconSpecsPage.scala
+git add frontend/src/main/scala/onparity/view/pages/ReconSpecsPage.scala
 git commit -m "Use Pill for recon spec relationship and align aging limit numerically"
 ```
 
@@ -429,8 +429,8 @@ git commit -m "Use Pill for recon spec relationship and align aging limit numeri
 ### Task 4: `ManualMatchPage` + `UnreconciledMovementsPage` numeric alignment
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala`
 
 **Interfaces:**
 - Consumes: `Table.create(..., numCols)` from Task 1. No `Pill` usage in this task.
@@ -518,7 +518,7 @@ is right-aligned tabular-nums. Then click **Manual Match**; confirm both the In 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala
+git add frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala
 git commit -m "Right-align Amount columns with tabular-nums in Manual Match and Unreconciled Movements"
 ```
 
@@ -527,7 +527,7 @@ git commit -m "Right-align Amount columns with tabular-nums in Manual Match and 
 ### Task 5: `FundFlowPage` — account type pill, numeric columns, diagram colors
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala`
 - Modify: `frontend/src/main/resources/index.css`
 
 **Interfaces:**
@@ -602,7 +602,7 @@ CSS var references.)
 - [ ] **Step 3: Update the import**
 
 ```scala
-import perfectpair.view.components.{Buttons, Pill, PageHeader, Table}
+import onparity.view.components.{Buttons, Pill, PageHeader, Table}
 ```
 
 - [ ] **Step 4: Replace the Account Type cell and add `numCols` in the "Account" tab table**
@@ -680,7 +680,7 @@ server.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala frontend/src/main/resources/index.css
+git add frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala frontend/src/main/resources/index.css
 git commit -m "Use Pill for account type and CSS-var tokens for the fund flow diagram
 
 The hand-built SVG diagram draws with raw fill/stroke attributes instead of
@@ -694,10 +694,10 @@ CSS custom properties (scoped under the same .dark class Tailwind's darkMode:
 ### Task 6: Regroup `LeftNav`, add "coming soon" placeholder pages
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/components/Icons.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala`
-- Create: `frontend/src/main/scala/perfectpair/view/pages/ComingSoonPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Routes.scala`
+- Modify: `frontend/src/main/scala/onparity/view/components/Icons.scala`
+- Modify: `frontend/src/main/scala/onparity/view/layout/LeftNav.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/ComingSoonPage.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Routes.scala`
 
 **Interfaces:**
 - Consumes: `PageHeader.title(mods: Modifier[HtmlElement]*): HtmlElement` (existing).
@@ -750,12 +750,12 @@ cost.)
 - [ ] **Step 2: Rewrite `LeftNav.scala`**
 
 ```scala
-package perfectpair.view.layout
+package onparity.view.layout
 
 import com.raquo.laminar.api.L.*
-import perfectpair.routing.Nav
-import perfectpair.state.SessionStore
-import perfectpair.view.components.Icons
+import onparity.routing.Nav
+import onparity.state.SessionStore
+import onparity.view.components.Icons
 
 object LeftNav:
 
@@ -828,10 +828,10 @@ object LeftNav:
 - [ ] **Step 3: Create `ComingSoonPage.scala`**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.view.components.PageHeader
+import onparity.view.components.PageHeader
 
 object ComingSoonPage:
   def apply(title: String): HtmlElement =
@@ -858,7 +858,7 @@ other `path(...)` entries under `pathPrefix("components")`:
           path("coming-soon" / "settings")(ComingSoonPage("Settings")),
 ```
 
-`Routes.scala` already does `import perfectpair.view.pages.*`, so `ComingSoonPage` needs no
+`Routes.scala` already does `import onparity.view.pages.*`, so `ComingSoonPage` needs no
 new import there.
 
 - [ ] **Step 5: Type-check**
@@ -879,7 +879,7 @@ and "This area isn't built yet." Stop the dev server.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/Icons.scala frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala frontend/src/main/scala/perfectpair/view/pages/ComingSoonPage.scala frontend/src/main/scala/perfectpair/routing/Routes.scala
+git add frontend/src/main/scala/onparity/view/components/Icons.scala frontend/src/main/scala/onparity/view/layout/LeftNav.scala frontend/src/main/scala/onparity/view/pages/ComingSoonPage.scala frontend/src/main/scala/onparity/routing/Routes.scala
 git commit -m "Regroup left nav into sections, add coming-soon placeholders
 
 Also fixes a pre-existing icon-reuse bug: Icons.document/chart/settings were
@@ -894,7 +894,7 @@ established for plusCircle/minusCircle."
 ### Task 7: Dark-mode toggle
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/layout/MainLayout.scala`
+- Modify: `frontend/src/main/scala/onparity/view/layout/MainLayout.scala`
 
 **Interfaces:**
 - Consumes: `AppState.darkMode: Var[Boolean]` (existing, currently never set by any UI);
@@ -903,11 +903,11 @@ established for plusCircle/minusCircle."
 - [ ] **Step 1: Rewrite `MainLayout.scala`**
 
 ```scala
-package perfectpair.view.layout
+package onparity.view.layout
 
 import com.raquo.laminar.api.L.*
-import perfectpair.state.AppState
-import perfectpair.view.components.Icons
+import onparity.state.AppState
+import onparity.view.components.Icons
 
 object MainLayout:
 
@@ -972,7 +972,7 @@ displays correctly alongside the toggle, then restart the backend. Stop the dev 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/layout/MainLayout.scala
+git add frontend/src/main/scala/onparity/view/layout/MainLayout.scala
 git commit -m "Add dark-mode toggle to the topbar
 
 AppState.darkMode existed but nothing in the UI ever set it, and

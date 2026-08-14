@@ -5,7 +5,7 @@ object DockerSettings {
 
   /**
    * Container image tags will look like this :
-   * 'myrepo/perfectpair:backend-0.1.0' and 'myrepo/perfectpair:frontend-0.1.0'
+   * 'myrepo/onparity:backend-0.1.0' and 'myrepo/onparity:frontend-0.1.0'
    * */
   lazy val repository = "myrepo" 
 

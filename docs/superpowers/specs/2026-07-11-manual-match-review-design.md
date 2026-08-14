@@ -14,7 +14,7 @@ Attribution ("who did this") is explicitly out of scope — there's no authentic
 
 ## Data Model Changes
 
-### `Reconciliation` (`backend/src/main/scala/perfectpair/domain/model/Reconciliation.scala`)
+### `Reconciliation` (`backend/src/main/scala/onparity/domain/model/Reconciliation.scala`)
 
 ```scala
 enum ReconciliationStatus derives DbCodec:
@@ -50,7 +50,7 @@ Movements move fully from `Account.unreconciledBalance` into `reconciledBalance`
 - **Write-off** only flips `status → Final` and records `adjustmentReason`. The linked movements' contribution to `reconciledBalance` is already correct and doesn't change.
 - **Unmatch/void** is the one that reverses account balances, since it's undoing the link. It sets `status = Voided` rather than deleting the row, both to preserve audit history and to avoid the existing `movement.reconciliation_id ON DELETE CASCADE` FK, which would delete the movements themselves if a `Reconciliation` row were ever deleted. (That FK is a latent risk independent of this feature; not addressed here since this design never deletes a `Reconciliation` row.)
 
-### New domain events (`backend/src/main/scala/perfectpair/domain/model/Event.scala`)
+### New domain events (`backend/src/main/scala/onparity/domain/model/Event.scala`)
 
 Following the existing `MoneyMovementsIngested` / `AccountReconciled` / `NewFileDetected` pattern, so these actions show up in the existing Events viewer for free:
 
@@ -62,7 +62,7 @@ case class ReconciliationWrittenOff(id: ID = UUID.randomUUID(), reconciliationID
 
 ## Backend Service: `ManualReconciler`
 
-New class `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala`, parallel to `InMemoryReconciler`, using the same repos (`movementRepo`, `accountRepo`, `reconRepo`, `reconSpecRepo`, `eventStore`).
+New class `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala`, parallel to `InMemoryReconciler`, using the same repos (`movementRepo`, `accountRepo`, `reconRepo`, `reconSpecRepo`, `eventStore`).
 
 Extract the private `signedAmount(movement, accountID)` helper currently duplicated implicitly in `InMemoryReconciler` into a shared spot (a method on `Movement`) so both classes use identical logic instead of drifting.
 
@@ -101,12 +101,12 @@ One knock-on effect worth naming: `InMemoryReconciler`'s automated `OneToMany` P
 
 ## REST Endpoints
 
-New `HttpPath.reconciliation` (singular) constant in `common/src/main/scala/perfectpair/common/http/http.scala`, alongside the existing plural `reconciliations`:
+New `HttpPath.reconciliation` (singular) constant in `common/src/main/scala/onparity/common/http/http.scala`, alongside the existing plural `reconciliations`:
 ```scala
 val reconciliation = s"$prefix/reconciliation"
 ```
 
-New routes in `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`:
+New routes in `backend/src/main/scala/onparity/adapter/driving/Routes.scala`:
 
 ```scala
 @cask.route(s"${HttpPath.reconSpec}/:id/manual-match", methods = HttpCmd.POST)
@@ -138,7 +138,7 @@ def writeOffReconciliation(id: String, request: cask.Request): String =
 
 `manualReconciler: ManualReconciler` is added to `App`'s `using` constructor params in `Routes.scala` and wired in `Main.scala` where the other services are instantiated.
 
-New payload types in `common/src/main/scala/perfectpair/common/model/Payload.scala`:
+New payload types in `common/src/main/scala/onparity/common/model/Payload.scala`:
 ```scala
 case class ManualMatchRequest(
   inMovementIds:  Seq[String],
@@ -169,7 +169,7 @@ No new endpoint is needed to fetch both sides of a spec's unreconciled movements
 
 ## Frontend UI
 
-### New page: `ManualMatchPage` (`frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`)
+### New page: `ManualMatchPage` (`frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`)
 
 Reached via a new "Manual Match" button on `ReconciliationsPage`. Reads `AppState.editReconSpec` for context (`inMovementSpecId`, `outMovementSpecId`, `id`), the same way `ReconciliationsPage` already does — no new global state needed.
 

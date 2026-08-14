@@ -100,7 +100,7 @@ case class ReportsSummaryPayload(
 `MovementPayload` gains a `createdAt: OffsetDateTime` field (additive; populated from the domain
 model's existing `Movement.createdAt`, which is always set for persisted movements).
 
-**New service**, `backend/src/main/scala/perfectpair/domain/service/ReportingService.scala`:
+**New service**, `backend/src/main/scala/onparity/domain/service/ReportingService.scala`:
 
 ```scala
 class ReportingService(using
@@ -130,7 +130,7 @@ payload shape).
 
 ## Frontend
 
-- `frontend/src/main/scala/perfectpair/view/pages/ReportsPage.scala` (new), reachable at a new
+- `frontend/src/main/scala/onparity/view/pages/ReportsPage.scala` (new), reachable at a new
   `reports` route (`path("reports")(ReportsPage())`), replacing the `ComingSoonPage` stub.
   `LeftNav`'s "Reports & Analytics" entry is updated to point at `/components/reports` instead of
   `/components/coming-soon/reports`.
@@ -145,11 +145,11 @@ payload shape).
 **Chart.js integration:**
 - `chart.js` added to `frontend/package.json` as a dependency (bundled via the existing Vite
   setup — no new build tooling).
-- `frontend/src/main/scala/perfectpair/http/ChartJs.scala` (new): a slim hand-written facade —
+- `frontend/src/main/scala/onparity/http/ChartJs.scala` (new): a slim hand-written facade —
   `@js.native @JSImport("chart.js/auto", JSImport.Namespace) class Chart(ctx: js.Any, config: js.Any) extends js.Object`
   plus a `destroy(): Unit` method. No ScalablyTyped; config objects are passed as
   `js.Dynamic`/`js.Any` and are not compile-time type-checked.
-- `frontend/src/main/scala/perfectpair/view/components/ChartCanvas.scala` (new): a reusable
+- `frontend/src/main/scala/onparity/view/components/ChartCanvas.scala` (new): a reusable
   Laminar component taking a chart-type string, a `js.Dynamic` data/options config, and rendering
   a `<canvas>`. On mount, constructs a `Chart` instance against the canvas. Because Chart.js draws
   directly to canvas and can't respond to Tailwind's `dark:` classes, the component reads

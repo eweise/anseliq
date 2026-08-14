@@ -18,15 +18,15 @@
 ### Task 1: Add expandable Properties column to `ManualMatchPage`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala` (full file — `State`, the `toggle` helper's location, table headers/rows, and a new `propertiesCell` helper)
+- Modify: `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala` (full file — `State`, the `toggle` helper's location, table headers/rows, and a new `propertiesCell` helper)
 
 **Interfaces:**
-- Consumes: `MovementPayload.properties: Map[String, String]` (pre-existing, `common/src/main/scala/perfectpair/common/model/Payload.scala:167`); `Table.create(headers: Seq[String], rows: Seq[Seq[HtmlElement]]): HtmlElement` (pre-existing).
+- Consumes: `MovementPayload.properties: Map[String, String]` (pre-existing, `common/src/main/scala/onparity/common/model/Payload.scala:167`); `Table.create(headers: Seq[String], rows: Seq[Seq[HtmlElement]]): HtmlElement` (pre-existing).
 - Produces: n/a (leaf UI change, nothing else in the codebase calls into `ManualMatchPage` internals).
 
 - [ ] **Step 1: Add `expandedProperties` to `State`**
 
-In `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`, replace:
+In `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`, replace:
 
 ```scala
   case class State(
@@ -194,7 +194,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala
+git add frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala
 git commit -m "Add expandable Properties column to Manual Match movement tables"
 ```
 

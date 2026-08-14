@@ -12,8 +12,8 @@
 
 ## Files
 
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala`
 
 No other files change — `WebApp.scala`, `Page.scala`, and `model.scala` are unaffected.
 
@@ -22,7 +22,7 @@ No other files change — `WebApp.scala`, `Page.scala`, and `model.scala` are un
 ### Task 1: Add decoder and fetch function to HttpHelper
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 - [ ] **Step 1: Add `fetchAccountsForMovementSpecs` to the HttpHelper object**
 
@@ -61,19 +61,19 @@ Expected: compilation succeeds (will fail on `MovementSpecsView.Msg.AccountsFrom
 ### Task 2: Update MovementSpecsView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala`
 
 - [ ] **Step 1: Replace the full file contents**
 
 Replace the entire file with:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecAndAccounts, MovementSpecPayload, zipAccountsAndMovementSpecs}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.Table
+import onparity.common.model.{AccountPayload, FundFlowPayload, MovementSpecAndAccounts, MovementSpecPayload, zipAccountsAndMovementSpecs}
+import onparity.model.Msg as AppMsg
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.Table
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -133,8 +133,8 @@ Expected: compilation succeeds with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala \
-        frontend/src/main/scala/perfectpair/util/HttpHelper.scala
+git add frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala \
+        frontend/src/main/scala/onparity/util/HttpHelper.scala
 git commit -m "feat: MovementSpecsView uses MovementSpecAndAccounts with sequential account fetch"
 ```
 

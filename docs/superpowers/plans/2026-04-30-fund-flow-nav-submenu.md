@@ -14,27 +14,27 @@
 
 | Action | File |
 |--------|------|
-| **Create** | `frontend/src/main/scala/perfectpair/view/pages/FundFlowView.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/model/model.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/page/Page.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/route/route.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/main/WebApp.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/view/MainContainer.scala` |
+| **Create** | `frontend/src/main/scala/onparity/view/pages/FundFlowView.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/model/model.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/page/Page.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/route/route.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/main/WebApp.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/view/MainContainer.scala` |
 
 ---
 
 ### Task 1: Create FundFlowView
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/FundFlowView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/FundFlowView.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.FundFlowPayload
-import perfectpair.model.Msg as AppMsg
+import onparity.common.model.FundFlowPayload
+import onparity.model.Msg as AppMsg
 import tyrian.Html
 import tyrian.Html.*
 
@@ -63,7 +63,7 @@ Expected: `[success]` with no compilation errors. (The rest of the app still com
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/FundFlowView.scala
+git add frontend/src/main/scala/onparity/view/pages/FundFlowView.scala
 git commit -m "feat: add FundFlowView page stub"
 ```
 
@@ -72,9 +72,9 @@ git commit -m "feat: add FundFlowView page stub"
 ### Task 2: Extend Model with new fields and messages
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
-The `Msg` enum currently lives in this file. `FundFlowView` is already available via `import perfectpair.view.pages.*` at line 6.
+The `Msg` enum currently lives in this file. `FundFlowView` is already available via `import onparity.view.pages.*` at line 6.
 
 - [ ] **Step 1: Add two new messages to the `Msg` enum**
 
@@ -132,7 +132,7 @@ Expected: `[success]`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/model/model.scala
+git add frontend/src/main/scala/onparity/model/model.scala
 git commit -m "feat: add fundFlowNavOpen, fundFlowViewModel, ToggleFundFlowNav, NavigateToFundFlow to model"
 ```
 
@@ -141,8 +141,8 @@ git commit -m "feat: add fundFlowNavOpen, fundFlowViewModel, ToggleFundFlowNav, 
 ### Task 3: Add Page.FundFlow and route
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
-- Modify: `frontend/src/main/scala/perfectpair/route/route.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/route/route.scala`
 
 - [ ] **Step 1: Add `Page.FundFlow` to Page.scala**
 
@@ -179,8 +179,8 @@ Expected: `[success]`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/page/Page.scala \
-        frontend/src/main/scala/perfectpair/route/route.scala
+git add frontend/src/main/scala/onparity/page/Page.scala \
+        frontend/src/main/scala/onparity/route/route.scala
 git commit -m "feat: add Page.FundFlow and fund-flow route"
 ```
 
@@ -189,7 +189,7 @@ git commit -m "feat: add Page.FundFlow and fund-flow route"
 ### Task 4: Update WebApp — new message handlers and early fund flow fetch
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 Three changes: (a) handle `ToggleFundFlowNav`, (b) handle `NavigateToFundFlow`, (c) fetch fund flows on `RestoredSession`, (d) pass new args to `MainContainer` in `view`.
 
@@ -214,7 +214,7 @@ After the `Msg.NavigateToMaintainFundFlow` block (around line 83), add:
       )
 ```
 
-Also add the import for `FundFlowView` at the top of the file (it is already covered by `import perfectpair.view.pages.*` on line 8 — no change needed).
+Also add the import for `FundFlowView` at the top of the file (it is already covered by `import onparity.view.pages.*` on line 8 — no change needed).
 
 - [ ] **Step 3: Fetch fund flows on session restore**
 
@@ -262,14 +262,14 @@ Do not compile or commit yet — `MainContainer` still has the old signature, so
 ### Task 5: Update MainContainer — accordion UI
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/MainContainer.scala`
+- Modify: `frontend/src/main/scala/onparity/view/MainContainer.scala`
 
 - [ ] **Step 1: Add import for FundFlowPayload**
 
 At the top of `MainContainer.scala`, after the existing imports, add:
 
 ```scala
-import perfectpair.common.model.FundFlowPayload
+import onparity.common.model.FundFlowPayload
 ```
 
 - [ ] **Step 2: Update `apply` signature**
@@ -380,8 +380,8 @@ Expected: `[success]` with no errors.
 - [ ] **Step 6: Commit both files together**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/main/WebApp.scala \
-        frontend/src/main/scala/perfectpair/view/MainContainer.scala
+git add frontend/src/main/scala/onparity/main/WebApp.scala \
+        frontend/src/main/scala/onparity/view/MainContainer.scala
 git commit -m "feat: add accordion fund flow submenu to left nav"
 ```
 

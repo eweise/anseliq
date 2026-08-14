@@ -14,23 +14,23 @@
 
 | File | Action | Responsibility |
 |------|--------|----------------|
-| `frontend/src/main/scala/perfectpair/view/components/RuleWidget.scala` | **Create** | Widget Model/Msg/update/apply, fromRule, toRule, columnsFor |
-| `frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala` | Modify | Add `ruleWidget` field, `RuleWidgetMsg`, delegation, rule on save |
-| `frontend/src/main/scala/perfectpair/main/WebApp.scala` | Modify | Initialise `ruleWidget` from existing spec rule in `NavigateToMaintainReconSpec` |
+| `frontend/src/main/scala/onparity/view/components/RuleWidget.scala` | **Create** | Widget Model/Msg/update/apply, fromRule, toRule, columnsFor |
+| `frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala` | Modify | Add `ruleWidget` field, `RuleWidgetMsg`, delegation, rule on save |
+| `frontend/src/main/scala/onparity/main/WebApp.scala` | Modify | Initialise `ruleWidget` from existing spec rule in `NavigateToMaintainReconSpec` |
 
 ---
 
 ## Task 1: Create RuleWidget.scala
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/components/RuleWidget.scala`
+- Create: `frontend/src/main/scala/onparity/view/components/RuleWidget.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
-import perfectpair.common.model.*
+import onparity.common.model.*
 import tyrian.EmptyAttribute
 import tyrian.Html.*
 import tyrian.Html
@@ -212,7 +212,7 @@ Expected: BUILD SUCCESS (warnings about pre-existing non-exhaustive matches are 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/RuleWidget.scala
+git add frontend/src/main/scala/onparity/view/components/RuleWidget.scala
 git commit -m "feat: add RuleWidget component for rule selection and configuration"
 ```
 
@@ -221,7 +221,7 @@ git commit -m "feat: add RuleWidget component for rule selection and configurati
 ## Task 2: Wire RuleWidget into MaintainReconSpecView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala`
 
 Four changes: import, Msg case, update handler, model field, apply render, save logic.
 
@@ -229,12 +229,12 @@ Four changes: import, Msg case, update handler, model field, apply render, save 
 
 Find:
 ```scala
-import perfectpair.view.components.{Buttons, Form}
+import onparity.view.components.{Buttons, Form}
 ```
 
 Replace with:
 ```scala
-import perfectpair.view.components.{Buttons, Form, RuleWidget}
+import onparity.view.components.{Buttons, Form, RuleWidget}
 ```
 
 - [ ] **Step 2: Add RuleWidgetMsg to the Msg enum**
@@ -333,7 +333,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala
+git add frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala
 git commit -m "feat: wire RuleWidget into MaintainReconSpecView"
 ```
 
@@ -342,30 +342,30 @@ git commit -m "feat: wire RuleWidget into MaintainReconSpecView"
 ## Task 3: Initialise RuleWidget from existing rule in WebApp
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Add RuleWidget import**
 
 Find:
 ```scala
-import perfectpair.view.components.DataSourceConfigWidget
+import onparity.view.components.DataSourceConfigWidget
 ```
 
 Replace with:
 ```scala
-import perfectpair.view.components.{DataSourceConfigWidget, RuleWidget}
+import onparity.view.components.{DataSourceConfigWidget, RuleWidget}
 ```
 
 - [ ] **Step 2: Add NoOpRule import**
 
 Find:
 ```scala
-import perfectpair.model.*
+import onparity.model.*
 ```
 
 Add after it:
 ```scala
-import perfectpair.common.model.NoOpRule
+import onparity.common.model.NoOpRule
 ```
 
 - [ ] **Step 3: Initialise ruleWidget in NavigateToMaintainReconSpec handler**
@@ -408,7 +408,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/main/WebApp.scala
+git add frontend/src/main/scala/onparity/main/WebApp.scala
 git commit -m "feat: initialise RuleWidget from existing rule on navigate to MaintainReconSpec"
 ```
 

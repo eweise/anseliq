@@ -10,7 +10,7 @@ Extract rule editing into a standalone `RuleWidget` object following the existin
 
 ## New File
 
-**`frontend/src/main/scala/perfectpair/view/components/RuleWidget.scala`**
+**`frontend/src/main/scala/onparity/view/components/RuleWidget.scala`**
 
 ### Model
 

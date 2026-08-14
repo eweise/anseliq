@@ -1,4 +1,4 @@
-# PerfectPair — Project-wide Rules
+# OnParity — Project-wide Rules
 
 Rules here apply to all modules: backend, common, and frontend.
 

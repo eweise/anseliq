@@ -67,9 +67,9 @@ private def extraCells(event: EventPayload): Seq[HtmlElement] = event match
 
 | File | Change |
 |------|--------|
-| `frontend/src/main/scala/perfectpair/view/pages/EventsPage.scala` | New file — full page implementation |
-| `frontend/src/main/scala/perfectpair/routing/Routes.scala` | Add `path("events")(EventsPage())` |
-| `frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala` | Add nav item "Events" after "Jobs" |
+| `frontend/src/main/scala/onparity/view/pages/EventsPage.scala` | New file — full page implementation |
+| `frontend/src/main/scala/onparity/routing/Routes.scala` | Add `path("events")(EventsPage())` |
+| `frontend/src/main/scala/onparity/view/layout/LeftNav.scala` | Add nav item "Events" after "Jobs" |
 
 No backend changes — the endpoint already exists.
 

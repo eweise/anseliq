@@ -12,19 +12,19 @@
 
 ## Files
 
-- Modify: `frontend/src/main/scala/perfectpair/view/components/Form.scala` — add `select` method
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala` — use `Form.select`
+- Modify: `frontend/src/main/scala/onparity/view/components/Form.scala` — add `select` method
+- Modify: `frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala` — use `Form.select`
 
 ---
 
 ### Task 1: Add `Form.select` to the Form component
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/components/Form.scala`
+- Modify: `frontend/src/main/scala/onparity/view/components/Form.scala`
 
 - [ ] **Step 1: Add the `select` method**
 
-Open `frontend/src/main/scala/perfectpair/view/components/Form.scala` and append the following method inside the `Form` object, after the existing `field` method:
+Open `frontend/src/main/scala/onparity/view/components/Form.scala` and append the following method inside the `Form` object, after the existing `field` method:
 
 ```scala
   def select[M](
@@ -57,7 +57,7 @@ Open `frontend/src/main/scala/perfectpair/view/components/Form.scala` and append
 The full `Form.scala` after the edit:
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
 import tyrian.Html.*
 import tyrian.{Attr, EmptyAttribute, Html}
@@ -140,7 +140,7 @@ object Form:
 - [ ] **Step 2: Verify it compiles**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastLinkJS" 2>&1 | tail -20
+cd /Users/eweise/projects/onparity && sbt "frontend/fastLinkJS" 2>&1 | tail -20
 ```
 
 Expected: `[success]` with no errors.
@@ -148,7 +148,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/Form.scala
+git add frontend/src/main/scala/onparity/view/components/Form.scala
 git commit -m "feat: add Form.select component for enum/option dropdowns"
 ```
 
@@ -157,7 +157,7 @@ git commit -m "feat: add Form.select component for enum/option dropdowns"
 ### Task 2: Use `Form.select` in `MaintainReconSpecView`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala`
 
 - [ ] **Step 1: Replace the relationship `Form.field` with `Form.select`**
 
@@ -189,7 +189,7 @@ With:
 - [ ] **Step 2: Verify it compiles**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastLinkJS" 2>&1 | tail -20
+cd /Users/eweise/projects/onparity && sbt "frontend/fastLinkJS" 2>&1 | tail -20
 ```
 
 Expected: `[success]` with no errors.
@@ -205,6 +205,6 @@ Start the dev server and navigate to a Recon Spec form (create or edit). Confirm
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala
+git add frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala
 git commit -m "feat: change Relationship field to select dropdown in MaintainReconSpecView"
 ```

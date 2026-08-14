@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Backend: follow hexagonal architecture; no new ZIO code (`backend/CLAUDE.md`).
-- No dedicated automated test exists in this codebase for cask HTTP routes (confirmed: `git show --stat` on the most recent route-adding commit, `969a3b6`, touched only `Routes.scala`/`Main.scala`, no test files). `MovementRepo.findUnReconciledByAccount` itself is already covered by `backend/src/test/scala/perfectpair/adapter/driven/MovementRepoLiveSuite.scala:88-101`. Do not add a new backend test file for this route — verify by compiling and, where practical, a manual curl check.
+- No dedicated automated test exists in this codebase for cask HTTP routes (confirmed: `git show --stat` on the most recent route-adding commit, `969a3b6`, touched only `Routes.scala`/`Main.scala`, no test files). `MovementRepo.findUnReconciledByAccount` itself is already covered by `backend/src/test/scala/onparity/adapter/driven/MovementRepoLiveSuite.scala:88-101`. Do not add a new backend test file for this route — verify by compiling and, where practical, a manual curl check.
 - Frontend has no test infrastructure at all (no test directory under `frontend/src`). Verify frontend changes by compiling (`sbt frontend/compile`) and, in the final task, running the app and clicking through manually.
 - Keep the spec-scoped endpoint `movements/:movementSpecID/unreconciled` and its consumer `ManualMatchPage` untouched.
 
@@ -20,15 +20,15 @@
 ### Task 1: Backend — add `GET /api/v1/account/:id/unreconciled-movements` route
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala:151-157` (insert a new route immediately after the existing `movementsBySpecID` method)
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Routes.scala:151-157` (insert a new route immediately after the existing `movementsBySpecID` method)
 
 **Interfaces:**
-- Consumes: `movementRepo.findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]]` (already defined in `backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala:12` and implemented in `backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala:38-45`); `Payload.movementfromDomainModel(dmMovement: Movement): MovementPayload` (already defined in `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala:141-148`).
+- Consumes: `movementRepo.findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]]` (already defined in `backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala:12` and implemented in `backend/src/main/scala/onparity/adapter/driven/MovementRepoLive.scala:38-45`); `Payload.movementfromDomainModel(dmMovement: Movement): MovementPayload` (already defined in `backend/src/main/scala/onparity/adapter/driving/Payload.scala:141-148`).
 - Produces: HTTP endpoint `GET ${HttpPath.account}/:id/unreconciled-movements` returning `Seq[MovementPayload]` as JSON — consumed by Task 2's frontend fetch.
 
 - [ ] **Step 1: Add the route**
 
-In `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`, immediately after the closing line of `movementsBySpecID` (currently lines 151-157, ending `write(payload)`), insert:
+In `backend/src/main/scala/onparity/adapter/driving/Routes.scala`, immediately after the closing line of `movementsBySpecID` (currently lines 151-157, ending `write(payload)`), insert:
 
 ```scala
   @cask.route(s"${HttpPath.account}/:id/unreconciled-movements", methods = HttpCmd.GET)
@@ -52,7 +52,7 @@ Expected: a JSON array (possibly empty) of movement objects, not a 404 or 500. I
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/adapter/driving/Routes.scala
+git add backend/src/main/scala/onparity/adapter/driving/Routes.scala
 git commit -m "Add GET account/:id/unreconciled-movements route"
 ```
 
@@ -61,9 +61,9 @@ git commit -m "Add GET account/:id/unreconciled-movements route"
 ### Task 2: Frontend — repurpose `UnreconciledMovementsPage` to be account-scoped
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala` (full rewrite of the file body)
-- Modify: `frontend/src/main/scala/perfectpair/routing/Nav.scala` (the `toUnreconciledMovements` def)
-- Modify: `frontend/src/main/scala/perfectpair/routing/Routes.scala` (the `unreconciled-movements` route entry)
+- Modify: `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala` (full rewrite of the file body)
+- Modify: `frontend/src/main/scala/onparity/routing/Nav.scala` (the `toUnreconciledMovements` def)
+- Modify: `frontend/src/main/scala/onparity/routing/Routes.scala` (the `unreconciled-movements` route entry)
 
 **Interfaces:**
 - Consumes: `AppState.activeFundFlow: Var[Option[FundFlowPayload]]`, `HttpPath.fundFlows`, `HttpPath.account`, `ApiClient.get[T](url: String, token: ...)`, `Table.create`, `Buttons.linkButton`, `AccountPayload` (has `id: Option[String]`, `name: String`), `MovementPayload` (has `referenceId`, `amount`, `inAccountId`, `outAccountId`) — all pre-existing.
@@ -74,15 +74,15 @@ git commit -m "Add GET account/:id/unreconciled-movements route"
 Replace the entire file content with:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AccountPayload, MovementPayload}
-import perfectpair.http.ApiClient
-import perfectpair.routing.Nav
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.http.HttpPath
+import onparity.common.model.{AccountPayload, MovementPayload}
+import onparity.http.ApiClient
+import onparity.routing.Nav
+import onparity.state.{AppState, SessionStore}
+import onparity.view.components.{Buttons, Table}
 import upickle.default.*
 
 object UnreconciledMovementsPage:
@@ -140,7 +140,7 @@ object UnreconciledMovementsPage:
 
 - [ ] **Step 2: Update `Nav.scala`**
 
-In `frontend/src/main/scala/perfectpair/routing/Nav.scala`, replace:
+In `frontend/src/main/scala/onparity/routing/Nav.scala`, replace:
 
 ```scala
   def toUnreconciledMovements(): Unit = push("/components/unreconciled-movements")
@@ -155,7 +155,7 @@ with:
 
 - [ ] **Step 3: Update the frontend `Routes.scala`**
 
-In `frontend/src/main/scala/perfectpair/routing/Routes.scala`, replace:
+In `frontend/src/main/scala/onparity/routing/Routes.scala`, replace:
 
 ```scala
           path("unreconciled-movements")(UnreconciledMovementsPage())
@@ -196,7 +196,7 @@ Expected: `[success]` with no errors. (This will surface any leftover reference 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala frontend/src/main/scala/perfectpair/routing/Nav.scala frontend/src/main/scala/perfectpair/routing/Routes.scala
+git add frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala frontend/src/main/scala/onparity/routing/Nav.scala frontend/src/main/scala/onparity/routing/Routes.scala
 git commit -m "Make UnreconciledMovementsPage account-scoped"
 ```
 
@@ -205,7 +205,7 @@ git commit -m "Make UnreconciledMovementsPage account-scoped"
 ### Task 3: Frontend — link "Unreconciled Count" on `FundFlowPage` to the new page
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala:153-171` (the `Account` tab row-rendering block)
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala:153-171` (the `Account` tab row-rendering block)
 
 **Interfaces:**
 - Consumes: `Nav.toUnreconciledMovements(accountId: String): Unit` (from Task 2).
@@ -213,7 +213,7 @@ git commit -m "Make UnreconciledMovementsPage account-scoped"
 
 - [ ] **Step 1: Make the Unreconciled Count cell a conditional link**
 
-In `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala`, the `Account` tab currently renders (lines 153-171):
+In `frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala`, the `Account` tab currently renders (lines 153-171):
 
 ```scala
                   s.accounts.sortBy(_.name).map { account =>
@@ -277,7 +277,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala
+git add frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala
 git commit -m "Link Unreconciled Count to the unreconciled movements page"
 ```
 
@@ -291,7 +291,7 @@ git commit -m "Link Unreconciled Count to the unreconciled movements page"
 
 - [ ] **Step 1: Start the app**
 
-Use this project's `run` skill (or `sbt devServer` plus the backend's normal startup) to get the backend and frontend dev server running against a local Postgres with some seeded fund flow / recon account / unreconciled movement data. (`PopulateS3Buckets.scala` under `backend/src/test/scala/perfectpair/testing/` or the `docs/other/` notes may already describe how test data is seeded in this environment — check there if unsure how to get a recon account with a nonzero unreconciled count.)
+Use this project's `run` skill (or `sbt devServer` plus the backend's normal startup) to get the backend and frontend dev server running against a local Postgres with some seeded fund flow / recon account / unreconciled movement data. (`PopulateS3Buckets.scala` under `backend/src/test/scala/onparity/testing/` or the `docs/other/` notes may already describe how test data is seeded in this environment — check there if unsure how to get a recon account with a nonzero unreconciled count.)
 
 - [ ] **Step 2: Click through**
 

@@ -30,14 +30,14 @@ UI-facing term (matches the nav label); `Dispute` is the internal/backend name t
 
 ## Domain Model
 
-`backend/src/main/scala/perfectpair/domain/model/Dispute.scala`, following the `@Table`/`derives DbCodec`
+`backend/src/main/scala/onparity/domain/model/Dispute.scala`, following the `@Table`/`derives DbCodec`
 pattern already used by `Reconciliation`:
 
 ```scala
-package perfectpair.domain.model
+package onparity.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.ID
+import onparity.common.model.model.ID
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -124,7 +124,7 @@ class DisputeRepoLive extends Repo[Dispute, Dispute, UUID] with DisputeRepo
 
 ## Service Layer
 
-`backend/src/main/scala/perfectpair/domain/service/DisputeService.scala`, following `ManualReconciler`'s
+`backend/src/main/scala/onparity/domain/service/DisputeService.scala`, following `ManualReconciler`'s
 shape:
 
 ```scala
@@ -171,7 +171,7 @@ Two deliberate simplifications:
 
 ## Events
 
-Add to `backend/src/main/scala/perfectpair/domain/model/Event.scala`, matching the existing
+Add to `backend/src/main/scala/onparity/domain/model/Event.scala`, matching the existing
 `ReconciliationVoided`/`ReconciliationWrittenOff` shape:
 
 ```scala
@@ -195,7 +195,7 @@ new route handlers can use them.
 
 ## API Routes
 
-Add to `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`, following the existing
+Add to `backend/src/main/scala/onparity/adapter/driving/Routes.scala`, following the existing
 `HttpCmd`/`HttpPath` conventions:
 
 ```scala

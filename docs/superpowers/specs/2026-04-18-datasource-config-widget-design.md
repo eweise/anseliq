@@ -15,7 +15,7 @@ The widget is extracted as a reusable component to make it easy to add a JSON pa
 
 ## New File
 
-`frontend/src/main/scala/perfectpair/view/components/DataSourceConfigWidget.scala`
+`frontend/src/main/scala/onparity/view/components/DataSourceConfigWidget.scala`
 
 ### Model
 

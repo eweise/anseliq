@@ -14,29 +14,29 @@
 
 | File | Action | Responsibility |
 |------|--------|----------------|
-| `frontend/src/main/scala/perfectpair/view/pages/MaintainAccountView.scala` | Create | Page Msg, Model, update, view |
-| `frontend/src/main/scala/perfectpair/util/HttpHelper.scala` | Modify | `createAccount` function + `accountCreatedDecoder` |
-| `frontend/src/main/scala/perfectpair/model/model.scala` | Modify | Add `MaintainAccountMsg`, `NavigateToMaintainAccount` to `Msg`; add `maintainAccountModel` to `Model` |
-| `frontend/src/main/scala/perfectpair/page/Page.scala` | Modify | Add `MaintainAccount` page object |
-| `frontend/src/main/scala/perfectpair/main/WebApp.scala` | Modify | Handle `NavigateToMaintainAccount` in global update |
-| `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala` | Modify | Add "Add Account" button |
+| `frontend/src/main/scala/onparity/view/pages/MaintainAccountView.scala` | Create | Page Msg, Model, update, view |
+| `frontend/src/main/scala/onparity/util/HttpHelper.scala` | Modify | `createAccount` function + `accountCreatedDecoder` |
+| `frontend/src/main/scala/onparity/model/model.scala` | Modify | Add `MaintainAccountMsg`, `NavigateToMaintainAccount` to `Msg`; add `maintainAccountModel` to `Model` |
+| `frontend/src/main/scala/onparity/page/Page.scala` | Modify | Add `MaintainAccount` page object |
+| `frontend/src/main/scala/onparity/main/WebApp.scala` | Modify | Handle `NavigateToMaintainAccount` in global update |
+| `frontend/src/main/scala/onparity/view/pages/AccountsView.scala` | Modify | Add "Add Account" button |
 
 ---
 
 ### Task 1: Create MaintainAccountView
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/MaintainAccountView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/MaintainAccountView.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowResponse}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.{Buttons, Form}
+import onparity.common.model.{AccountPayload, FundFlowResponse}
+import onparity.model.Msg as AppMsg
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.{Buttons, Form}
 import tyrian.Cmd
 import tyrian.Html
 import tyrian.Html.*
@@ -100,7 +100,7 @@ Note: `AppMsg.MaintainAccountMsg` and `AppMsg.NavigateToMaintainAccount` are ref
 ### Task 2: Add createAccount and accountCreatedDecoder to HttpHelper
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 - [ ] **Step 1: Add `createAccount` function**
 
@@ -133,11 +133,11 @@ At the top of `HttpHelper.scala`, `accountCreatedDecoder` is referenced inside `
 
 Change line 8 from:
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
 ```
 to:
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, Welcome}
 ```
 
 Note: This file will not compile until Task 3 adds `MaintainAccountMsg` to the global `Msg` enum.
@@ -149,17 +149,17 @@ Note: This file will not compile until Task 3 adds `MaintainAccountMsg` to the g
 ### Task 3: Wire model.scala — add Msg cases and Model field
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
 - [ ] **Step 1: Add `MaintainAccountView` to imports**
 
 Change line 6 from:
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, ToggleView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, ToggleView, Welcome}
 ```
 to:
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, ToggleView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, ToggleView, Welcome}
 ```
 
 - [ ] **Step 2: Add two cases to the `Msg` enum**
@@ -199,9 +199,9 @@ Expected: compilation succeeds. If it fails, check that all four edits above are
 - [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MaintainAccountView.scala \
-        frontend/src/main/scala/perfectpair/util/HttpHelper.scala \
-        frontend/src/main/scala/perfectpair/model/model.scala
+git add frontend/src/main/scala/onparity/view/pages/MaintainAccountView.scala \
+        frontend/src/main/scala/onparity/util/HttpHelper.scala \
+        frontend/src/main/scala/onparity/model/model.scala
 git commit -m "feat: add MaintainAccountView and wire Msg/Model"
 ```
 
@@ -210,7 +210,7 @@ git commit -m "feat: add MaintainAccountView and wire Msg/Model"
 ### Task 4: Add Page.MaintainAccount
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
 
 - [ ] **Step 1: Add `MaintainAccount` page object**
 
@@ -240,7 +240,7 @@ Expected: compilation succeeds.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/page/Page.scala
+git add frontend/src/main/scala/onparity/page/Page.scala
 git commit -m "feat: add Page.MaintainAccount"
 ```
 
@@ -249,17 +249,17 @@ git commit -m "feat: add Page.MaintainAccount"
 ### Task 5: Handle NavigateToMaintainAccount in WebApp
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Add `MaintainAccountView` to WebApp imports**
 
 Change line 22 from:
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainFundFlowView}
+import onparity.view.pages.{AccountsView, MaintainFundFlowView}
 ```
 to:
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView}
+import onparity.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView}
 ```
 
 - [ ] **Step 2: Add handler for `NavigateToMaintainAccount`**
@@ -286,11 +286,11 @@ After the `NavigateToAccounts` handler (lines 88–94), add:
 
 Change line 14 from:
 ```scala
-import perfectpair.model.*
+import onparity.model.*
 ```
-This already imports `*` from `perfectpair.model`. But `AccountPayload` is in `perfectpair.common.model`. Add an import after line 13:
+This already imports `*` from `onparity.model`. But `AccountPayload` is in `onparity.common.model`. Add an import after line 13:
 ```scala
-import perfectpair.common.model.AccountPayload
+import onparity.common.model.AccountPayload
 ```
 
 - [ ] **Step 4: Verify compilation**
@@ -303,7 +303,7 @@ Expected: compilation succeeds.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/main/WebApp.scala
+git add frontend/src/main/scala/onparity/main/WebApp.scala
 git commit -m "feat: handle NavigateToMaintainAccount in WebApp"
 ```
 
@@ -312,7 +312,7 @@ git commit -m "feat: handle NavigateToMaintainAccount in WebApp"
 ### Task 6: Add "Add Account" button to AccountsView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/AccountsView.scala`
 
 - [ ] **Step 1: Add the button to the view**
 
@@ -336,7 +336,7 @@ In `AccountsView.apply`, change the `div(cls := "my-8 text-center")` block. Curr
 
 Add the import for `Buttons` at the top of the file:
 ```scala
-import perfectpair.view.components.{Icons, Table, Buttons}
+import onparity.view.components.{Icons, Table, Buttons}
 ```
 
 Then add a "Add Account" button inside the `div(cls := "my-8 text-center")` block, after the `button(...)` for `GetReconAccounts`:
@@ -385,6 +385,6 @@ Expected: compilation succeeds.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala
+git add frontend/src/main/scala/onparity/view/pages/AccountsView.scala
 git commit -m "feat: add Add Account button to AccountsView"
 ```

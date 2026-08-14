@@ -14,10 +14,10 @@ the current test suite doesn't touch.
 
 ## Prerequisite bug fix
 
-`Reconciler.reconcileAccount` (`backend/src/main/scala/perfectpair/domain/service/Reconciler.scala:31`)
+`Reconciler.reconcileAccount` (`backend/src/main/scala/onparity/domain/service/Reconciler.scala:31`)
 calls `movementRepo.findEqualityMatches(reconSpec.rule().sql, reconSpec.relationship)`.
 `StringAttributeMatchRule.sql` and `DateAttributeMatchRule.sql`
-(`common/src/main/scala/perfectpair/common/model/Rules.scala:54-77`) each
+(`common/src/main/scala/onparity/common/model/Rules.scala:54-77`) each
 hardcode:
 
 ```scala
@@ -30,7 +30,7 @@ s""" move_in.movement_spec_id = ''
 returns zero rows, always. This is why `ReconcilerSuite`'s one end-to-end
 test that calls `reconcileAccount` and asserts on `reconciliationId` is
 marked `.ignore` ("broken because of relies on old sql implementation",
-`backend/src/test/scala/perfectpair/domain/service/ReconcilerSuite.scala:20`).
+`backend/src/test/scala/onparity/domain/service/ReconcilerSuite.scala:20`).
 
 Fix, minimal and targeted:
 
@@ -38,7 +38,7 @@ Fix, minimal and targeted:
    `.sql` in `Rules.scala`, leaving only the attribute-equality predicate
    (`$inModifiedFrag = $outModifiedFrag`).
 2. `MovementRepo.findEqualityMatches`
-   (`backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala:16`)
+   (`backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala:16`)
    and its impl in `MovementRepoLive.scala:81` gain two new parameters,
    `inMovementSpecId: ID` and `outMovementSpecId: ID`, bound via magnum's
    safe `$` interpolation and added as `AND move_in.movement_spec_id = ...
@@ -51,8 +51,8 @@ is left as-is (out of scope for this change).
 
 ## Fixture generator
 
-New object `perfectpair.testing.LargeFileFixtures` in
-`backend/src/test/scala/perfectpair/testing/LargeFileFixtures.scala`:
+New object `onparity.testing.LargeFileFixtures` in
+`backend/src/test/scala/onparity/testing/LargeFileFixtures.scala`:
 
 - `journalFile(rows: Int = 5_000_000): File`
 - `reportFile(rows: Int = 5_000_000): File`
@@ -89,8 +89,8 @@ depends on the bug fix above.
 
 ## Test
 
-New suite `perfectpair.domain.service.LargeFileIngestionReconciliationSuite`
-in `backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`,
+New suite `onparity.domain.service.LargeFileIngestionReconciliationSuite`
+in `backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala`,
 following the existing `IngestorSuite` / `ReconcilerSuite` wiring pattern
 (`munit.FunSuite`, `Transactor` + `rollBackOnly` for DB isolation, real
 Postgres via `test-application.conf`).
@@ -133,7 +133,7 @@ Mirror the existing `DataSetupScenario1` pattern in `build.sbt:130-134`:
 add the new suite's fully-qualified name to the same
 `Test / test / testOptions += Tests.Filter(...)` exclusion, with a comment
 explaining why. This excludes it from plain `sbt test` while leaving
-`sbt "testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"`
+`sbt "testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"`
 (and `testQuick`) working for explicit/manual runs.
 
 ## Out of scope

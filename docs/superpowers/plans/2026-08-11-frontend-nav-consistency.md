@@ -21,7 +21,7 @@
 ### Task 1: Clean up LeftNav — remove dead links, migrate to design tokens
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala`
+- Modify: `frontend/src/main/scala/onparity/view/layout/LeftNav.scala`
 
 **Interfaces:**
 - Consumes: nothing new
@@ -32,12 +32,12 @@
 Remove the 5 dead `"#"` nav items (Dashboard, Profile, Settings, Analytics, Reports) and their two `navSeparator()` calls, remove the commented-out `fundFlowNavSection()` line, and migrate the raw `purple-100`/`purple-900` hover colors to the existing `md-primary-container` token (matching `Buttons.scala`'s `textButton` hover convention, which also has no dark-mode-specific override):
 
 ```scala
-package perfectpair.view.layout
+package onparity.view.layout
 
 import com.raquo.laminar.api.L.*
-import perfectpair.routing.Nav
-import perfectpair.state.SessionStore
-import perfectpair.view.components.Icons
+import onparity.routing.Nav
+import onparity.state.SessionStore
+import onparity.view.components.Icons
 
 object LeftNav:
 
@@ -90,7 +90,7 @@ Expected: compiles with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala
+git add frontend/src/main/scala/onparity/view/layout/LeftNav.scala
 git commit -m "Remove dead nav stubs and migrate LeftNav to design tokens"
 ```
 
@@ -99,9 +99,9 @@ git commit -m "Remove dead nav stubs and migrate LeftNav to design tokens"
 ### Task 2: Delete orphaned AccountsPage
 
 **Files:**
-- Delete: `frontend/src/main/scala/perfectpair/view/pages/AccountsPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Routes.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Nav.scala`
+- Delete: `frontend/src/main/scala/onparity/view/pages/AccountsPage.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Routes.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Nav.scala`
 
 **Interfaces:**
 - Consumes: nothing
@@ -110,12 +110,12 @@ git commit -m "Remove dead nav stubs and migrate LeftNav to design tokens"
 - [ ] **Step 1: Delete the page**
 
 ```bash
-rm frontend/src/main/scala/perfectpair/view/pages/AccountsPage.scala
+rm frontend/src/main/scala/onparity/view/pages/AccountsPage.scala
 ```
 
 - [ ] **Step 2: Remove its route**
 
-In `frontend/src/main/scala/perfectpair/routing/Routes.scala`, remove this line (keep every `accounts/:id/...` sub-route — only the bare list route goes):
+In `frontend/src/main/scala/onparity/routing/Routes.scala`, remove this line (keep every `accounts/:id/...` sub-route — only the bare list route goes):
 
 ```scala
           path("accounts")(AccountsPage()),
@@ -123,7 +123,7 @@ In `frontend/src/main/scala/perfectpair/routing/Routes.scala`, remove this line 
 
 - [ ] **Step 3: Remove the unused Nav helper**
 
-In `frontend/src/main/scala/perfectpair/routing/Nav.scala`, remove:
+In `frontend/src/main/scala/onparity/routing/Nav.scala`, remove:
 
 ```scala
   def toAccounts(ff: FundFlowPayload): Unit =
@@ -134,10 +134,10 @@ In `frontend/src/main/scala/perfectpair/routing/Nav.scala`, remove:
 And since `AccountPayload` was already unused in this file even before this change (confirmed via grep — only appeared in the import), drop it from the import line too:
 
 ```scala
-import perfectpair.common.model.FundFlowPayload
+import onparity.common.model.FundFlowPayload
 ```
 
-(replacing `import perfectpair.common.model.{AccountPayload, FundFlowPayload}`)
+(replacing `import onparity.common.model.{AccountPayload, FundFlowPayload}`)
 
 - [ ] **Step 4: Compile check**
 
@@ -147,7 +147,7 @@ Expected: compiles with no errors (confirms nothing else referenced `AccountsPag
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/AccountsPage.scala frontend/src/main/scala/perfectpair/routing/Routes.scala frontend/src/main/scala/perfectpair/routing/Nav.scala
+git add frontend/src/main/scala/onparity/view/pages/AccountsPage.scala frontend/src/main/scala/onparity/routing/Routes.scala frontend/src/main/scala/onparity/routing/Nav.scala
 git commit -m "Delete orphaned AccountsPage (unreachable, redundant with FundFlowPage's Accounts tab)"
 ```
 
@@ -156,14 +156,14 @@ git commit -m "Delete orphaned AccountsPage (unreachable, redundant with FundFlo
 ### Task 3: Create PageHeader and adopt it across list pages
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/components/PageHeader.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/EventsPage.scala:9,36`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/JobsPage.scala:11,35`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala:10,63`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala:9,70`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala:9,47-53`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowsPage.scala:10,30`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala:9,105`
+- Create: `frontend/src/main/scala/onparity/view/components/PageHeader.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/EventsPage.scala:9,36`
+- Modify: `frontend/src/main/scala/onparity/view/pages/JobsPage.scala:11,35`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala:10,63`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala:9,70`
+- Modify: `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala:9,47-53`
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowsPage.scala:10,30`
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala:9,105`
 
 **Interfaces:**
 - Produces: `PageHeader.title(mods: Modifier[HtmlElement]*): HtmlElement` — accepts either a plain `String` (via Laminar's built-in `String => Modifier[HtmlElement]` conversion) or reactive modifiers like `child.text <-- signal`, since `UnreconciledMovementsPage`'s title is dynamic, not a static string.
@@ -171,7 +171,7 @@ git commit -m "Delete orphaned AccountsPage (unreachable, redundant with FundFlo
 - [ ] **Step 1: Create PageHeader.scala**
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
 import com.raquo.laminar.api.L.*
 
@@ -187,32 +187,32 @@ Expected: compiles with no errors.
 
 - [ ] **Step 3: Adopt in EventsPage**
 
-In `frontend/src/main/scala/perfectpair/view/pages/EventsPage.scala`:
-- Line 9: change `import perfectpair.view.components.{Form, Icons, Table}` to `import perfectpair.view.components.{Form, Icons, PageHeader, Table}`
+In `frontend/src/main/scala/onparity/view/pages/EventsPage.scala`:
+- Line 9: change `import onparity.view.components.{Form, Icons, Table}` to `import onparity.view.components.{Form, Icons, PageHeader, Table}`
 - Line 36: change `h2(cls := "text-2xl font-medium mb-6", "Events"),` to `PageHeader.title("Events"),`
 
 - [ ] **Step 4: Adopt in JobsPage**
 
-In `frontend/src/main/scala/perfectpair/view/pages/JobsPage.scala`:
-- Line 11: change `import perfectpair.view.components.{Form, Icons, Table}` to `import perfectpair.view.components.{Form, Icons, PageHeader, Table}`
+In `frontend/src/main/scala/onparity/view/pages/JobsPage.scala`:
+- Line 11: change `import onparity.view.components.{Form, Icons, Table}` to `import onparity.view.components.{Form, Icons, PageHeader, Table}`
 - Line 35: change `h2(cls := "text-2xl font-medium mb-6", "Jobs"),` to `PageHeader.title("Jobs"),`
 
 - [ ] **Step 5: Adopt in ReconciliationsPage**
 
-In `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala`:
-- Line 10: change `import perfectpair.view.components.{Buttons, Table}` to `import perfectpair.view.components.{Buttons, PageHeader, Table}`
+In `frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala`:
+- Line 10: change `import onparity.view.components.{Buttons, Table}` to `import onparity.view.components.{Buttons, PageHeader, Table}`
 - Line 63: change `h2(cls := "text-2xl font-medium mb-6", "Reconciliations"),` to `PageHeader.title("Reconciliations"),`
 
 - [ ] **Step 6: Adopt in ManualMatchPage**
 
-In `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`:
-- Line 9: change `import perfectpair.view.components.{Buttons, Icons, Table}` to `import perfectpair.view.components.{Buttons, Icons, PageHeader, Table}`
+In `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`:
+- Line 9: change `import onparity.view.components.{Buttons, Icons, Table}` to `import onparity.view.components.{Buttons, Icons, PageHeader, Table}`
 - Line 70: change `h2(cls := "text-2xl font-medium mb-6", "Manual Match"),` to `PageHeader.title("Manual Match"),`
 
 - [ ] **Step 7: Adopt in UnreconciledMovementsPage**
 
-In `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala`:
-- Line 9: change `import perfectpair.view.components.{Buttons, Table}` to `import perfectpair.view.components.{Buttons, PageHeader, Table}`
+In `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala`:
+- Line 9: change `import onparity.view.components.{Buttons, Table}` to `import onparity.view.components.{Buttons, PageHeader, Table}`
 - Lines 47-53, change:
 
 ```scala
@@ -238,14 +238,14 @@ to:
 
 - [ ] **Step 8: Adopt in FundFlowsPage (fixes the text-xl drift)**
 
-In `frontend/src/main/scala/perfectpair/view/pages/FundFlowsPage.scala`:
-- Line 10: change `import perfectpair.view.components.{Buttons, Table}` to `import perfectpair.view.components.{Buttons, PageHeader, Table}`
+In `frontend/src/main/scala/onparity/view/pages/FundFlowsPage.scala`:
+- Line 10: change `import onparity.view.components.{Buttons, Table}` to `import onparity.view.components.{Buttons, PageHeader, Table}`
 - Line 30: change `h2(cls := "text-xl font-medium", "Ledgers"),` to `PageHeader.title("Ledgers"),`
 
 - [ ] **Step 9: Adopt in FundFlowPage (already correct — DRY, zero visual change)**
 
-In `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala`:
-- Line 9: change `import perfectpair.view.components.Table` to `import perfectpair.view.components.{PageHeader, Table}`
+In `frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala`:
+- Line 9: change `import onparity.view.components.Table` to `import onparity.view.components.{PageHeader, Table}`
 - Line 105: change `h2(cls := "text-2xl font-medium mb-6", ff.name)` to `PageHeader.title(ff.name)`
 
 - [ ] **Step 10: Compile check**
@@ -256,7 +256,7 @@ Expected: compiles with no errors.
 - [ ] **Step 11: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/PageHeader.scala frontend/src/main/scala/perfectpair/view/pages/EventsPage.scala frontend/src/main/scala/perfectpair/view/pages/JobsPage.scala frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala frontend/src/main/scala/perfectpair/view/pages/FundFlowsPage.scala frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala
+git add frontend/src/main/scala/onparity/view/components/PageHeader.scala frontend/src/main/scala/onparity/view/pages/EventsPage.scala frontend/src/main/scala/onparity/view/pages/JobsPage.scala frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala frontend/src/main/scala/onparity/view/pages/FundFlowsPage.scala frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala
 git commit -m "Extract PageHeader.title and adopt across list pages, fixing FundFlowsPage's text-xl drift"
 ```
 
@@ -265,14 +265,14 @@ git commit -m "Extract PageHeader.title and adopt across list pages, fixing Fund
 ### Task 4: Fix FundFlowPage's raw-color "New Account" button
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala:9,122-131`
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala:9,122-131`
 
 **Interfaces:**
 - Consumes: `Buttons.linkButton(label: String, obs: Observer[Unit]): HtmlElement` (existing, `view/components/Buttons.scala:6`)
 
 - [ ] **Step 1: Add the Buttons import**
 
-Change (from Task 3, Step 9) `import perfectpair.view.components.{PageHeader, Table}` to `import perfectpair.view.components.{Buttons, PageHeader, Table}`
+Change (from Task 3, Step 9) `import onparity.view.components.{PageHeader, Table}` to `import onparity.view.components.{Buttons, PageHeader, Table}`
 
 - [ ] **Step 2: Replace the raw button**
 
@@ -316,7 +316,7 @@ Expected: compiles with no errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala
+git add frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala
 git commit -m "Fix FundFlowPage's raw-color New Account button to use the shared Buttons component"
 ```
 
@@ -325,14 +325,14 @@ git commit -m "Fix FundFlowPage's raw-color New Account button to use the shared
 ### Task 5: Fix LoginPage — broken class, raw color, header/card consistency
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/LoginPage.scala:11,63-76`
+- Modify: `frontend/src/main/scala/onparity/view/pages/LoginPage.scala:11,63-76`
 
 **Interfaces:**
 - Consumes: `Buttons.linkButton(label: String, obs: Observer[Unit]): HtmlElement` (existing, `view/components/Buttons.scala:6`)
 
 - [ ] **Step 1: Add the Buttons import**
 
-Change `import perfectpair.view.components.Icons` to `import perfectpair.view.components.{Buttons, Icons}`
+Change `import onparity.view.components.Icons` to `import onparity.view.components.{Buttons, Icons}`
 
 - [ ] **Step 2: Fix the outer background, card, header, and button**
 
@@ -379,7 +379,7 @@ Expected: compiles with no errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/LoginPage.scala
+git add frontend/src/main/scala/onparity/view/pages/LoginPage.scala
 git commit -m "Fix LoginPage: broken bg-base-150 class, raw purple button, header/card token migration"
 ```
 
@@ -388,7 +388,7 @@ git commit -m "Fix LoginPage: broken bg-base-150 class, raw purple button, heade
 ### Task 6: WelcomePage top-spacing consistency
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/WelcomePage.scala:24`
+- Modify: `frontend/src/main/scala/onparity/view/pages/WelcomePage.scala:24`
 
 **Interfaces:**
 - Consumes: nothing new
@@ -418,7 +418,7 @@ Expected: compiles with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/WelcomePage.scala
+git add frontend/src/main/scala/onparity/view/pages/WelcomePage.scala
 git commit -m "Add consistent top spacing to WelcomePage"
 ```
 

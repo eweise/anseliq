@@ -19,9 +19,9 @@
 ### Task 1: Domain report models + `ReportingService`
 
 **Files:**
-- Create: `backend/src/main/scala/perfectpair/domain/model/ReportsSummary.scala`
-- Create: `backend/src/main/scala/perfectpair/domain/service/ReportingService.scala`
-- Test: `backend/src/test/scala/perfectpair/domain/service/ReportingServiceSuite.scala`
+- Create: `backend/src/main/scala/onparity/domain/model/ReportsSummary.scala`
+- Create: `backend/src/main/scala/onparity/domain/service/ReportingService.scala`
+- Test: `backend/src/test/scala/onparity/domain/service/ReportingServiceSuite.scala`
 
 **Interfaces:**
 - Consumes: `AccountRepo.findAll()`/`findByFundFlow(ID)` (existing), `DisputeRepo.findAll` (existing, inherited from `DomainRepo`), `MovementRepo.findUnReconciledByAccount(ID)`/`findById(ID)` (existing), `ReconciliationRepo.findById(ID)` (existing), `ReconciliationSpecRepo.findByAccountID(ID)`/`findById(ID)` (existing), `FundFlowConfigRepo.findById(ID)` (existing), `ClockService.now` (existing).
@@ -32,10 +32,10 @@ Account scoping: `MatchRateReport`/`AgingBucketsReport` only cover accounts wher
 - [ ] **Step 1: Write the domain report model**
 
 ```scala
-// backend/src/main/scala/perfectpair/domain/model/ReportsSummary.scala
-package perfectpair.domain.model
+// backend/src/main/scala/onparity/domain/model/ReportsSummary.scala
+package onparity.domain.model
 
-import perfectpair.common.model.model.{ID, Money}
+import onparity.common.model.model.{ID, Money}
 
 case class MatchRateReport(
   accountId:         ID,
@@ -65,16 +65,16 @@ case class ReportsSummaryReport(
 - [ ] **Step 2: Write the failing tests**
 
 ```scala
-// backend/src/test/scala/perfectpair/domain/service/ReportingServiceSuite.scala
-package perfectpair.domain.service
+// backend/src/test/scala/onparity/domain/service/ReportingServiceSuite.scala
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.DbDataSource
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.*
-import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.testing.rollBackOnly
+import onparity.adapter.driven.DbDataSource
+import onparity.domain.DataSetup
+import onparity.domain.model.*
+import onparity.domain.model.helper.JSONBProps
+import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -245,18 +245,18 @@ class ReportingServiceSuite extends munit.FunSuite:
 
 - [ ] **Step 3: Run tests to verify they fail**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReportingServiceSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReportingServiceSuite"`
 Expected: FAIL to compile — `ReportingService` doesn't exist yet.
 
 - [ ] **Step 4: Implement `ReportingService`**
 
 ```scala
-// backend/src/main/scala/perfectpair/domain/service/ReportingService.scala
-package perfectpair.domain.service
+// backend/src/main/scala/onparity/domain/service/ReportingService.scala
+package onparity.domain.service
 
-import perfectpair.common.model.model.{ID, Money}
-import perfectpair.domain.model.*
-import perfectpair.domain.port.driven.*
+import onparity.common.model.model.{ID, Money}
+import onparity.domain.model.*
+import onparity.domain.port.driven.*
 
 import java.time.temporal.ChronoUnit
 
@@ -340,13 +340,13 @@ class ReportingService(using
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReportingServiceSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReportingServiceSuite"`
 Expected: all 7 tests PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/model/ReportsSummary.scala backend/src/main/scala/perfectpair/domain/service/ReportingService.scala backend/src/test/scala/perfectpair/domain/service/ReportingServiceSuite.scala
+git add backend/src/main/scala/onparity/domain/model/ReportsSummary.scala backend/src/main/scala/onparity/domain/service/ReportingService.scala backend/src/test/scala/onparity/domain/service/ReportingServiceSuite.scala
 git commit -m "Add ReportingService: match rate, exception breakdown, unreconciled aging
 
 Computes all three from existing repos directly (no new tables/SQL
@@ -359,7 +359,7 @@ seam for a future move to precomputed reporting tables."
 ### Task 2: Shared DTOs + `MovementPayload.createdAt`
 
 **Files:**
-- Modify: `common/src/main/scala/perfectpair/common/model/Payload.scala`
+- Modify: `common/src/main/scala/onparity/common/model/Payload.scala`
 
 **Interfaces:**
 - Consumes: nothing from Task 1 (payload types are independent of domain types).
@@ -396,7 +396,7 @@ case class ReportsSummaryPayload(
 ```
 
 `Money` (`= BigDecimal`) is already imported at the top of this file via
-`perfectpair.common.model.model.{Money, Properties}`. `BigDecimal` itself needs a `ReadWriter` — upickle
+`onparity.common.model.model.{Money, Properties}`. `BigDecimal` itself needs a `ReadWriter` — upickle
 derives one automatically for `BigDecimal` out of the box, matching how `ReconciliationPayload.balance:
 Money` already works today without any extra import.
 
@@ -427,7 +427,7 @@ that's expected and fixed in Task 3.)
 - [ ] **Step 4: Commit**
 
 ```bash
-git add common/src/main/scala/perfectpair/common/model/Payload.scala
+git add common/src/main/scala/onparity/common/model/Payload.scala
 git commit -m "Add Reports & Analytics DTOs, add createdAt to MovementPayload"
 ```
 
@@ -436,10 +436,10 @@ git commit -m "Add Reports & Analytics DTOs, add createdAt to MovementPayload"
 ### Task 3: Backend routes + wiring
 
 **Files:**
-- Modify: `common/src/main/scala/perfectpair/common/http/http.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala`
+- Modify: `common/src/main/scala/onparity/common/http/http.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Payload.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Routes.scala`
+- Modify: `backend/src/main/scala/onparity/app/Main.scala`
 
 **Interfaces:**
 - Consumes: `ReportingService.summary` (Task 1), `ReportsSummaryPayload` family + `MovementPayload.createdAt` (Task 2).
@@ -447,7 +447,7 @@ git commit -m "Add Reports & Analytics DTOs, add createdAt to MovementPayload"
 
 - [ ] **Step 1: Add the route path**
 
-In `HttpPath` (`common/src/main/scala/perfectpair/common/http/http.scala`), add alongside the existing paths:
+In `HttpPath` (`common/src/main/scala/onparity/common/http/http.scala`), add alongside the existing paths:
 
 ```scala
   val reports         = s"$prefix/reports"
@@ -455,7 +455,7 @@ In `HttpPath` (`common/src/main/scala/perfectpair/common/http/http.scala`), add 
 
 - [ ] **Step 2: Fix `movementfromDomainModel`, add `reportsSummaryPayloadFromDomain`**
 
-In `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala`, add `createdAt` to the existing
+In `backend/src/main/scala/onparity/adapter/driving/Payload.scala`, add `createdAt` to the existing
 `movementfromDomainModel`:
 
 ```scala
@@ -493,7 +493,7 @@ Add at the end of the file (after `disputeCommentPayloadFromDomain`):
 
 - [ ] **Step 3: Add the route**
 
-In `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`, add `reportingService:
+In `backend/src/main/scala/onparity/adapter/driving/Routes.scala`, add `reportingService:
 ReportingService` to `App`'s constructor `using` clause (alongside the existing `disputeService`):
 
 ```scala
@@ -550,7 +550,7 @@ Stop the backend when done.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add common/src/main/scala/perfectpair/common/http/http.scala backend/src/main/scala/perfectpair/adapter/driving/Payload.scala backend/src/main/scala/perfectpair/adapter/driving/Routes.scala backend/src/main/scala/perfectpair/app/Main.scala
+git add common/src/main/scala/onparity/common/http/http.scala backend/src/main/scala/onparity/adapter/driving/Payload.scala backend/src/main/scala/onparity/adapter/driving/Routes.scala backend/src/main/scala/onparity/app/Main.scala
 git commit -m "Add GET /api/v1/reports/summary"
 ```
 
@@ -560,8 +560,8 @@ git commit -m "Add GET /api/v1/reports/summary"
 
 **Files:**
 - Modify: `frontend/package.json`
-- Create: `frontend/src/main/scala/perfectpair/http/Chart.scala`
-- Create: `frontend/src/main/scala/perfectpair/view/components/ChartCanvas.scala`
+- Create: `frontend/src/main/scala/onparity/http/Chart.scala`
+- Create: `frontend/src/main/scala/onparity/view/components/ChartCanvas.scala`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks (pure frontend infrastructure).
@@ -586,8 +586,8 @@ Expected: `package-lock.json` updates to include `chart.js`; `node_modules/chart
 - [ ] **Step 2: Write the facade**
 
 ```scala
-// frontend/src/main/scala/perfectpair/http/Chart.scala
-package perfectpair.http
+// frontend/src/main/scala/onparity/http/Chart.scala
+package onparity.http
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
@@ -604,13 +604,13 @@ no separate registration boilerplate is needed for the bar and doughnut types th
 - [ ] **Step 3: Write `ChartCanvas`**
 
 ```scala
-// frontend/src/main/scala/perfectpair/view/components/ChartCanvas.scala
-package perfectpair.view.components
+// frontend/src/main/scala/onparity/view/components/ChartCanvas.scala
+package onparity.view.components
 
 import com.raquo.laminar.api.L.*
 import org.scalajs.dom
-import perfectpair.http.Chart
-import perfectpair.state.AppState
+import onparity.http.Chart
+import onparity.state.AppState
 
 import scala.scalajs.js
 
@@ -687,7 +687,7 @@ Expected: `[success]`. (`ChartCanvas` isn't used anywhere yet, so this only prov
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/package.json frontend/package-lock.json frontend/src/main/scala/perfectpair/http/Chart.scala frontend/src/main/scala/perfectpair/view/components/ChartCanvas.scala
+git add frontend/package.json frontend/package-lock.json frontend/src/main/scala/onparity/http/Chart.scala frontend/src/main/scala/onparity/view/components/ChartCanvas.scala
 git commit -m "Add a slim Chart.js facade and reusable ChartCanvas Laminar component
 
 Hand-written @js.native facade (no ScalablyTyped) — the config object is
@@ -702,9 +702,9 @@ every data or dark-mode change since Chart.js can't see Tailwind classes."
 ### Task 5: `ReportsPage` + nav/route wiring
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/ReportsPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Routes.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/ReportsPage.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Routes.scala`
+- Modify: `frontend/src/main/scala/onparity/view/layout/LeftNav.scala`
 
 **Interfaces:**
 - Consumes: `ReportsSummaryPayload`/`MatchRatePayload`/`ExceptionBreakdownPayload`/`AgingBucketsPayload`
@@ -714,16 +714,16 @@ every data or dark-mode change since Chart.js can't see Tailwind classes."
 - [ ] **Step 1: Write `ReportsPage`**
 
 ```scala
-// frontend/src/main/scala/perfectpair/view/pages/ReportsPage.scala
-package perfectpair.view.pages
+// frontend/src/main/scala/onparity/view/pages/ReportsPage.scala
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{FundFlowPayload, ReportsSummaryPayload}
-import perfectpair.http.ApiClient
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.ChartCanvas.Series
-import perfectpair.view.components.{ChartCanvas, Form, PageHeader, Pill}
+import onparity.common.http.HttpPath
+import onparity.common.model.{FundFlowPayload, ReportsSummaryPayload}
+import onparity.http.ApiClient
+import onparity.state.{AppState, SessionStore}
+import onparity.view.components.ChartCanvas.Series
+import onparity.view.components.{ChartCanvas, Form, PageHeader, Pill}
 import upickle.default.*
 
 object ReportsPage:
@@ -846,7 +846,7 @@ object ReportsPage:
 
 - [ ] **Step 2: Add the route**
 
-In `frontend/src/main/scala/perfectpair/routing/Routes.scala`, replace:
+In `frontend/src/main/scala/onparity/routing/Routes.scala`, replace:
 
 ```scala
           path("coming-soon" / "reports")(ComingSoonPage("Reports & Analytics")),
@@ -862,7 +862,7 @@ with:
 
 - [ ] **Step 3: Update the nav link**
 
-In `frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala`, change:
+In `frontend/src/main/scala/onparity/view/layout/LeftNav.scala`, change:
 
 ```scala
       NavItem("Reports & Analytics", "/components/coming-soon/reports", Icons.chart),
@@ -894,7 +894,7 @@ Stop both dev servers when done.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ReportsPage.scala frontend/src/main/scala/perfectpair/routing/Routes.scala frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala
+git add frontend/src/main/scala/onparity/view/pages/ReportsPage.scala frontend/src/main/scala/onparity/routing/Routes.scala frontend/src/main/scala/onparity/view/layout/LeftNav.scala
 git commit -m "Add Reports & Analytics dashboard: match rate, exceptions, aging
 
 Three Chart.js widgets with an optional fund-flow filter, replacing the
