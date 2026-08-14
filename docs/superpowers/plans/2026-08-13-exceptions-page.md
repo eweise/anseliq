@@ -27,13 +27,13 @@ for its Write Off action, reused here for Resolve's required note.
 ### Task 1: `ExceptionsPage` + routing
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/ExceptionsPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Routes.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/ExceptionsPage.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Routes.scala`
+- Modify: `frontend/src/main/scala/onparity/view/layout/LeftNav.scala`
 
 **Interfaces:**
 - Consumes: `DisputePayload`, `DisputeStatusPayload`, `UpdateDisputeStatusRequest` (from
-  `perfectpair.common.model`), `HttpPath.disputes`/`HttpPath.dispute` (from `perfectpair.common.http`),
+  `onparity.common.model`), `HttpPath.disputes`/`HttpPath.dispute` (from `onparity.common.http`),
   `ApiClient.get`/`ApiClient.put`, `Pill`, `Table.create`, `PageHeader.title`, `Buttons.textButton` (all
   existing).
 - Produces: `ExceptionsPage.apply(): HtmlElement`, reachable at `/components/exceptions`.
@@ -41,14 +41,14 @@ for its Write Off action, reused here for Resolve's required note.
 - [ ] **Step 1: Create `ExceptionsPage.scala`**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{DisputePayload, DisputeStatusPayload, UpdateDisputeStatusRequest}
-import perfectpair.http.ApiClient
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, PageHeader, Pill, Table}
+import onparity.common.http.HttpPath
+import onparity.common.model.{DisputePayload, DisputeStatusPayload, UpdateDisputeStatusRequest}
+import onparity.http.ApiClient
+import onparity.state.{AppState, SessionStore}
+import onparity.view.components.{Buttons, PageHeader, Pill, Table}
 import upickle.default.*
 
 object ExceptionsPage:
@@ -225,7 +225,7 @@ Stop both dev servers when done.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ExceptionsPage.scala frontend/src/main/scala/perfectpair/routing/Routes.scala frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala
+git add frontend/src/main/scala/onparity/view/pages/ExceptionsPage.scala frontend/src/main/scala/onparity/routing/Routes.scala frontend/src/main/scala/onparity/view/layout/LeftNav.scala
 git commit -m "Add ExceptionsPage, replacing the Exceptions & Disputes coming-soon placeholder
 
 Lists every Dispute and drives its status workflow (Investigate/Escalate/

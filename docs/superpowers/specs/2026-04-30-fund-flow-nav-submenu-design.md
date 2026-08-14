@@ -17,7 +17,7 @@ Add an accordion submenu under the "Fund Flows" left nav item that lists individ
 
 ### 1. Fetch Fund Flows on Auth
 
-**File:** `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+**File:** `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 The `Msg.RestoredSession` handler (the single auth-success path for both fresh login and localStorage session restore) emits `HttpHelper.fetchFundFlows` in addition to its existing `DoNavigate(Page.Home)` command. The result is handled by the existing `FundFlowsMsg(FundFlowsView.Msg.FundFlowsFromBackend(...))` path and stored in `model.fundFlowsModel.fundFlows`.
 
@@ -25,7 +25,7 @@ No new storage field is needed — the existing `fundFlowsModel` holds the list.
 
 ### 2. Accordion Toggle State
 
-**File:** `frontend/src/main/scala/perfectpair/model/model.scala`
+**File:** `frontend/src/main/scala/onparity/model/model.scala`
 
 Add `fundFlowNavOpen: Boolean = false` to the `Model` case class.
 
@@ -35,7 +35,7 @@ Handle `Msg.ToggleFundFlowNav` in `WebApp.update` to flip `model.fundFlowNavOpen
 
 ### 3. Sidebar Changes
 
-**File:** `frontend/src/main/scala/perfectpair/view/MainContainer.scala`
+**File:** `frontend/src/main/scala/onparity/view/MainContainer.scala`
 
 - `leftNav()` gains two parameters: `fundFlows: Seq[FundFlowPayload]` and `fundFlowNavOpen: Boolean`.
 - `MainContainer.apply()` gains the same two parameters and passes them to `leftNav()`.
@@ -49,7 +49,7 @@ When `fundFlowNavOpen` is true, an indented list of fund flow names is rendered 
 
 ### 4. New FundFlowView Page
 
-**New file:** `frontend/src/main/scala/perfectpair/view/pages/FundFlowView.scala`
+**New file:** `frontend/src/main/scala/onparity/view/pages/FundFlowView.scala`
 
 A minimal view object following the same pattern as `ReconciliationsView`:
 
@@ -60,24 +60,24 @@ object FundFlowView:
   def apply(model: Model): Html[AppMsg] = ... // shows fundFlow.name
 ```
 
-**File:** `frontend/src/main/scala/perfectpair/model/model.scala`
+**File:** `frontend/src/main/scala/onparity/model/model.scala`
 
 Add `fundFlowViewModel: FundFlowView.Model = FundFlowView.Model()` to `Model`.
 
 Add `Msg.NavigateToFundFlow(ff: FundFlowPayload)` to `Msg`.
 
-**File:** `frontend/src/main/scala/perfectpair/page/Page.scala`
+**File:** `frontend/src/main/scala/onparity/page/Page.scala`
 
 Add `object FundFlow extends Page` with:
 - `render`: delegates to `FundFlowView(m.fundFlowViewModel)`
 - `update`: no-op initially
 - `doNavigate`: no API call needed (data is carried in the model)
 
-**File:** `frontend/src/main/scala/perfectpair/route/route.scala`
+**File:** `frontend/src/main/scala/onparity/route/route.scala`
 
 Add a route for `/components/fund-flow`.
 
-**File:** `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+**File:** `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 Handle `Msg.NavigateToFundFlow(ff)`:
 ```

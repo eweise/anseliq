@@ -14,26 +14,26 @@
 
 | File | Action |
 |------|--------|
-| `common/src/main/scala/perfectpair/common/model/Payload.scala` | Add `EventPayload` sealed trait + 3 subtypes |
-| `common/src/main/scala/perfectpair/common/http/http.scala` | Add `val events` to `HttpPath` |
-| `backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala` | Add `findByEventType` |
-| `backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala` | Implement `findByEventType` |
-| `backend/src/test/scala/perfectpair/adapter/driven/EventStateRepoLiveSuite.scala` | Add `findByEventType` tests |
-| `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala` | Add `eventPayloadFromDomain` |
-| `backend/src/test/scala/perfectpair/adapter/driving/PayloadSuite.scala` | New — unit tests for `eventPayloadFromDomain` |
-| `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala` | Add `eventRepo` using param + `getEvents` route |
+| `common/src/main/scala/onparity/common/model/Payload.scala` | Add `EventPayload` sealed trait + 3 subtypes |
+| `common/src/main/scala/onparity/common/http/http.scala` | Add `val events` to `HttpPath` |
+| `backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala` | Add `findByEventType` |
+| `backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala` | Implement `findByEventType` |
+| `backend/src/test/scala/onparity/adapter/driven/EventStateRepoLiveSuite.scala` | Add `findByEventType` tests |
+| `backend/src/main/scala/onparity/adapter/driving/Payload.scala` | Add `eventPayloadFromDomain` |
+| `backend/src/test/scala/onparity/adapter/driving/PayloadSuite.scala` | New — unit tests for `eventPayloadFromDomain` |
+| `backend/src/main/scala/onparity/adapter/driving/Routes.scala` | Add `eventRepo` using param + `getEvents` route |
 
 ---
 
 ### Task 1: Add EventPayload types and path constant to common
 
 **Files:**
-- Modify: `common/src/main/scala/perfectpair/common/model/Payload.scala`
-- Modify: `common/src/main/scala/perfectpair/common/http/http.scala`
+- Modify: `common/src/main/scala/onparity/common/model/Payload.scala`
+- Modify: `common/src/main/scala/onparity/common/http/http.scala`
 
 - [ ] **Step 1: Add `EventPayload` sealed hierarchy to `Payload.scala`**
 
-Append to the end of `common/src/main/scala/perfectpair/common/model/Payload.scala` (after the last `def combine...` function):
+Append to the end of `common/src/main/scala/onparity/common/model/Payload.scala` (after the last `def combine...` function):
 
 ```scala
 sealed trait EventPayload derives ReadWriter
@@ -76,7 +76,7 @@ case class NewFileDetectedPayload(
 
 - [ ] **Step 2: Add `events` path constant to `HttpPath`**
 
-In `common/src/main/scala/perfectpair/common/http/http.scala`, add inside `object HttpPath`:
+In `common/src/main/scala/onparity/common/http/http.scala`, add inside `object HttpPath`:
 
 ```scala
 val events = s"$prefix/events"
@@ -95,8 +95,8 @@ Expected: `[success] Total time: ...`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add common/src/main/scala/perfectpair/common/model/Payload.scala \
-        common/src/main/scala/perfectpair/common/http/http.scala
+git add common/src/main/scala/onparity/common/model/Payload.scala \
+        common/src/main/scala/onparity/common/http/http.scala
 git commit -m "feat(common): add EventPayload sealed hierarchy and events path constant"
 ```
 
@@ -105,13 +105,13 @@ git commit -m "feat(common): add EventPayload sealed hierarchy and events path c
 ### Task 2: Add `findByEventType` to EventRepo and EventRepoLive (TDD)
 
 **Files:**
-- Modify: `backend/src/test/scala/perfectpair/adapter/driven/EventStateRepoLiveSuite.scala`
-- Modify: `backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala`
+- Modify: `backend/src/test/scala/onparity/adapter/driven/EventStateRepoLiveSuite.scala`
+- Modify: `backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala`
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `backend/src/test/scala/perfectpair/adapter/driven/EventStateRepoLiveSuite.scala`:
+Add to `backend/src/test/scala/onparity/adapter/driven/EventStateRepoLiveSuite.scala`:
 
 ```scala
 test("findByEventType returns only events matching the given type"):
@@ -137,19 +137,19 @@ test("findByEventType returns empty vector when no events match"):
 - [ ] **Step 2: Run tests to see them fail**
 
 ```bash
-sbt "backend/testOnly perfectpair.adapter.driven.EventStateRepoLiveSuite"
+sbt "backend/testOnly onparity.adapter.driven.EventStateRepoLiveSuite"
 ```
 
 Expected: compile error — `value findByEventType is not a member of EventRepoLive`
 
 - [ ] **Step 3: Add `findByEventType` to the `EventRepo` port**
 
-In `backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala`:
+In `backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala`:
 
 ```scala
-package perfectpair.domain.port.driven
+package onparity.domain.port.driven
 
-import perfectpair.domain.model.EventState
+import onparity.domain.model.EventState
 
 trait EventRepo extends DomainRepo[EventState, EventState]:
   def getNextPendingEvent(eventType: String, maxRetries: Int): Txn[Option[EventState]]
@@ -158,14 +158,14 @@ trait EventRepo extends DomainRepo[EventState, EventState]:
 
 - [ ] **Step 4: Implement `findByEventType` in `EventRepoLive`**
 
-In `backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala`, add the override:
+In `backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala`, add the override:
 
 ```scala
-package perfectpair.adapter.driven
+package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Repo, sql}
-import perfectpair.domain.model.{EventState, EventStatus}
-import perfectpair.domain.port.driven.{EventRepo, Txn}
+import onparity.domain.model.{EventState, EventStatus}
+import onparity.domain.port.driven.{EventRepo, Txn}
 
 import java.util.UUID
 
@@ -192,7 +192,7 @@ class EventRepoLive extends Repo[EventState, EventState, UUID] with EventRepo:
 - [ ] **Step 5: Run tests to verify they pass**
 
 ```bash
-sbt "backend/testOnly perfectpair.adapter.driven.EventStateRepoLiveSuite"
+sbt "backend/testOnly onparity.adapter.driven.EventStateRepoLiveSuite"
 ```
 
 Expected: `[info] Tests: succeeded 7, failed 0, ...` (5 existing + 2 new)
@@ -200,9 +200,9 @@ Expected: `[info] Tests: succeeded 7, failed 0, ...` (5 existing + 2 new)
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala \
-        backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala \
-        backend/src/test/scala/perfectpair/adapter/driven/EventStateRepoLiveSuite.scala
+git add backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala \
+        backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala \
+        backend/src/test/scala/onparity/adapter/driven/EventStateRepoLiveSuite.scala
 git commit -m "feat(backend): add EventRepo.findByEventType with SQL implementation"
 ```
 
@@ -211,18 +211,18 @@ git commit -m "feat(backend): add EventRepo.findByEventType with SQL implementat
 ### Task 3: Add `eventPayloadFromDomain` to backend Payload (TDD)
 
 **Files:**
-- Create: `backend/src/test/scala/perfectpair/adapter/driving/PayloadSuite.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala`
+- Create: `backend/src/test/scala/onparity/adapter/driving/PayloadSuite.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Payload.scala`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `backend/src/test/scala/perfectpair/adapter/driving/PayloadSuite.scala`:
+Create `backend/src/test/scala/onparity/adapter/driving/PayloadSuite.scala`:
 
 ```scala
-package perfectpair.adapter.driving
+package onparity.adapter.driving
 
-import perfectpair.common.model.*
-import perfectpair.domain.model.*
+import onparity.common.model.*
+import onparity.domain.model.*
 
 import java.util.UUID
 
@@ -272,14 +272,14 @@ Note: this is a pure unit test — no database, no `transact`, no `rollBackOnly`
 - [ ] **Step 2: Run test to see it fail**
 
 ```bash
-sbt "backend/testOnly perfectpair.adapter.driving.PayloadSuite"
+sbt "backend/testOnly onparity.adapter.driving.PayloadSuite"
 ```
 
 Expected: compile error — `value eventPayloadFromDomain is not a member of object Payload`
 
 - [ ] **Step 3: Add `eventPayloadFromDomain` to backend `Payload.scala`**
 
-Append to `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala` (inside the `object Payload`):
+Append to `backend/src/main/scala/onparity/adapter/driving/Payload.scala` (inside the `object Payload`):
 
 ```scala
   def eventPayloadFromDomain(state: EventState): EventPayload =
@@ -319,12 +319,12 @@ Append to `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala` (in
         )
 ```
 
-`upickle.read[Event]` matches the pattern in `EventStore.scala` (line 33). The `ReadWriter[Event]` is derived in `Event.scala` and available via `import perfectpair.domain.model.*`.
+`upickle.read[Event]` matches the pattern in `EventStore.scala` (line 33). The `ReadWriter[Event]` is derived in `Event.scala` and available via `import onparity.domain.model.*`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-sbt "backend/testOnly perfectpair.adapter.driving.PayloadSuite"
+sbt "backend/testOnly onparity.adapter.driving.PayloadSuite"
 ```
 
 Expected: `[info] Tests: succeeded 3, failed 0, ...`
@@ -332,8 +332,8 @@ Expected: `[info] Tests: succeeded 3, failed 0, ...`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/adapter/driving/Payload.scala \
-        backend/src/test/scala/perfectpair/adapter/driving/PayloadSuite.scala
+git add backend/src/main/scala/onparity/adapter/driving/Payload.scala \
+        backend/src/test/scala/onparity/adapter/driving/PayloadSuite.scala
 git commit -m "feat(backend): add Payload.eventPayloadFromDomain converter"
 ```
 
@@ -342,11 +342,11 @@ git commit -m "feat(backend): add Payload.eventPayloadFromDomain converter"
 ### Task 4: Add `getEvents` route to App
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Routes.scala`
 
 - [ ] **Step 1: Add `eventRepo` to `App`'s `using` parameters**
 
-In `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`, update the `App` class signature to include `eventRepo: EventRepo`:
+In `backend/src/main/scala/onparity/adapter/driving/Routes.scala`, update the `App` class signature to include `eventRepo: EventRepo`:
 
 ```scala
 class App(using
@@ -383,7 +383,7 @@ Add the following method to the `App` class, alongside the other GET routes (e.g
       write(states.map(Payload.eventPayloadFromDomain))
 ```
 
-`request.queryParams` returns `Map[String, Seq[String]]`. With no `eventType` param, `findAll` is called (inherited from `DomainRepo` via `Repo`). The `write` call uses `ReadWriter[EventPayload]` derived in common; it's in scope via `import upickle.default.*` and `import perfectpair.common.model.*` already present in `Routes.scala`.
+`request.queryParams` returns `Map[String, Seq[String]]`. With no `eventType` param, `findAll` is called (inherited from `DomainRepo` via `Repo`). The `write` call uses `ReadWriter[EventPayload]` derived in common; it's in scope via `import upickle.default.*` and `import onparity.common.model.*` already present in `Routes.scala`.
 
 - [ ] **Step 3: Verify backend compiles**
 
@@ -396,6 +396,6 @@ Expected: `[success] Total time: ...`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/adapter/driving/Routes.scala
+git add backend/src/main/scala/onparity/adapter/driving/Routes.scala
 git commit -m "feat(backend): add GET /api/v1/events endpoint with optional eventType filter"
 ```

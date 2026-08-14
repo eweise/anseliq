@@ -40,12 +40,12 @@ Follows the established Tyrian (Elm-like) pattern used by `MovementSpecsView` an
 
 | Action | File |
 |--------|------|
-| Create | `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala` |
-| Modify | `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala` |
-| Modify | `frontend/src/main/scala/perfectpair/model/model.scala` |
-| Modify | `frontend/src/main/scala/perfectpair/page/Page.scala` |
-| Modify | `frontend/src/main/scala/perfectpair/main/WebApp.scala` |
-| Modify | `frontend/src/main/scala/perfectpair/util/HttpHelper.scala` |
+| Create | `frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala` |
+| Modify | `frontend/src/main/scala/onparity/view/pages/AccountsView.scala` |
+| Modify | `frontend/src/main/scala/onparity/model/model.scala` |
+| Modify | `frontend/src/main/scala/onparity/page/Page.scala` |
+| Modify | `frontend/src/main/scala/onparity/main/WebApp.scala` |
+| Modify | `frontend/src/main/scala/onparity/util/HttpHelper.scala` |
 
 ### ReconSpecsView internals
 

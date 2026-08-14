@@ -23,34 +23,34 @@
 
 **Backend — data model & schema:**
 - Modify `backend/db/schema.sql` — add `adjustment_reason` column.
-- Modify `backend/src/main/scala/perfectpair/domain/model/Reconciliation.scala` — add `Voided` status, `adjustmentReason` field.
-- Modify `backend/src/main/scala/perfectpair/domain/model/Movement.scala` — add `signedAmountFor`.
-- Modify `backend/src/main/scala/perfectpair/domain/model/Event.scala` — add 3 new event types.
-- Modify `backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala` — use the new shared `signedAmountFor` instead of its private duplicate.
+- Modify `backend/src/main/scala/onparity/domain/model/Reconciliation.scala` — add `Voided` status, `adjustmentReason` field.
+- Modify `backend/src/main/scala/onparity/domain/model/Movement.scala` — add `signedAmountFor`.
+- Modify `backend/src/main/scala/onparity/domain/model/Event.scala` — add 3 new event types.
+- Modify `backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala` — use the new shared `signedAmountFor` instead of its private duplicate.
 
 **Backend — service & routes:**
-- Create `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala` — `matchMovements`, `unmatch`, `writeOff`.
-- Create `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala`.
-- Modify `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala` — 3 new endpoints, wire `manualReconciler`.
-- Modify `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala` — update `reconFromDomain`.
-- Modify `backend/src/main/scala/perfectpair/app/Main.scala` — wire `given manualReconciler`.
+- Create `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala` — `matchMovements`, `unmatch`, `writeOff`.
+- Create `backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala`.
+- Modify `backend/src/main/scala/onparity/adapter/driving/Routes.scala` — 3 new endpoints, wire `manualReconciler`.
+- Modify `backend/src/main/scala/onparity/adapter/driving/Payload.scala` — update `reconFromDomain`.
+- Modify `backend/src/main/scala/onparity/app/Main.scala` — wire `given manualReconciler`.
 
 **Common (shared DTOs):**
-- Modify `common/src/main/scala/perfectpair/common/http/http.scala` — add `HttpPath.reconciliation`.
-- Modify `common/src/main/scala/perfectpair/common/model/Payload.scala` — `ManualMatchRequest`, `WriteOffRequest`, extend `ReconciliationPayload`.
+- Modify `common/src/main/scala/onparity/common/http/http.scala` — add `HttpPath.reconciliation`.
+- Modify `common/src/main/scala/onparity/common/model/Payload.scala` — `ManualMatchRequest`, `WriteOffRequest`, extend `ReconciliationPayload`.
 
 **Frontend:**
-- Create `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`.
-- Modify `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala` — new columns + actions + nav button.
-- Modify `frontend/src/main/scala/perfectpair/routing/Nav.scala` — `toManualMatch`.
-- Modify `frontend/src/main/scala/perfectpair/routing/Routes.scala` — register the new route.
+- Create `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`.
+- Modify `frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala` — new columns + actions + nav button.
+- Modify `frontend/src/main/scala/onparity/routing/Nav.scala` — `toManualMatch`.
+- Modify `frontend/src/main/scala/onparity/routing/Routes.scala` — register the new route.
 
 ---
 
 ### Task 1: `Reconciliation` data model — `Voided` status and `adjustmentReason`
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/model/Reconciliation.scala`
+- Modify: `backend/src/main/scala/onparity/domain/model/Reconciliation.scala`
 - Modify: `backend/db/schema.sql:59-69`
 
 **Interfaces:**
@@ -60,14 +60,14 @@ This is a pure data-shape change with no branching logic of its own, so it's ver
 
 - [ ] **Step 1: Add `Voided` to `ReconciliationStatus` and `adjustmentReason` to `Reconciliation`**
 
-Edit `backend/src/main/scala/perfectpair/domain/model/Reconciliation.scala`:
+Edit `backend/src/main/scala/onparity/domain/model/Reconciliation.scala`:
 
 ```scala
-package perfectpair.domain.model
+package onparity.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.{ID, Money}
-import perfectpair.domain.model.ReconciliationStatus.Final
+import onparity.common.model.model.{ID, Money}
+import onparity.domain.model.ReconciliationStatus.Final
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -134,7 +134,7 @@ Expected: `[success]`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/model/Reconciliation.scala backend/db/schema.sql
+git add backend/src/main/scala/onparity/domain/model/Reconciliation.scala backend/db/schema.sql
 git commit -m "Add Voided status and adjustmentReason to Reconciliation"
 ```
 
@@ -143,19 +143,19 @@ git commit -m "Add Voided status and adjustmentReason to Reconciliation"
 ### Task 2: New domain events for manual actions
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/model/Event.scala`
+- Modify: `backend/src/main/scala/onparity/domain/model/Event.scala`
 
 **Interfaces:**
 - Produces: `ReconciliationManuallyMatched`, `ReconciliationVoided`, `ReconciliationWrittenOff` (all extend `Event`) — used by Task 6–8's `ManualReconciler`.
 
 - [ ] **Step 1: Add the three event case classes**
 
-Edit `backend/src/main/scala/perfectpair/domain/model/Event.scala`:
+Edit `backend/src/main/scala/onparity/domain/model/Event.scala`:
 
 ```scala
-package perfectpair.domain.model
+package onparity.domain.model
 
-import perfectpair.common.model.model.ID
+import onparity.common.model.model.ID
 import upickle.ReadWriter
 
 import java.util.UUID
@@ -189,7 +189,7 @@ Expected: `[success]`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/model/Event.scala
+git add backend/src/main/scala/onparity/domain/model/Event.scala
 git commit -m "Add manual-reconciliation domain events"
 ```
 
@@ -198,8 +198,8 @@ git commit -m "Add manual-reconciliation domain events"
 ### Task 3: Extract `signedAmountFor` onto `Movement`, refactor `InMemoryReconciler`
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/model/Movement.scala`
-- Modify: `backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala:95,139,143,176,189,207-208`
+- Modify: `backend/src/main/scala/onparity/domain/model/Movement.scala`
+- Modify: `backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala:95,139,143,176,189,207-208`
 
 **Interfaces:**
 - Produces: `Movement.signedAmountFor(accountID: ID): Money` — used by `InMemoryReconciler` (this task) and `ManualReconciler` (Task 6-8).
@@ -208,14 +208,14 @@ This is a pure refactor (no behavior change), so it's verified by keeping the ex
 
 - [ ] **Step 1: Add `signedAmountFor` to `Movement`**
 
-Edit `backend/src/main/scala/perfectpair/domain/model/Movement.scala`:
+Edit `backend/src/main/scala/onparity/domain/model/Movement.scala`:
 
 ```scala
-package perfectpair.domain.model
+package onparity.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.{ID, Money}
-import perfectpair.domain.model.helper.JSONBProps
+import onparity.common.model.model.{ID, Money}
+import onparity.domain.model.helper.JSONBProps
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -247,7 +247,7 @@ object Movement:
 
 - [ ] **Step 2: Remove the private duplicate and update call sites in `InMemoryReconciler`**
 
-In `backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala`:
+In `backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala`:
 
 Delete the private method (currently lines 207-208):
 ```scala
@@ -265,7 +265,7 @@ Replace each of its 5 call sites:
 - [ ] **Step 3: Run the existing reconciler suite to confirm no regression**
 
 ```bash
-sbt "backend/testOnly perfectpair.domain.service.InmemoryReconcilerSuite"
+sbt "backend/testOnly onparity.domain.service.InmemoryReconcilerSuite"
 ```
 
 Expected: all tests pass (same as before the refactor).
@@ -273,7 +273,7 @@ Expected: all tests pass (same as before the refactor).
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/model/Movement.scala backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala
+git add backend/src/main/scala/onparity/domain/model/Movement.scala backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala
 git commit -m "Extract signedAmountFor onto Movement, share it with InMemoryReconciler"
 ```
 
@@ -282,15 +282,15 @@ git commit -m "Extract signedAmountFor onto Movement, share it with InMemoryReco
 ### Task 4: Shared DTOs — `ManualMatchRequest`, `WriteOffRequest`, extend `ReconciliationPayload`
 
 **Files:**
-- Modify: `common/src/main/scala/perfectpair/common/http/http.scala:7-22`
-- Modify: `common/src/main/scala/perfectpair/common/model/Payload.scala:106-114`
+- Modify: `common/src/main/scala/onparity/common/http/http.scala:7-22`
+- Modify: `common/src/main/scala/onparity/common/model/Payload.scala:106-114`
 
 **Interfaces:**
 - Produces: `ManualMatchRequest(inMovementIds, outMovementIds, description)`, `WriteOffRequest(reason)`, extended `ReconciliationPayload(..., balance: Money, adjustmentReason: Option[String])` — used by Task 5 (mapping), Task 9 (routes), Task 10-11 (frontend).
 
 - [ ] **Step 1: Add `HttpPath.reconciliation`**
 
-Edit `common/src/main/scala/perfectpair/common/http/http.scala`, in `object HttpPath`:
+Edit `common/src/main/scala/onparity/common/http/http.scala`, in `object HttpPath`:
 
 ```scala
 object HttpPath:
@@ -314,7 +314,7 @@ object HttpPath:
 
 - [ ] **Step 2: Add request DTOs and extend `ReconciliationPayload`**
 
-Edit `common/src/main/scala/perfectpair/common/model/Payload.scala`, replacing the existing `ReconciliationPayload` (currently lines 106-114):
+Edit `common/src/main/scala/onparity/common/model/Payload.scala`, replacing the existing `ReconciliationPayload` (currently lines 106-114):
 
 ```scala
 case class ReconciliationPayload(
@@ -349,7 +349,7 @@ Expected: `[success]`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add common/src/main/scala/perfectpair/common/http/http.scala common/src/main/scala/perfectpair/common/model/Payload.scala
+git add common/src/main/scala/onparity/common/http/http.scala common/src/main/scala/onparity/common/model/Payload.scala
 git commit -m "Add ManualMatchRequest/WriteOffRequest DTOs, extend ReconciliationPayload"
 ```
 
@@ -358,7 +358,7 @@ git commit -m "Add ManualMatchRequest/WriteOffRequest DTOs, extend Reconciliatio
 ### Task 5: Update `reconFromDomain` mapping
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala:92-101`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Payload.scala:92-101`
 
 **Interfaces:**
 - Consumes: `Reconciliation.balance`, `Reconciliation.adjustmentReason` (Task 1), `ReconciliationPayload` (Task 4).
@@ -366,7 +366,7 @@ git commit -m "Add ManualMatchRequest/WriteOffRequest DTOs, extend Reconciliatio
 
 - [ ] **Step 1: Populate the new fields**
 
-Edit `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala`, replacing `reconFromDomain` (currently lines 92-101):
+Edit `backend/src/main/scala/onparity/adapter/driving/Payload.scala`, replacing `reconFromDomain` (currently lines 92-101):
 
 ```scala
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
@@ -394,7 +394,7 @@ Expected: `[success]`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/adapter/driving/Payload.scala
+git add backend/src/main/scala/onparity/adapter/driving/Payload.scala
 git commit -m "Populate balance and adjustmentReason in reconFromDomain"
 ```
 
@@ -403,8 +403,8 @@ git commit -m "Populate balance and adjustmentReason in reconFromDomain"
 ### Task 6: `ManualReconciler.matchMovements`
 
 **Files:**
-- Create: `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala`
-- Create: `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala`
+- Create: `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala`
+- Create: `backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala`
 
 **Interfaces:**
 - Consumes: `Movement.signedAmountFor` (Task 3), `Reconciliation` with `Voided`/`adjustmentReason` (Task 1), `ReconciliationManuallyMatched` event (Task 2), `MovementRepo.findAllById` (existing, from `DomainRepo`), `MovementRepo.findByReconciliationID` (existing).
@@ -412,18 +412,18 @@ git commit -m "Populate balance and adjustmentReason in reconFromDomain"
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala`:
+Create `backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala`:
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.model.{IllegalArgumentError, IllegalStateError, Movement, MovementSpec, ReconciliationStatus}
-import perfectpair.testing.rollBackOnly
+import onparity.adapter.driven.{DbDataSource, EventRepoLive}
+import onparity.domain.DataSetup
+import onparity.domain.model.helper.JSONBProps
+import onparity.domain.model.{IllegalArgumentError, IllegalStateError, Movement, MovementSpec, ReconciliationStatus}
+import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -544,21 +544,21 @@ class ManualReconcilerSuite extends munit.FunSuite:
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-sbt "backend/testOnly perfectpair.domain.service.ManualReconcilerSuite"
+sbt "backend/testOnly onparity.domain.service.ManualReconcilerSuite"
 ```
 
 Expected: compile error — `ManualReconciler` does not exist. (If it somehow compiles, the tests still fail with "not found: value ManualReconciler" — either way, confirms the code doesn't exist yet.)
 
 - [ ] **Step 3: Write `ManualReconciler` with `matchMovements`**
 
-Create `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala`:
+Create `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala`:
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
-import perfectpair.common.model.model.{ID, Money, Zero}
-import perfectpair.domain.model.*
-import perfectpair.domain.port.driven.*
+import onparity.common.model.model.{ID, Money, Zero}
+import onparity.domain.model.*
+import onparity.domain.port.driven.*
 
 class ManualReconciler(using
   val accountRepo:   AccountRepo,
@@ -630,7 +630,7 @@ class ManualReconciler(using
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-sbt "backend/testOnly perfectpair.domain.service.ManualReconcilerSuite"
+sbt "backend/testOnly onparity.domain.service.ManualReconcilerSuite"
 ```
 
 Expected: all 5 tests pass.
@@ -638,7 +638,7 @@ Expected: all 5 tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala
+git add backend/src/main/scala/onparity/domain/service/ManualReconciler.scala backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala
 git commit -m "Add ManualReconciler.matchMovements"
 ```
 
@@ -647,8 +647,8 @@ git commit -m "Add ManualReconciler.matchMovements"
 ### Task 7: `ManualReconciler.unmatch`
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala`
-- Modify: `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala`
+- Modify: `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala`
+- Modify: `backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala`
 
 **Interfaces:**
 - Consumes: same as Task 6, plus `ReconciliationVoided` event (Task 2).
@@ -656,7 +656,7 @@ git commit -m "Add ManualReconciler.matchMovements"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala`:
+Append to `backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala`:
 
 ```scala
   test("unmatch reverses account balances and returns movements to unreconciled"):
@@ -706,14 +706,14 @@ Append to `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSui
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-sbt "backend/testOnly perfectpair.domain.service.ManualReconcilerSuite"
+sbt "backend/testOnly onparity.domain.service.ManualReconcilerSuite"
 ```
 
 Expected: the two new tests fail with "value unmatch is not a member of ManualReconciler".
 
 - [ ] **Step 3: Implement `unmatch`**
 
-Add to `ManualReconciler` in `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala` (after `matchMovements`):
+Add to `ManualReconciler` in `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala` (after `matchMovements`):
 
 ```scala
   def unmatch(reconciliationId: ID): Txn[Unit] =
@@ -744,7 +744,7 @@ Add to `ManualReconciler` in `backend/src/main/scala/perfectpair/domain/service/
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-sbt "backend/testOnly perfectpair.domain.service.ManualReconcilerSuite"
+sbt "backend/testOnly onparity.domain.service.ManualReconcilerSuite"
 ```
 
 Expected: all 7 tests pass.
@@ -752,7 +752,7 @@ Expected: all 7 tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala
+git add backend/src/main/scala/onparity/domain/service/ManualReconciler.scala backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala
 git commit -m "Add ManualReconciler.unmatch"
 ```
 
@@ -761,8 +761,8 @@ git commit -m "Add ManualReconciler.unmatch"
 ### Task 8: `ManualReconciler.writeOff`
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala`
-- Modify: `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala`
+- Modify: `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala`
+- Modify: `backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala`
 
 **Interfaces:**
 - Consumes: same as Task 6/7, plus `ReconciliationWrittenOff` event (Task 2), `InMemoryReconciler` (existing, for the regression test).
@@ -770,7 +770,7 @@ git commit -m "Add ManualReconciler.unmatch"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala`:
+Append to `backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala`:
 
 ```scala
   test("writeOff closes an InProgress reconciliation with a reason and leaves account balances untouched"):
@@ -854,14 +854,14 @@ Append to `backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSui
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-sbt "backend/testOnly perfectpair.domain.service.ManualReconcilerSuite"
+sbt "backend/testOnly onparity.domain.service.ManualReconcilerSuite"
 ```
 
 Expected: the 4 new tests fail with "value writeOff is not a member of ManualReconciler".
 
 - [ ] **Step 3: Implement `writeOff`**
 
-Add to `ManualReconciler` in `backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala` (after `unmatch`):
+Add to `ManualReconciler` in `backend/src/main/scala/onparity/domain/service/ManualReconciler.scala` (after `unmatch`):
 
 ```scala
   def writeOff(reconciliationId: ID, reason: String): Txn[Unit] =
@@ -879,7 +879,7 @@ Add to `ManualReconciler` in `backend/src/main/scala/perfectpair/domain/service/
 - [ ] **Step 4: Run the tests to verify they pass**
 
 ```bash
-sbt "backend/testOnly perfectpair.domain.service.ManualReconcilerSuite"
+sbt "backend/testOnly onparity.domain.service.ManualReconcilerSuite"
 ```
 
 Expected: all 11 tests pass.
@@ -895,7 +895,7 @@ Expected: same pass/fail counts as before this feature (pre-existing `CreateFile
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/ManualReconciler.scala backend/src/test/scala/perfectpair/domain/service/ManualReconcilerSuite.scala
+git add backend/src/main/scala/onparity/domain/service/ManualReconciler.scala backend/src/test/scala/onparity/domain/service/ManualReconcilerSuite.scala
 git commit -m "Add ManualReconciler.writeOff"
 ```
 
@@ -904,8 +904,8 @@ git commit -m "Add ManualReconciler.writeOff"
 ### Task 9: Wire `ManualReconciler` into `Main.scala` and add REST endpoints
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala:36-41`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`
+- Modify: `backend/src/main/scala/onparity/app/Main.scala:36-41`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Routes.scala`
 
 **Interfaces:**
 - Consumes: `ManualReconciler` (Task 6-8), `ManualMatchRequest`/`WriteOffRequest`/`HttpPath.reconciliation` (Task 4), `Payload.reconFromDomain` (Task 5).
@@ -913,7 +913,7 @@ git commit -m "Add ManualReconciler.writeOff"
 
 - [ ] **Step 1: Wire the service in `Main.scala`**
 
-Edit `backend/src/main/scala/perfectpair/app/Main.scala`, adding after the existing `given reconciler: InMemoryReconciler = InMemoryReconciler()` (line 41):
+Edit `backend/src/main/scala/onparity/app/Main.scala`, adding after the existing `given reconciler: InMemoryReconciler = InMemoryReconciler()` (line 41):
 
 ```scala
     given reconciler:       InMemoryReconciler = InMemoryReconciler()
@@ -922,7 +922,7 @@ Edit `backend/src/main/scala/perfectpair/app/Main.scala`, adding after the exist
 
 - [ ] **Step 2: Add `manualReconciler` to `App`'s constructor params**
 
-Edit `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`, in `class App(using ...)`, adding after `reconciler: InMemoryReconciler`:
+Edit `backend/src/main/scala/onparity/adapter/driving/Routes.scala`, in `class App(using ...)`, adding after `reconciler: InMemoryReconciler`:
 
 ```scala
 class App(using
@@ -945,7 +945,7 @@ class App(using
 
 - [ ] **Step 3: Add the three routes**
 
-Edit `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`, adding after the existing `reoncileAccount` route:
+Edit `backend/src/main/scala/onparity/adapter/driving/Routes.scala`, adding after the existing `reoncileAccount` route:
 
 ```scala
   @cask.route(s"${HttpPath.reconSpec}/:id/manual-match", methods = HttpCmd.POST)
@@ -997,7 +997,7 @@ Expected: a 4xx/error response body mentioning the empty selection (not a 404 fo
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/app/Main.scala backend/src/main/scala/perfectpair/adapter/driving/Routes.scala
+git add backend/src/main/scala/onparity/app/Main.scala backend/src/main/scala/onparity/adapter/driving/Routes.scala
 git commit -m "Wire ManualReconciler and add manual-match/unmatch/write-off endpoints"
 ```
 
@@ -1006,9 +1006,9 @@ git commit -m "Wire ManualReconciler and add manual-match/unmatch/write-off endp
 ### Task 10: `ManualMatchPage` (frontend)
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Nav.scala:40-41`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Routes.scala:25`
+- Create: `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Nav.scala:40-41`
+- Modify: `frontend/src/main/scala/onparity/routing/Routes.scala:25`
 
 **Interfaces:**
 - Consumes: `AppState.editReconSpec: Var[Option[ReconciliationSpecPayload]]` (existing), `GET /movements/:movementSpecID/unreconciled` (existing), `POST /recon-spec/:id/manual-match` (Task 9), `ManualMatchRequest`/`ReconciliationPayload` (Task 4), `Table.create`, `Buttons.linkButton`/`textButton` (existing), `ApiClient.get`/`post` (existing).
@@ -1016,7 +1016,7 @@ git commit -m "Wire ManualReconciler and add manual-match/unmatch/write-off endp
 
 - [ ] **Step 1: Add `Nav.toManualMatch`**
 
-Edit `frontend/src/main/scala/perfectpair/routing/Nav.scala`, adding after `toReconciliations`:
+Edit `frontend/src/main/scala/onparity/routing/Nav.scala`, adding after `toReconciliations`:
 
 ```scala
   def toReconciliations(accountId: String): Unit =
@@ -1028,7 +1028,7 @@ Edit `frontend/src/main/scala/perfectpair/routing/Nav.scala`, adding after `toRe
 
 - [ ] **Step 2: Register the route**
 
-Edit `frontend/src/main/scala/perfectpair/routing/Routes.scala`, adding inside `firstMatch(...)` after the `reconciliations` route:
+Edit `frontend/src/main/scala/onparity/routing/Routes.scala`, adding inside `firstMatch(...)` after the `reconciliations` route:
 
 ```scala
           path("accounts" / segment / "reconciliations")(accountId => ReconciliationsPage(accountId)),
@@ -1037,18 +1037,18 @@ Edit `frontend/src/main/scala/perfectpair/routing/Routes.scala`, adding inside `
 
 - [ ] **Step 3: Write `ManualMatchPage`**
 
-Create `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`:
+Create `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{ManualMatchRequest, MovementPayload, ReconciliationPayload, ReconciliationSpecPayload}
-import perfectpair.http.ApiClient
-import perfectpair.routing.Nav
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.http.HttpPath
+import onparity.common.model.{ManualMatchRequest, MovementPayload, ReconciliationPayload, ReconciliationSpecPayload}
+import onparity.http.ApiClient
+import onparity.routing.Nav
+import onparity.state.{AppState, SessionStore}
+import onparity.view.components.{Buttons, Table}
 import upickle.default.*
 
 object ManualMatchPage:
@@ -1193,7 +1193,7 @@ Expected: `[success]`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala frontend/src/main/scala/perfectpair/routing/Nav.scala frontend/src/main/scala/perfectpair/routing/Routes.scala
+git add frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala frontend/src/main/scala/onparity/routing/Nav.scala frontend/src/main/scala/onparity/routing/Routes.scala
 git commit -m "Add ManualMatchPage for manually matching unreconciled movements"
 ```
 
@@ -1202,7 +1202,7 @@ git commit -m "Add ManualMatchPage for manually matching unreconciled movements"
 ### Task 11: Extend `ReconciliationsPage` with Unmatch / Write-Off actions
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala`
 
 **Interfaces:**
 - Consumes: extended `ReconciliationPayload` (Task 4), `POST /reconciliation/:id/unmatch`, `POST /reconciliation/:id/write-off` (Task 9), `Nav.toManualMatch` (Task 10).
@@ -1210,19 +1210,19 @@ git commit -m "Add ManualMatchPage for manually matching unreconciled movements"
 
 - [ ] **Step 1: Rewrite the page**
 
-Replace the full contents of `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala`:
+Replace the full contents of `frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala`:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{ReconciliationPayload, ReconciliationSpecPayload, WriteOffRequest}
-import perfectpair.http.ApiClient
-import perfectpair.routing.Nav
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.http.HttpPath
+import onparity.common.model.{ReconciliationPayload, ReconciliationSpecPayload, WriteOffRequest}
+import onparity.http.ApiClient
+import onparity.routing.Nav
+import onparity.state.{AppState, SessionStore}
+import onparity.view.ViewHelper
+import onparity.view.components.{Buttons, Table}
 import upickle.default.*
 
 object ReconciliationsPage:
@@ -1344,7 +1344,7 @@ Run the app per this repo's normal dev workflow. Navigate: Fund Flow → an acco
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ReconciliationsPage.scala
+git add frontend/src/main/scala/onparity/view/pages/ReconciliationsPage.scala
 git commit -m "Add Unmatch/Write-Off actions and Manual Match entry point to ReconciliationsPage"
 ```
 

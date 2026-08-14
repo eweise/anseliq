@@ -21,19 +21,19 @@
 ### Task 1: Fix reconciliation matching bug
 
 **Files:**
-- Modify: `common/src/main/scala/perfectpair/common/model/Rules.scala`
-- Modify: `backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala`
-- Modify: `backend/src/main/scala/perfectpair/domain/service/Reconciler.scala`
-- Modify: `backend/src/test/scala/perfectpair/adapter/driven/MovementRepoLiveSuite.scala` (compile-only fix to an `.ignore`d test)
-- Test: `backend/src/test/scala/perfectpair/domain/service/ReconcilerSuite.scala`
+- Modify: `common/src/main/scala/onparity/common/model/Rules.scala`
+- Modify: `backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driven/MovementRepoLive.scala`
+- Modify: `backend/src/main/scala/onparity/domain/service/Reconciler.scala`
+- Modify: `backend/src/test/scala/onparity/adapter/driven/MovementRepoLiveSuite.scala` (compile-only fix to an `.ignore`d test)
+- Test: `backend/src/test/scala/onparity/domain/service/ReconcilerSuite.scala`
 
 **Interfaces:**
-- Produces: `MovementRepo.findEqualityMatches(sqlCriteria: String, inMovementSpecId: ID, outMovementSpecId: ID, relationship: Relationship): Txn[Vector[(MovementInID, MovementOutID)]]` — the signature every later task's reconciliation call must use (`ID` = `perfectpair.common.model.model.ID`, i.e. `UUID`).
+- Produces: `MovementRepo.findEqualityMatches(sqlCriteria: String, inMovementSpecId: ID, outMovementSpecId: ID, relationship: Relationship): Txn[Vector[(MovementInID, MovementOutID)]]` — the signature every later task's reconciliation call must use (`ID` = `onparity.common.model.model.ID`, i.e. `UUID`).
 
 - [ ] **Step 1: Write the failing test**
 
-In `backend/src/test/scala/perfectpair/domain/service/ReconcilerSuite.scala`, add a new test (leave the existing `.ignore`d test and `createMovement` helper untouched — this reuses `createMovement`). Insert it after the `test("Post Amount balances".ignore): ...` block and before `def createMovement(...)`:
+In `backend/src/test/scala/onparity/domain/service/ReconcilerSuite.scala`, add a new test (leave the existing `.ignore`d test and `createMovement` helper untouched — this reuses `createMovement`). Insert it after the `test("Post Amount balances".ignore): ...` block and before `def createMovement(...)`:
 
 ```scala
   test("reconcileAccount matches movements sharing the same id and marks both sides reconciled"):
@@ -65,13 +65,13 @@ In `backend/src/test/scala/perfectpair/domain/service/ReconcilerSuite.scala`, ad
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReconcilerSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReconcilerSuite"`
 
 Expected: FAIL — the new test fails its `nonEmpty` assertions because `StringAttributeMatchRule.sql` currently hardcodes `move_in.movement_spec_id = ''` / `move_out.movement_spec_id = ''`, which can never be true, so `findEqualityMatches` returns zero rows and nothing gets reconciled. (The other tests in the file, including the pre-existing `.ignore`d one, are unaffected.)
 
 - [ ] **Step 3: Implement the fix**
 
-In `common/src/main/scala/perfectpair/common/model/Rules.scala`, both `StringAttributeMatchRule.sql` and `DateAttributeMatchRule.sql` currently end with:
+In `common/src/main/scala/onparity/common/model/Rules.scala`, both `StringAttributeMatchRule.sql` and `DateAttributeMatchRule.sql` currently end with:
 
 ```scala
     s""" move_in.movement_spec_id = ''
@@ -85,7 +85,7 @@ Replace **both** occurrences (they are byte-identical) with:
     s"$inModifiedFrag = $outModifiedFrag"
 ```
 
-In `backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala`, replace:
+In `backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala`, replace:
 
 ```scala
   def findEqualityMatches(
@@ -105,7 +105,7 @@ with:
   ): Txn[Vector[(MovementInID, MovementOutID)]]
 ```
 
-In `backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala`, replace the whole `findEqualityMatches` method:
+In `backend/src/main/scala/onparity/adapter/driven/MovementRepoLive.scala`, replace the whole `findEqualityMatches` method:
 
 ```scala
   def findEqualityMatches(
@@ -159,7 +159,7 @@ with:
     """.query[(String, String)].run()
 ```
 
-In `backend/src/main/scala/perfectpair/domain/service/Reconciler.scala`, replace:
+In `backend/src/main/scala/onparity/domain/service/Reconciler.scala`, replace:
 
 ```scala
       val matches = movementRepo.findEqualityMatches(reconSpec.rule().sql, reconSpec.relationship)
@@ -177,7 +177,7 @@ with:
 ```
 
 Finally, fix the two call sites in the `.ignore`d test `test("findMatches".ignore)` in
-`backend/src/test/scala/perfectpair/adapter/driven/MovementRepoLiveSuite.scala` so the file still
+`backend/src/test/scala/onparity/adapter/driven/MovementRepoLiveSuite.scala` so the file still
 compiles (an `.ignore`d munit test is still compiled, just not run). In that test, `inReconMovement`
 (`inAccountId = data.reconAccount.id`) plays the `move_in` role with `movementSpecId = data.reportToRecon.id`,
 and `outReconMovement` (`outAccountId = data.reconAccount.id`) plays the `move_out` role with
@@ -211,7 +211,7 @@ with:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.ReconcilerSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.ReconcilerSuite"`
 
 Expected: PASS (all tests in the file, including the new one; the `.ignore`d one still shows as ignored, not run).
 
@@ -224,12 +224,12 @@ Expected: PASS. (This also confirms `MovementRepoLiveSuite.scala` compiles.)
 - [ ] **Step 6: Commit**
 
 ```bash
-git add common/src/main/scala/perfectpair/common/model/Rules.scala \
-        backend/src/main/scala/perfectpair/domain/port/driven/MovementRepo.scala \
-        backend/src/main/scala/perfectpair/adapter/driven/MovementRepoLive.scala \
-        backend/src/main/scala/perfectpair/domain/service/Reconciler.scala \
-        backend/src/test/scala/perfectpair/adapter/driven/MovementRepoLiveSuite.scala \
-        backend/src/test/scala/perfectpair/domain/service/ReconcilerSuite.scala
+git add common/src/main/scala/onparity/common/model/Rules.scala \
+        backend/src/main/scala/onparity/domain/port/driven/MovementRepo.scala \
+        backend/src/main/scala/onparity/adapter/driven/MovementRepoLive.scala \
+        backend/src/main/scala/onparity/domain/service/Reconciler.scala \
+        backend/src/test/scala/onparity/adapter/driven/MovementRepoLiveSuite.scala \
+        backend/src/test/scala/onparity/domain/service/ReconcilerSuite.scala
 git commit -m "Fix reconciliation matching to filter by real movement spec IDs
 
 StringAttributeMatchRule/DateAttributeMatchRule hardcoded
@@ -244,8 +244,8 @@ inMovementSpecId/outMovementSpecId and filters on those instead."
 ### Task 2: Large-file fixture generator
 
 **Files:**
-- Create: `backend/src/test/scala/perfectpair/testing/LargeFileFixtures.scala`
-- Test: `backend/src/test/scala/perfectpair/testing/LargeFileFixturesSuite.scala`
+- Create: `backend/src/test/scala/onparity/testing/LargeFileFixtures.scala`
+- Test: `backend/src/test/scala/onparity/testing/LargeFileFixturesSuite.scala`
 
 **Interfaces:**
 - Consumes: nothing from Task 1.
@@ -253,10 +253,10 @@ inMovementSpecId/outMovementSpecId and filters on those instead."
 
 - [ ] **Step 1: Write the failing test**
 
-Create `backend/src/test/scala/perfectpair/testing/LargeFileFixturesSuite.scala`:
+Create `backend/src/test/scala/onparity/testing/LargeFileFixturesSuite.scala`:
 
 ```scala
-package perfectpair.testing
+package onparity.testing
 
 import java.nio.file.Files
 
@@ -283,16 +283,16 @@ class LargeFileFixturesSuite extends munit.FunSuite:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.testing.LargeFileFixturesSuite"`
+Run: `sbt "backend/testOnly onparity.testing.LargeFileFixturesSuite"`
 
-Expected: FAIL to compile — `perfectpair.testing.LargeFileFixtures` doesn't exist yet.
+Expected: FAIL to compile — `onparity.testing.LargeFileFixtures` doesn't exist yet.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Create `backend/src/test/scala/perfectpair/testing/LargeFileFixtures.scala`:
+Create `backend/src/test/scala/onparity/testing/LargeFileFixtures.scala`:
 
 ```scala
-package perfectpair.testing
+package onparity.testing
 
 import java.io.{BufferedWriter, File, FileWriter}
 
@@ -321,15 +321,15 @@ object LargeFileFixtures:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `sbt "backend/testOnly perfectpair.testing.LargeFileFixturesSuite"`
+Run: `sbt "backend/testOnly onparity.testing.LargeFileFixturesSuite"`
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/test/scala/perfectpair/testing/LargeFileFixtures.scala \
-        backend/src/test/scala/perfectpair/testing/LargeFileFixturesSuite.scala
+git add backend/src/test/scala/onparity/testing/LargeFileFixtures.scala \
+        backend/src/test/scala/onparity/testing/LargeFileFixturesSuite.scala
 git commit -m "Add LargeFileFixtures generator for large-file ingestion tests
 
 Streams id,amount CSV rows to a cached file under backend/target so
@@ -342,7 +342,7 @@ resource pipeline or git history."
 ### Task 3: Large-file ingestion & reconciliation test, excluded from the normal cycle
 
 **Files:**
-- Create: `backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`
+- Create: `backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala`
 - Modify: `build.sbt`
 
 **Interfaces:**
@@ -351,19 +351,19 @@ resource pipeline or git history."
 
 - [ ] **Step 1: Write the test**
 
-Create `backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`:
+Create `backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala`:
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.*
-import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.*
-import perfectpair.domain.port.driven.*
-import perfectpair.testing.{LargeFileFixtures, rollBackOnly}
+import onparity.adapter.driven.*
+import onparity.common.model.{CSVParserConfig, DataSourceConfig}
+import onparity.domain.DataSetup
+import onparity.domain.model.*
+import onparity.domain.port.driven.*
+import onparity.testing.{LargeFileFixtures, rollBackOnly}
 
 import java.io.{BufferedInputStream, FileInputStream}
 import javax.sql.DataSource
@@ -371,7 +371,7 @@ import javax.sql.DataSource
 // Excluded from the normal `sbt test` cycle in build.sbt — ingests and reconciles
 // two 5,000,000-row files, which takes on the order of hours given Reconciler's
 // current per-row (non-batched) matching loop. Run explicitly with:
-//   sbt "backend/testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"
+//   sbt "backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"
 class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
   given transactor: Transactor = Transactor(dataSource)
 
@@ -452,7 +452,7 @@ out during implementation. Instead, temporarily change both
 the test to `LargeFileFixtures.journalFile(rows = 1000)` and
 `LargeFileFixtures.reportFile(rows = 1000)`, then run:
 
-`sbt "backend/testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"`
+`sbt "backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"`
 
 Expected: PASS in well under a minute. This exercises exactly the same code
 path (ingest both files, reconcile, assert zero balances and zero
@@ -471,25 +471,25 @@ In `build.sbt`, replace:
 
 ```scala
     // DataSetupScenario1 seeds real, committed data into the local dev DB (no rollBackOnly) and is meant
-    // to be run explicitly (sbt "testOnly perfectpair.testing.DataSetupScenario1"), not as part of the
+    // to be run explicitly (sbt "testOnly onparity.testing.DataSetupScenario1"), not as part of the
     // regular suite where it would pollute state for every other test. Scoped to the `test` task only
     // (not `testOnly`/`testQuick`) so explicit invocation still works.
-    Test / test / testOptions += Tests.Filter(name => name != "perfectpair.testing.DataSetupScenario1"),
+    Test / test / testOptions += Tests.Filter(name => name != "onparity.testing.DataSetupScenario1"),
 ```
 
 with:
 
 ```scala
     // DataSetupScenario1 seeds real, committed data into the local dev DB (no rollBackOnly) and is meant
-    // to be run explicitly (sbt "testOnly perfectpair.testing.DataSetupScenario1"), not as part of the
+    // to be run explicitly (sbt "testOnly onparity.testing.DataSetupScenario1"), not as part of the
     // regular suite where it would pollute state for every other test. LargeFileIngestionReconciliationSuite
     // ingests and reconciles two 5,000,000-row files, which takes on the order of hours given Reconciler's
     // current per-row matching loop, and is likewise meant to be run explicitly
-    // (sbt "testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"). Both are scoped to
+    // (sbt "testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"). Both are scoped to
     // the `test` task only (not `testOnly`/`testQuick`) so explicit invocation still works.
     Test / test / testOptions += Tests.Filter(name =>
-      name != "perfectpair.testing.DataSetupScenario1" &&
-        name != "perfectpair.domain.service.LargeFileIngestionReconciliationSuite"
+      name != "onparity.testing.DataSetupScenario1" &&
+        name != "onparity.domain.service.LargeFileIngestionReconciliationSuite"
     ),
 ```
 
@@ -506,12 +506,12 @@ Then confirm explicit invocation still works (this is the real, full
 this step is documenting the command, not something to wait out in this
 session):
 
-`sbt "backend/testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"`
+`sbt "backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"`
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala \
+git add backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala \
         build.sbt
 git commit -m "Add explicitly-invoked large-file ingestion/reconciliation test
 
@@ -520,5 +520,5 @@ account nets to zero balance/unreconciledBalance and every movement ends
 up reconciled. Excluded from the normal sbt test cycle (mirrors the
 existing DataSetupScenario1 exclusion) since a full run takes on the
 order of hours; run explicitly with
-sbt \"backend/testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite\"."
+sbt \"backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite\"."
 ```

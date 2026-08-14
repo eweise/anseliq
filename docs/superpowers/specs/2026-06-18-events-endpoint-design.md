@@ -22,7 +22,7 @@ GET /api/v1/events?eventType=NewFileDetected
 
 ## Common Package Changes
 
-**File:** `common/src/main/scala/perfectpair/common/model/Payload.scala`
+**File:** `common/src/main/scala/onparity/common/model/Payload.scala`
 
 Add a sealed `EventPayload` trait with one concrete case class per `Event` subtype. Each subtype contains:
 - Metadata from `EventState`: `id`, `eventType`, `status` (String), `retryCount`, `errorMessage`, `createdAt`, `updatedAt`
@@ -76,7 +76,7 @@ val events = s"$prefix/events"
 
 ### `EventRepo` port
 
-**File:** `backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala`
+**File:** `backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala`
 
 Add:
 ```scala
@@ -85,7 +85,7 @@ def findByEventType(eventType: String): Txn[Vector[EventState]]
 
 ### `EventRepoLive`
 
-**File:** `backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala`
+**File:** `backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala`
 
 Implement:
 ```scala
@@ -95,7 +95,7 @@ override def findByEventType(eventType: String): Txn[Vector[EventState]] =
 
 ### `Payload` object
 
-**File:** `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala`
+**File:** `backend/src/main/scala/onparity/adapter/driving/Payload.scala`
 
 Add `eventPayloadFromDomain(state: EventState): EventPayload`. Matches on `state.eventType`, deserializes the stored JSON payload into the typed `Event` subtype via `state.event[T]`, then constructs the appropriate payload case class:
 
@@ -119,7 +119,7 @@ def eventPayloadFromDomain(state: EventState): EventPayload =
 
 ### Route
 
-**File:** `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`
+**File:** `backend/src/main/scala/onparity/adapter/driving/Routes.scala`
 
 Add `eventRepo: EventRepo` to `App`'s `using` parameters. Add endpoint:
 
@@ -145,9 +145,9 @@ def getEvents(request: cask.Request): String =
 
 | File | Change |
 |------|--------|
-| `common/src/main/scala/perfectpair/common/model/Payload.scala` | Add `EventPayload` sealed trait + 3 subtypes |
-| `common/src/main/scala/perfectpair/common/http/http.scala` | Add `val events` to `HttpPath` |
-| `backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala` | Add `findByEventType` |
-| `backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala` | Implement `findByEventType` |
-| `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala` | Add `eventPayloadFromDomain` |
-| `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala` | Add `eventRepo` using param + `getEvents` route |
+| `common/src/main/scala/onparity/common/model/Payload.scala` | Add `EventPayload` sealed trait + 3 subtypes |
+| `common/src/main/scala/onparity/common/http/http.scala` | Add `val events` to `HttpPath` |
+| `backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala` | Add `findByEventType` |
+| `backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala` | Implement `findByEventType` |
+| `backend/src/main/scala/onparity/adapter/driving/Payload.scala` | Add `eventPayloadFromDomain` |
+| `backend/src/main/scala/onparity/adapter/driving/Routes.scala` | Add `eventRepo` using param + `getEvents` route |

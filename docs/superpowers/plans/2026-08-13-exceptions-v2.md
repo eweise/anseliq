@@ -35,7 +35,7 @@ with two competing ways to change a dispute's status.
 
 **Files:**
 - Modify: `backend/db/schema.sql`
-- Modify: `backend/src/main/scala/perfectpair/domain/model/Dispute.scala`
+- Modify: `backend/src/main/scala/onparity/domain/model/Dispute.scala`
 
 **Interfaces:**
 - Produces: `DisputeComment` case class (`id`, `disputeId`, `body: Option[String]`,
@@ -84,10 +84,10 @@ Expected: `ALTER TABLE`, then `CREATE TABLE`, then `CREATE INDEX` confirmations,
 Remove the `resolutionNote` field from `Dispute`, and add `DisputeComment` alongside it:
 
 ```scala
-package perfectpair.domain.model
+package onparity.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.ID
+import onparity.common.model.model.ID
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -142,7 +142,7 @@ those two files and mention `resolutionNote` or `updateStatus`, not something un
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/db/schema.sql backend/src/main/scala/perfectpair/domain/model/Dispute.scala
+git add backend/db/schema.sql backend/src/main/scala/onparity/domain/model/Dispute.scala
 git commit -m "Add DisputeComment, remove Dispute.resolutionNote
 
 resolutionNote becomes redundant once the comment thread exists - the 'why'
@@ -156,11 +156,11 @@ Resolved. Backend won't compile again until Task 2 (service) and Task 4
 ### Task 2: `DisputeCommentRepo`, `DisputeService.addComment`, migrated tests
 
 **Files:**
-- Create: `backend/src/main/scala/perfectpair/domain/port/driven/DisputeCommentRepo.scala`
-- Create: `backend/src/main/scala/perfectpair/adapter/driven/DisputeCommentRepoLive.scala`
-- Modify: `backend/src/main/scala/perfectpair/domain/service/DisputeService.scala`
-- Modify: `backend/src/test/scala/perfectpair/domain/DataSetup.scala`
-- Modify: `backend/src/test/scala/perfectpair/domain/service/DisputeServiceSuite.scala`
+- Create: `backend/src/main/scala/onparity/domain/port/driven/DisputeCommentRepo.scala`
+- Create: `backend/src/main/scala/onparity/adapter/driven/DisputeCommentRepoLive.scala`
+- Modify: `backend/src/main/scala/onparity/domain/service/DisputeService.scala`
+- Modify: `backend/src/test/scala/onparity/domain/DataSetup.scala`
+- Modify: `backend/src/test/scala/onparity/domain/service/DisputeServiceSuite.scala`
 
 **Interfaces:**
 - Consumes: `DisputeComment`, `DisputeStatus` from Task 1.
@@ -171,10 +171,10 @@ Resolved. Backend won't compile again until Task 2 (service) and Task 4
 - [ ] **Step 1: Create the repo port**
 
 ```scala
-package perfectpair.domain.port.driven
+package onparity.domain.port.driven
 
-import perfectpair.common.model.model.ID
-import perfectpair.domain.model.DisputeComment
+import onparity.common.model.model.ID
+import onparity.domain.model.DisputeComment
 
 trait DisputeCommentRepo extends DomainRepo[DisputeComment, DisputeComment]:
   def findByDisputeId(disputeId: ID): Txn[Vector[DisputeComment]]
@@ -183,12 +183,12 @@ trait DisputeCommentRepo extends DomainRepo[DisputeComment, DisputeComment]:
 - [ ] **Step 2: Create the repo adapter**
 
 ```scala
-package perfectpair.adapter.driven
+package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Repo, sql}
-import perfectpair.common.model.model.ID
-import perfectpair.domain.model.DisputeComment
-import perfectpair.domain.port.driven.{DisputeCommentRepo, Txn}
+import onparity.common.model.model.ID
+import onparity.domain.model.DisputeComment
+import onparity.domain.port.driven.{DisputeCommentRepo, Txn}
 
 import java.util.UUID
 
@@ -221,16 +221,16 @@ This replaces the whole file — every `updateStatus` call becomes `addComment`,
 plain-comment and ordering behavior `updateStatus` never had:
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.model.{DisputeCategory, DisputeStatus, DisputeTarget, IllegalArgumentError, Movement, MovementSpec, NotFoundError}
-import perfectpair.domain.port.driven.{JobRepo, Txn}
-import perfectpair.testing.rollBackOnly
+import onparity.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
+import onparity.domain.DataSetup
+import onparity.domain.model.helper.JSONBProps
+import onparity.domain.model.{DisputeCategory, DisputeStatus, DisputeTarget, IllegalArgumentError, Movement, MovementSpec, NotFoundError}
+import onparity.domain.port.driven.{JobRepo, Txn}
+import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -429,7 +429,7 @@ class DisputeServiceSuite extends munit.FunSuite:
 
 - [ ] **Step 5: Run the tests to verify they fail**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.DisputeServiceSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.DisputeServiceSuite"`
 Expected: compile failure — `DisputeService.addComment` doesn't exist yet, `data.disputeCommentRepo` doesn't
 resolve (Step 3's `DataSetup` edit alone doesn't make the service compile). This is the expected failing
 state before Step 6.
@@ -437,11 +437,11 @@ state before Step 6.
 - [ ] **Step 6: Replace `DisputeService.scala`'s `updateStatus` with `addComment`**
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
-import perfectpair.common.model.model.ID
-import perfectpair.domain.model.*
-import perfectpair.domain.port.driven.*
+import onparity.common.model.model.ID
+import onparity.domain.model.*
+import onparity.domain.port.driven.*
 
 class DisputeService(using
   disputeRepo:  DisputeRepo,
@@ -497,7 +497,7 @@ class DisputeService(using
 
 - [ ] **Step 7: Add the `DisputeCommentAdded` event**
 
-In `backend/src/main/scala/perfectpair/domain/model/Event.scala`, add after the existing
+In `backend/src/main/scala/onparity/domain/model/Event.scala`, add after the existing
 `DisputeStatusChanged`:
 
 ```scala
@@ -506,13 +506,13 @@ case class DisputeCommentAdded(id: ID = UUID.randomUUID(), disputeID: ID, commen
 
 - [ ] **Step 8: Run the tests to verify they pass**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.DisputeServiceSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.DisputeServiceSuite"`
 Expected: `10 tests, 0 failed`.
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/port/driven/DisputeCommentRepo.scala backend/src/main/scala/perfectpair/adapter/driven/DisputeCommentRepoLive.scala backend/src/main/scala/perfectpair/domain/service/DisputeService.scala backend/src/main/scala/perfectpair/domain/model/Event.scala backend/src/test/scala/perfectpair/domain/DataSetup.scala backend/src/test/scala/perfectpair/domain/service/DisputeServiceSuite.scala
+git add backend/src/main/scala/onparity/domain/port/driven/DisputeCommentRepo.scala backend/src/main/scala/onparity/adapter/driven/DisputeCommentRepoLive.scala backend/src/main/scala/onparity/domain/service/DisputeService.scala backend/src/main/scala/onparity/domain/model/Event.scala backend/src/test/scala/onparity/domain/DataSetup.scala backend/src/test/scala/onparity/domain/service/DisputeServiceSuite.scala
 git commit -m "Replace DisputeService.updateStatus with addComment
 
 A status change is now just a comment with newStatus set; a plain comment
@@ -526,7 +526,7 @@ plain-comment and thread-ordering behavior updateStatus never had."
 ### Task 3: Shared DTOs (`common` module)
 
 **Files:**
-- Modify: `common/src/main/scala/perfectpair/common/model/Payload.scala`
+- Modify: `common/src/main/scala/onparity/common/model/Payload.scala`
 
 **Interfaces:**
 - Produces: `DisputeCommentPayload`, `DisputeDetailPayload`, `AddDisputeCommentRequest`. `DisputePayload`
@@ -604,7 +604,7 @@ here — confirmed during the v1 Disputes plan.)
 - [ ] **Step 3: Commit**
 
 ```bash
-git add common/src/main/scala/perfectpair/common/model/Payload.scala
+git add common/src/main/scala/onparity/common/model/Payload.scala
 git commit -m "Add DisputeComment/DisputeDetail DTOs, remove resolutionNote and UpdateDisputeStatusRequest"
 ```
 
@@ -613,9 +613,9 @@ git commit -m "Add DisputeComment/DisputeDetail DTOs, remove resolutionNote and 
 ### Task 4: Backend routes, payload conversion, wiring
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Payload.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Routes.scala`
+- Modify: `backend/src/main/scala/onparity/app/Main.scala`
 
 **Interfaces:**
 - Consumes: `DisputeCommentRepo`/`DisputeService.addComment` (Task 2), `DisputeDetailPayload`/
@@ -804,7 +804,7 @@ Stop the backend when done.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/adapter/driving/Payload.scala backend/src/main/scala/perfectpair/adapter/driving/Routes.scala backend/src/main/scala/perfectpair/app/Main.scala
+git add backend/src/main/scala/onparity/adapter/driving/Payload.scala backend/src/main/scala/onparity/adapter/driving/Routes.scala backend/src/main/scala/onparity/app/Main.scala
 git commit -m "Add GET /dispute/:id and POST /dispute/:id/comments, remove PUT .../status
 
 The detail endpoint composes the dispute, the full target entity (Movement
@@ -817,10 +817,10 @@ comment thread in one response. Verified end-to-end with curl."
 ### Task 5: Frontend — detail page, simplified list
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/ExceptionDetailPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ExceptionsPage.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Routes.scala`
-- Modify: `frontend/src/main/scala/perfectpair/routing/Nav.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/ExceptionDetailPage.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ExceptionsPage.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Routes.scala`
+- Modify: `frontend/src/main/scala/onparity/routing/Nav.scala`
 
 **Interfaces:**
 - Consumes: `DisputeDetailPayload`, `DisputeCommentPayload`, `AddDisputeCommentRequest` (Task 3),
@@ -839,16 +839,16 @@ In `Nav.scala`, add alongside the existing helpers:
 - [ ] **Step 2: Create `ExceptionDetailPage.scala`**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{AddDisputeCommentRequest, DisputeCommentPayload, DisputeDetailPayload, DisputeStatusPayload, MovementPayload, ReconciliationPayload}
-import perfectpair.http.ApiClient
-import perfectpair.routing.Nav
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Buttons, Form, PageHeader, Pill}
+import onparity.common.http.HttpPath
+import onparity.common.model.{AddDisputeCommentRequest, DisputeCommentPayload, DisputeDetailPayload, DisputeStatusPayload, MovementPayload, ReconciliationPayload}
+import onparity.http.ApiClient
+import onparity.routing.Nav
+import onparity.state.{AppState, SessionStore}
+import onparity.view.ViewHelper
+import onparity.view.components.{Buttons, Form, PageHeader, Pill}
 import upickle.default.*
 
 object ExceptionDetailPage:
@@ -995,15 +995,15 @@ Replace the whole file — the inline action buttons, the `editingResolution`/`r
 the `updateStatusBus` are all removed; rows become click-through links to the detail page:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
-import perfectpair.common.http.HttpPath
-import perfectpair.common.model.{DisputePayload, DisputeStatusPayload, DisputeTargetPayload}
-import perfectpair.http.ApiClient
-import perfectpair.routing.Nav
-import perfectpair.state.{AppState, SessionStore}
-import perfectpair.view.components.{PageHeader, Pill, Table}
+import onparity.common.http.HttpPath
+import onparity.common.model.{DisputePayload, DisputeStatusPayload, DisputeTargetPayload}
+import onparity.http.ApiClient
+import onparity.routing.Nav
+import onparity.state.{AppState, SessionStore}
+import onparity.view.components.{PageHeader, Pill, Table}
 import upickle.default.*
 
 object ExceptionsPage:
@@ -1098,7 +1098,7 @@ Stop both dev servers when done.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ExceptionDetailPage.scala frontend/src/main/scala/perfectpair/view/pages/ExceptionsPage.scala frontend/src/main/scala/perfectpair/routing/Routes.scala frontend/src/main/scala/perfectpair/routing/Nav.scala
+git add frontend/src/main/scala/onparity/view/pages/ExceptionDetailPage.scala frontend/src/main/scala/onparity/view/pages/ExceptionsPage.scala frontend/src/main/scala/onparity/routing/Routes.scala frontend/src/main/scala/onparity/routing/Nav.scala
 git commit -m "Add ExceptionDetailPage with a comment/status thread, simplify the list to click-through
 
 Status changes move off the list page entirely - rows now link to a detail

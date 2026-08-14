@@ -4,7 +4,7 @@
 
 **Goal:** Add a `DataSourceConfigWidget` component to `MaintainMovementSpecsView` that lets users configure a CSV data source (hasHeader, column definitions, amount field) with an enable/disable toggle.
 
-**Architecture:** A new `DataSourceConfigWidget` object with its own `Model`, `Msg`, and pure `update` function is created in `frontend/src/main/scala/perfectpair/view/components/`. `MaintainMovementSpecsView` embeds the widget's Model, delegates messages to it, and converts its state to/from `DataSourceConfig` on save and edit-load. `WebApp.scala` is updated to pre-populate the widget when navigating to edit an existing spec.
+**Architecture:** A new `DataSourceConfigWidget` object with its own `Model`, `Msg`, and pure `update` function is created in `frontend/src/main/scala/onparity/view/components/`. `MaintainMovementSpecsView` embeds the widget's Model, delegates messages to it, and converts its state to/from `DataSourceConfig` on save and edit-load. `WebApp.scala` is updated to pre-populate the widget when navigating to edit an existing spec.
 
 **Tech Stack:** Scala 3, Scala.js, Tyrian (Elm-style reactive UI), Tailwind CSS. No test framework exists for the frontend — verification is via `sbt "frontend/fastOptJS"` compile and browser visual check.
 
@@ -14,25 +14,25 @@
 
 | Action | File |
 |--------|------|
-| **Create** | `frontend/src/main/scala/perfectpair/view/components/DataSourceConfigWidget.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/view/pages/MaintainMovementSpecsView.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/main/WebApp.scala` |
+| **Create** | `frontend/src/main/scala/onparity/view/components/DataSourceConfigWidget.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/view/pages/MaintainMovementSpecsView.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/main/WebApp.scala` |
 
 ---
 
 ### Task 1: DataSourceConfigWidget — Model, Msg, update, and conversion functions
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/components/DataSourceConfigWidget.scala`
+- Create: `frontend/src/main/scala/onparity/view/components/DataSourceConfigWidget.scala`
 
 - [ ] **Step 1: Create the file with Model, Msg, update, and conversion functions**
 
-Create `frontend/src/main/scala/perfectpair/view/components/DataSourceConfigWidget.scala` with this exact content:
+Create `frontend/src/main/scala/onparity/view/components/DataSourceConfigWidget.scala` with this exact content:
 
 ```scala
-package perfectpair.view.components
+package onparity.view.components
 
-import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
+import onparity.common.model.{CSVParserConfig, DataSourceConfig}
 import tyrian.EmptyAttribute
 import tyrian.Html.*
 import tyrian.Html
@@ -108,7 +108,7 @@ Expected: BUILD SUCCESS with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/DataSourceConfigWidget.scala
+git add frontend/src/main/scala/onparity/view/components/DataSourceConfigWidget.scala
 git commit -m "feat: add DataSourceConfigWidget skeleton with Model, Msg, update, and conversions"
 ```
 
@@ -117,7 +117,7 @@ git commit -m "feat: add DataSourceConfigWidget skeleton with Model, Msg, update
 ### Task 2: DataSourceConfigWidget — render function
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/components/DataSourceConfigWidget.scala`
+- Modify: `frontend/src/main/scala/onparity/view/components/DataSourceConfigWidget.scala`
 
 - [ ] **Step 1: Replace the `apply` placeholder with the full render function**
 
@@ -219,7 +219,7 @@ Expected: BUILD SUCCESS.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/DataSourceConfigWidget.scala
+git add frontend/src/main/scala/onparity/view/components/DataSourceConfigWidget.scala
 git commit -m "feat: implement DataSourceConfigWidget render function"
 ```
 
@@ -228,7 +228,7 @@ git commit -m "feat: implement DataSourceConfigWidget render function"
 ### Task 3: Integrate widget into MaintainMovementSpecsView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MaintainMovementSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MaintainMovementSpecsView.scala`
 
 - [ ] **Step 1: Add import and DataSourceMsg to Msg, dataSourceWidget to Model**
 
@@ -236,7 +236,7 @@ In `MaintainMovementSpecsView.scala`, make these changes:
 
 1. Add import at the top (after existing imports):
 ```scala
-import perfectpair.view.components.DataSourceConfigWidget
+import onparity.view.components.DataSourceConfigWidget
 ```
 
 2. Replace the `enum Msg` block:
@@ -311,7 +311,7 @@ Expected: BUILD SUCCESS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MaintainMovementSpecsView.scala
+git add frontend/src/main/scala/onparity/view/pages/MaintainMovementSpecsView.scala
 git commit -m "feat: integrate DataSourceConfigWidget into MaintainMovementSpecsView"
 ```
 
@@ -320,7 +320,7 @@ git commit -m "feat: integrate DataSourceConfigWidget into MaintainMovementSpecs
 ### Task 4: Pre-populate widget on edit navigation
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Update the NavigateToMaintainMovementSpec handler in WebApp.scala**
 
@@ -352,7 +352,7 @@ with:
 Also add the import at the top of `WebApp.scala` (after existing imports):
 
 ```scala
-import perfectpair.view.components.DataSourceConfigWidget
+import onparity.view.components.DataSourceConfigWidget
 ```
 
 - [ ] **Step 2: Verify it compiles**
@@ -384,6 +384,6 @@ Open the app in the browser and:
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/main/WebApp.scala
+git add frontend/src/main/scala/onparity/main/WebApp.scala
 git commit -m "feat: pre-populate DataSourceConfigWidget from existing spec on edit navigation"
 ```

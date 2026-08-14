@@ -12,32 +12,32 @@
 
 ## Files
 
-- **Create:** `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsView.scala`
-- **Modify:** `frontend/src/main/scala/perfectpair/util/HttpHelper.scala` — add fetch fn + decoder
-- **Modify:** `frontend/src/main/scala/perfectpair/model/model.scala` — add Msg cases + Model field
-- **Modify:** `frontend/src/main/scala/perfectpair/page/Page.scala` — add `Page.Reconciliations`
-- **Modify:** `frontend/src/main/scala/perfectpair/route/route.scala` — add route entry
-- **Modify:** `frontend/src/main/scala/perfectpair/main/WebApp.scala` — handle navigation msg
-- **Modify:** `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala` — add button + msg
+- **Create:** `frontend/src/main/scala/onparity/view/pages/ReconciliationsView.scala`
+- **Modify:** `frontend/src/main/scala/onparity/util/HttpHelper.scala` — add fetch fn + decoder
+- **Modify:** `frontend/src/main/scala/onparity/model/model.scala` — add Msg cases + Model field
+- **Modify:** `frontend/src/main/scala/onparity/page/Page.scala` — add `Page.Reconciliations`
+- **Modify:** `frontend/src/main/scala/onparity/route/route.scala` — add route entry
+- **Modify:** `frontend/src/main/scala/onparity/main/WebApp.scala` — handle navigation msg
+- **Modify:** `frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala` — add button + msg
 
 ---
 
 ### Task 1: Create ReconciliationsView
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/ReconciliationsView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/ReconciliationsView.scala`
 
 No automated frontend tests exist; compilation + manual browser testing is the verification approach.
 
 - [ ] **Step 1: Create the view file**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, ReconciliationPayload, ReconciliationSpecPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.view.ViewHelper
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.{AccountPayload, ReconciliationPayload, ReconciliationSpecPayload}
+import onparity.model.Msg as AppMsg
+import onparity.view.ViewHelper
+import onparity.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -84,7 +84,7 @@ object ReconciliationsView:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ReconciliationsView.scala
+git add frontend/src/main/scala/onparity/view/pages/ReconciliationsView.scala
 git commit -m "feat: add ReconciliationsView"
 ```
 
@@ -93,11 +93,11 @@ git commit -m "feat: add ReconciliationsView"
 ### Task 2: Wire HTTP, model, page, and route plumbing
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
-- Modify: `frontend/src/main/scala/perfectpair/route/route.scala`
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/route/route.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 These five files must all be updated before the project will compile.
 
@@ -242,7 +242,7 @@ In `WebApp.scala`, add after the `NavigateToUnreconciledMovements` case (around 
 - [ ] **Step 8: Verify compilation**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastLinkJS"
+cd /Users/eweise/projects/onparity && sbt "frontend/fastLinkJS"
 ```
 
 Expected: `[success] Total time: ...` with no errors (pre-existing warnings about pattern match exhaustivity are fine).
@@ -250,11 +250,11 @@ Expected: `[success] Total time: ...` with no errors (pre-existing warnings abou
 - [ ] **Step 9: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/util/HttpHelper.scala \
-        frontend/src/main/scala/perfectpair/model/model.scala \
-        frontend/src/main/scala/perfectpair/page/Page.scala \
-        frontend/src/main/scala/perfectpair/route/route.scala \
-        frontend/src/main/scala/perfectpair/main/WebApp.scala
+git add frontend/src/main/scala/onparity/util/HttpHelper.scala \
+        frontend/src/main/scala/onparity/model/model.scala \
+        frontend/src/main/scala/onparity/page/Page.scala \
+        frontend/src/main/scala/onparity/route/route.scala \
+        frontend/src/main/scala/onparity/main/WebApp.scala
 git commit -m "feat: wire Reconciliations page plumbing"
 ```
 
@@ -263,18 +263,18 @@ git commit -m "feat: wire Reconciliations page plumbing"
 ### Task 3: Add navigation from ReconSpecsView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala`
 
 - [ ] **Step 1: Add `ViewReconciliations` msg and handler to `ReconSpecsView.scala`**
 
 The full updated `ReconSpecsView.scala`:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import onparity.model.Msg as AppMsg
+import onparity.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -338,7 +338,7 @@ object ReconSpecsView:
 - [ ] **Step 2: Verify compilation**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastLinkJS"
+cd /Users/eweise/projects/onparity && sbt "frontend/fastLinkJS"
 ```
 
 Expected: `[success] Total time: ...` with no errors.
@@ -346,7 +346,7 @@ Expected: `[success] Total time: ...` with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala
+git add frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala
 git commit -m "feat: add Reconciliations navigation button to ReconSpecsView"
 ```
 
@@ -358,14 +358,14 @@ git commit -m "feat: add Reconciliations navigation button to ReconSpecsView"
 
 In one terminal:
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/run"
+cd /Users/eweise/projects/onparity && sbt "backend/run"
 ```
 
 - [ ] **Step 2: Start the frontend dev server**
 
 In a second terminal:
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/devServer"
+cd /Users/eweise/projects/onparity && sbt "frontend/devServer"
 ```
 
 - [ ] **Step 3: Verify the happy path**

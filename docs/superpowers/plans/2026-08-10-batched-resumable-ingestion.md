@@ -14,7 +14,7 @@
 - Backend follows hexagonal architecture; repo methods live behind `domain/port/driven` traits with `adapter/driven` implementations (per `backend/CLAUDE.md`).
 - Tests use munit with `rollBackOnly` for DB isolation *where applicable* — but any test that exercises `ingestResumable` cannot rely on `rollBackOnly`, since its batches commit on their own connection regardless of what an outer transaction does. Those tests use explicit teardown instead (see Task 2/3/4).
 - No Flyway or other migration runner is wired up in this app; schema changes are made directly in `backend/db/schema.sql`, applied locally via `make create-db` / `make restore-db`.
-- There is an uncommitted, unstaged edit already present on `backend/src/main/scala/perfectpair/domain/service/Ingestor.scala` (adds a debug `Logger` and changes `ingest`'s batch size from `100` to `1000`) — this is the user's own in-progress work and is being kept as the current baseline for `ingest`. Every step below that touches `Ingestor.scala` must preserve it exactly; do not revert it, and do not let an IDE/formatter "clean it up."
+- There is an uncommitted, unstaged edit already present on `backend/src/main/scala/onparity/domain/service/Ingestor.scala` (adds a debug `Logger` and changes `ingest`'s batch size from `100` to `1000`) — this is the user's own in-progress work and is being kept as the current baseline for `ingest`. Every step below that touches `Ingestor.scala` must preserve it exactly; do not revert it, and do not let an IDE/formatter "clean it up."
 
 ---
 
@@ -22,24 +22,24 @@
 
 **Files:**
 - Modify: `backend/db/schema.sql:89-102` (the `recon.file_inventory` table)
-- Modify: `backend/src/main/scala/perfectpair/domain/model/FileInventory.scala`
-- Test: `backend/src/test/scala/perfectpair/adapter/driven/FileInventoryRepoLiveSuite.scala` (new file)
+- Modify: `backend/src/main/scala/onparity/domain/model/FileInventory.scala`
+- Test: `backend/src/test/scala/onparity/adapter/driven/FileInventoryRepoLiveSuite.scala` (new file)
 
 **Interfaces:**
 - Produces: `FileInventoryStatus` gains a `PROCESSING` case (`QUEUED, PROCESSING, COMPLETED`). `FileInventory` gains `lastProcessedLine: Option[Long] = None`. Both are read/written by Task 2's `ingestResumable`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `backend/src/test/scala/perfectpair/adapter/driven/FileInventoryRepoLiveSuite.scala`:
+Create `backend/src/test/scala/onparity/adapter/driven/FileInventoryRepoLiveSuite.scala`:
 
 ```scala
-package perfectpair.adapter.driven
+package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.{FileInventory, FileInventoryStatus, InMemoryFileSourceEntry}
-import perfectpair.testing.rollBackOnly
+import onparity.domain.DataSetup
+import onparity.domain.model.{FileInventory, FileInventoryStatus, InMemoryFileSourceEntry}
+import onparity.testing.rollBackOnly
 
 import java.time.OffsetDateTime
 import javax.sql.DataSource
@@ -80,7 +80,7 @@ class FileInventoryRepoLiveSuite extends munit.FunSuite:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.FileInventoryRepoLiveSuite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.FileInventoryRepoLiveSuite"`
 
 Expected: FAIL to compile — `FileInventoryStatus.PROCESSING` doesn't exist yet, and `FileInventory` has no `lastProcessedLine` parameter.
 
@@ -125,7 +125,7 @@ CREATE TABLE recon.file_inventory
 
 `status` is a plain `TEXT` column (not a native Postgres enum), so no separate migration is needed for the new `PROCESSING` value.
 
-In `backend/src/main/scala/perfectpair/domain/model/FileInventory.scala`, replace:
+In `backend/src/main/scala/onparity/domain/model/FileInventory.scala`, replace:
 
 ```scala
 enum FileInventoryStatus derives DbCodec:
@@ -170,7 +170,7 @@ Then apply the updated schema to the local database: `make create-db` (or `make 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.FileInventoryRepoLiveSuite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.FileInventoryRepoLiveSuite"`
 
 Expected: PASS.
 
@@ -184,8 +184,8 @@ Expected: PASS (same pass count as before, plus the one new test; `FileInventory
 
 ```bash
 git add backend/db/schema.sql \
-        backend/src/main/scala/perfectpair/domain/model/FileInventory.scala \
-        backend/src/test/scala/perfectpair/adapter/driven/FileInventoryRepoLiveSuite.scala
+        backend/src/main/scala/onparity/domain/model/FileInventory.scala \
+        backend/src/test/scala/onparity/adapter/driven/FileInventoryRepoLiveSuite.scala
 git commit -m "Add lastProcessedLine checkpoint and PROCESSING status to FileInventory
 
 Groundwork for resumable ingestion: a place to persist how far a file
@@ -198,9 +198,9 @@ has been processed, and a status distinct from QUEUED/COMPLETED for
 ### Task 2: `Ingestor.ingestResumable` — batched commits, checkpoint, resume callback
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/service/Ingestor.scala`
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala:26-44` (add a `given Transactor` so `Ingestor()`'s new dependency resolves)
-- Test: `backend/src/test/scala/perfectpair/domain/service/IngestResumableSuite.scala` (new file)
+- Modify: `backend/src/main/scala/onparity/domain/service/Ingestor.scala`
+- Modify: `backend/src/main/scala/onparity/app/Main.scala:26-44` (add a `given Transactor` so `Ingestor()`'s new dependency resolves)
+- Test: `backend/src/test/scala/onparity/domain/service/IngestResumableSuite.scala` (new file)
 
 **Interfaces:**
 - Consumes: `FileInventoryStatus.PROCESSING`, `FileInventory.lastProcessedLine` (Task 1).
@@ -212,17 +212,17 @@ has been processed, and a status distinct from QUEUED/COMPLETED for
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `backend/src/test/scala/perfectpair/domain/service/IngestResumableSuite.scala`:
+Create `backend/src/test/scala/onparity/domain/service/IngestResumableSuite.scala`:
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.*
-import perfectpair.common.model.{CSVParserConfig, DataSourceConfig}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.*
+import onparity.adapter.driven.*
+import onparity.common.model.{CSVParserConfig, DataSourceConfig}
+import onparity.domain.DataSetup
+import onparity.domain.model.*
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
@@ -328,13 +328,13 @@ class IngestResumableSuite extends munit.FunSuite:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.IngestResumableSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.IngestResumableSuite"`
 
 Expected: FAIL to compile — `Ingestor.ingestResumable` doesn't exist yet, `BatchDecision`/`BatchProgress` don't exist, `IngestionResult.completed`/`.lastProcessedLine` don't exist.
 
 - [ ] **Step 3: Add the `given Transactor` in `Main.scala`**
 
-`Main.scala` constructs `given ingestor: Ingestor = Ingestor()` (`Main.scala:42`) but has no `given Transactor` anywhere in scope at that point — every `fork` block builds its own local `Transactor(dataSource = given_DataSource)` instead of using a `given`. `Ingestor` is about to require a `Transactor` dependency, so add one. In `backend/src/main/scala/perfectpair/app/Main.scala`, replace:
+`Main.scala` constructs `given ingestor: Ingestor = Ingestor()` (`Main.scala:42`) but has no `given Transactor` anywhere in scope at that point — every `fork` block builds its own local `Transactor(dataSource = given_DataSource)` instead of using a `given`. `Ingestor` is about to require a `Transactor` dependency, so add one. In `backend/src/main/scala/onparity/app/Main.scala`, replace:
 
 ```scala
     given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
@@ -351,7 +351,7 @@ with:
 
 - [ ] **Step 4: Implement `ingestResumable`**
 
-In `backend/src/main/scala/perfectpair/domain/service/Ingestor.scala`, first replace the `IngestionResult` case class:
+In `backend/src/main/scala/onparity/domain/service/Ingestor.scala`, first replace the `IngestionResult` case class:
 
 ```scala
 case class IngestionResult(
@@ -504,7 +504,7 @@ Do not touch `ingestFileFromInventory` or `ingest` in this step (Task 3 changes 
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.IngestResumableSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.IngestResumableSuite"`
 
 Expected: PASS.
 
@@ -517,9 +517,9 @@ Expected: PASS (same tests as before plus the two new ones; `ingest` and everyth
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/Ingestor.scala \
-        backend/src/main/scala/perfectpair/app/Main.scala \
-        backend/src/test/scala/perfectpair/domain/service/IngestResumableSuite.scala
+git add backend/src/main/scala/onparity/domain/service/Ingestor.scala \
+        backend/src/main/scala/onparity/app/Main.scala \
+        backend/src/test/scala/onparity/domain/service/IngestResumableSuite.scala
 git commit -m "Add Ingestor.ingestResumable: batched commits with a resumable checkpoint
 
 Ingest stays untouched. ingestResumable commits one real transaction per
@@ -536,9 +536,9 @@ batch to verify resume behavior; production always uses the default
 ### Task 3: `ingestFileFromInventory` uses `ingestResumable` and resumes real files
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/domain/service/Ingestor.scala` (only `ingestFileFromInventory`)
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala:102-116` (the ingestion job-processing fork)
-- Test: `backend/src/test/scala/perfectpair/adapter/driven/CreateFileInventoryTrackerS3Suite.scala` (add one test)
+- Modify: `backend/src/main/scala/onparity/domain/service/Ingestor.scala` (only `ingestFileFromInventory`)
+- Modify: `backend/src/main/scala/onparity/app/Main.scala:102-116` (the ingestion job-processing fork)
+- Test: `backend/src/test/scala/onparity/adapter/driven/CreateFileInventoryTrackerS3Suite.scala` (add one test)
 
 **Interfaces:**
 - Consumes: `Ingestor.ingestResumable` (Task 2), `FileInventory.lastProcessedLine` (Task 1).
@@ -628,27 +628,27 @@ batch to verify resume behavior; production always uses the default
 Add the needed imports to `CreateFileInventoryTrackerS3Suite.scala`. Replace:
 
 ```scala
-import perfectpair.common.model.S3ConnectionConfig
-import perfectpair.domain.model.{FileInventoryStatus, S3FileSourceEntry}
+import onparity.common.model.S3ConnectionConfig
+import onparity.domain.model.{FileInventoryStatus, S3FileSourceEntry}
 ```
 
 with:
 
 ```scala
-import perfectpair.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.{FileInventory, FileInventoryStatus, MovementSpec, S3FileSourceEntry}
+import onparity.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
+import onparity.domain.DataSetup
+import onparity.domain.model.{FileInventory, FileInventoryStatus, MovementSpec, S3FileSourceEntry}
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.CreateFileInventoryTrackerS3Suite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.CreateFileInventoryTrackerS3Suite"`
 
 Expected: FAIL — `ingestFileFromInventory` still calls the old `ingest` inside one ambient transaction and doesn't know about `batchSize`/`onBatchComplete`/checkpoints yet, so this won't even compile until Step 3 is done.
 
 - [ ] **Step 3: Rewrite `ingestFileFromInventory`**
 
-In `backend/src/main/scala/perfectpair/domain/service/Ingestor.scala`, replace:
+In `backend/src/main/scala/onparity/domain/service/Ingestor.scala`, replace:
 
 ```scala
   def ingestFileFromInventory(fileInventoryID: ID): Txn[IngestionResult] =
@@ -721,7 +721,7 @@ This is no longer `Txn[IngestionResult]` — it owns its own transactions (the i
 
 - [ ] **Step 4: Update `Main.scala`'s ingestion job loop**
 
-`ingestFileFromInventory` isn't `Txn[T]` anymore, so it can't be called from inside the existing outer `transact(...)` the way it was. In `backend/src/main/scala/perfectpair/app/Main.scala`, replace:
+`ingestFileFromInventory` isn't `Txn[T]` anymore, so it can't be called from inside the existing outer `transact(...)` the way it was. In `backend/src/main/scala/onparity/app/Main.scala`, replace:
 
 ```scala
       fork:
@@ -763,7 +763,7 @@ with:
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `sbt "backend/testOnly perfectpair.adapter.driven.CreateFileInventoryTrackerS3Suite"`
+Run: `sbt "backend/testOnly onparity.adapter.driven.CreateFileInventoryTrackerS3Suite"`
 
 Expected: PASS (requires localstack running on `http://localhost:4566`, same as the suite's existing tests).
 
@@ -776,9 +776,9 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/Ingestor.scala \
-        backend/src/main/scala/perfectpair/app/Main.scala \
-        backend/src/test/scala/perfectpair/adapter/driven/CreateFileInventoryTrackerS3Suite.scala
+git add backend/src/main/scala/onparity/domain/service/Ingestor.scala \
+        backend/src/main/scala/onparity/app/Main.scala \
+        backend/src/test/scala/onparity/adapter/driven/CreateFileInventoryTrackerS3Suite.scala
 git commit -m "Wire ingestFileFromInventory through ingestResumable
 
 ingestFileFromInventory now computes its starting line from
@@ -794,7 +794,7 @@ outer transaction, since ingestFileFromInventory now owns its own."
 ### Task 4: Point `LargeFileIngestionReconciliationSuite` at `ingestResumable`
 
 **Files:**
-- Modify: `backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`
+- Modify: `backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala`
 
 **Interfaces:**
 - Consumes: `Ingestor.ingestResumable` (Task 2).
@@ -803,7 +803,7 @@ outer transaction, since ingestFileFromInventory now owns its own."
 
 This suite is excluded from the normal `sbt test` cycle already (`build.sbt`'s `Tests.Filter`), so there's no RED/GREEN cycle to run interactively here — a full run takes on the order of hours. Update the code directly, and verify it with a smoke run at a reduced row count (Step 2) rather than the real 5,000,000-row run.
 
-In `backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`, replace the whole `test(...)` body — currently:
+In `backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala`, replace the whole `test(...)` body — currently:
 
 ```scala
   test("ingesting and reconciling two 5,000,000-row files nets the recon account to zero"):
@@ -893,9 +893,9 @@ with:
 
 Temporarily change both `LargeFileFixtures.journalFile()` / `.reportFile()` calls to `LargeFileFixtures.journalFile(rows = 1000)` / `.reportFile(rows = 1000)`, then run:
 
-`sbt "backend/testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"`
+`sbt "backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"`
 
-Expected: PASS in well under a minute. Once it passes, revert both calls back to their no-argument form (the 5,000,000-row default) before committing — do not run the full 5,000,000-row version in this session; it's designed to be run explicitly, separately (`sbt "backend/testOnly perfectpair.domain.service.LargeFileIngestionReconciliationSuite"`), and is expected to take on the order of hours given `Reconciler`'s existing per-row matching loop.
+Expected: PASS in well under a minute. Once it passes, revert both calls back to their no-argument form (the 5,000,000-row default) before committing — do not run the full 5,000,000-row version in this session; it's designed to be run explicitly, separately (`sbt "backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"`), and is expected to take on the order of hours given `Reconciler`'s existing per-row matching loop.
 
 - [ ] **Step 3: Run the full backend suite to check for regressions**
 
@@ -906,7 +906,7 @@ Expected: PASS, and `LargeFileIngestionReconciliationSuite` does not appear in t
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala
+git add backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala
 git commit -m "Point LargeFileIngestionReconciliationSuite at ingestResumable
 
 Switches from ingest to ingestResumable (the method actually meant for

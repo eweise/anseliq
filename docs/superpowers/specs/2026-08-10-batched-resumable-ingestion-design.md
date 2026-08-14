@@ -4,12 +4,12 @@ Date: 2026-08-10
 
 ## Problem
 
-`Ingestor.ingest` (`backend/src/main/scala/perfectpair/domain/service/Ingestor.scala:48`)
+`Ingestor.ingest` (`backend/src/main/scala/onparity/domain/service/Ingestor.scala:48`)
 is `Txn[IngestionResult]` — a context function requiring an ambient `DbTx`
-(`type Txn[T] = DbTx ?=> T`, `backend/src/main/scala/perfectpair/domain/port/driven/package.scala:6`).
+(`type Txn[T] = DbTx ?=> T`, `backend/src/main/scala/onparity/domain/port/driven/package.scala:6`).
 The transaction boundary is established entirely by the caller. In
 production, that caller is the ingestion job loop in
-`backend/src/main/scala/perfectpair/app/Main.scala:104-116`, which wraps
+`backend/src/main/scala/onparity/app/Main.scala:104-116`, which wraps
 the *entire* `ingestor.ingestFileFromInventory(...)` call — every batch,
 for a 5,000,000-row file that's ~50,000 batches of 100 — in one
 `transact(...)` block. The transaction stays open for the whole file, and
@@ -17,7 +17,7 @@ if the process crashes partway through, nothing is committed and the next
 attempt has to reprocess the file from line one.
 
 There's also a latent correctness issue this surfaces: `Ledger.recordMovements`
-(`backend/src/main/scala/perfectpair/domain/service/Ledger.scala:40-43`)
+(`backend/src/main/scala/onparity/domain/service/Ledger.scala:40-43`)
 applies `balance +=`/`-=` unconditionally, regardless of whether the
 paired `INSERT ... ON CONFLICT(reference_id) DO NOTHING` actually inserted
 a row or silently skipped a duplicate. If a partially-processed file were
@@ -34,7 +34,7 @@ Rejected because the only version of that approach which doesn't waste
 I/O on every chunk requires byte-range-based splitting — `FileSource`
 gaining ranged reads, a chunk-creation step that aligns byte offsets to
 newlines, and reworking how idempotency keys are derived (they currently
-assume one contiguous line count per file: `perfectpair.domain.service.Ingestor.scala:76-80`).
+assume one contiguous line count per file: `onparity.domain.service.Ingestor.scala:76-80`).
 That's more upfront surface area than the checkpoint approach, which
 touches only `Ingestor`, `FileInventory`, and the two call sites, and only
 pays the "re-read to catch up" cost on an actual crash rather than on
@@ -272,7 +272,7 @@ be able to see those still-uncommitted accounts.
   rows are reprocessed.
 
 These new tests, and `LargeFileIngestionReconciliationSuite`
-(`backend/src/test/scala/perfectpair/domain/service/LargeFileIngestionReconciliationSuite.scala`,
+(`backend/src/test/scala/onparity/domain/service/LargeFileIngestionReconciliationSuite.scala`,
 which switches from calling `ingest` to calling `ingestResumable` since
 it's specifically exercising the large/batched path) all need:
 

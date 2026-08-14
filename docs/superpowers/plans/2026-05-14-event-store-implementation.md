@@ -15,12 +15,12 @@
 | Action | Path | Purpose |
 |---|---|---|
 | Modify | `backend/db/schema.sql` | Add `recon.event` table, index, trigger |
-| Create | `backend/src/main/scala/perfectpair/domain/model/Event.scala` | `Event`, `EventStatus`, `RetryableException` |
-| Create | `backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala` | `EventRepo` trait |
-| Create | `backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala` | Magnum implementation |
-| Modify | `backend/src/main/scala/perfectpair/domain/service/EventStore.scala` | `publishEvent`, `processNextEvent`, `receiveEvent` |
-| Create | `backend/src/test/scala/perfectpair/adapter/driven/EventRepoLiveSuite.scala` | DB-level repo tests |
-| Create | `backend/src/test/scala/perfectpair/domain/service/EventStoreSuite.scala` | Service-level tests |
+| Create | `backend/src/main/scala/onparity/domain/model/Event.scala` | `Event`, `EventStatus`, `RetryableException` |
+| Create | `backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala` | `EventRepo` trait |
+| Create | `backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala` | Magnum implementation |
+| Modify | `backend/src/main/scala/onparity/domain/service/EventStore.scala` | `publishEvent`, `processNextEvent`, `receiveEvent` |
+| Create | `backend/src/test/scala/onparity/adapter/driven/EventRepoLiveSuite.scala` | DB-level repo tests |
+| Create | `backend/src/test/scala/onparity/domain/service/EventStoreSuite.scala` | Service-level tests |
 
 ---
 
@@ -83,15 +83,15 @@ git commit -m "feat: add recon.event table to schema"
 ### Task 2: Create Event domain model
 
 **Files:**
-- Create: `backend/src/main/scala/perfectpair/domain/model/Event.scala`
+- Create: `backend/src/main/scala/onparity/domain/model/Event.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.domain.model
+package onparity.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.ID
+import onparity.common.model.model.ID
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -121,7 +121,7 @@ class RetryableException(message: String) extends Exception(message)
 - [ ] **Step 2: Verify compilation**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/compile"
+cd /Users/eweise/projects/onparity && sbt "backend/compile"
 ```
 
 Expected: `[success]`
@@ -129,7 +129,7 @@ Expected: `[success]`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/model/Event.scala
+git add backend/src/main/scala/onparity/domain/model/Event.scala
 git commit -m "feat: add Event model, EventStatus enum, RetryableException"
 ```
 
@@ -138,14 +138,14 @@ git commit -m "feat: add Event model, EventStatus enum, RetryableException"
 ### Task 3: Create EventRepo port
 
 **Files:**
-- Create: `backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala`
+- Create: `backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.domain.port.driven
+package onparity.domain.port.driven
 
-import perfectpair.domain.model.Event
+import onparity.domain.model.Event
 
 trait EventRepo extends DomainRepo[Event, Event]:
   def getNextPendingEvent(maxRetries: Int): Txn[Option[Event]]
@@ -154,7 +154,7 @@ trait EventRepo extends DomainRepo[Event, Event]:
 - [ ] **Step 2: Verify compilation**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/compile"
+cd /Users/eweise/projects/onparity && sbt "backend/compile"
 ```
 
 Expected: `[success]`
@@ -162,7 +162,7 @@ Expected: `[success]`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/port/driven/EventRepo.scala
+git add backend/src/main/scala/onparity/domain/port/driven/EventRepo.scala
 git commit -m "feat: add EventRepo port trait"
 ```
 
@@ -171,18 +171,18 @@ git commit -m "feat: add EventRepo port trait"
 ### Task 4: TDD — EventRepoLive
 
 **Files:**
-- Create: `backend/src/test/scala/perfectpair/adapter/driven/EventRepoLiveSuite.scala`
-- Create: `backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala`
+- Create: `backend/src/test/scala/onparity/adapter/driven/EventRepoLiveSuite.scala`
+- Create: `backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```scala
-package perfectpair.adapter.driven
+package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.domain.model.{Event, EventStatus}
-import perfectpair.testing.rollBackOnly
+import onparity.domain.model.{Event, EventStatus}
+import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -247,7 +247,7 @@ class EventRepoLiveSuite extends munit.FunSuite:
 - [ ] **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/testOnly perfectpair.adapter.driven.EventRepoLiveSuite"
+cd /Users/eweise/projects/onparity && sbt "backend/testOnly onparity.adapter.driven.EventRepoLiveSuite"
 ```
 
 Expected: compilation error — `EventRepoLive` not found.
@@ -255,11 +255,11 @@ Expected: compilation error — `EventRepoLive` not found.
 - [ ] **Step 3: Create EventRepoLive**
 
 ```scala
-package perfectpair.adapter.driven
+package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Repo, sql}
-import perfectpair.domain.model.{Event, EventStatus}
-import perfectpair.domain.port.driven.{EventRepo, Txn}
+import onparity.domain.model.{Event, EventStatus}
+import onparity.domain.port.driven.{EventRepo, Txn}
 
 import java.util.UUID
 
@@ -281,7 +281,7 @@ class EventRepoLive extends Repo[Event, Event, UUID] with EventRepo:
 - [ ] **Step 4: Run tests to confirm they pass**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/testOnly perfectpair.adapter.driven.EventRepoLiveSuite"
+cd /Users/eweise/projects/onparity && sbt "backend/testOnly onparity.adapter.driven.EventRepoLiveSuite"
 ```
 
 Expected: all 5 tests pass.
@@ -289,8 +289,8 @@ Expected: all 5 tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/test/scala/perfectpair/adapter/driven/EventRepoLiveSuite.scala \
-        backend/src/main/scala/perfectpair/adapter/driven/EventRepoLive.scala
+git add backend/src/test/scala/onparity/adapter/driven/EventRepoLiveSuite.scala \
+        backend/src/main/scala/onparity/adapter/driven/EventRepoLive.scala
 git commit -m "feat: implement EventRepoLive with getNextPendingEvent"
 ```
 
@@ -299,19 +299,19 @@ git commit -m "feat: implement EventRepoLive with getNextPendingEvent"
 ### Task 5: TDD — EventStore.publishEvent
 
 **Files:**
-- Create: `backend/src/test/scala/perfectpair/domain/service/EventStoreSuite.scala`
-- Modify: `backend/src/main/scala/perfectpair/domain/service/EventStore.scala`
+- Create: `backend/src/test/scala/onparity/domain/service/EventStoreSuite.scala`
+- Modify: `backend/src/main/scala/onparity/domain/service/EventStore.scala`
 
 - [ ] **Step 1: Write the failing test**
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{DbDataSource, EventRepoLive}
-import perfectpair.domain.model.{Event, EventStatus, RetryableException}
-import perfectpair.testing.rollBackOnly
+import onparity.adapter.driven.{DbDataSource, EventRepoLive}
+import onparity.domain.model.{Event, EventStatus, RetryableException}
+import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -336,22 +336,22 @@ class EventStoreSuite extends munit.FunSuite:
 - [ ] **Step 2: Run test to confirm it fails**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/testOnly perfectpair.domain.service.EventStoreSuite"
+cd /Users/eweise/projects/onparity && sbt "backend/testOnly onparity.domain.service.EventStoreSuite"
 ```
 
 Expected: compilation error — `EventStore` constructor/method not found.
 
 - [ ] **Step 3: Implement EventStore with publishEvent**
 
-Replace the contents of `backend/src/main/scala/perfectpair/domain/service/EventStore.scala`:
+Replace the contents of `backend/src/main/scala/onparity/domain/service/EventStore.scala`:
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import ox.scheduling.{Schedule, repeat}
-import perfectpair.domain.model.{Event, EventStatus, RetryableException}
-import perfectpair.domain.port.driven.{EventRepo, Txn}
+import onparity.domain.model.{Event, EventStatus, RetryableException}
+import onparity.domain.port.driven.{EventRepo, Txn}
 
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
@@ -401,7 +401,7 @@ class EventStore(using eventRepo: EventRepo, clock: ClockService, dataSource: Da
 - [ ] **Step 4: Run test to confirm it passes**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/testOnly perfectpair.domain.service.EventStoreSuite"
+cd /Users/eweise/projects/onparity && sbt "backend/testOnly onparity.domain.service.EventStoreSuite"
 ```
 
 Expected: 1 test passes.
@@ -409,8 +409,8 @@ Expected: 1 test passes.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/service/EventStore.scala \
-        backend/src/test/scala/perfectpair/domain/service/EventStoreSuite.scala
+git add backend/src/main/scala/onparity/domain/service/EventStore.scala \
+        backend/src/test/scala/onparity/domain/service/EventStoreSuite.scala
 git commit -m "feat: implement EventStore.publishEvent"
 ```
 
@@ -419,7 +419,7 @@ git commit -m "feat: implement EventStore.publishEvent"
 ### Task 6: TDD — EventStore.processNextEvent success path
 
 **Files:**
-- Modify: `backend/src/test/scala/perfectpair/domain/service/EventStoreSuite.scala`
+- Modify: `backend/src/test/scala/onparity/domain/service/EventStoreSuite.scala`
 
 - [ ] **Step 1: Add the test**
 
@@ -450,7 +450,7 @@ Add to `EventStoreSuite` (inside the class, after the existing test):
 - [ ] **Step 2: Run tests**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/testOnly perfectpair.domain.service.EventStoreSuite"
+cd /Users/eweise/projects/onparity && sbt "backend/testOnly onparity.domain.service.EventStoreSuite"
 ```
 
 Expected: all 3 tests pass (implementation already complete from Task 5).
@@ -458,7 +458,7 @@ Expected: all 3 tests pass (implementation already complete from Task 5).
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend/src/test/scala/perfectpair/domain/service/EventStoreSuite.scala
+git add backend/src/test/scala/onparity/domain/service/EventStoreSuite.scala
 git commit -m "test: add processNextEvent success path tests"
 ```
 
@@ -467,7 +467,7 @@ git commit -m "test: add processNextEvent success path tests"
 ### Task 7: TDD — EventStore.processNextEvent retry and error paths
 
 **Files:**
-- Modify: `backend/src/test/scala/perfectpair/domain/service/EventStoreSuite.scala`
+- Modify: `backend/src/test/scala/onparity/domain/service/EventStoreSuite.scala`
 
 - [ ] **Step 1: Add retry and error tests**
 
@@ -521,7 +521,7 @@ Add to `EventStoreSuite`:
 - [ ] **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/testOnly perfectpair.domain.service.EventStoreSuite"
+cd /Users/eweise/projects/onparity && sbt "backend/testOnly onparity.domain.service.EventStoreSuite"
 ```
 
 Expected: the 3 new tests fail (implementation not yet handling exceptions).
@@ -531,7 +531,7 @@ Wait — the implementation in Task 5 already includes exception handling. These
 - [ ] **Step 3: Run tests and confirm they pass**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/testOnly perfectpair.domain.service.EventStoreSuite"
+cd /Users/eweise/projects/onparity && sbt "backend/testOnly onparity.domain.service.EventStoreSuite"
 ```
 
 Expected: all 6 tests pass.
@@ -539,7 +539,7 @@ Expected: all 6 tests pass.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/src/test/scala/perfectpair/domain/service/EventStoreSuite.scala
+git add backend/src/test/scala/onparity/domain/service/EventStoreSuite.scala
 git commit -m "test: add retry and error path tests for processNextEvent"
 ```
 
@@ -550,7 +550,7 @@ git commit -m "test: add retry and error path tests for processNextEvent"
 - [ ] **Step 1: Run all backend tests**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "backend/test"
+cd /Users/eweise/projects/onparity && sbt "backend/test"
 ```
 
 Expected: all tests pass, no regressions.

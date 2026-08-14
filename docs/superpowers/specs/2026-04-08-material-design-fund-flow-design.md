@@ -61,9 +61,9 @@ Wrap the form in an elevated card on a tinted surface:
 ## Files Changed
 
 1. `frontend/tailwind.config.js`
-2. `frontend/src/main/scala/perfectpair/view/components/Form.scala`
-3. `frontend/src/main/scala/perfectpair/view/components/Buttons.scala`
-4. `frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala`
+2. `frontend/src/main/scala/onparity/view/components/Form.scala`
+3. `frontend/src/main/scala/onparity/view/components/Buttons.scala`
+4. `frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala`
 
 ## Out of Scope
 

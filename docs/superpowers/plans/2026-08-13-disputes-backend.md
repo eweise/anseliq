@@ -39,7 +39,7 @@ reasoning.
 
 **Files:**
 - Modify: `backend/db/schema.sql`
-- Create: `backend/src/main/scala/perfectpair/domain/model/Dispute.scala`
+- Create: `backend/src/main/scala/onparity/domain/model/Dispute.scala`
 
 **Interfaces:**
 - Produces: `Dispute` case class, `DisputeTarget` enum (`Movement`, `Reconciliation`), `DisputeCategory` enum
@@ -98,10 +98,10 @@ Expected: three `CREATE TABLE`/`CREATE INDEX` confirmations, no errors. If `reco
 - [ ] **Step 3: Create `Dispute.scala`**
 
 ```scala
-package perfectpair.domain.model
+package onparity.domain.model
 
 import com.augustnagro.magnum.*
-import perfectpair.common.model.model.ID
+import onparity.common.model.model.ID
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -143,7 +143,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/db/schema.sql backend/src/main/scala/perfectpair/domain/model/Dispute.scala
+git add backend/db/schema.sql backend/src/main/scala/onparity/domain/model/Dispute.scala
 git commit -m "Add Dispute domain model and recon.dispute table
 
 Polymorphic reference (referenceId + targetType) rather than two nullable
@@ -156,12 +156,12 @@ the referential-integrity trade-off this makes."
 ### Task 2: `DisputeRepo`, `DisputeService`, and tests
 
 **Files:**
-- Create: `backend/src/main/scala/perfectpair/domain/port/driven/DisputeRepo.scala`
-- Create: `backend/src/main/scala/perfectpair/adapter/driven/DisputeRepoLive.scala`
-- Modify: `backend/src/main/scala/perfectpair/domain/model/Event.scala`
-- Modify: `backend/src/test/scala/perfectpair/domain/DataSetup.scala`
-- Create: `backend/src/test/scala/perfectpair/domain/service/DisputeServiceSuite.scala`
-- Create: `backend/src/main/scala/perfectpair/domain/service/DisputeService.scala`
+- Create: `backend/src/main/scala/onparity/domain/port/driven/DisputeRepo.scala`
+- Create: `backend/src/main/scala/onparity/adapter/driven/DisputeRepoLive.scala`
+- Modify: `backend/src/main/scala/onparity/domain/model/Event.scala`
+- Modify: `backend/src/test/scala/onparity/domain/DataSetup.scala`
+- Create: `backend/src/test/scala/onparity/domain/service/DisputeServiceSuite.scala`
+- Create: `backend/src/main/scala/onparity/domain/service/DisputeService.scala`
 
 **Interfaces:**
 - Consumes: `Dispute`, `DisputeTarget`, `DisputeCategory`, `DisputeStatus` from Task 1; existing
@@ -174,9 +174,9 @@ the referential-integrity trade-off this makes."
 - [ ] **Step 1: Create the repo port — no custom methods needed**
 
 ```scala
-package perfectpair.domain.port.driven
+package onparity.domain.port.driven
 
-import perfectpair.domain.model.Dispute
+import onparity.domain.model.Dispute
 
 trait DisputeRepo extends DomainRepo[Dispute, Dispute]
 ```
@@ -184,11 +184,11 @@ trait DisputeRepo extends DomainRepo[Dispute, Dispute]
 - [ ] **Step 2: Create the repo adapter**
 
 ```scala
-package perfectpair.adapter.driven
+package onparity.adapter.driven
 
 import com.augustnagro.magnum.Repo
-import perfectpair.domain.model.Dispute
-import perfectpair.domain.port.driven.DisputeRepo
+import onparity.domain.model.Dispute
+import onparity.domain.port.driven.DisputeRepo
 
 import java.util.UUID
 
@@ -207,7 +207,7 @@ case class DisputeStatusChanged(id: ID = UUID.randomUUID(), disputeID: ID, newSt
 
 - [ ] **Step 4: Wire `disputeRepo` into the shared test fixture**
 
-In `backend/src/test/scala/perfectpair/domain/DataSetup.scala`, add one line among the existing `given`
+In `backend/src/test/scala/onparity/domain/DataSetup.scala`, add one line among the existing `given`
 declarations (e.g. right after `given reconRepo: ReconciliationRepo = ReconciliationRepoLive()`):
 
 ```scala
@@ -217,16 +217,16 @@ declarations (e.g. right after `given reconRepo: ReconciliationRepo = Reconcilia
 - [ ] **Step 5: Write the failing tests**
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import perfectpair.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
-import perfectpair.domain.DataSetup
-import perfectpair.domain.model.helper.JSONBProps
-import perfectpair.domain.model.{DisputeCategory, DisputeStatus, DisputeTarget, IllegalArgumentError, Movement, MovementSpec, NotFoundError}
-import perfectpair.domain.port.driven.{JobRepo, Txn}
-import perfectpair.testing.rollBackOnly
+import onparity.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
+import onparity.domain.DataSetup
+import onparity.domain.model.helper.JSONBProps
+import onparity.domain.model.{DisputeCategory, DisputeStatus, DisputeTarget, IllegalArgumentError, Movement, MovementSpec, NotFoundError}
+import onparity.domain.port.driven.{JobRepo, Txn}
+import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
 
@@ -371,18 +371,18 @@ class DisputeServiceSuite extends munit.FunSuite:
 
 - [ ] **Step 6: Run the tests to verify they fail**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.DisputeServiceSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.DisputeServiceSuite"`
 Expected: compile failure (`DisputeService` doesn't exist yet) — that's the expected failing state before
 implementation.
 
 - [ ] **Step 7: Implement `DisputeService.scala`**
 
 ```scala
-package perfectpair.domain.service
+package onparity.domain.service
 
-import perfectpair.common.model.model.ID
-import perfectpair.domain.model.*
-import perfectpair.domain.port.driven.*
+import onparity.common.model.model.ID
+import onparity.domain.model.*
+import onparity.domain.port.driven.*
 
 class DisputeService(using
   disputeRepo:  DisputeRepo,
@@ -426,13 +426,13 @@ class DisputeService(using
 
 - [ ] **Step 8: Run the tests to verify they pass**
 
-Run: `sbt "backend/testOnly perfectpair.domain.service.DisputeServiceSuite"`
+Run: `sbt "backend/testOnly onparity.domain.service.DisputeServiceSuite"`
 Expected: `8 tests, 0 failed` (or similar — all 8 tests from Step 5 passing).
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/domain/port/driven/DisputeRepo.scala backend/src/main/scala/perfectpair/adapter/driven/DisputeRepoLive.scala backend/src/main/scala/perfectpair/domain/model/Event.scala backend/src/test/scala/perfectpair/domain/DataSetup.scala backend/src/test/scala/perfectpair/domain/service/DisputeServiceSuite.scala backend/src/main/scala/perfectpair/domain/service/DisputeService.scala
+git add backend/src/main/scala/onparity/domain/port/driven/DisputeRepo.scala backend/src/main/scala/onparity/adapter/driven/DisputeRepoLive.scala backend/src/main/scala/onparity/domain/model/Event.scala backend/src/test/scala/onparity/domain/DataSetup.scala backend/src/test/scala/onparity/domain/service/DisputeServiceSuite.scala backend/src/main/scala/onparity/domain/service/DisputeService.scala
 git commit -m "Add DisputeService: raise a dispute on a Movement or Reconciliation, update its status
 
 Resolving a dispute (status -> Resolved) requires a non-blank resolutionNote;
@@ -445,8 +445,8 @@ unrestricted for v1."
 ### Task 3: Shared DTOs (`common` module)
 
 **Files:**
-- Modify: `common/src/main/scala/perfectpair/common/http/http.scala`
-- Modify: `common/src/main/scala/perfectpair/common/model/Payload.scala`
+- Modify: `common/src/main/scala/onparity/common/http/http.scala`
+- Modify: `common/src/main/scala/onparity/common/model/Payload.scala`
 
 **Interfaces:**
 - Produces: `HttpPath.dispute`, `HttpPath.disputes`; `DisputeTargetPayload`, `DisputeCategoryPayload`,
@@ -513,7 +513,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add common/src/main/scala/perfectpair/common/http/http.scala common/src/main/scala/perfectpair/common/model/Payload.scala
+git add common/src/main/scala/onparity/common/http/http.scala common/src/main/scala/onparity/common/model/Payload.scala
 git commit -m "Add Dispute path constants and shared DTOs to the common module"
 ```
 
@@ -522,9 +522,9 @@ git commit -m "Add Dispute path constants and shared DTOs to the common module"
 ### Task 4: Payload conversion, routes, and dependency wiring
 
 **Files:**
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Payload.scala`
-- Modify: `backend/src/main/scala/perfectpair/adapter/driving/Routes.scala`
-- Modify: `backend/src/main/scala/perfectpair/app/Main.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Payload.scala`
+- Modify: `backend/src/main/scala/onparity/adapter/driving/Routes.scala`
+- Modify: `backend/src/main/scala/onparity/app/Main.scala`
 
 **Interfaces:**
 - Consumes: `Dispute`/`DisputeTarget`/`DisputeCategory`/`DisputeStatus` (Task 1), `DisputeService` (Task 2),
@@ -731,7 +731,7 @@ Stop the backend (`Ctrl-C` or kill the process on port 8080) when done.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/main/scala/perfectpair/adapter/driving/Payload.scala backend/src/main/scala/perfectpair/adapter/driving/Routes.scala backend/src/main/scala/perfectpair/app/Main.scala
+git add backend/src/main/scala/onparity/adapter/driving/Payload.scala backend/src/main/scala/onparity/adapter/driving/Routes.scala backend/src/main/scala/onparity/app/Main.scala
 git commit -m "Wire up Dispute routes: raise, list, update status
 
 POST /api/v1/dispute, GET /api/v1/disputes, PUT /api/v1/dispute/:id/status.

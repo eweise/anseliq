@@ -5,7 +5,7 @@
 
 ## Overview
 
-Migrate the PerfectPair frontend from Tyrian (Elm-inspired TEA architecture) to Laminar (FRP, Airstream-based). The migration is a full rewrite of the frontend Scala source, following an infrastructure-first order. The backend and `common` module are untouched.
+Migrate the OnParity frontend from Tyrian (Elm-inspired TEA architecture) to Laminar (FRP, Airstream-based). The migration is a full rewrite of the frontend Scala source, following an infrastructure-first order. The backend and `common` module are untouched.
 
 ## Stack Changes
 
@@ -190,7 +190,7 @@ object MainLayout:
 ## File Structure
 
 ```
-frontend/src/main/scala/perfectpair/
+frontend/src/main/scala/onparity/
   main/
     WebApp.scala
   state/

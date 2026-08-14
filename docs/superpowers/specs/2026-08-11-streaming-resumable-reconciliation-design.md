@@ -5,10 +5,10 @@ Date: 2026-08-11
 ## Problem
 
 `InMemoryReconciler.reconcileAccount`
-(`backend/src/main/scala/perfectpair/domain/service/InMemoryReconciler.scala:39`)
+(`backend/src/main/scala/onparity/domain/service/InMemoryReconciler.scala:39`)
 is the reconciliation implementation actually wired into production
 (`Main.scala:44`, `Routes.scala:208`) — the other reconciliation
-implementation, `Reconciler` (`backend/src/main/scala/perfectpair/domain/service/Reconciler.scala`),
+implementation, `Reconciler` (`backend/src/main/scala/onparity/domain/service/Reconciler.scala`),
 is unused by the running app (only exercised by tests) and has already
 been marked `@deprecated`.
 

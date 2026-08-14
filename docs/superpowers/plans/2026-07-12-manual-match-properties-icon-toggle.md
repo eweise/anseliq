@@ -18,8 +18,8 @@
 ### Task 1: Add `plusCircle`/`minusCircle` icons and use them in the toggle
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/components/Icons.scala` (add two `val`s)
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala` (import `Icons`, update `referenceIdCell`)
+- Modify: `frontend/src/main/scala/onparity/view/components/Icons.scala` (add two `val`s)
+- Modify: `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala` (import `Icons`, update `referenceIdCell`)
 
 **Interfaces:**
 - Consumes: `Icons.icon(svgStr: String): HtmlElement` (pre-existing private helper in the same object — the new vals just call it, same as every other icon in the file).
@@ -27,7 +27,7 @@
 
 - [ ] **Step 1: Add the two icons to `Icons.scala`**
 
-In `frontend/src/main/scala/perfectpair/view/components/Icons.scala`, add (anywhere among the other `val`s, e.g. after `lock`):
+In `frontend/src/main/scala/onparity/view/components/Icons.scala`, add (anywhere among the other `val`s, e.g. after `lock`):
 
 ```scala
   val plusCircle: HtmlElement = icon(
@@ -41,16 +41,16 @@ In `frontend/src/main/scala/perfectpair/view/components/Icons.scala`, add (anywh
 
 - [ ] **Step 2: Use the icons in `ManualMatchPage.referenceIdCell`**
 
-In `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala`, change the import:
+In `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala`, change the import:
 
 ```scala
-import perfectpair.view.components.{Buttons, Table}
+import onparity.view.components.{Buttons, Table}
 ```
 
 to:
 
 ```scala
-import perfectpair.view.components.{Buttons, Icons, Table}
+import onparity.view.components.{Buttons, Icons, Table}
 ```
 
 Then replace the toggle button inside `referenceIdCell`:
@@ -87,7 +87,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/components/Icons.scala frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala
+git add frontend/src/main/scala/onparity/view/components/Icons.scala frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala
 git commit -m "Use plus/minus circle icons for properties toggle"
 ```
 

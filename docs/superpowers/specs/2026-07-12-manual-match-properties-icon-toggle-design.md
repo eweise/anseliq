@@ -7,7 +7,7 @@
 `ManualMatchPage`'s Reference ID cell toggle currently renders as plain `+`/`−`
 characters. Replace them with solid circled plus/minus icons for better visual
 prominence, following this codebase's existing inline-SVG icon convention
-(`frontend/src/main/scala/perfectpair/view/components/Icons.scala`).
+(`frontend/src/main/scala/onparity/view/components/Icons.scala`).
 
 ## Change
 

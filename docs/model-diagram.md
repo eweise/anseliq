@@ -1,6 +1,6 @@
-# PerfectPair Model Class Diagram
+# OnParity Model Class Diagram
 
-## perfectpair.model (Shared Models)
+## onparity.model (Shared Models)
 
 ```mermaid
 classDiagram
@@ -23,7 +23,7 @@ classDiagram
     }
 ```
 
-## perfectpair.domain.model (Domain Models)
+## onparity.domain.model (Domain Models)
 
 ```mermaid
 classDiagram

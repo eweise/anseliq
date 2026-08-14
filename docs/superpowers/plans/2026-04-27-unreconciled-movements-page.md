@@ -14,29 +14,29 @@
 
 | Action | File | Responsibility |
 |--------|------|----------------|
-| Create | `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsView.scala` | New page view, model, msg |
-| Modify | `frontend/src/main/scala/perfectpair/model/model.scala` | Add model field, two new Msg cases |
-| Modify | `frontend/src/main/scala/perfectpair/util/HttpHelper.scala` | Add fetch method + decoder |
-| Modify | `frontend/src/main/scala/perfectpair/page/Page.scala` | Register new Page object |
-| Modify | `frontend/src/main/scala/perfectpair/route/route.scala` | Add URL route |
-| Modify | `frontend/src/main/scala/perfectpair/main/WebApp.scala` | Handle NavigateToUnreconciledMovements |
-| Modify | `frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala` | Add "View Unreconciled" button per row |
+| Create | `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsView.scala` | New page view, model, msg |
+| Modify | `frontend/src/main/scala/onparity/model/model.scala` | Add model field, two new Msg cases |
+| Modify | `frontend/src/main/scala/onparity/util/HttpHelper.scala` | Add fetch method + decoder |
+| Modify | `frontend/src/main/scala/onparity/page/Page.scala` | Register new Page object |
+| Modify | `frontend/src/main/scala/onparity/route/route.scala` | Add URL route |
+| Modify | `frontend/src/main/scala/onparity/main/WebApp.scala` | Handle NavigateToUnreconciledMovements |
+| Modify | `frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala` | Add "View Unreconciled" button per row |
 
 ---
 
 ### Task 1: Create UnreconciledMovementsView
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsView.scala`
 
 - [ ] **Step 1: Create the view file**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementPayload, MovementSpecPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.{AccountPayload, FundFlowPayload, MovementPayload, MovementSpecPayload}
+import onparity.model.Msg as AppMsg
+import onparity.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -86,7 +86,7 @@ object UnreconciledMovementsView:
 ### Task 2: Update global model
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
 - [ ] **Step 1: Add `NavigateToUnreconciledMovements` and `UnreconciledMovementsMsg` to the `Msg` enum**
 
@@ -114,14 +114,14 @@ In `object Model`, add to the `Model(...)` constructor call after `jobsModel = J
     unreconciledMovementsModel = UnreconciledMovementsView.Model()
 ```
 
-> Note: `model.scala` already uses `import perfectpair.view.pages.*`, so `UnreconciledMovementsView` is auto-imported once the file from Task 1 exists.
+> Note: `model.scala` already uses `import onparity.view.pages.*`, so `UnreconciledMovementsView` is auto-imported once the file from Task 1 exists.
 
 ---
 
 ### Task 3: Add HTTP fetch method and decoder
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 - [ ] **Step 1: Add `fetchUnreconciledMovements` method**
 
@@ -148,14 +148,14 @@ In `object ResponseDecoders`, add after `jobsDecoder`:
       )
 ```
 
-> Note: `MovementPayload` and `UnreconciledMovementsView` are already in scope via the existing `import perfectpair.common.model.*` and `import perfectpair.view.pages.*`.
+> Note: `MovementPayload` and `UnreconciledMovementsView` are already in scope via the existing `import onparity.common.model.*` and `import onparity.view.pages.*`.
 
 ---
 
 ### Task 4: Register the Page
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
 
 - [ ] **Step 1: Add `Page.UnreconciledMovements` object**
 
@@ -182,7 +182,7 @@ Add after `object Jobs extends Page { ... }` and before `object Toggle extends P
 ### Task 5: Add the URL route
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/route/route.scala`
+- Modify: `frontend/src/main/scala/onparity/route/route.scala`
 
 - [ ] **Step 1: Add route entry**
 
@@ -196,17 +196,17 @@ In `object ComponentDemo`, add after `case "jobs" => Page.Jobs`:
 ### Task 6: Handle navigation in WebApp
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Add `UnreconciledMovementsView` to the import list**
 
 Change:
 ```scala
-import perfectpair.view.pages.{AccountsView, IngestView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView}
+import onparity.view.pages.{AccountsView, IngestView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView}
 ```
 To:
 ```scala
-import perfectpair.view.pages.{AccountsView, IngestView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView, UnreconciledMovementsView}
+import onparity.view.pages.{AccountsView, IngestView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView, UnreconciledMovementsView}
 ```
 
 - [ ] **Step 2: Handle `NavigateToUnreconciledMovements`**
@@ -229,7 +229,7 @@ In the `update` function, add after the `Msg.NavigateToIngest` case:
 ### Task 7: Add "View Unreconciled" button to MovementSpecsView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala`
 
 - [ ] **Step 1: Add `ViewUnreconciled` to the `Msg` enum**
 
@@ -267,7 +267,7 @@ To:
 - [ ] **Step 1: Compile the frontend**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt "frontend/fastLinkJS"
+cd /Users/eweise/projects/onparity && sbt "frontend/fastLinkJS"
 ```
 
 Expected: compilation succeeds with no errors.
@@ -275,7 +275,7 @@ Expected: compilation succeeds with no errors.
 - [ ] **Step 2: Start the dev server and manually verify**
 
 ```bash
-cd /Users/eweise/projects/perfectpair && sbt devServer
+cd /Users/eweise/projects/onparity && sbt devServer
 ```
 
 Navigate to the Movement Specs page, confirm each row has a "View Unreconciled" button, click it, confirm the Unreconciled Movements page loads with the correct spec name and a table showing account names (not IDs). Confirm the "Back to Movement Specs" button returns to the previous page.
@@ -284,12 +284,12 @@ Navigate to the Movement Specs page, confirm each row has a "View Unreconciled" 
 
 ```bash
 git add \
-  frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsView.scala \
-  frontend/src/main/scala/perfectpair/model/model.scala \
-  frontend/src/main/scala/perfectpair/util/HttpHelper.scala \
-  frontend/src/main/scala/perfectpair/page/Page.scala \
-  frontend/src/main/scala/perfectpair/route/route.scala \
-  frontend/src/main/scala/perfectpair/main/WebApp.scala \
-  frontend/src/main/scala/perfectpair/view/pages/MovementSpecsView.scala
+  frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsView.scala \
+  frontend/src/main/scala/onparity/model/model.scala \
+  frontend/src/main/scala/onparity/util/HttpHelper.scala \
+  frontend/src/main/scala/onparity/page/Page.scala \
+  frontend/src/main/scala/onparity/route/route.scala \
+  frontend/src/main/scala/onparity/main/WebApp.scala \
+  frontend/src/main/scala/onparity/view/pages/MovementSpecsView.scala
 git commit -m "feat: add Unreconciled Movements page navigable from MovementSpecsView"
 ```

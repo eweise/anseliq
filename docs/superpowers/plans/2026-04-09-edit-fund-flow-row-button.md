@@ -13,11 +13,11 @@
 ### Task 1: Add `SelectFundFlow` message to `Msg` enum
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
 - [ ] **Step 1: Add the new message case**
 
-In `frontend/src/main/scala/perfectpair/model/model.scala`, add `SelectFundFlow` after `FundFlowCreated`:
+In `frontend/src/main/scala/onparity/model/model.scala`, add `SelectFundFlow` after `FundFlowCreated`:
 
 ```scala
   case FundFlowCreated(fundFlow:FundFlowPayload)
@@ -28,7 +28,7 @@ In `frontend/src/main/scala/perfectpair/model/model.scala`, add `SelectFundFlow`
 - [ ] **Step 2: Verify it compiles**
 
 ```bash
-cd /Users/eweise/projects/perfectpair
+cd /Users/eweise/projects/onparity
 sbt frontend/compile
 ```
 
@@ -37,7 +37,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/model/model.scala
+git add frontend/src/main/scala/onparity/model/model.scala
 git commit -m "feat: add SelectFundFlow message to Msg enum"
 ```
 
@@ -46,11 +46,11 @@ git commit -m "feat: add SelectFundFlow message to Msg enum"
 ### Task 2: Handle `SelectFundFlow` in the update function
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Add the update case**
 
-In `frontend/src/main/scala/perfectpair/main/WebApp.scala`, add a handler after the `FundFlowCreated` case (around line 124):
+In `frontend/src/main/scala/onparity/main/WebApp.scala`, add a handler after the `FundFlowCreated` case (around line 124):
 
 ```scala
     case Msg.FundFlowCreated(ff) =>
@@ -66,7 +66,7 @@ In `frontend/src/main/scala/perfectpair/main/WebApp.scala`, add a handler after 
 - [ ] **Step 2: Verify it compiles**
 
 ```bash
-cd /Users/eweise/projects/perfectpair
+cd /Users/eweise/projects/onparity
 sbt frontend/compile
 ```
 
@@ -75,7 +75,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/main/WebApp.scala
+git add frontend/src/main/scala/onparity/main/WebApp.scala
 git commit -m "feat: handle SelectFundFlow — set selectedFundFlow and navigate to MaintainFundFlow"
 ```
 
@@ -84,19 +84,19 @@ git commit -m "feat: handle SelectFundFlow — set selectedFundFlow and navigate
 ### Task 3: Add "Edit" button column to `FundFlowsView`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowsView.scala`
 
 - [ ] **Step 1: Update the view to add the Edit column**
 
-Replace the contents of `frontend/src/main/scala/perfectpair/view/pages/FundFlowsView.scala` with:
+Replace the contents of `frontend/src/main/scala/onparity/view/pages/FundFlowsView.scala` with:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.FundFlowPayload
-import perfectpair.model.Msg
-import perfectpair.page.Page
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.FundFlowPayload
+import onparity.model.Msg
+import onparity.page.Page
+import onparity.view.components.{Buttons, Table}
 import tyrian.Html
 import tyrian.Html.*
 
@@ -130,7 +130,7 @@ object FundFlowsView:
 - [ ] **Step 2: Verify it compiles**
 
 ```bash
-cd /Users/eweise/projects/perfectpair
+cd /Users/eweise/projects/onparity
 sbt frontend/compile
 ```
 
@@ -139,6 +139,6 @@ Expected: `[success]` with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/FundFlowsView.scala
+git add frontend/src/main/scala/onparity/view/pages/FundFlowsView.scala
 git commit -m "feat: add Edit button per row in FundFlowsView"
 ```

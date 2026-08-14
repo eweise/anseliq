@@ -14,28 +14,28 @@
 
 | Action | File |
 |--------|------|
-| **Create** | `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/util/HttpHelper.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/model/model.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/page/Page.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/main/WebApp.scala` |
-| **Modify** | `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala` |
+| **Create** | `frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/util/HttpHelper.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/model/model.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/page/Page.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/main/WebApp.scala` |
+| **Modify** | `frontend/src/main/scala/onparity/view/pages/AccountsView.scala` |
 
 ---
 
 ### Task 1: Create ReconSpecsView.scala
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.view.components.Table
+import onparity.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import onparity.model.Msg as AppMsg
+import onparity.view.components.Table
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -89,7 +89,7 @@ Expected: no errors
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala
+git add frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala
 git commit -m "feat: add ReconSpecsView with Msg/Model/apply"
 ```
 
@@ -98,22 +98,22 @@ git commit -m "feat: add ReconSpecsView with Msg/Model/apply"
 ### Task 2: Add HttpHelper fetch methods and decoders
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 - [ ] **Step 1: Add import for ReconSpecsView at the top of the import block**
 
 In `HttpHelper.scala`, change:
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, Welcome}
 ```
 to:
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView, Welcome}
 ```
 
 Also add `ReconciliationSpecPayload` to the common model import:
 ```scala
-import perfectpair.common.model.*
+import onparity.common.model.*
 ```
 (already uses `*`, so no change needed here)
 
@@ -154,7 +154,7 @@ Note: `Msg.ReconSpecsMsg` does not exist yet — the file will not compile until
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/util/HttpHelper.scala
+git add frontend/src/main/scala/onparity/util/HttpHelper.scala
 git commit -m "feat: add HttpHelper fetch methods and decoders for ReconSpecsView"
 ```
 
@@ -163,7 +163,7 @@ git commit -m "feat: add HttpHelper fetch methods and decoders for ReconSpecsVie
 ### Task 3: Update model.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
 - [ ] **Step 1: Add `ReconSpecsMsg` and `NavigateToReconSpecs` to the `Msg` enum**
 
@@ -199,7 +199,7 @@ Expected: no errors (HttpHelper now also compiles since `Msg.ReconSpecsMsg` exis
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/model/model.scala
+git add frontend/src/main/scala/onparity/model/model.scala
 git commit -m "feat: add ReconSpecsMsg, NavigateToReconSpecs, and reconSpecsModel to global model"
 ```
 
@@ -208,7 +208,7 @@ git commit -m "feat: add ReconSpecsMsg, NavigateToReconSpecs, and reconSpecsMode
 ### Task 4: Add Page.ReconSpecs to Page.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
 
 - [ ] **Step 1: Add `Page.ReconSpecs` object inside the `Page` object, after `Page.MaintainMovementSpec`**
 
@@ -236,7 +236,7 @@ Expected: no errors
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/page/Page.scala
+git add frontend/src/main/scala/onparity/page/Page.scala
 git commit -m "feat: add Page.ReconSpecs"
 ```
 
@@ -245,17 +245,17 @@ git commit -m "feat: add Page.ReconSpecs"
 ### Task 5: Handle NavigateToReconSpecs in WebApp.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Add `ReconSpecsView` to the explicit import in WebApp.scala**
 
 Change:
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView}
+import onparity.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView}
 ```
 to:
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView}
+import onparity.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView}
 ```
 
 - [ ] **Step 2: Add the `NavigateToReconSpecs` case to the `update` function, after the `NavigateToMovementSpecs` case**
@@ -279,7 +279,7 @@ Expected: no errors
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/main/WebApp.scala
+git add frontend/src/main/scala/onparity/main/WebApp.scala
 git commit -m "feat: handle NavigateToReconSpecs in WebApp"
 ```
 
@@ -288,7 +288,7 @@ git commit -m "feat: handle NavigateToReconSpecs in WebApp"
 ### Task 6: Add "Recon Specs" button to AccountsView.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/AccountsView.scala`
 
 - [ ] **Step 1: Update the `Table.create` call to add a "Recon Specs" button column**
 
@@ -344,7 +344,7 @@ Expected: no errors
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala
+git add frontend/src/main/scala/onparity/view/pages/AccountsView.scala
 git commit -m "feat: add Recon Specs navigation button to AccountsView"
 ```
 

@@ -14,27 +14,27 @@
 
 | File | Action | Responsibility |
 |------|--------|----------------|
-| `frontend/src/main/scala/perfectpair/util/PayloadAction.scala` | Modify | Add `Delete` and `Deleted` cases |
-| `frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala` | **Create** | Form UI + update logic for recon spec CRUD |
-| `frontend/src/main/scala/perfectpair/util/HttpHelper.scala` | Modify | Add `createReconSpec`, `updateReconSpec`, `deleteReconSpec` + decoders |
-| `frontend/src/main/scala/perfectpair/model/model.scala` | Modify | Add `NavigateToMaintainReconSpec` msg, `MaintainReconSpecMsg` wrapper, `maintainReconSpecModel` field |
-| `frontend/src/main/scala/perfectpair/page/Page.scala` | Modify | Add `MaintainReconSpec` page object |
-| `frontend/src/main/scala/perfectpair/main/WebApp.scala` | Modify | Handle `NavigateToMaintainReconSpec` and `MaintainReconSpecMsg` |
-| `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala` | Modify | Add Add/Edit buttons and `SelectReconSpec` message |
+| `frontend/src/main/scala/onparity/util/PayloadAction.scala` | Modify | Add `Delete` and `Deleted` cases |
+| `frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala` | **Create** | Form UI + update logic for recon spec CRUD |
+| `frontend/src/main/scala/onparity/util/HttpHelper.scala` | Modify | Add `createReconSpec`, `updateReconSpec`, `deleteReconSpec` + decoders |
+| `frontend/src/main/scala/onparity/model/model.scala` | Modify | Add `NavigateToMaintainReconSpec` msg, `MaintainReconSpecMsg` wrapper, `maintainReconSpecModel` field |
+| `frontend/src/main/scala/onparity/page/Page.scala` | Modify | Add `MaintainReconSpec` page object |
+| `frontend/src/main/scala/onparity/main/WebApp.scala` | Modify | Handle `NavigateToMaintainReconSpec` and `MaintainReconSpecMsg` |
+| `frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala` | Modify | Add Add/Edit buttons and `SelectReconSpec` message |
 
 ---
 
 ## Task 1: Add Delete/Deleted to PayloadAction
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/PayloadAction.scala`
+- Modify: `frontend/src/main/scala/onparity/util/PayloadAction.scala`
 
 - [ ] **Step 1: Add Delete and Deleted cases**
 
 Replace the entire file content:
 
 ```scala
-package perfectpair.util
+package onparity.util
 
 enum PayloadAction:
   case Update
@@ -56,7 +56,7 @@ Expected: BUILD SUCCESS (or only pre-existing errors unrelated to PayloadAction)
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/util/PayloadAction.scala
+git add frontend/src/main/scala/onparity/util/PayloadAction.scala
 git commit -m "feat: add Delete and Deleted cases to PayloadAction"
 ```
 
@@ -65,18 +65,18 @@ git commit -m "feat: add Delete and Deleted cases to PayloadAction"
 ## Task 2: Create MaintainReconSpecView.scala
 
 **Files:**
-- Create: `frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala`
+- Create: `frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala`
 
 - [ ] **Step 1: Create the file**
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.util.PayloadAction.*
-import perfectpair.util.{HttpHelper, PayloadAction}
-import perfectpair.view.components.{Buttons, Form}
+import onparity.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import onparity.model.Msg as AppMsg
+import onparity.util.PayloadAction.*
+import onparity.util.{HttpHelper, PayloadAction}
+import onparity.view.components.{Buttons, Form}
 import tyrian.EmptyAttribute
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
@@ -210,7 +210,7 @@ Expected: BUILD SUCCESS (unresolved `HttpHelper` references are expected at this
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MaintainReconSpecView.scala
+git add frontend/src/main/scala/onparity/view/pages/MaintainReconSpecView.scala
 git commit -m "feat: add MaintainReconSpecView form page for recon spec CRUD"
 ```
 
@@ -219,7 +219,7 @@ git commit -m "feat: add MaintainReconSpecView form page for recon spec CRUD"
 ## Task 3: Add HTTP helpers for recon spec CRUD
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 Three changes: (a) add `MaintainReconSpecView` to the import, (b) add three HTTP command methods, (c) add two decoders inside `ResponseDecoders`.
 
@@ -228,13 +228,13 @@ Three changes: (a) add `MaintainReconSpecView` to the import, (b) add three HTTP
 In `HttpHelper.scala`, find the existing import line:
 
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView, Welcome}
 ```
 
 Replace it with:
 
 ```scala
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView, Welcome}
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView, Welcome}
 ```
 
 - [ ] **Step 2: Add delete private helper method**
@@ -308,7 +308,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/util/HttpHelper.scala
+git add frontend/src/main/scala/onparity/util/HttpHelper.scala
 git commit -m "feat: add HTTP helpers and decoders for recon spec CRUD"
 ```
 
@@ -317,7 +317,7 @@ git commit -m "feat: add HTTP helpers and decoders for recon spec CRUD"
 ## Task 4: Update model.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
 Three additions: a navigation message, a page message wrapper, and a model field.
 
@@ -352,19 +352,19 @@ Add after it:
 At the top of `model.scala`, the existing import is:
 
 ```scala
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
+import onparity.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload}
 ```
 
 Replace with:
 
 ```scala
-import perfectpair.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import onparity.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
 ```
 
 And find:
 
 ```scala
-import perfectpair.view.pages.*
+import onparity.view.pages.*
 ```
 
 This wildcard import already covers `MaintainReconSpecView`, so no change needed there.
@@ -406,7 +406,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/model/model.scala
+git add frontend/src/main/scala/onparity/model/model.scala
 git commit -m "feat: wire MaintainReconSpecView into global Msg and Model"
 ```
 
@@ -415,7 +415,7 @@ git commit -m "feat: wire MaintainReconSpecView into global Msg and Model"
 ## Task 5: Add MaintainReconSpec page to Page.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
 
 - [ ] **Step 1: Add MaintainReconSpec page object**
 
@@ -448,7 +448,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/page/Page.scala
+git add frontend/src/main/scala/onparity/page/Page.scala
 git commit -m "feat: add MaintainReconSpec page to Page"
 ```
 
@@ -457,20 +457,20 @@ git commit -m "feat: add MaintainReconSpec page to Page"
 ## Task 6: Handle navigation in WebApp.scala
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Add MaintainReconSpecView import**
 
 Find the existing imports line:
 
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView}
+import onparity.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MovementSpecsView, ReconSpecsView}
 ```
 
 Replace with:
 
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView}
+import onparity.view.pages.{AccountsView, MaintainAccountView, MaintainFundFlowView, MaintainMovementSpecsView, MaintainReconSpecView, MovementSpecsView, ReconSpecsView}
 ```
 
 - [ ] **Step 2: Add NavigateToMaintainReconSpec handler**
@@ -513,7 +513,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/main/WebApp.scala
+git add frontend/src/main/scala/onparity/main/WebApp.scala
 git commit -m "feat: handle NavigateToMaintainReconSpec in WebApp"
 ```
 
@@ -522,18 +522,18 @@ git commit -m "feat: handle NavigateToMaintainReconSpec in WebApp"
 ## Task 7: Add Add/Edit buttons to ReconSpecsView
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala`
 
 - [ ] **Step 1: Add SelectReconSpec message and update handler**
 
 Replace the current `ReconSpecsView.scala` with:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
-import perfectpair.model.Msg as AppMsg
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.{AccountPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import onparity.model.Msg as AppMsg
+import onparity.view.components.{Buttons, Table}
 import tyrian.Html.*
 import tyrian.{Cmd, Html}
 import zio.Task
@@ -595,7 +595,7 @@ Expected: BUILD SUCCESS
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ReconSpecsView.scala
+git add frontend/src/main/scala/onparity/view/pages/ReconSpecsView.scala
 git commit -m "feat: add Add/Edit buttons to ReconSpecsView with navigation to MaintainReconSpecView"
 ```
 

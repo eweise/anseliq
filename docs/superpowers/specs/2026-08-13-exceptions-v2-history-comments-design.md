@@ -21,7 +21,7 @@ status with a note," "change status with no note" (matching today's Investigate/
 
 ## Domain Model
 
-`DisputeComment` (`backend/src/main/scala/perfectpair/domain/model/Dispute.scala`, alongside the existing
+`DisputeComment` (`backend/src/main/scala/onparity/domain/model/Dispute.scala`, alongside the existing
 `Dispute`/`DisputeTarget`/`DisputeCategory`/`DisputeStatus`):
 
 ```scala

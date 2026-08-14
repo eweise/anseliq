@@ -17,15 +17,15 @@
 ### Task 1: Add "Manual Match" button to `UnreconciledMovementsPage`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala:46`
+- Modify: `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala:46`
 
 **Interfaces:**
-- Consumes: `Nav.toManualMatch(accountId: String): Unit` (pre-existing, `frontend/src/main/scala/perfectpair/routing/Nav.scala:43-44`); `Buttons.textButton(label: String, obs: Observer[Unit]): HtmlElement` (pre-existing, `frontend/src/main/scala/perfectpair/view/components/Buttons.scala`); `accountId: String` (the page's own parameter, already in scope at line 19).
+- Consumes: `Nav.toManualMatch(accountId: String): Unit` (pre-existing, `frontend/src/main/scala/onparity/routing/Nav.scala:43-44`); `Buttons.textButton(label: String, obs: Observer[Unit]): HtmlElement` (pre-existing, `frontend/src/main/scala/onparity/view/components/Buttons.scala`); `accountId: String` (the page's own parameter, already in scope at line 19).
 - Produces: n/a (leaf UI change).
 
 - [ ] **Step 1: Add the button**
 
-In `frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala`, replace:
+In `frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala`, replace:
 
 ```scala
         Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
@@ -46,7 +46,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/UnreconciledMovementsPage.scala
+git add frontend/src/main/scala/onparity/view/pages/UnreconciledMovementsPage.scala
 git commit -m "Link unreconciled movements page to Manual Match"
 ```
 

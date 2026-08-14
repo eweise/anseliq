@@ -58,14 +58,14 @@ Each page keeps its own wrapper/layout; only the `h2(cls := "text-2xl font-mediu
 
 ## Files Changed
 
-1. `frontend/src/main/scala/perfectpair/view/layout/LeftNav.scala` — remove dead items, migrate to `md-*` tokens
-2. `frontend/src/main/scala/perfectpair/view/pages/AccountsPage.scala` — delete
-3. `frontend/src/main/scala/perfectpair/routing/Routes.scala` — remove the `accounts` route (list route only; `accounts/:id/...` sub-routes stay)
-4. `frontend/src/main/scala/perfectpair/routing/Nav.scala` — remove `toAccounts`
-5. `frontend/src/main/scala/perfectpair/view/pages/LoginPage.scala` — migrate to `md-*` tokens, add dark-mode classes, align header/spacing
-6. `frontend/src/main/scala/perfectpair/view/pages/WelcomePage.scala` — align header/spacing
-7. `frontend/src/main/scala/perfectpair/view/pages/FundFlowPage.scala` — fix the raw `bg-blue-600` "New Account" button; adopt `PageHeader.title` for its already-correct title (DRY, zero visual change)
-8. New: `frontend/src/main/scala/perfectpair/view/components/PageHeader.scala` — shared title helper (see above)
+1. `frontend/src/main/scala/onparity/view/layout/LeftNav.scala` — remove dead items, migrate to `md-*` tokens
+2. `frontend/src/main/scala/onparity/view/pages/AccountsPage.scala` — delete
+3. `frontend/src/main/scala/onparity/routing/Routes.scala` — remove the `accounts` route (list route only; `accounts/:id/...` sub-routes stay)
+4. `frontend/src/main/scala/onparity/routing/Nav.scala` — remove `toAccounts`
+5. `frontend/src/main/scala/onparity/view/pages/LoginPage.scala` — migrate to `md-*` tokens, add dark-mode classes, align header/spacing
+6. `frontend/src/main/scala/onparity/view/pages/WelcomePage.scala` — align header/spacing
+7. `frontend/src/main/scala/onparity/view/pages/FundFlowPage.scala` — fix the raw `bg-blue-600` "New Account" button; adopt `PageHeader.title` for its already-correct title (DRY, zero visual change)
+8. New: `frontend/src/main/scala/onparity/view/components/PageHeader.scala` — shared title helper (see above)
 9. Adopt `PageHeader.title` in: `EventsPage.scala`, `FundFlowsPage.scala` (fixes its `text-xl` drift), `JobsPage.scala`, `ManualMatchPage.scala`, `ReconciliationsPage.scala`, `UnreconciledMovementsPage.scala`
 
 ## Out of Scope

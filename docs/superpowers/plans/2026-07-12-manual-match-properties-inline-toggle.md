@@ -17,7 +17,7 @@
 ### Task 1: Move the properties toggle into the Reference ID cell
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala:78-113` (both table bodies), `:145-170` (the helper to rename/rework)
+- Modify: `frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala:78-113` (both table bodies), `:145-170` (the helper to rename/rework)
 
 **Interfaces:**
 - Consumes: `MovementPayload.referenceId: String`, `MovementPayload.properties: Map[String, String]` (unchanged); `State.expandedProperties: Set[String]` and `toggle(selected: Set[String], id: String): Set[String]` (both already added by the prior plan, unchanged).
@@ -173,7 +173,7 @@ Expected: `[success]` with no errors.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ManualMatchPage.scala
+git add frontend/src/main/scala/onparity/view/pages/ManualMatchPage.scala
 git commit -m "Move properties toggle into Reference ID cell"
 ```
 

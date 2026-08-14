@@ -16,10 +16,10 @@ toggle and expanded table directly in the Reference ID cell instead — no separ
 
 ## Data
 
-`MovementPayload.properties` (`common/src/main/scala/perfectpair/common/model/Payload.scala:167`,
+`MovementPayload.properties` (`common/src/main/scala/onparity/common/model/Payload.scala:167`,
 type `Properties = Map[String, String]`) already carries the raw ingested fields (e.g.
 date, description) for each movement — populated on the backend from
-`Movement.properties.props` (`backend/src/main/scala/perfectpair/adapter/driving/Payload.scala:148`).
+`Movement.properties.props` (`backend/src/main/scala/onparity/adapter/driving/Payload.scala:148`).
 No backend change needed.
 
 ## Frontend Change

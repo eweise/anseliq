@@ -8,7 +8,7 @@ Add a `MaintainAccountView` page and supporting HttpHelper operations to create 
 
 ## Files Changed
 
-### New: `frontend/src/main/scala/perfectpair/view/pages/MaintainAccountView.scala`
+### New: `frontend/src/main/scala/onparity/view/pages/MaintainAccountView.scala`
 
 Three Msg types:
 - `AccountFormUpdate(account: AccountPayload)` — updates form state in model
@@ -30,13 +30,13 @@ case class Model(
 
 View renders a form with a single `name` field (id, balance, properties are system-managed). Cancel emits `NavigateToAccounts(model.fundFlow)` to return with correct fund flow context. Save emits `CreateAccount`.
 
-### Modified: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+### Modified: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 Add:
 - `def createAccount(account: AccountPayload): Cmd[Task, Msg.SendHttpRequestWithAccessToken]` — POST to `HttpPath.maintainAccount` (`/api/v1/account`) with `write(account)` body
 - `val accountCreatedDecoder: Decoder[Msg]` — reads `AccountPayload` from response body, emits `Msg.MaintainAccountMsg(MaintainAccountView.Msg.AccountCreated(...))`
 
-### Modified: `frontend/src/main/scala/perfectpair/model/model.scala`
+### Modified: `frontend/src/main/scala/onparity/model/model.scala`
 
 In `Msg` enum add:
 - `case NavigateToMaintainAccount(ff: FundFlowResponse)`
@@ -48,20 +48,20 @@ In `Model` case class add:
 In `Model.init` initialize:
 - `maintainAccountModel = MaintainAccountView.Model()`
 
-### Modified: `frontend/src/main/scala/perfectpair/page/Page.scala`
+### Modified: `frontend/src/main/scala/onparity/page/Page.scala`
 
 Add `MaintainAccount` page object:
 - `path = "/components/maintain-account"`
 - `render = m => MaintainAccountView(m.maintainAccountModel)`
 - `update` delegates `MaintainAccountMsg` to `MaintainAccountView.update`, copying `maintainAccountModel`
 
-### Modified: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+### Modified: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 Add handler for `NavigateToMaintainAccount(ff)`:
 - Set `maintainAccountModel = MaintainAccountView.Model(fundFlow = ff, account = AccountPayload(id = "", name = "", fundFlowId = UUID.fromString(ff.id), balance = BigDecimal(0)))`
 - Emit `NavigateTo(Page.MaintainAccount)`
 
-### Modified: `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala`
+### Modified: `frontend/src/main/scala/onparity/view/pages/AccountsView.scala`
 
 Add an "Add Account" button that emits `AppMsg.NavigateToMaintainAccount(model.fundFlow)`.
 

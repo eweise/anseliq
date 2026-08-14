@@ -14,16 +14,16 @@
 
 | File | Change |
 |------|--------|
-| `frontend/src/main/scala/perfectpair/view/pages/Login.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
-| `frontend/src/main/scala/perfectpair/view/pages/Welcome.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
-| `frontend/src/main/scala/perfectpair/view/pages/FundFlowsView.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
-| `frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
-| `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
-| `frontend/src/main/scala/perfectpair/view/pages/ToggleView.scala` | Add empty `Msg`, unit `Model`, noop `update` |
-| `frontend/src/main/scala/perfectpair/model/model.scala` | Add page Msg wrappers + 2 new global msgs; replace old fields with page model fields; remove moved Msg variants |
-| `frontend/src/main/scala/perfectpair/page/Page.scala` | Add abstract `update`; implement per case; update `render` to pass page model slice |
-| `frontend/src/main/scala/perfectpair/main/WebApp.scala` | Keep global handlers; add 2 new global msg handlers; add catch-all delegate |
-| `frontend/src/main/scala/perfectpair/util/HttpHelper.scala` | Update all decoders to emit wrapped page messages; simplify type signatures |
+| `frontend/src/main/scala/onparity/view/pages/Login.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
+| `frontend/src/main/scala/onparity/view/pages/Welcome.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
+| `frontend/src/main/scala/onparity/view/pages/FundFlowsView.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
+| `frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
+| `frontend/src/main/scala/onparity/view/pages/AccountsView.scala` | Add `Msg`, `Model`, `update`; refactor `apply` to use `Model` |
+| `frontend/src/main/scala/onparity/view/pages/ToggleView.scala` | Add empty `Msg`, unit `Model`, noop `update` |
+| `frontend/src/main/scala/onparity/model/model.scala` | Add page Msg wrappers + 2 new global msgs; replace old fields with page model fields; remove moved Msg variants |
+| `frontend/src/main/scala/onparity/page/Page.scala` | Add abstract `update`; implement per case; update `render` to pass page model slice |
+| `frontend/src/main/scala/onparity/main/WebApp.scala` | Keep global handlers; add 2 new global msg handlers; add catch-all delegate |
+| `frontend/src/main/scala/onparity/util/HttpHelper.scala` | Update all decoders to emit wrapped page messages; simplify type signatures |
 
 ---
 
@@ -36,22 +36,22 @@ These tasks add new code alongside existing code. The existing `apply()` methods
 ### Task 1: Add `Msg`, `Model`, `update` to `LoginPage`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/Login.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/Login.scala`
 
 - [ ] **Step 1: Add imports and page members to `object LoginPage`**
 
 Add the following before the existing `private def formField` method. The existing `apply` method is unchanged for now.
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import tyrian.Html.*
 import tyrian.Html.{attribute => attr}
 import tyrian.*
-import perfectpair.model.Model.LoginForm
-import perfectpair.model.{Msg as AppMsg}
-import perfectpair.util.{ElementIdGenerator, HttpHelper, LocalStorageHelper}
-import perfectpair.view.components.Icons
+import onparity.model.Model.LoginForm
+import onparity.model.{Msg as AppMsg}
+import onparity.util.{ElementIdGenerator, HttpHelper, LocalStorageHelper}
+import onparity.view.components.Icons
 import zio.Task
 import zio.interop.catz.*
 
@@ -96,7 +96,7 @@ object LoginPage:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/Login.scala
+git add frontend/src/main/scala/onparity/view/pages/Login.scala
 git commit -m "feat: add Msg, Model, update to LoginPage"
 ```
 
@@ -105,22 +105,22 @@ git commit -m "feat: add Msg, Model, update to LoginPage"
 ### Task 2: Add `Msg`, `Model`, `update` to `Welcome`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/Welcome.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/Welcome.scala`
 
 - [ ] **Step 1: Add members to `object Welcome`**
 
 Insert before the existing `def apply`:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
 import tyrian.Html.*
 import tyrian.Html
 import tyrian.Cmd
-import perfectpair.model.Model.HomeState
-import perfectpair.model.{Msg as AppMsg}
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.Icons
+import onparity.model.Model.HomeState
+import onparity.model.{Msg as AppMsg}
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.Icons
 import zio.Task
 import zio.interop.catz.*
 
@@ -147,7 +147,7 @@ object Welcome:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/Welcome.scala
+git add frontend/src/main/scala/onparity/view/pages/Welcome.scala
 git commit -m "feat: add Msg, Model, update to Welcome"
 ```
 
@@ -156,20 +156,20 @@ git commit -m "feat: add Msg, Model, update to Welcome"
 ### Task 3: Add `Msg`, `Model`, `update` to `FundFlowsView`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowsView.scala`
 
 - [ ] **Step 1: Add members to `object FundFlowsView`**
 
 Insert before the existing `def apply`:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.FundFlowPayload
-import perfectpair.model.{Msg as AppMsg}
-import perfectpair.page.Page
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.{Buttons, Table}
+import onparity.common.model.FundFlowPayload
+import onparity.model.{Msg as AppMsg}
+import onparity.page.Page
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.{Buttons, Table}
 import tyrian.{Cmd, Html}
 import tyrian.Html.*
 import zio.Task
@@ -205,7 +205,7 @@ Note: `AppMsg.NavigateToMaintainFundFlow` and `AppMsg.NavigateToAccounts` will b
 - [ ] **Step 2: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/FundFlowsView.scala
+git add frontend/src/main/scala/onparity/view/pages/FundFlowsView.scala
 git commit -m "feat: add Msg, Model, update to FundFlowsView"
 ```
 
@@ -214,20 +214,20 @@ git commit -m "feat: add Msg, Model, update to FundFlowsView"
 ### Task 4: Add `Msg`, `Model`, `update` to `MaintainFundFlowView`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala`
 
 - [ ] **Step 1: Add members to `object MaintainFundFlowView`**
 
 Insert before the existing `def apply`:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.FundFlowPayload
-import perfectpair.model.{Msg as AppMsg}
-import perfectpair.page.Page
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.{Buttons, Form}
+import onparity.common.model.FundFlowPayload
+import onparity.model.{Msg as AppMsg}
+import onparity.page.Page
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.{Buttons, Form}
 import tyrian.{Cmd, Html}
 import tyrian.Html.*
 import zio.Task
@@ -261,7 +261,7 @@ object MaintainFundFlowView:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala
+git add frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala
 git commit -m "feat: add Msg, Model, update to MaintainFundFlowView"
 ```
 
@@ -270,20 +270,20 @@ git commit -m "feat: add Msg, Model, update to MaintainFundFlowView"
 ### Task 5: Add `Msg`, `Model`, `update` to `AccountsView`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/AccountsView.scala`
 
 - [ ] **Step 1: Add members to `object AccountsView`**
 
 Insert before the existing `def apply`:
 
 ```scala
-package perfectpair.view.pages
+package onparity.view.pages
 
-import perfectpair.common.model.{AccountPayload, FundFlowPayload}
-import perfectpair.model.{Msg as AppMsg}
-import perfectpair.page.Page
-import perfectpair.util.{HttpHelper, PrettyLogger}
-import perfectpair.view.components.{Icons, Table}
+import onparity.common.model.{AccountPayload, FundFlowPayload}
+import onparity.model.{Msg as AppMsg}
+import onparity.page.Page
+import onparity.util.{HttpHelper, PrettyLogger}
+import onparity.view.components.{Icons, Table}
 import tyrian.{Cmd, Html}
 import tyrian.Html.*
 import zio.Task
@@ -315,7 +315,7 @@ object AccountsView:
 - [ ] **Step 2: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala
+git add frontend/src/main/scala/onparity/view/pages/AccountsView.scala
 git commit -m "feat: add Msg, Model, update to AccountsView"
 ```
 
@@ -324,7 +324,7 @@ git commit -m "feat: add Msg, Model, update to AccountsView"
 ### Task 6: Add `Msg`, `Model`, `update` to `ToggleView`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/ToggleView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/ToggleView.scala`
 
 - [ ] **Step 1: Add minimal members to `object ToggleView`**
 
@@ -336,14 +336,14 @@ Insert at the top of `object ToggleView`, before `def apply`:
 
   case class Model()
 
-  def update(model: Model, msg: Msg): (Model, tyrian.Cmd[zio.Task, perfectpair.model.Msg]) =
+  def update(model: Model, msg: Msg): (Model, tyrian.Cmd[zio.Task, onparity.model.Msg]) =
     (model, tyrian.Cmd.None)
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add frontend/src/main/scala/perfectpair/view/pages/ToggleView.scala
+git add frontend/src/main/scala/onparity/view/pages/ToggleView.scala
 git commit -m "feat: add empty Msg, Model, update to ToggleView"
 ```
 
@@ -358,18 +358,18 @@ These tasks change the core types. Make all changes in Tasks 7–10 before compi
 ### Task 7: Rewrite `model.scala`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/model/model.scala`
+- Modify: `frontend/src/main/scala/onparity/model/model.scala`
 
 - [ ] **Step 1: Replace the entire file with the new version**
 
 ```scala
-package perfectpair.model
+package onparity.model
 
-import perfectpair.common.model.FundFlowPayload
-import perfectpair.common.util.JwtHelper
-import perfectpair.model.Model.*
-import perfectpair.page.Page
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
+import onparity.common.model.FundFlowPayload
+import onparity.common.util.JwtHelper
+import onparity.model.Model.*
+import onparity.page.Page
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
 import tyrian.{Cmd, Location}
 import zio.Task
 
@@ -443,20 +443,20 @@ Note: `LoginForm`, `MaintainFundFlowForm`, `HomeState` are removed. `emptyLoginF
 ### Task 8: Rewrite `Page.scala`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/page/Page.scala`
+- Modify: `frontend/src/main/scala/onparity/page/Page.scala`
 
 - [ ] **Step 1: Replace the entire file with the new version**
 
 ```scala
-package perfectpair.page
+package onparity.page
 
 import tyrian.Cmd
 import tyrian.Html
 import zio.*
 import zio.interop.catz.*
-import perfectpair.model.*
-import perfectpair.view.pages.*
-import perfectpair.util.{HttpHelper, PrettyLogger}
+import onparity.model.*
+import onparity.view.pages.*
+import onparity.util.{HttpHelper, PrettyLogger}
 
 enum Page(
   val path: String,
@@ -527,7 +527,7 @@ Note: `Page.Login` `render` now calls `LoginPage(m.loginModel)` — this require
 ### Task 9: Rewrite `WebApp.scala`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/main/WebApp.scala`
+- Modify: `frontend/src/main/scala/onparity/main/WebApp.scala`
 
 - [ ] **Step 1: Replace `update` method only — keep `router`, `init`, `view`, `subscriptions` unchanged**
 
@@ -588,7 +588,7 @@ Replace the entire `update` method body:
 
 Also add these imports at the top of `WebApp.scala` if not already present:
 ```scala
-import perfectpair.view.pages.{AccountsView, MaintainFundFlowView}
+import onparity.view.pages.{AccountsView, MaintainFundFlowView}
 ```
 
 ---
@@ -596,19 +596,19 @@ import perfectpair.view.pages.{AccountsView, MaintainFundFlowView}
 ### Task 10: Rewrite `HttpHelper.scala`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/util/HttpHelper.scala`
+- Modify: `frontend/src/main/scala/onparity/util/HttpHelper.scala`
 
 - [ ] **Step 1: Replace the entire file**
 
 ```scala
-package perfectpair.util
+package onparity.util
 
-import perfectpair.common.BuildInfo
-import perfectpair.common.model.*
+import onparity.common.BuildInfo
+import onparity.common.model.*
 import HttpHelper.ResponseDecoders.*
-import perfectpair.common.http.{BackendApiUrl, HttpPath}
-import perfectpair.model.Msg
-import perfectpair.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
+import onparity.common.http.{BackendApiUrl, HttpPath}
+import onparity.model.Msg
+import onparity.view.pages.{AccountsView, FundFlowsView, LoginPage, MaintainFundFlowView, Welcome}
 import tyrian.Cmd
 import tyrian.http.*
 import upickle.default.*
@@ -719,7 +719,7 @@ Now that `model.scala` and `Page.scala` use the page model types, update each `a
 ### Task 11: Update `LoginPage.apply` to use `LoginPage.Model`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/Login.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/Login.scala`
 
 - [ ] **Step 1: Replace the `apply` method and the private `formField` helper**
 
@@ -785,14 +785,14 @@ The `apply` signature changes from `apply(state: LoginForm)` to `apply(model: Mo
     )
 ```
 
-Also remove the now-unused import of `perfectpair.model.Model.LoginForm`.
+Also remove the now-unused import of `onparity.model.Model.LoginForm`.
 
 ---
 
 ### Task 12: Update `Welcome.apply` to use `Welcome.Model`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/Welcome.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/Welcome.scala`
 
 - [ ] **Step 1: Replace the `apply` method**
 
@@ -842,14 +842,14 @@ Signature changes from `apply(state: HomeState)` to `apply(model: Model)`. The `
     )
 ```
 
-Remove the now-unused import of `perfectpair.model.Model.HomeState`.
+Remove the now-unused import of `onparity.model.Model.HomeState`.
 
 ---
 
 ### Task 13: Update `FundFlowsView.apply` to use `FundFlowsView.Model`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/FundFlowsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/FundFlowsView.scala`
 
 - [ ] **Step 1: Replace the `apply` method**
 
@@ -884,7 +884,7 @@ Signature changes from `apply(fundFlows: Seq[FundFlowPayload])` to `apply(model:
 ### Task 14: Update `MaintainFundFlowView.apply` to use `MaintainFundFlowView.Model`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/MaintainFundFlowView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/MaintainFundFlowView.scala`
 
 - [ ] **Step 1: Replace the `apply` method**
 
@@ -925,7 +925,7 @@ Signature changes from `apply(ff: FundFlowPayload)` to `apply(model: Model)`. Al
 ### Task 15: Update `AccountsView.apply` to use `AccountsView.Model`
 
 **Files:**
-- Modify: `frontend/src/main/scala/perfectpair/view/pages/AccountsView.scala`
+- Modify: `frontend/src/main/scala/onparity/view/pages/AccountsView.scala`
 
 - [ ] **Step 1: Replace the `apply` method**
 
