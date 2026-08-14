@@ -46,6 +46,7 @@ object Main:
     given disputeRepo:        DisputeRepo            = DisputeRepoLive()
     given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
     given disputeService:     DisputeService         = DisputeService()
+    given reportingService:   ReportingService       = ReportingService()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
 
