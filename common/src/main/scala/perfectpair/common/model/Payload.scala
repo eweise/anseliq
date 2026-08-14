@@ -165,7 +165,8 @@ case class MovementPayload(
   inAccountId:      String,
   amount:           Money,
   properties:       Properties,
-  reconciliationId: String
+  reconciliationId: String,
+  createdAt:        OffsetDateTime
 ) derives ReadWriter
 
 case class MovementSpecAndAccounts(
@@ -221,6 +222,30 @@ case class DisputeDetailPayload(
 case class AddDisputeCommentRequest(
   body:      Option[String]              = None,
   newStatus: Option[DisputeStatusPayload] = None
+) derives ReadWriter
+
+case class MatchRatePayload(
+  accountId:         String,
+  accountName:       String,
+  balance:           Money,
+  reconciledBalance: Money,
+  matchRatePercent:  Option[BigDecimal]
+) derives ReadWriter
+
+case class ExceptionBreakdownPayload(
+  byCategory: Map[String, Int],
+  byStatus:   Map[String, Int]
+) derives ReadWriter
+
+case class AgingBucketsPayload(
+  buckets:      Seq[(String, Int)],
+  overdueCount: Int
+) derives ReadWriter
+
+case class ReportsSummaryPayload(
+  matchRates: Seq[MatchRatePayload],
+  exceptions: ExceptionBreakdownPayload,
+  aging:      AgingBucketsPayload
 ) derives ReadWriter
 
 def combineAccountsAndMovementSpecs(
