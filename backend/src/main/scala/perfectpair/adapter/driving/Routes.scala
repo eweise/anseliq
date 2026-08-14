@@ -36,7 +36,8 @@ class App(using
   eventRepo:          EventRepo,
   disputeRepo:        DisputeRepo,
   disputeCommentRepo: DisputeCommentRepo,
-  disputeService:     DisputeService
+  disputeService:     DisputeService,
+  reportingService:   ReportingService
 ) extends cask.MainRoutes,
       StrictLogging:
 
@@ -314,6 +315,13 @@ class App(using
         val reconSpec = reconSpecRepo.findById(recon.specId).ErrIfNotFound("reconciliation spec", recon.specId)
         val account   = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
         (account.id.toString, account.name, recon.description)
+
+  // Reports
+  @cask.route(s"${HttpPath.reports}/summary", methods = HttpCmd.GET)
+  def getReportsSummary(fundFlowId: Option[String] = None): String =
+    transact(transactor):
+      val report = reportingService.summary(fundFlowId.map(UUID.fromString))
+      write(Payload.reportsSummaryPayloadFromDomain(report))
 
   // Jobs
   @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)

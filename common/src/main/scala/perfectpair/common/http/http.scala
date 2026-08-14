@@ -21,6 +21,7 @@ object HttpPath:
   val dispute         = s"$prefix/dispute"
   val jobs            = s"$prefix/jobs"
   val events          = s"$prefix/events"
+  val reports         = s"$prefix/reports"
 
   def url(path: String) = s"http://localhost:8080$path"
 // Get rid of this crap

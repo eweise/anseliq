@@ -146,7 +146,8 @@ object Payload:
       inAccountId      = dmMovement.inAccountId.toString,
       amount           = dmMovement.amount,
       properties       = dmMovement.properties.props,
-      reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull
+      reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull,
+      createdAt        = dmMovement.createdAt.get
     )
 
   def disputeTargetToDomain(p: DisputeTargetPayload): DisputeTarget = p match
@@ -211,4 +212,19 @@ object Payload:
       body      = c.body,
       newStatus = c.newStatus.map(disputeStatusFromDomain),
       createdAt = c.createdAt.get
+    )
+
+  def reportsSummaryPayloadFromDomain(r: ReportsSummaryReport): ReportsSummaryPayload =
+    ReportsSummaryPayload(
+      matchRates = r.matchRates.map { m =>
+        MatchRatePayload(
+          accountId         = m.accountId.toString,
+          accountName       = m.accountName,
+          balance           = m.balance,
+          reconciledBalance = m.reconciledBalance,
+          matchRatePercent  = m.matchRatePercent
+        )
+      },
+      exceptions = ExceptionBreakdownPayload(byCategory = r.exceptions.byCategory, byStatus = r.exceptions.byStatus),
+      aging      = AgingBucketsPayload(buckets = r.aging.buckets, overdueCount = r.aging.overdueCount)
     )
