@@ -37,6 +37,11 @@ object LeftNav:
       cls := "fixed left-0 top-0 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto",
       navTag(
         cls := "p-4",
+        div(
+          cls := "px-4 pb-4 mb-2 border-b border-gray-200 dark:border-gray-700",
+          div(cls := "text-xl font-semibold text-gray-900 dark:text-white leading-tight", "Stinson Beach"),
+          div(cls := "text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500", "Reconciliation")
+        ),
         ul(
           (cls := "space-y-1") +: groups.flatMap(navGroupItems)*
         ),
