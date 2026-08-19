@@ -147,7 +147,7 @@ object Main:
        */
       fork:
         val fileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
-        repeat(Schedule.fixedInterval(5.minute)) {
+        repeat(Schedule.fixedInterval(1.minute)) {
           try
             transact(Transactor(dataSource = given_DataSource)):
               jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)

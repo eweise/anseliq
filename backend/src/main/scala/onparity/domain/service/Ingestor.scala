@@ -40,7 +40,7 @@ class Ingestor(using
 
   def ingestFileFromInventory(
     fileInventoryID: ID,
-    batchSize:       Int                            = 100,
+    batchSize:       Int                            = 1000,
     onBatchComplete: BatchProgress => BatchDecision = _ => BatchDecision.Commit
   ): IngestionResult =
     val (fileInventory, movementSpec) = transact(transactor):
