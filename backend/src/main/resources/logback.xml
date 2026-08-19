@@ -4,8 +4,20 @@
             <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSXXX</timestampPattern>
         </encoder>
     </appender>
-
-    <root level="INFO">
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp/>
+                <logLevel/>
+                <loggerName/>
+                <threadName/>
+                <message/>
+                <keyValuePairs/> <!-- 👈 Maps your Scala key-values straight to Datadog JSON fields -->
+                <stackTrace/>
+            </providers>
+        </encoder>
+    </appender>
+    <root level="DEBUG">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

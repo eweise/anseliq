@@ -17,6 +17,7 @@ case class Movement(
   inAccountBalance:     Money                  = 0,
   amount:               Money,
   properties:           JSONBProps             = JSONBProps(Map()),
+  metaData:             JSONBProps             = JSONBProps(Map()),
   movementSpecId:       ID,
   var reconciliationId: Option[ID]             = None,
   var createdAt:        Option[OffsetDateTime] = None,

@@ -4,11 +4,11 @@ import com.augustnagro.magnum.{DbTx, Transactor, transact}
 import com.fasterxml.uuid.Generators
 import com.typesafe.scalalogging.Logger
 import net.logstash.logback.argument.StructuredArguments.kv
-import ox.flow.Flow
 import onparity.common.model.model.ID
 import onparity.domain.model.*
 import onparity.domain.model.FileInventoryStatus.COMPLETED
 import onparity.domain.port.driven.*
+import ox.flow.Flow
 
 import java.io.InputStream
 import java.time.Instant.now
@@ -108,7 +108,19 @@ class Ingestor(using
           val idempotencyId = Generators
             .nameBasedGenerator()
             .generate(s"${fileSourceEntry.name} $idx")
-          (idx, MovementRequest(amount = amount, referenceId = idempotencyId, properties = parsedLine.props))
+          val metaData = Map[String, String](
+            "file_source_entry" -> fileSourceEntry.name,
+            "file_index"        -> idx.toString
+          )
+          (
+            idx,
+            MovementRequest(
+              amount      = amount,
+              referenceId = idempotencyId,
+              properties  = parsedLine.props,
+              metaData    = metaData
+            )
+          )
         }
         .grouped(batchSize)
         .runForeach: batch =>
@@ -141,7 +153,9 @@ class Ingestor(using
             case BatchDecision.Rollback =>
               completed = false
               throw IngestionStopped
-    catch case IngestionStopped => ()
+    catch
+      case IngestionStopped               => ()
+      case scala.util.control.NonFatal(e) => throw ReconError(s"ingest failed. filename=${fileSourceEntry.name}", e)
 
     if lastCommittedLine.isDefined then
       transact(transactor):
@@ -168,52 +182,66 @@ class Ingestor(using
       .getOrElse(
         throw NotFoundError(s"inAccountID ${movementSpec.inAccountId} not found")
       )
+
     val outAccount = accountRepo
       .findById(movementSpec.outAccountId)
       .getOrElse(
         throw NotFoundError(s"outAccountID ${movementSpec.outAccountId} not found")
       )
-    Flow
-      .fromInputStream(is)
-      .linesUtf8
-      .zipWithIndex
-      .map(parser.parse)
-      .filter(_.nonEmpty) // get rid of lines that we don't want
-      .map(someParsedLine =>
-        val parsedLine = someParsedLine.get
-        val amount     = parsedLine.maybeAmount.getOrElse(BigDecimal(0))
-
-        lineCounter += 1
-
-        val idempotencyId = Generators
-          .nameBasedGenerator()
-          .generate(s"${fileSourceEntry.name} $lineCounter")
-
-        MovementRequest(
-          amount      = amount,
-          referenceId = idempotencyId,
-          properties  = parsedLine.props
+    try {
+      Flow
+        .fromInputStream(is)
+        .linesUtf8
+        .zipWithIndex
+        .map((text, ln) =>
+          try
+            parser.parse(text, ln)
+          catch {
+            case pe: ParserError => throw NonRetryableError(s"Could not parse file. line number=$ln")
+          }
         )
+        .filter(_.nonEmpty) // get rid of lines that we don't want
+        .map(someParsedLine =>
+          val parsedLine = someParsedLine.get
+          val amount     = parsedLine.maybeAmount.getOrElse(BigDecimal(0))
+
+          lineCounter += 1
+
+          val idempotencyId = Generators
+            .nameBasedGenerator()
+            .generate(s"${fileSourceEntry.name} $lineCounter")
+
+          MovementRequest(
+            amount      = amount,
+            referenceId = idempotencyId,
+            properties  = parsedLine.props
+          )
+        )
+        .grouped(1000)
+        .runForeach: requests =>
+          logger.debug(s"ingesting ${movementSpec.name} linecount=$lineCounter")
+          ledger.recordMovements(
+            movementSpec     = movementSpec,
+            movementRequests = requests
+          )
+
+      eventStore.publishEvent(MoneyMovementsIngested(movementSpecID = movementSpec.id))
+
+      IngestionResult(
+        recordCount          = lineCounter,
+        ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond
       )
-      .grouped(1000)
-      .runForeach: requests =>
-        logger.debug(s"ingesting ${movementSpec.name} linecount=$lineCounter")
-        ledger.recordMovements(
-          movementSpec     = movementSpec,
-          movementRequests = requests
-        )
-
-    eventStore.publishEvent(MoneyMovementsIngested(movementSpecID = movementSpec.id))
-
-    IngestionResult(
-      recordCount          = lineCounter,
-      ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond
-    )
+    } catch {
+      case t: Throwable => throw ReconError(s"ingest failed. filename=${fileSourceEntry.name}", t)
+    }
 
   def detectAndQueue(movementSpecID: ID, source: FileSource): Txn[Vector[FileInventory]] =
-    val existingFileSourceEntries = fileInventoryRepo
+    val inventories = fileInventoryRepo
       .findBySourceSystem(source.sourceSystem)
-      .map(inventory => inventory.fileSourceEntry())
+
+    val existingFileSourceEntries =
+      inventories.map: inventory =>
+        inventory.fileSourceEntry()
     val sourceFiles = source.listFiles()
     val newFiles    = sourceFiles.filterNot(f => existingFileSourceEntries.contains(f))
 

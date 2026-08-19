@@ -72,11 +72,11 @@ create table recon.reconciliation
 create table recon.dispute
 (
     id              uuid primary key,
-    reference_id    uuid not null,
-    target_type     text not null,
-    category        text not null,
+    reference_id    uuid                                  not null,
+    target_type     text                                  not null,
+    category        text                                  not null,
     detail          text,
-    status          text not null default 'new',
+    status          text                                  not null default 'new',
     resolution_note text,
     created_at      timestamptz default CURRENT_TIMESTAMP not null,
     updated_at      timestamptz default CURRENT_TIMESTAMP not null
@@ -85,12 +85,13 @@ create table recon.dispute
 CREATE INDEX dispute_reference_id ON recon.dispute (reference_id);
 CREATE INDEX dispute_status_created_at ON recon.dispute (status, created_at);
 
-ALTER TABLE recon.dispute DROP COLUMN resolution_note;
+ALTER TABLE recon.dispute
+    DROP COLUMN resolution_note;
 
 create table recon.dispute_comment
 (
     id         uuid primary key,
-    dispute_id uuid not null REFERENCES recon.dispute (id) ON DELETE CASCADE,
+    dispute_id uuid                                  not null REFERENCES recon.dispute (id) ON DELETE CASCADE,
     body       text,
     new_status text,
     created_at timestamptz default CURRENT_TIMESTAMP not null
@@ -109,6 +110,7 @@ create table recon.movement
     out_account_balance numeric(15, 2)                        not null,
     movement_spec_id    uuid                                  not null REFERENCES recon.movement_spec (id),
     properties          jsonb,
+    meta_data           jsonb,
     amount              numeric(15, 2)                        not null,
     reconciliation_id   uuid REFERENCES recon.reconciliation (id) ON DELETE CASCADE,
     created_at          timestamptz default CURRENT_TIMESTAMP not null,
@@ -149,7 +151,7 @@ CREATE INDEX movement_unreconciled_by_spec ON recon.movement (movement_spec_id) 
 CREATE INDEX movement_props_index
     ON recon.movement
         USING GIN (properties jsonb_path_ops)
-        WITH (fastupdate = false);
+    WITH (fastupdate = false);
 
 
 create table recon.job

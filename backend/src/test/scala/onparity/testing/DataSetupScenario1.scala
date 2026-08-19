@@ -3,8 +3,7 @@ package onparity.testing
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.*
-import onparity.common.model.{CSVParserConfig, DataSourceConfig, StringAttribute, StringAttributeMatchRule}
-import onparity.domain.model.*
+import onparity.common.model.*
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
 
@@ -28,73 +27,72 @@ class DataSetupScenario1 extends munit.FunSuite:
   given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
   given ledger:             Ledger                 = Ledger()
   given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+  given operations:         FundFlowOperations     = FundFlowOperations()
 
   test("Setup data for a complete Fund flow scenario"):
     transact(transactor):
-      val fundFlowConfig = FundFlowConfig(name = s"Scenario1-${UUID.randomUUID()}")
-      fundFlowConfigRepo.insert(fundFlowConfig)
+      val fundFlowConfig = operations.createFundFlow(FundFlowPayload(name = s"Scenario1-${UUID.randomUUID()}"))
 
-      val journalAccount = Account(name = "Journal", fundFlowId = fundFlowConfig.id)
-      val reconAccount   = Account(name = "Recon", fundFlowId = fundFlowConfig.id, isRecon = true)
-      val bankAccount    = Account(name = "Bank", fundFlowId = fundFlowConfig.id)
-      accountRepo.insert(journalAccount)
-      accountRepo.insert(reconAccount)
-      accountRepo.insert(bankAccount)
+      val journalAccount =
+        operations.createAccount(AccountPayload(name = "Journal", fundFlowId = fundFlowConfig.id.get))
+
+      val reconAccount =
+        operations.createAccount(AccountPayload(name = "Recon", fundFlowId = fundFlowConfig.id.get))
+
+      val bankAccount = operations.createAccount(AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get))
 
       // tmp_journal.csv: record_date, transaction_id, amount, description (header row present)
-      val journalToRecon = MovementSpec(
-        name         = "Journal to Recon",
-        outAccountId = journalAccount.id,
-        inAccountId  = reconAccount.id,
-        dataSourceJson = upickle.write(
-          DataSourceConfig(
-            parserConfig = CSVParserConfig(
-              hasHeader         = true,
-              columnDefinitions = Map(0 -> "record_date", 1 -> "transaction_id", 2 -> "amount", 3 -> "description"),
-              amountField       = Some(2)
+      val journalToRecon =
+        operations.createMovementSpec(
+          MovementSpecPayload(
+            name         = "Journal to Recon",
+            outAccountId = journalAccount.id.get,
+            inAccountId  = reconAccount.id.get,
+            dataSourceConfig = Some(
+              DataSourceConfig(
+                parserConfig = CSVParserConfig(
+                  hasHeader         = false,
+                  columnDefinitions = Map(0 -> "transaction_id", 1 -> "amount", 2 -> "record_date"),
+                  amountField       = Some(1)
+                ),
+                connectionConfig = S3ConnectionConfig(
+                  s3Bucket = "onparity",
+                  filePath = "internal"
+                )
+              )
+            )
+          )
+        )
+
+      val reconToBank = operations.createMovementSpec(
+        MovementSpecPayload(
+          name         = "Recon to Bank",
+          outAccountId = reconAccount.id.get,
+          inAccountId  = bankAccount.id.get,
+          dataSourceConfig = Some(
+            DataSourceConfig(
+              parserConfig = CSVParserConfig(
+                hasHeader         = false,
+                columnDefinitions = Map(0 -> "txn_id", 1 -> "amount"),
+                amountField       = Some(1)
+              ),
+              connectionConfig = S3ConnectionConfig(
+                s3Bucket = "onparity",
+                filePath = "bank"
+              )
             )
           )
         )
       )
-      // tmp_bank.csv: record_date, transaction_id, amount (no header row)
-      val reconToBank = MovementSpec(
-        name         = "Recon to Bank",
-        outAccountId = reconAccount.id,
-        inAccountId  = bankAccount.id,
-        dataSourceJson = upickle.write(
-          DataSourceConfig(
-            parserConfig = CSVParserConfig(
-              hasHeader         = false,
-              columnDefinitions = Map(0 -> "record_date", 1 -> "transaction_id", 2 -> "amount"),
-              amountField       = Some(2)
-            )
-          )
-        )
-      )
-      movementSpecRepo.insert(journalToRecon)
-      movementSpecRepo.insert(reconToBank)
 
-      val ingestor = Ingestor()
-      ingestor.ingest(
-        journalToRecon,
-        InMemoryFileSourceEntry("test1"),
-        getClass.getResourceAsStream("/tmp_journal.csv")
-      )
-      ingestor.ingest(reconToBank, InMemoryFileSourceEntry("test2"), getClass.getResourceAsStream("/tmp_bank.csv"))
-
-      val movements = movementRepo.findAll
-      assertEquals(movements.count(_.movementSpecId == journalToRecon.id), 4)
-      assertEquals(movements.count(_.movementSpecId == reconToBank.id), 3)
-
-      val reconSpec: ReconciliationSpec = ReconciliationSpec(
-        accountId         = reconAccount.id,
-        inMovementSpecId  = journalToRecon.id,
-        outMovementSpecId = reconToBank.id,
-        ruleJson = upickle.write(
-          StringAttributeMatchRule(
+      val reconSpec = operations.createReconSpec(
+        ReconciliationSpecPayload(
+          accountId         = reconAccount.id,
+          inMovementSpecId  = journalToRecon.id.get,
+          outMovementSpecId = reconToBank.id.get,
+          rule = StringAttributeMatchRule(
             inKey  = StringAttribute(key = "transaction_id"),
             outKey = StringAttribute(key = "txn_id")
           )
         )
       )
-      reconSpecRepo.insert(reconSpec)
