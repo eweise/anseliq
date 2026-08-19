@@ -3,7 +3,7 @@ package onparity.adapter.driven
 import com.augustnagro.magnum.*
 import onparity.common.model.model.ID
 import onparity.domain.model
-import onparity.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
+import onparity.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
 import onparity.domain.model.{Movement, Reconciliation, Relationship}
 import onparity.domain.port.driven.{MovementInID, MovementOutID, MovementRepo, Txn}
 
@@ -88,7 +88,6 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
     val orderingClause = SqlLiteral(
       relationship match
         case OneToOne | OneToMany | ManyToMany => " order by move_in.id, move_out.id"
-        case ManyToOne                         => " order by move_out.id, move_in.id"
     )
 
     sql"""

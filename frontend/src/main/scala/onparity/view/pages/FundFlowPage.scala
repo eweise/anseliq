@@ -6,7 +6,7 @@ import onparity.common.model.*
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, Pill, PageHeader, Table}
+import onparity.view.components.{Buttons, PageHeader, Pill, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -140,7 +140,6 @@ object FundFlowPage:
                     "Name",
                     "Account Type",
                     "Cash Balance",
-                    "Reconciled Balance",
                     "Unreconciled Balance",
                     "Unreconciled Count",
                     "",
@@ -164,10 +163,6 @@ object FundFlowPage:
                       span(cls := "inline-block w-40", account.name),
                       if account.isRecon then Pill("Recon", Pill.Tone.Accent) else Pill("Source", Pill.Tone.Neutral),
                       span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
-                      span(
-                        cls := "text-right w-full inline-block",
-                        if (account.isRecon) then f"$$${account.reconciledBalance}%.2f" else ""
-                      ),
                       span(
                         cls := "text-right w-full inline-block",
                         if (account.isRecon) then f"$$${account.unreconciledBalance}%.2f" else ""

@@ -7,7 +7,7 @@ import onparity.common.model.*
 import onparity.common.model.Direction.{IN, OUT}
 import onparity.common.model.model.{ID, Money, Zero}
 import onparity.domain.model.*
-import onparity.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
+import onparity.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
 import onparity.domain.port.driven.*
 import onparity.util.{LogContext, PerfLogger}
 
@@ -101,7 +101,7 @@ class InMemoryReconciler(using
           }
 
         case OneToMany =>
-          val rule                 = reconSpec.rule()
+          val rule                  = reconSpec.rule()
           var remainingInMovements  = unreconciledMovementsMap(reconSpec.inMovementSpecId).toBuffer
           var remainingOutMovements = unreconciledMovementsMap(reconSpec.outMovementSpecId).toBuffer
 
@@ -124,8 +124,8 @@ class InMemoryReconciler(using
           val inProgressRecons = reconRepo.findInProgressBySpecId(reconSpec.id)
           for recon <- inProgressRecons do
             val reconMovements = movementRepo.findByReconciliationID(recon.id)
-            val inAnchors       = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
-            val outAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.outMovementSpecId)
+            val inAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
+            val outAnchors     = reconMovements.filter(_.movementSpecId == reconSpec.outMovementSpecId)
 
             val matchedIn  = ListBuffer[Movement]()
             val matchedOut = ListBuffer[Movement]()
@@ -153,8 +153,8 @@ class InMemoryReconciler(using
           // this relationship doesn't support, so it's left unmatched rather than guessed at.
           val inMovements  = remainingInMovements.toSeq
           val outMovements = remainingOutMovements.toSeq
-          var inIndex       = 0
-          var outIndex      = 0
+          var inIndex      = 0
+          var outIndex     = 0
           while inIndex < inMovements.size && outIndex < outMovements.size do
             val inMovement  = inMovements(inIndex)
             val outMovement = outMovements(outIndex)
@@ -201,7 +201,6 @@ class InMemoryReconciler(using
               outIndex = outEnd
             else if comparison < 0 then inIndex += 1
             else outIndex += 1
-        case ManyToOne  =>
         case ManyToMany =>
 
       // Create reconciliations from matches (used by OneToOne)
@@ -319,8 +318,6 @@ class InMemoryReconciler(using
               if stopped then
                 completed = false
                 break()
-            case ManyToOne | ManyToMany =>
-              specCounts += (reconSpec.id -> 0)
           end match
         end for
       // end boundary
@@ -543,8 +540,8 @@ class InMemoryReconciler(using
     for recon <- inProgressRecons do
       transact(transactor):
         val reconMovements = movementRepo.findByReconciliationID(recon.id)
-        val inAnchors       = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
-        val outAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.outMovementSpecId)
+        val inAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
+        val outAnchors     = reconMovements.filter(_.movementSpecId == reconSpec.outMovementSpecId)
 
         // Whichever spec contributed exactly one movement so far is a candidate anchor; the other
         // spec is searched for more movements sharing its key. When both specs currently have
