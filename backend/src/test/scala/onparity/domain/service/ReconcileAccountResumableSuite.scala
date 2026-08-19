@@ -202,3 +202,98 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
         data.reconSpecRepo.deleteById(spec.id)
       teardown(data)
+
+  test(
+    "OneToMany groups multiple in-movements against one out-movement, when the 'many' side is the in spec"
+  ):
+    // The spec doesn't say which physical side (in vs out) is the "one" — here it's flipped
+    // relative to the test above: three in-movements (40 + 40 + 20) reconcile against a single
+    // out-movement worth 100, all sharing groupId "g1".
+    val data                    = transact(transactor)(DataSetup())
+    val (inSpec, outSpec, spec) = oneToManySpec(data)
+    try
+      transact(transactor):
+        for amount <- Seq(BigDecimal(40), BigDecimal(40), BigDecimal(20))
+        do
+          movementRepo.insert(
+            Movement(
+              inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
+              amount = amount, properties = JSONBProps(Map("groupId" -> "g1"))
+            )
+          )
+        movementRepo.insert(
+          Movement(
+            inAccountId = outSpec.inAccountId, outAccountId = outSpec.outAccountId, movementSpecId = outSpec.id,
+            amount = 100, properties = JSONBProps(Map("groupId" -> "g1"))
+          )
+        )
+
+      val reconciler = InMemoryReconciler()
+      val result      = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+
+      assertEquals(result.completed, true)
+      assertEquals(result.reconciliationSpecInsertCount(spec.id), 1, "one reconciliation covering the whole group")
+
+      val reconciliations = transact(transactor)(data.reconRepo.findByReconSpecID(spec.id))
+      assertEquals(reconciliations.size, 1)
+      assertEquals(reconciliations.head.status, ReconciliationStatus.Final)
+      assertEquals(reconciliations.head.balance, BigDecimal(0))
+
+      val reconciledMovements = transact(transactor)(movementRepo.findByReconciliationID(reconciliations.head.id))
+      assertEquals(reconciledMovements.size, 4)
+    finally
+      transact(transactor):
+        data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        data.reconSpecRepo.deleteById(spec.id)
+      teardown(data)
+
+  test("OneToMany partial match where the 'many' side arrives on the in spec across multiple runs"):
+    // First run: one out-movement of 100 matches a single in-movement of only 60 so far — should sit
+    // InProgress with balance (in - out) = -40. Second run: another in-movement (40) arrives on the
+    // same key, closing the balance to 0 without creating a second reconciliation.
+    val data                    = transact(transactor)(DataSetup())
+    val (inSpec, outSpec, spec) = oneToManySpec(data)
+    try
+      transact(transactor):
+        movementRepo.insert(
+          Movement(
+            inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
+            amount = 60, properties = JSONBProps(Map("groupId" -> "g2"))
+          )
+        )
+        movementRepo.insert(
+          Movement(
+            inAccountId = outSpec.inAccountId, outAccountId = outSpec.outAccountId, movementSpecId = outSpec.id,
+            amount = 100, properties = JSONBProps(Map("groupId" -> "g2"))
+          )
+        )
+
+      val reconciler = InMemoryReconciler()
+      val result1     = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+      assertEquals(result1.reconciliationSpecInsertCount(spec.id), 1)
+
+      val recons1 = transact(transactor)(data.reconRepo.findByReconSpecID(spec.id))
+      assertEquals(recons1.size, 1)
+      assertEquals(recons1.head.status, ReconciliationStatus.InProgress)
+      assertEquals(recons1.head.balance, BigDecimal(-40))
+
+      transact(transactor):
+        movementRepo.insert(
+          Movement(
+            inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
+            amount = 40, properties = JSONBProps(Map("groupId" -> "g2"))
+          )
+        )
+
+      val result2 = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+      assertEquals(result2.reconciliationSpecInsertCount(spec.id), 0, "no new reconciliation, existing one topped up")
+
+      val recons2 = transact(transactor)(data.reconRepo.findByReconSpecID(spec.id))
+      assertEquals(recons2.size, 1)
+      assertEquals(recons2.head.status, ReconciliationStatus.Final)
+      assertEquals(recons2.head.balance, BigDecimal(0))
+    finally
+      transact(transactor):
+        data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        data.reconSpecRepo.deleteById(spec.id)
+      teardown(data)
