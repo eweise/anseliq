@@ -101,65 +101,104 @@ class InMemoryReconciler(using
           }
 
         case OneToMany =>
-          val rule                  = reconSpec.rule()
-          val inMovements           = unreconciledMovementsMap(reconSpec.inMovementSpecId)
+          val rule                 = reconSpec.rule()
+          var remainingInMovements  = unreconciledMovementsMap(reconSpec.inMovementSpecId).toBuffer
           var remainingOutMovements = unreconciledMovementsMap(reconSpec.outMovementSpecId).toBuffer
 
-          // Phase 1: complete existing InProgress reconciliations
+          // Which physical side ("in" or "out") holds the single record for a given match key isn't
+          // fixed by the spec — either side can be the "one". compareMovements always expects an
+          // in-role movement first, so when the anchor comes from the out side we flip the argument
+          // order rather than the anchor/candidate roles.
+          def keyMatches(anchor: Movement, anchorIsIn: Boolean, candidate: Movement): Boolean =
+            if anchorIsIn then compareMovements(rule, anchor, candidate) == 0
+            else compareMovements(rule, candidate, anchor) == 0
+
+          // Phase 1: complete existing InProgress reconciliations. Whichever spec contributed exactly
+          // one movement so far is a candidate anchor, and we grow from the other spec's unreconciled
+          // pool. When the reconciliation currently holds exactly one movement from *each* spec (a
+          // partial 1:1 pair), which side is the true anchor is genuinely ambiguous until more
+          // movements arrive — so both directions are searched; late arrivals share the same match
+          // key value regardless of which side they land on, so the two searches can't double-count.
+          // Balance is always tracked as (sum of in-side amounts) - (sum of out-side amounts),
+          // independent of which side happens to be the anchor, so its sign stays meaningful.
           val inProgressRecons = reconRepo.findInProgressBySpecId(reconSpec.id)
           for recon <- inProgressRecons do
             val reconMovements = movementRepo.findByReconciliationID(recon.id)
-            val inMovement     = reconMovements.find(_.movementSpecId == reconSpec.inMovementSpecId)
-            inMovement.foreach { inMov =>
-              val matched = remainingOutMovements.filter(outMov => compareMovements(rule, inMov, outMov) == 0)
-              remainingOutMovements = remainingOutMovements.filterNot(m => matched.exists(_.id == m.id))
+            val inAnchors       = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
+            val outAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.outMovementSpecId)
 
-              for outMov <- matched do recon.balance = recon.balance - outMov.amount
+            val matchedIn  = ListBuffer[Movement]()
+            val matchedOut = ListBuffer[Movement]()
 
-              if matched.nonEmpty then
-                ledger.reconcile(matched.toSeq, recon.id, accountId)
-                if recon.balance == Zero then recon.status = ReconciliationStatus.Final
-                reconRepo.update(recon)
-            }
+            if inAnchors.size == 1 then
+              val fromOut = remainingOutMovements.filter(m => keyMatches(inAnchors.head, true, m))
+              remainingOutMovements = remainingOutMovements.filterNot(m => fromOut.exists(_.id == m.id))
+              matchedOut ++= fromOut
 
-          // Phase 2: match remaining unreconciled movements
+            if outAnchors.size == 1 then
+              val fromIn = remainingInMovements.filter(m => keyMatches(outAnchors.head, false, m))
+              remainingInMovements = remainingInMovements.filterNot(m => fromIn.exists(_.id == m.id))
+              matchedIn ++= fromIn
+
+            val matched = matchedIn ++ matchedOut
+            if matched.nonEmpty then
+              recon.balance = recon.balance + matchedIn.map(_.amount).sum - matchedOut.map(_.amount).sum
+              ledger.reconcile(matched.toSeq, recon.id, accountId)
+              if recon.balance == Zero then recon.status = ReconciliationStatus.Final
+              reconRepo.update(recon)
+
+          // Phase 2: match remaining unreconciled movements. For each shared key, whichever side has
+          // exactly one movement is the anchor; the other side's movements (however many) become the
+          // group. A key where both sides have more than one movement is genuinely ManyToMany, which
+          // this relationship doesn't support, so it's left unmatched rather than guessed at.
+          val inMovements  = remainingInMovements.toSeq
           val outMovements = remainingOutMovements.toSeq
-          var inIndex      = 0
-          var outIndex     = 0
+          var inIndex       = 0
+          var outIndex      = 0
           while inIndex < inMovements.size && outIndex < outMovements.size do
             val inMovement  = inMovements(inIndex)
             val outMovement = outMovements(outIndex)
             val comparison  = compareMovements(rule, inMovement, outMovement)
             if comparison == 0 then
-              val matchedOuts = ListBuffer(outMovement)
-              outIndex += 1
-              while outIndex < outMovements.size && compareMovements(rule, inMovement, outMovements(outIndex)) == 0 do
-                matchedOuts += outMovements(outIndex)
-                outIndex += 1
+              var inEnd = inIndex + 1
+              while inEnd < inMovements.size && compareMovements(rule, inMovements(inEnd), outMovement) == 0 do
+                inEnd += 1
+              var outEnd = outIndex + 1
+              while outEnd < outMovements.size && compareMovements(rule, inMovement, outMovements(outEnd)) == 0 do
+                outEnd += 1
 
-              val now     = clock.now
-              var balance = inMovement.amount
-              for out <- matchedOuts do balance = balance - out.amount
+              val inGroup  = inMovements.slice(inIndex, inEnd)
+              val outGroup = outMovements.slice(outIndex, outEnd)
 
-              val status =
-                if balance == Zero then ReconciliationStatus.Final
-                else ReconciliationStatus.InProgress
+              if inGroup.size == 1 || outGroup.size == 1 then
+                val now     = clock.now
+                val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
 
-              val reconciliation = Reconciliation(
-                specId       = reconSpec.id,
-                appliedRules = rule.sql,
-                description  = "",
-                status       = status,
-                balance      = balance,
-                createdAt    = Some(now),
-                updatedAt    = Some(now)
-              )
-              reconRepo.insert(reconciliation)
-              reconInsertCount += 1
+                val status =
+                  if balance == Zero then ReconciliationStatus.Final
+                  else ReconciliationStatus.InProgress
 
-              ledger.reconcile(inMovement +: matchedOuts.toSeq, reconciliation.id, accountId)
+                val reconciliation = Reconciliation(
+                  specId       = reconSpec.id,
+                  appliedRules = rule.sql,
+                  description  = "",
+                  status       = status,
+                  balance      = balance,
+                  createdAt    = Some(now),
+                  updatedAt    = Some(now)
+                )
+                reconRepo.insert(reconciliation)
+                reconInsertCount += 1
 
-              inIndex += 1
+                ledger.reconcile(inGroup ++ outGroup, reconciliation.id, accountId)
+              else
+                logger.warn(
+                  "skipping ambiguous OneToMany match group (multiple movements on both sides share the same key)",
+                  kv("recon_spec_id", reconSpec.id)
+                )
+
+              inIndex  = inEnd
+              outIndex = outEnd
             else if comparison < 0 then inIndex += 1
             else outIndex += 1
         case ManyToOne  =>
@@ -497,27 +536,41 @@ class InMemoryReconciler(using
    */
   private def completeInProgressReconciliations(reconSpec: ReconciliationSpec, accountId: ID): Unit =
     val rule    = reconSpec.rule()
+    val inExpr  = matchKeyExpr(rule, IN, "a")
     val outExpr = matchKeyExpr(rule, OUT, "a")
 
     val inProgressRecons = transact(transactor)(reconRepo.findInProgressBySpecId(reconSpec.id))
     for recon <- inProgressRecons do
       transact(transactor):
         val reconMovements = movementRepo.findByReconciliationID(recon.id)
-        reconMovements
-          .find(_.movementSpecId == reconSpec.inMovementSpecId)
-          .foreach: inMov =>
-            val inKey   = matchKeyValue(rule, IN, inMov)
-            val matched = movementRepo.findUnreconciledByExactMatchKey(reconSpec.outMovementSpecId, outExpr, inKey)
+        val inAnchors       = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
+        val outAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.outMovementSpecId)
 
-            if matched.nonEmpty then
-              var newBalance: Money = recon.balance
-              for outMov <- matched do newBalance = newBalance - outMov.amount
-              movementRepo.setReconciliationIds(matched.map(_.id -> recon.id))
-              ledger.markReconciled(accountId, matched.map(_.signedAmountFor(accountId)).sum)
+        // Whichever spec contributed exactly one movement so far is a candidate anchor; the other
+        // spec is searched for more movements sharing its key. When both specs currently have
+        // exactly one movement (a partial 1:1 pair), which side is the true anchor is ambiguous
+        // until more arrive, so both directions are searched — late arrivals share the same match
+        // key value regardless of which side they land on, so the two searches can't double-count.
+        // Balance is tracked as (sum of in-side amounts) - (sum of out-side amounts), independent
+        // of which side happens to be the anchor, so its sign stays meaningful.
+        val matchedIn  = ListBuffer[Movement]()
+        val matchedOut = ListBuffer[Movement]()
+        if inAnchors.size == 1 then
+          val inKey = matchKeyValue(rule, IN, inAnchors.head)
+          matchedOut ++= movementRepo.findUnreconciledByExactMatchKey(reconSpec.outMovementSpecId, outExpr, inKey)
+        if outAnchors.size == 1 then
+          val outKey = matchKeyValue(rule, OUT, outAnchors.head)
+          matchedIn ++= movementRepo.findUnreconciledByExactMatchKey(reconSpec.inMovementSpecId, inExpr, outKey)
 
-              recon.balance                           = newBalance
-              if newBalance == Zero then recon.status = ReconciliationStatus.Final
-              reconRepo.update(recon)
+        val matched = matchedIn ++ matchedOut
+        if matched.nonEmpty then
+          val newBalance = recon.balance + matchedIn.map(_.amount).sum - matchedOut.map(_.amount).sum
+          movementRepo.setReconciliationIds(matched.map(_.id -> recon.id))
+          ledger.markReconciled(accountId, matched.map(_.signedAmountFor(accountId)).sum)
+
+          recon.balance                           = newBalance
+          if newBalance == Zero then recon.status = ReconciliationStatus.Final
+          reconRepo.update(recon)
 
   /**
    * Phase 2 of OneToMany: stream both sides via keyset pagination (same mechanics as
@@ -547,8 +600,9 @@ class InMemoryReconciler(using
     var lastOutKey  = startCheckpoint.lastOutMatchKey
     var totalGroups = 0
 
-    // Each pending group is (inMovement, outMovements-for-that-group)
-    val pendingGroups = ListBuffer[(Movement, Vector[Movement])]()
+    // Each pending group is (inMovements-for-that-key, outMovements-for-that-key); one side is
+    // always a singleton, but which side isn't fixed by the spec.
+    val pendingGroups = ListBuffer[(Vector[Movement], Vector[Movement])]()
 
     def ensureIn(): Boolean =
       if inIdx < inPage.size then true
@@ -578,10 +632,9 @@ class InMemoryReconciler(using
 
         val idPairs = ListBuffer[(ID, ID)]()
 
-        for (inMov, outMovs) <- groups do
-          var balance = inMov.amount
-          for out <- outMovs do balance = balance - out.amount
-          val status = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
+        for (inGroup, outGroup) <- groups do
+          val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
+          val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
 
           val reconciliation = Reconciliation(
             specId       = reconSpec.id,
@@ -593,10 +646,9 @@ class InMemoryReconciler(using
           )
           reconRepo.insert(reconciliation)
 
-          idPairs += (inMov.id -> reconciliation.id)
-          for outMov <- outMovs do idPairs += (outMov.id -> reconciliation.id)
+          for mov <- inGroup ++ outGroup do idPairs += (mov.id -> reconciliation.id)
 
-          batchDelta = batchDelta + inMov.signedAmountFor(accountId) + outMovs.map(_.signedAmountFor(accountId)).sum
+          batchDelta = batchDelta + (inGroup ++ outGroup).map(_.signedAmountFor(accountId)).sum
 
         movementRepo.setReconciliationIds(idPairs)
         ledger.markReconciled(accountId, batchDelta)
@@ -626,23 +678,44 @@ class InMemoryReconciler(using
         val comparison = inKey.compareTo(outKey)
 
         if comparison == 0 then
+          // Whichever side has exactly one movement for this key is the anchor; the other side's
+          // movements (however many) become the group. Gather both runs before deciding, since
+          // either physical side can be the "one" for a given OneToMany spec.
+          val groupIns = ListBuffer[Movement]()
+          groupIns += inPage(inIdx)
+          lastInKey = Some(inKey)
+          inIdx += 1
+          var continueInGroup = true
+          while continueInGroup && ensureIn() do
+            val nextInKey = matchKeyValue(rule, IN, inPage(inIdx))
+            if nextInKey == inKey then
+              groupIns += inPage(inIdx)
+              lastInKey = Some(nextInKey)
+              inIdx += 1
+            else continueInGroup = false
+
           val groupOuts = ListBuffer[Movement]()
           groupOuts += outPage(outIdx)
           lastOutKey = Some(outKey)
           outIdx += 1
-          var continueGroup = true
-          while continueGroup && ensureOut() do
+          var continueOutGroup = true
+          while continueOutGroup && ensureOut() do
             val nextOutKey = matchKeyValue(rule, OUT, outPage(outIdx))
             if nextOutKey == inKey then
               groupOuts += outPage(outIdx)
               lastOutKey = Some(nextOutKey)
               outIdx += 1
-            else continueGroup = false
+            else continueOutGroup = false
 
-          pendingGroups += (inMovement -> groupOuts.toVector)
-          lastInKey = Some(inKey)
-          inIdx += 1
-          if pendingGroups.size >= batchSize then commitBatch()
+          if groupIns.size == 1 || groupOuts.size == 1 then
+            pendingGroups += (groupIns.toVector -> groupOuts.toVector)
+            if pendingGroups.size >= batchSize then commitBatch()
+          else
+            Logger(getClass.getName).warn(
+              "skipping ambiguous OneToMany match group (multiple movements on both sides share the same key)",
+              kv("recon_spec_id", reconSpec.id),
+              kv("match_key", inKey)
+            )
         else if comparison < 0 then
           lastInKey = Some(inKey)
           inIdx += 1
