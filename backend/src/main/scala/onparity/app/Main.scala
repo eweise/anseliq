@@ -47,6 +47,7 @@ object Main:
     given disputeRepo:        DisputeRepo            = DisputeRepoLive()
     given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
     given disputeService:     DisputeService         = DisputeService()
+    given dailySnapshotRepo:  DailySnapshotRepo      = DailySnapshotRepoLive()
     given reportingService:   ReportingService       = ReportingService()
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
@@ -175,6 +176,38 @@ object Main:
 
               jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = filesQueued))
 
+        catch case ex: Exception => ex.printStackTrace()
+
+      /**
+       * Publishes GenerateReconStats jobs (once daily)
+       */
+      fork:
+        val reconStatsScanId = UUID.fromString("00000000-0000-0000-0000-000000000002")
+        repeat(Schedule.fixedInterval(24.hours)) {
+          try
+            transact(Transactor(dataSource = given_DataSource)):
+              jobManager.submitJob(JobType.GenerateReconStats, reconStatsScanId)
+          catch
+            case ex: Exception =>
+              logger.error(s"Error submitting GenerateReconStats job, will retry in 24h", ex)
+        }
+
+      /**
+       * Process GenerateReconStats jobs: compute and store today's per-fund-flow analytics snapshot
+       */
+      fork:
+        try
+          jobManager.pollForJob(JobType.GenerateReconStats, 60): job =>
+            transact(Transactor(dataSource = given_DataSource)):
+              val beginTime = System.currentTimeMillis()
+              val count     = reportingService.computeAndStoreDailySnapshots()
+              jobManager.completeJob(
+                job.id,
+                ReconStatsInfo(
+                  fundFlowsSnapshotted  = count,
+                  processingTimeSeconds = (System.currentTimeMillis() - beginTime) / 1000
+                )
+              )
         catch case ex: Exception => ex.printStackTrace()
 
       new App().main(args)

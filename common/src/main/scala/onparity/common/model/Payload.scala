@@ -248,6 +248,18 @@ case class ReportsSummaryPayload(
   aging:      AgingBucketsPayload
 ) derives ReadWriter
 
+case class TrendPointPayload(
+  date:                     String, // ISO-8601 (yyyy-MM-dd)
+  avgMatchRatePercent:      Option[BigDecimal],
+  openExceptionCount:       Int,
+  unreconciledBacklogCount: Int,
+  overdueCount:             Int
+) derives ReadWriter
+
+case class TrendReportPayload(
+  points: Seq[TrendPointPayload]
+) derives ReadWriter
+
 def combineAccountsAndMovementSpecs(
   accounts:      Seq[AccountPayload],
   movementSpecs: Seq[MovementSpecPayload]

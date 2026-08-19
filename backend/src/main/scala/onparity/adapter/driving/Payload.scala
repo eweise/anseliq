@@ -228,3 +228,16 @@ object Payload:
       exceptions = ExceptionBreakdownPayload(byCategory = r.exceptions.byCategory, byStatus = r.exceptions.byStatus),
       aging      = AgingBucketsPayload(buckets = r.aging.buckets, overdueCount = r.aging.overdueCount)
     )
+
+  def trendReportPayloadFromDomain(r: TrendReport): TrendReportPayload =
+    TrendReportPayload(
+      points = r.points.map { p =>
+        TrendPointPayload(
+          date                     = p.date.toString,
+          avgMatchRatePercent      = p.avgMatchRatePercent,
+          openExceptionCount       = p.openExceptionCount,
+          unreconciledBacklogCount = p.unreconciledBacklogCount,
+          overdueCount             = p.overdueCount
+        )
+      }
+    )
