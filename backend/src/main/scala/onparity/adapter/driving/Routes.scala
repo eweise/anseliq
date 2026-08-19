@@ -323,6 +323,12 @@ class App(using
       val report = reportingService.summary(fundFlowId.map(UUID.fromString))
       write(Payload.reportsSummaryPayloadFromDomain(report))
 
+  @cask.route(s"${HttpPath.reports}/trend", methods = HttpCmd.GET)
+  def getReportsTrend(fundFlowId: Option[String] = None, days: Int = 30): String =
+    transact(transactor):
+      val report = reportingService.trend(fundFlowId.map(UUID.fromString), days)
+      write(Payload.trendReportPayloadFromDomain(report))
+
   // Jobs
   @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)
   def jobsByType(jobType: String): String =

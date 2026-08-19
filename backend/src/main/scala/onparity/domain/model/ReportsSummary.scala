@@ -2,6 +2,8 @@ package onparity.domain.model
 
 import onparity.common.model.model.{ID, Money}
 
+import java.time.LocalDate
+
 case class MatchRateReport(
   accountId:         ID,
   accountName:       String,
@@ -25,3 +27,13 @@ case class ReportsSummaryReport(
   exceptions: ExceptionBreakdownReport,
   aging:      AgingBucketsReport
 )
+
+case class TrendPoint(
+  date:                     LocalDate,
+  avgMatchRatePercent:      Option[BigDecimal],
+  openExceptionCount:       Int,
+  unreconciledBacklogCount: Int, // sum of the four aging buckets
+  overdueCount:             Int
+)
+
+case class TrendReport(points: Seq[TrendPoint])

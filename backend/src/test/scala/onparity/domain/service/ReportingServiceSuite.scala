@@ -2,12 +2,12 @@ package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import onparity.adapter.driven.DbDataSource
+import onparity.adapter.driven.{DailySnapshotRepoLive, DbDataSource}
 import onparity.common.model.model.ID
 import onparity.domain.DataSetup
 import onparity.domain.model.*
 import onparity.domain.model.helper.JSONBProps
-import onparity.domain.port.driven.Txn
+import onparity.domain.port.driven.{DailySnapshotRepo, Txn}
 import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
@@ -15,6 +15,7 @@ import javax.sql.DataSource
 class ReportingServiceSuite extends munit.FunSuite:
   given transactor: Transactor = Transactor(dataSource)
   given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given dailySnapshotRepo: DailySnapshotRepo = DailySnapshotRepoLive()
 
   def createMovement(inAccountId: ID, outAccountId: ID, movementSpecId: ID, amount: BigDecimal)(using data: DataSetup): Txn[Movement] =
     val m = Movement(
@@ -179,3 +180,86 @@ class ReportingServiceSuite extends munit.FunSuite:
 
         intercept[NotFoundError]:
           service.summary(Some(java.util.UUID.randomUUID()))
+
+  test("aggregateSnapshotsByDate: weighted-averages avgMatchRatePercent across fund flows by ratedAccountCount, sums the count fields"):
+    // Pure function, no DB — two fund flows' snapshots sharing a date: one rated on 3 accounts
+    // averaging 90%, the other on 1 account at 50%. Weighted average = (90*3 + 50*1) / 4 = 80.
+    val date = java.time.LocalDate.of(2026, 1, 15)
+    val rows = Vector(
+      DailySnapshot(
+        fundFlowId = createID(), snapshotDate = date,
+        avgMatchRatePercent = Some(BigDecimal(90)), ratedAccountCount = 3,
+        openExceptionCount = 2, agingZeroToThree = 1, agingFourToSeven = 1, overdueCount = 1
+      ),
+      DailySnapshot(
+        fundFlowId = createID(), snapshotDate = date,
+        avgMatchRatePercent = Some(BigDecimal(50)), ratedAccountCount = 1,
+        openExceptionCount = 5, agingEightToFourteen = 2, agingFifteenPlus = 1, overdueCount = 3
+      )
+    )
+
+    val points = ReportingService.aggregateSnapshotsByDate(rows)
+
+    assertEquals(points.size, 1)
+    val p = points.head
+    assertEquals(p.date, date)
+    assertEquals(p.avgMatchRatePercent, Some(BigDecimal("80.00")))
+    assertEquals(p.openExceptionCount, 7)
+    assertEquals(p.unreconciledBacklogCount, 5) // 1+1+2+1
+    assertEquals(p.overdueCount, 4)
+
+  test("aggregateSnapshotsByDate: a fund flow with no rated accounts that day (None) is excluded from the weighted average, not treated as 0"):
+    val date = java.time.LocalDate.of(2026, 1, 15)
+    val rows = Vector(
+      DailySnapshot(fundFlowId = createID(), snapshotDate = date, avgMatchRatePercent = Some(BigDecimal(80)), ratedAccountCount = 2),
+      DailySnapshot(fundFlowId = createID(), snapshotDate = date, avgMatchRatePercent = None, ratedAccountCount = 0)
+    )
+
+    val points = ReportingService.aggregateSnapshotsByDate(rows)
+
+    assertEquals(points.head.avgMatchRatePercent, Some(BigDecimal("80.00")))
+
+  test("computeAndStoreDailySnapshots: is idempotent within the same day and matches summary()'s own numbers"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup            = DataSetup()
+        import data.given
+        given clock: ClockService         = ClockServiceLive()
+        val service = ReportingService()
+
+        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 300, reconciledBalance = 150))
+
+        service.computeAndStoreDailySnapshots()
+        service.computeAndStoreDailySnapshots() // second run same day must overwrite, not duplicate
+
+        val today = clock.now.toLocalDate
+        val rows  = dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today)
+        assertEquals(rows.size, 1, "idempotent upsert: exactly one row for this fund flow today")
+
+        val expected = service.summary(Some(data.fundFlowConfig.id))
+        assertEquals(rows.head.avgMatchRatePercent, expected.matchRates.head.matchRatePercent)
+        assertEquals(rows.head.ratedAccountCount, 1)
+        assertEquals(rows.head.overdueCount, expected.aging.overdueCount)
+
+  test("computeAndStoreDailySnapshots + trend: builds a multi-day trend as balances change across simulated days"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup            = DataSetup()
+        import data.given
+        given clock: ClockService         = ClockServiceLive()
+        val service = ReportingService()
+
+        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 25)) // day 1: 25%
+        service.computeAndStoreDailySnapshots()
+        val day1 = clock.now.toLocalDate
+
+        clock.addHours(24)
+        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 75)) // day 2: 75%
+        service.computeAndStoreDailySnapshots()
+        val day2 = clock.now.toLocalDate
+
+        val trend = service.trend(Some(data.fundFlowConfig.id), days = 30)
+        val byDate = trend.points.map(p => p.date -> p).toMap
+
+        assertEquals(byDate(day1).avgMatchRatePercent, Some(BigDecimal("25.00")))
+        assertEquals(byDate(day2).avgMatchRatePercent, Some(BigDecimal("75.00")))

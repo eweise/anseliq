@@ -4,7 +4,7 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.scalalogging.StrictLogging
 import ox.scheduling.{Schedule, repeat}
 import onparity.common.model.model.ID
-import onparity.common.model.{FileInventoryInfo, IngestionInfo, JobInfo, ReconciliationInfo}
+import onparity.common.model.{FileInventoryInfo, IngestionInfo, JobInfo, ReconStatsInfo, ReconciliationInfo}
 import onparity.domain.model.*
 import onparity.domain.model.JobStatus.{Complete, InProgress, Submitted}
 import onparity.domain.port.driven.{JobRepo, Txn}
@@ -68,7 +68,9 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
             if !jobInfo.isInstanceOf[FileInventoryInfo] then
               throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
 
-          case JobType.GenerateReconStats => ()
+          case JobType.GenerateReconStats =>
+            if !jobInfo.isInstanceOf[ReconStatsInfo] then
+              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
 
         jobRepo.update(
           job.copy(

@@ -250,3 +250,32 @@ CREATE TRIGGER update_event
     ON recon.event_state
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
+
+create table recon.daily_snapshot
+(
+    id                           uuid primary key,
+    fund_flow_id                 uuid                                   not null REFERENCES recon.fund_flow_config (id) ON DELETE CASCADE,
+    snapshot_date                date                                   not null,
+    match_rates_json             text                                   not null default '[]',
+    avg_match_rate_percent       numeric(5, 2),
+    rated_account_count          int                                    not null default 0,
+    exceptions_by_category_json  text                                   not null default '{}',
+    exceptions_by_status_json    text                                   not null default '{}',
+    open_exception_count         int                                    not null default 0,
+    aging_zero_to_three          int                                    not null default 0,
+    aging_four_to_seven          int                                    not null default 0,
+    aging_eight_to_fourteen      int                                    not null default 0,
+    aging_fifteen_plus           int                                    not null default 0,
+    overdue_count                int                                    not null default 0,
+    created_at                   timestamptz default CURRENT_TIMESTAMP  not null,
+    updated_at                   timestamptz default CURRENT_TIMESTAMP  not null,
+    UNIQUE (fund_flow_id, snapshot_date)
+);
+
+CREATE INDEX daily_snapshot_fund_flow_date_idx ON recon.daily_snapshot (fund_flow_id, snapshot_date);
+
+CREATE TRIGGER update_daily_snapshot
+    BEFORE INSERT OR UPDATE
+    ON recon.daily_snapshot
+    FOR EACH ROW
+EXECUTE PROCEDURE update_audit_fields_task();
