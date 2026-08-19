@@ -38,15 +38,13 @@ class S3FileSource(con: S3ConnectionConfig, s3Client: S3Client) extends FileSour
       .prefix(s"${con.filePath.stripSuffix("/")}/")
       .build()
 
-    var bucketName = ""
-
     s3Client
       .listObjectsV2(req)
       .contents()
       .stream()
       .map(seObject =>
         S3FileSourceEntry(
-          bucket         = bucketName,
+          bucket         = con.s3Bucket,
           key            = seObject.key(),
           fileSizeBytes  = seObject.size(),
           lastModifiedAt = seObject.lastModified().atOffset(ZoneOffset.UTC)

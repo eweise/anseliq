@@ -9,7 +9,7 @@ import onparity.common.model.model.{ID, Money, Zero}
 import onparity.domain.model.*
 import onparity.domain.model.Relationship.{ManyToMany, ManyToOne, OneToMany, OneToOne}
 import onparity.domain.port.driven.*
-import onparity.util.PerfLogger
+import onparity.util.{LogContext, PerfLogger}
 
 import java.time.Instant
 import java.util.UUID
@@ -224,73 +224,78 @@ class InMemoryReconciler(using
     onBatchComplete: SpecBatchProgress => BatchDecision = _ => BatchDecision.Commit
   ): ReconciliationResumableResult =
     val logger = Logger(getClass.getName)
-    logger.info("reconcileAccountResumable", kv("account_id", accountId), kv("batch_size", batchSize))
+    LogContext.withContext("account_id" -> accountId):
+      logger.info("reconcileAccountResumable", kv("account_id", accountId), kv("batch_size", batchSize))
+      val beginTime = Instant.now()
 
-    val beginTime = Instant.now()
+      val startingCheckpoints: Map[ID, ReconciliationCheckpoint] =
+        jobId
+          .flatMap(id => transact(transactor)(jobRepo.findById(id)))
+          .flatMap(_.progressJson)
+          .map(upickle.read[Map[ID, ReconciliationCheckpoint]](_))
+          .getOrElse(Map.empty)
 
-    val startingCheckpoints: Map[ID, ReconciliationCheckpoint] =
-      jobId
-        .flatMap(id => transact(transactor)(jobRepo.findById(id)))
-        .flatMap(_.progressJson)
-        .map(upickle.read[Map[ID, ReconciliationCheckpoint]](_))
-        .getOrElse(Map.empty)
+      val reconSpecs = transact(transactor)(reconSpecRepo.findByAccountID(accountId))
 
-    val reconSpecs = transact(transactor)(reconSpecRepo.findByAccountID(accountId))
+      var specCounts  = Map.empty[ID, Int]
+      var checkpoints = startingCheckpoints
+      var completed   = true
 
-    var specCounts  = Map.empty[ID, Int]
-    var checkpoints = startingCheckpoints
-    var completed   = true
+      boundary:
+        for reconSpec <- reconSpecs do
+          logger.debug("reconciling reconSpec", kv("recon_spec_id", reconSpec.id))
+          val startCheckpoint = checkpoints.getOrElse(reconSpec.id, ReconciliationCheckpoint())
+          reconSpec.relationship match
+            case OneToOne =>
+              logger.debug("processing OneToOne")
+              val (matchCount, endingCheckpoint, stopped) =
+                reconcileOneToOneStreaming(
+                  reconSpec,
+                  accountId,
+                  startCheckpoint,
+                  batchSize,
+                  jobId,
+                  checkpoints,
+                  onBatchComplete
+                )
+              specCounts += (reconSpec.id  -> matchCount)
+              checkpoints += (reconSpec.id -> endingCheckpoint)
+              if stopped then
+                completed = false
+                break()
+            case OneToMany =>
+              completeInProgressReconciliations(reconSpec, accountId)
+              val (matchCount, endingCheckpoint, stopped) =
+                reconcileOneToManyStreaming(
+                  reconSpec,
+                  accountId,
+                  startCheckpoint,
+                  batchSize,
+                  jobId,
+                  checkpoints,
+                  onBatchComplete
+                )
+              specCounts += (reconSpec.id  -> matchCount)
+              checkpoints += (reconSpec.id -> endingCheckpoint)
+              if stopped then
+                completed = false
+                break()
+            case ManyToOne | ManyToMany =>
+              specCounts += (reconSpec.id -> 0)
+          end match
+        end for
+      // end boundary
 
-    boundary:
-      for reconSpec <- reconSpecs do
-        val startCheckpoint = checkpoints.getOrElse(reconSpec.id, ReconciliationCheckpoint())
-        reconSpec.relationship match
-          case OneToOne =>
-            logger.debug("processing OneToOne")
+      if specCounts.values.sum > 0 then
+        transact(transactor)(eventStore.publishEvent(AccountReconciled(accountID = accountId)))
 
-            val (matchCount, endingCheckpoint, stopped) =
-              reconcileOneToOneStreaming(
-                reconSpec,
-                accountId,
-                startCheckpoint,
-                batchSize,
-                jobId,
-                checkpoints,
-                onBatchComplete
-              )
-            specCounts += (reconSpec.id  -> matchCount)
-            checkpoints += (reconSpec.id -> endingCheckpoint)
-            if stopped then
-              completed = false
-              break()
-          case OneToMany =>
-            completeInProgressReconciliations(reconSpec, accountId)
-            val (matchCount, endingCheckpoint, stopped) =
-              reconcileOneToManyStreaming(
-                reconSpec,
-                accountId,
-                startCheckpoint,
-                batchSize,
-                jobId,
-                checkpoints,
-                onBatchComplete
-              )
-            specCounts += (reconSpec.id  -> matchCount)
-            checkpoints += (reconSpec.id -> endingCheckpoint)
-            if stopped then
-              completed = false
-              break()
-          case ManyToOne | ManyToMany =>
-            specCounts += (reconSpec.id -> 0)
-
-    if specCounts.values.sum > 0 then
-      transact(transactor)(eventStore.publishEvent(AccountReconciled(accountID = accountId)))
-
-    ReconciliationResumableResult(
-      reconciliationSpecInsertCount = specCounts,
-      processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond,
-      completed                     = completed
-    )
+      ReconciliationResumableResult(
+        reconciliationSpecInsertCount = specCounts,
+        processingTimeSeconds         = Instant.now().getEpochSecond - beginTime.getEpochSecond,
+        completed                     = completed
+      )
+    // end  LogContext
+  end reconcileAccountResumable
 
   // v1 scope: single-attribute rules only (StringAttributeMatchRule / DateAttributeMatchRule),
   // and only when the attribute has no modifier — StringAttribute.modifySQL/DateAttribute.modifySQL
@@ -331,7 +336,15 @@ class InMemoryReconciler(using
   ): Vector[Movement] =
     transact(transactor):
       PerfLogger.time("fetchPage"):
-        movementRepo.findUnreconciledPage(movementSpecId, matchKeyExpr, afterKey, pageSize)
+        val unreconciled = movementRepo.findUnreconciledPage(movementSpecId, matchKeyExpr, afterKey, pageSize)
+        Logger(getClass.getName)
+          .debug(
+            "fetch_page",
+            kv("unreconciled_count", unreconciled.size),
+            kv("match_key_expr", matchKeyExpr),
+            kv("after_key", afterKey)
+          )
+        unreconciled
 
   /**
    * Streams both sides of a OneToOne match via keyset pagination instead of loading every
@@ -373,6 +386,7 @@ class InMemoryReconciler(using
         inPage = fetchPage(reconSpec.inMovementSpecId, inExpr, lastInKey)
         inIdx  = 0
         inPage.nonEmpty
+    end ensureIn
 
     def ensureOut(): Boolean =
       if outIdx < outPage.size then true
@@ -381,8 +395,11 @@ class InMemoryReconciler(using
         outPage = fetchPage(reconSpec.outMovementSpecId, outExpr, lastOutKey)
         outIdx  = 0
         outPage.nonEmpty
+    end ensureOut
 
     def commitBatch(): Unit =
+      val logger = Logger(getClass.getName)
+
       val matches = pendingMatches.toVector
       pendingMatches.clear()
 
@@ -418,39 +435,55 @@ class InMemoryReconciler(using
         val batchDecision = onBatchComplete(progress)
         if batchDecision == BatchDecision.Rollback then summon[DbTx].connection.rollback()
         batchDecision
+      end decision
 
       decision match
         case BatchDecision.Commit =>
           totalMatches += matches.size
         case BatchDecision.Rollback =>
           throw ReconciliationStopped
+    end commitBatch
 
     var stopped = false
     try
-      PerfLogger.time("create pending batches"):
-        while ensureIn() && ensureOut() do
-          val inMovement  = inPage(inIdx)
-          val outMovement = outPage(outIdx)
-          val inKey       = matchKeyValue(rule, IN, inMovement)
-          val outKey      = matchKeyValue(rule, OUT, outMovement)
-          val comparison  = inKey.compareTo(outKey)
+      LogContext.withContext(
+        "recon_spec_id" -> reconSpec.id,
+        "account_id"    -> accountId
+      ):
+        PerfLogger.time("create pending batches"):
+          while ensureIn() && ensureOut() do
+            val inMovement  = inPage(inIdx)
+            val outMovement = outPage(outIdx)
+            val inKey       = matchKeyValue(rule, IN, inMovement)
+            val outKey      = matchKeyValue(rule, OUT, outMovement)
+            val comparison  = inKey.compareTo(outKey)
 
-          comparison match
-            case 0 =>
-              pendingMatches += (inMovement -> outMovement)
-              lastInKey  = Some(inKey)
-              lastOutKey = Some(outKey)
-              inIdx += 1
-              outIdx += 1
-              if pendingMatches.size >= batchSize then commitBatch()
-            case x if x < 0 =>
-              lastInKey = Some(inKey)
-              inIdx += 1
-            case _ =>
-              lastOutKey = Some(outKey)
-              outIdx += 1
+            logger.debug("done comparison", kv("comparison_outcome", comparison))
+            comparison match
+              case 0 =>
+                pendingMatches += (inMovement -> outMovement)
+                lastInKey  = Some(inKey)
+                lastOutKey = Some(outKey)
+                inIdx += 1
+                outIdx += 1
+                logger.debug(
+                  "batch_full",
+                  kv("pending_matches_size", pendingMatches.size),
+                  kv("batchSize", batchSize)
+                )
+                if pendingMatches.size >= batchSize then commitBatch()
+              case x if x < 0 =>
+                lastInKey = Some(inKey)
+                inIdx += 1
+              case _ =>
+                lastOutKey = Some(outKey)
+                outIdx += 1
+            end match
+          end while
 
-      if pendingMatches.nonEmpty then commitBatch()
+        if pendingMatches.nonEmpty then commitBatch()
+      // end PerLogger
+    // end LogContext
     catch case ReconciliationStopped => stopped = true
 
     (totalMatches, ReconciliationCheckpoint(lastInMatchKey = lastInKey, lastOutMatchKey = lastOutKey), stopped)

@@ -3,8 +3,7 @@ package onparity.app
 import com.augustnagro.magnum.*
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
-import ox.*
-import ox.scheduling.{Schedule, repeat}
+import net.logstash.logback.argument.StructuredArguments.kv
 import onparity.adapter.driven.*
 import onparity.adapter.driving.*
 import onparity.common.model.*
@@ -12,6 +11,9 @@ import onparity.domain.model.*
 import onparity.domain.model.JobType.Ingestion
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
+import onparity.util.LogContext
+import ox.*
+import ox.scheduling.{Schedule, repeat}
 
 import java.util.UUID
 import javax.sql.DataSource
@@ -22,7 +24,6 @@ object Main:
   val shutdown = java.util.concurrent.CountDownLatch(1)
 
   def main(args: Array[String]): Unit =
-
     given DataSource = DbDataSource.create(ConfigFactory.load("application.conf"))
     given transactor:         Transactor             = Transactor(dataSource = given_DataSource)
     given clock:              ClockService           = ClockServiceLive()
@@ -60,26 +61,28 @@ object Main:
       fork:
         try
           jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
-            try
-              val account = transact(Transactor(dataSource = given_DataSource)):
-                accountRepo
-                  .findById(job.referenceId)
-                  .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
+            LogContext.withContext("job" -> "reconciliation", "job_id" -> job.id):
+              try
+                val account = transact(Transactor(dataSource = given_DataSource)):
+                  accountRepo
+                    .findById(job.referenceId)
+                    .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
 
-              val reconcilationResult = reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
+                logger.debug("found account", kv("account_id", account.id))
+                val reconcilationResult = reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
 
-              transact(Transactor(dataSource = given_DataSource)):
-                val jobInfo = ReconciliationInfo(
-                  accountId                   = account.id.toString,
-                  accountName                 = account.name,
-                  reconciliationsCreatedCount = reconcilationResult.totalCount,
-                  processingTimeSeconds       = reconcilationResult.processingTimeSeconds
-                )
-                jobManager.completeJob(job.id, jobInfo)
-            catch
-              case ex: Exception =>
-                ex.printStackTrace()
-                throw ex
+                transact(Transactor(dataSource = given_DataSource)):
+                  val jobInfo = ReconciliationInfo(
+                    accountId                   = account.id.toString,
+                    accountName                 = account.name,
+                    reconciliationsCreatedCount = reconcilationResult.totalCount,
+                    processingTimeSeconds       = reconcilationResult.processingTimeSeconds
+                  )
+                  jobManager.completeJob(job.id, jobInfo)
+              catch
+                case ex: Exception =>
+                  ex.printStackTrace()
+                  throw ex
           }
         catch
           case ex: Exception =>
@@ -118,27 +121,26 @@ object Main:
               )
           } catch
             case ex: Exception =>
-              throw new Exception(s"process ingestion jobs. job.referenceId = ${job.referenceId}", ex)
+              logger.error("failed ingestion job", kv("err", ex.getMessage), kv("job.id", job.referenceId))
+              throw ex
 
       /**
        * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs
        */
       fork:
-        try
-          eventStore.consumeEvent(classOf[MoneyMovementsIngested], 5, 10) { event =>
-            logger.info(s"found ingestion job $event")
-            val movementSpec = movementSpecRepo
-              .findById(event.movementSpecID)
-              .ErrIfNotFound("movementSpec", event.movementSpecID)
+        eventStore.consumeEvent(classOf[MoneyMovementsIngested], 5, 10) { event =>
+          logger.info(s"found ingestion job $event")
+          val movementSpec = movementSpecRepo
+            .findById(event.movementSpecID)
+            .ErrIfNotFound("movementSpec", event.movementSpecID)
 
-            transact(Transactor(dataSource = given_DataSource)):
-              if (accountRepo.isReconAccount(movementSpec.inAccountId)) then
-                jobManager.submitJob(JobType.Reconciliation, movementSpec.inAccountId)
+          transact(Transactor(dataSource = given_DataSource)):
+            if (accountRepo.isReconAccount(movementSpec.inAccountId)) then
+              jobManager.submitJob(JobType.Reconciliation, movementSpec.inAccountId)
 
-              if (accountRepo.isReconAccount(movementSpec.outAccountId)) then
-                jobManager.submitJob(JobType.Reconciliation, movementSpec.outAccountId)
-          }
-        catch case ex: Exception => ex.printStackTrace()
+            if (accountRepo.isReconAccount(movementSpec.outAccountId)) then
+              jobManager.submitJob(JobType.Reconciliation, movementSpec.outAccountId)
+        }
 
       /**
        * Publishes FileInventory jobs

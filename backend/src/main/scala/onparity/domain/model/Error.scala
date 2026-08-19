@@ -2,9 +2,11 @@ package onparity.domain.model
 
 import onparity.common.model.model.ID
 
-class ReconError(msg: String) extends RuntimeException(msg)
+class ReconError(msg: String, cause: Throwable) extends RuntimeException(msg, cause):
+  def this(msg: String) = this(msg, null)
 
-class NonRetryableError(msg: String) extends ReconError(msg)
+class NonRetryableError(msg: String, cause: Throwable) extends ReconError(msg, cause):
+  def this(msg: String) = this(msg, null)
 
 class NotFoundError(val msg: String) extends NonRetryableError(msg)
 
