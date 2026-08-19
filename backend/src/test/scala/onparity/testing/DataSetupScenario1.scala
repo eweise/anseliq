@@ -4,7 +4,7 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.*
 import onparity.common.model.*
-import onparity.common.model.ReconRelationship.{ManyToOne, OneToMany}
+import onparity.common.model.ReconRelationship.{OneToMany}
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
 

@@ -10,7 +10,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum Relationship derives DbCodec:
-  case OneToOne, OneToMany, ManyToOne, ManyToMany
+  case OneToOne, OneToMany, ManyToMany
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class ReconciliationSpec(

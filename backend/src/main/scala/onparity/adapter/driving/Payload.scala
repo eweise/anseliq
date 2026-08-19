@@ -68,7 +68,6 @@ object Payload:
     comRel match
       case ComRel.OneToOne   => Rel.OneToOne
       case ComRel.OneToMany  => Rel.OneToMany
-      case ComRel.ManyToOne  => Rel.ManyToOne
       case ComRel.ManyToMany => Rel.ManyToMany
 
   def reconSpecPayloadFromDomain(spec: ReconciliationSpec): ReconciliationSpecPayload =
@@ -86,7 +85,6 @@ object Payload:
     rel match
       case Rel.OneToOne   => ComRel.OneToOne
       case Rel.OneToMany  => ComRel.OneToMany
-      case Rel.ManyToOne  => ComRel.ManyToOne
       case Rel.ManyToMany => ComRel.ManyToMany
 
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
@@ -154,10 +152,6 @@ object Payload:
     case DisputeTargetPayload.Movement       => DisputeTarget.Movement
     case DisputeTargetPayload.Reconciliation => DisputeTarget.Reconciliation
 
-  def disputeTargetFromDomain(d: DisputeTarget): DisputeTargetPayload = d match
-    case DisputeTarget.Movement       => DisputeTargetPayload.Movement
-    case DisputeTarget.Reconciliation => DisputeTargetPayload.Reconciliation
-
   def disputeCategoryToDomain(p: DisputeCategoryPayload): DisputeCategory = p match
     case DisputeCategoryPayload.AmountMismatch     => DisputeCategory.AmountMismatch
     case DisputeCategoryPayload.MissingCounterpart => DisputeCategory.MissingCounterpart
@@ -165,27 +159,16 @@ object Payload:
     case DisputeCategoryPayload.TimingDifference   => DisputeCategory.TimingDifference
     case DisputeCategoryPayload.DataQuality        => DisputeCategory.DataQuality
 
-  def disputeCategoryFromDomain(d: DisputeCategory): DisputeCategoryPayload = d match
-    case DisputeCategory.AmountMismatch     => DisputeCategoryPayload.AmountMismatch
-    case DisputeCategory.MissingCounterpart => DisputeCategoryPayload.MissingCounterpart
-    case DisputeCategory.Duplicate          => DisputeCategoryPayload.Duplicate
-    case DisputeCategory.TimingDifference   => DisputeCategoryPayload.TimingDifference
-    case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
-
   def disputeStatusToDomain(p: DisputeStatusPayload): DisputeStatus = p match
     case DisputeStatusPayload.New           => DisputeStatus.New
     case DisputeStatusPayload.Investigating => DisputeStatus.Investigating
     case DisputeStatusPayload.Escalated     => DisputeStatus.Escalated
     case DisputeStatusPayload.Resolved      => DisputeStatus.Resolved
 
-  def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
-    case DisputeStatus.New           => DisputeStatusPayload.New
-    case DisputeStatus.Investigating => DisputeStatusPayload.Investigating
-    case DisputeStatus.Escalated     => DisputeStatusPayload.Escalated
-    case DisputeStatus.Resolved      => DisputeStatusPayload.Resolved
-
-  /** accountId/accountName/referenceLabel must be resolved by the caller (see Routes.scala) since which
-    * repos to query depends on dispute.targetType. */
+  /**
+   * accountId/accountName/referenceLabel must be resolved by the caller (see Routes.scala) since
+   * which repos to query depends on dispute.targetType.
+   */
   def disputePayloadFromDomain(
     dispute:        Dispute,
     accountId:      String,
@@ -206,6 +189,17 @@ object Payload:
       updatedAt      = dispute.updatedAt.get
     )
 
+  def disputeTargetFromDomain(d: DisputeTarget): DisputeTargetPayload = d match
+    case DisputeTarget.Movement       => DisputeTargetPayload.Movement
+    case DisputeTarget.Reconciliation => DisputeTargetPayload.Reconciliation
+
+  def disputeCategoryFromDomain(d: DisputeCategory): DisputeCategoryPayload = d match
+    case DisputeCategory.AmountMismatch     => DisputeCategoryPayload.AmountMismatch
+    case DisputeCategory.MissingCounterpart => DisputeCategoryPayload.MissingCounterpart
+    case DisputeCategory.Duplicate          => DisputeCategoryPayload.Duplicate
+    case DisputeCategory.TimingDifference   => DisputeCategoryPayload.TimingDifference
+    case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
+
   def disputeCommentPayloadFromDomain(c: DisputeComment): DisputeCommentPayload =
     DisputeCommentPayload(
       id        = c.id.toString,
@@ -213,6 +207,12 @@ object Payload:
       newStatus = c.newStatus.map(disputeStatusFromDomain),
       createdAt = c.createdAt.get
     )
+
+  def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
+    case DisputeStatus.New           => DisputeStatusPayload.New
+    case DisputeStatus.Investigating => DisputeStatusPayload.Investigating
+    case DisputeStatus.Escalated     => DisputeStatusPayload.Escalated
+    case DisputeStatus.Resolved      => DisputeStatusPayload.Resolved
 
   def reportsSummaryPayloadFromDomain(r: ReportsSummaryReport): ReportsSummaryPayload =
     ReportsSummaryPayload(

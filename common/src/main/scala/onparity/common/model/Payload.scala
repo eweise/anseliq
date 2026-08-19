@@ -91,7 +91,7 @@ case class FundFlowPayload(
 ) derives ReadWriter
 
 enum ReconRelationship derives ReadWriter:
-  case OneToOne, OneToMany, ManyToOne, ManyToMany
+  case OneToOne, OneToMany, ManyToMany
 
 case class ReconciliationSpecPayload(
   id:                Option[String]    = None,
@@ -192,17 +192,17 @@ case class RaiseDisputeRequest(
 ) derives ReadWriter
 
 case class DisputePayload(
-  id:              String,
-  referenceId:     String,
-  targetType:      DisputeTargetPayload,
-  category:        DisputeCategoryPayload,
-  detail:          Option[String],
-  status:          DisputeStatusPayload,
-  accountId:       String,
-  accountName:     String,
-  referenceLabel:  String,
-  createdAt:       OffsetDateTime,
-  updatedAt:       OffsetDateTime
+  id:             String,
+  referenceId:    String,
+  targetType:     DisputeTargetPayload,
+  category:       DisputeCategoryPayload,
+  detail:         Option[String],
+  status:         DisputeStatusPayload,
+  accountId:      String,
+  accountName:    String,
+  referenceLabel: String,
+  createdAt:      OffsetDateTime,
+  updatedAt:      OffsetDateTime
 ) derives ReadWriter
 
 case class DisputeCommentPayload(
@@ -220,7 +220,7 @@ case class DisputeDetailPayload(
 ) derives ReadWriter
 
 case class AddDisputeCommentRequest(
-  body:      Option[String]              = None,
+  body:      Option[String]               = None,
   newStatus: Option[DisputeStatusPayload] = None
 ) derives ReadWriter
 
