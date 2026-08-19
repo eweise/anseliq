@@ -165,25 +165,15 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     (inSpec, outSpec, spec)
 
   test("OneToMany groups multiple out-movements against one in-movement, including a group spanning a page boundary"):
-    val data                        = transact(transactor)(DataSetup())
+    val data                    = transact(transactor)(DataSetup())
     val (inSpec, outSpec, spec) = oneToManySpec(data)
+    given ops: FundFlowOperations = FundFlowOperations()
     try
       transact(transactor):
         // one in-movement worth 100, matched by three out-movements (40 + 40 + 20) all sharing groupId "g1"
-        movementRepo.insert(
-          Movement(
-            inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
-            amount = 100, properties = JSONBProps(Map("groupId" -> "g1"))
-          )
-        )
+        ops.postAmount(inSpec, 100, referenceID = createID(), Map("groupId" -> "g1"))
         for amount <- Seq(BigDecimal(40), BigDecimal(40), BigDecimal(20))
-        do
-          movementRepo.insert(
-            Movement(
-              inAccountId = outSpec.inAccountId, outAccountId = outSpec.outAccountId, movementSpecId = outSpec.id,
-              amount = amount, properties = JSONBProps(Map("groupId" -> "g1"))
-            )
-          )
+        do ops.postAmount(outSpec, amount, referenceID = createID(), Map("groupId" -> "g1"))
 
       val reconciler = InMemoryReconciler()
       // pageSize forced small enough that the 3-row out-group can't fit in one page fetch,
@@ -197,6 +187,18 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(reconciliations.size, 1)
       assertEquals(reconciliations.head.status, ReconciliationStatus.Final)
       assertEquals(reconciliations.head.balance, BigDecimal(0))
+
+      // reconAccount sits on the "in" side of inSpec's movement and the "out" side of outSpec's
+      // movements, so a Final match (in-total == out-total, here 100 == 40+40+20) contributes
+      // +100 and -100 to reconAccount's own net balance — they cancel. unreconciledBalance still
+      // correctly drops from 100 to 0 (all four movements are now linked to the reconciliation),
+      // but reconciledBalance nets to 0 too, same as the account's overall balance. This is
+      // expected for a fully-matched pass-through leg, not a sign that nothing was reconciled —
+      // check unreconciledBalance (or the reconciliation/movement records above) to see progress.
+      val acct = transact(transactor)(accountRepo.findById(data.reconAccount.id).get)
+      assertEquals(acct.balance, BigDecimal(0))
+      assertEquals(acct.reconciledBalance, BigDecimal(0))
+      assertEquals(acct.unreconciledBalance, BigDecimal(0))
     finally
       transact(transactor):
         data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
@@ -211,22 +213,12 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     // out-movement worth 100, all sharing groupId "g1".
     val data                    = transact(transactor)(DataSetup())
     val (inSpec, outSpec, spec) = oneToManySpec(data)
+    given ops: FundFlowOperations = FundFlowOperations()
     try
       transact(transactor):
         for amount <- Seq(BigDecimal(40), BigDecimal(40), BigDecimal(20))
-        do
-          movementRepo.insert(
-            Movement(
-              inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
-              amount = amount, properties = JSONBProps(Map("groupId" -> "g1"))
-            )
-          )
-        movementRepo.insert(
-          Movement(
-            inAccountId = outSpec.inAccountId, outAccountId = outSpec.outAccountId, movementSpecId = outSpec.id,
-            amount = 100, properties = JSONBProps(Map("groupId" -> "g1"))
-          )
-        )
+        do ops.postAmount(inSpec, amount, referenceID = createID(), Map("groupId" -> "g1"))
+        ops.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g1"))
 
       val reconciler = InMemoryReconciler()
       val result      = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -241,6 +233,13 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       val reconciledMovements = transact(transactor)(movementRepo.findByReconciliationID(reconciliations.head.id))
       assertEquals(reconciledMovements.size, 4)
+
+      // Same cancellation as the mirror-image test above: a Final match nets reconciledBalance to 0
+      // for reconAccount even though four movements just got linked to a reconciliation.
+      val acct = transact(transactor)(accountRepo.findById(data.reconAccount.id).get)
+      assertEquals(acct.balance, BigDecimal(0))
+      assertEquals(acct.reconciledBalance, BigDecimal(0))
+      assertEquals(acct.unreconciledBalance, BigDecimal(0))
     finally
       transact(transactor):
         data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
@@ -250,23 +249,17 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
   test("OneToMany partial match where the 'many' side arrives on the in spec across multiple runs"):
     // First run: one out-movement of 100 matches a single in-movement of only 60 so far — should sit
     // InProgress with balance (in - out) = -40. Second run: another in-movement (40) arrives on the
-    // same key, closing the balance to 0 without creating a second reconciliation.
+    // same key, closing the balance to 0 without creating a second reconciliation. Movements are
+    // posted through FundFlowOperations.postAmount (not raw movementRepo.insert) specifically so the
+    // account's balance/reconciledBalance/unreconciledBalance are populated the same way production
+    // ingestion populates them, letting the assertions below verify the ledger side effects for real.
     val data                    = transact(transactor)(DataSetup())
     val (inSpec, outSpec, spec) = oneToManySpec(data)
+    given ops: FundFlowOperations = FundFlowOperations()
     try
       transact(transactor):
-        movementRepo.insert(
-          Movement(
-            inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
-            amount = 60, properties = JSONBProps(Map("groupId" -> "g2"))
-          )
-        )
-        movementRepo.insert(
-          Movement(
-            inAccountId = outSpec.inAccountId, outAccountId = outSpec.outAccountId, movementSpecId = outSpec.id,
-            amount = 100, properties = JSONBProps(Map("groupId" -> "g2"))
-          )
-        )
+        ops.postAmount(inSpec, 60, referenceID = createID(), Map("groupId" -> "g2"))
+        ops.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g2"))
 
       val reconciler = InMemoryReconciler()
       val result1     = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -277,13 +270,16 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(recons1.head.status, ReconciliationStatus.InProgress)
       assertEquals(recons1.head.balance, BigDecimal(-40))
 
+      // Even though the reconciliation is only InProgress, the two movements linked to it so far
+      // are no longer "unreconciled" — the account's reconciled/unreconciled split should reflect
+      // that immediately, not wait for the reconciliation to reach Final.
+      val acct1 = transact(transactor)(accountRepo.findById(data.reconAccount.id).get)
+      assertEquals(acct1.balance, BigDecimal(-40))
+      assertEquals(acct1.reconciledBalance, BigDecimal(-40))
+      assertEquals(acct1.unreconciledBalance, BigDecimal(0))
+
       transact(transactor):
-        movementRepo.insert(
-          Movement(
-            inAccountId = inSpec.inAccountId, outAccountId = inSpec.outAccountId, movementSpecId = inSpec.id,
-            amount = 40, properties = JSONBProps(Map("groupId" -> "g2"))
-          )
-        )
+        ops.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g2"))
 
       val result2 = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
       assertEquals(result2.reconciliationSpecInsertCount(spec.id), 0, "no new reconciliation, existing one topped up")
@@ -292,6 +288,14 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(recons2.size, 1)
       assertEquals(recons2.head.status, ReconciliationStatus.Final)
       assertEquals(recons2.head.balance, BigDecimal(0))
+
+      // completeInProgressReconciliations (the production "top up" path, distinct from the initial
+      // streaming match above) must apply its own delta too: reconciledBalance moves from -40 to 0
+      // as the newly-arrived 40 in-movement is folded into the existing reconciliation.
+      val acct2 = transact(transactor)(accountRepo.findById(data.reconAccount.id).get)
+      assertEquals(acct2.balance, BigDecimal(0))
+      assertEquals(acct2.reconciledBalance, BigDecimal(0))
+      assertEquals(acct2.unreconciledBalance, BigDecimal(0))
     finally
       transact(transactor):
         data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
