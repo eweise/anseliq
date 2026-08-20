@@ -1,6 +1,5 @@
 package onparity.adapter.driving
 
-import onparity.common.model.model.Money
 import onparity.common.model.{ReconRelationship as ComRel, *}
 import onparity.domain.model.{Relationship as Rel, *}
 import upickle.default.read as upickleRead
@@ -104,14 +103,19 @@ object Payload:
     upickle.read[Event](state.payload) match
       case e: MoneyMovementsIngested =>
         MoneyMovementsIngestedPayload(
-          id             = state.id.toString,
-          eventType      = state.eventType,
-          movementSpecID = e.movementSpecID.toString,
-          status         = state.status.toString,
-          retryCount     = state.retryCount,
-          errorMessage   = state.errorMessage,
-          createdAt      = state.createdAt,
-          updatedAt      = state.updatedAt
+          id                   = state.id.toString,
+          eventType            = state.eventType,
+          movementSpecID       = e.movementSpecID.toString,
+          movementSpecName     = e.movementSpecName,
+          fileName             = e.fileName,
+          recordCount          = e.recordCount,
+          ingestionTimeSeconds = e.ingestionTimeSeconds,
+          lastProcessedLine    = e.lastProcessedLine,
+          status               = state.status.toString,
+          retryCount           = state.retryCount,
+          errorMessage         = state.errorMessage,
+          createdAt            = state.createdAt,
+          updatedAt            = state.updatedAt
         )
       case e: AccountReconciled =>
         AccountReconciledPayload(
@@ -200,6 +204,12 @@ object Payload:
     case DisputeCategory.TimingDifference   => DisputeCategoryPayload.TimingDifference
     case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
 
+  def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
+    case DisputeStatus.New           => DisputeStatusPayload.New
+    case DisputeStatus.Investigating => DisputeStatusPayload.Investigating
+    case DisputeStatus.Escalated     => DisputeStatusPayload.Escalated
+    case DisputeStatus.Resolved      => DisputeStatusPayload.Resolved
+
   def disputeCommentPayloadFromDomain(c: DisputeComment): DisputeCommentPayload =
     DisputeCommentPayload(
       id        = c.id.toString,
@@ -207,12 +217,6 @@ object Payload:
       newStatus = c.newStatus.map(disputeStatusFromDomain),
       createdAt = c.createdAt.get
     )
-
-  def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
-    case DisputeStatus.New           => DisputeStatusPayload.New
-    case DisputeStatus.Investigating => DisputeStatusPayload.Investigating
-    case DisputeStatus.Escalated     => DisputeStatusPayload.Escalated
-    case DisputeStatus.Resolved      => DisputeStatusPayload.Resolved
 
   def reportsSummaryPayloadFromDomain(r: ReportsSummaryReport): ReportsSummaryPayload =
     ReportsSummaryPayload(
