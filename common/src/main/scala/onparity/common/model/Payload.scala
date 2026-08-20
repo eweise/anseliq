@@ -304,14 +304,19 @@ sealed trait EventPayload derives ReadWriter:
   val updatedAt:    Option[OffsetDateTime]
 
 case class MoneyMovementsIngestedPayload(
-  id:             String,
-  eventType:      String,
-  movementSpecID: String,
-  status:         String,
-  retryCount:     Int,
-  errorMessage:   Option[String],
-  createdAt:      Option[OffsetDateTime],
-  updatedAt:      Option[OffsetDateTime]
+  id:                   String,
+  eventType:            String,
+  movementSpecID:       String,
+  movementSpecName:     String,
+  fileName:             String,
+  recordCount:          Int,
+  ingestionTimeSeconds: Long,
+  lastProcessedLine:    Option[Long],
+  status:               String,
+  retryCount:           Int,
+  errorMessage:         Option[String],
+  createdAt:            Option[OffsetDateTime],
+  updatedAt:            Option[OffsetDateTime]
 ) extends EventPayload
 
 case class AccountReconciledPayload(

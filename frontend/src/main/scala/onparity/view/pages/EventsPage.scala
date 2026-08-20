@@ -11,6 +11,12 @@ import upickle.default.*
 
 object EventsPage:
 
+  private val eventTypeOptions: Seq[(String, String)] = Seq(
+    "MoneyMovementsIngested" -> "MoneyMovementsIngested",
+    "AccountReconciled"      -> "AccountReconciled",
+    "NewFileDetected"        -> "NewFileDetected"
+  )
+
   def apply(): HtmlElement =
     val state    = Var(State())
     val fetchBus = EventBus[String]()
@@ -56,12 +62,20 @@ object EventsPage:
           )
         ),
         child <-- state.signal.map { s =>
-          val extraHeader = s.selectedEventType match
-            case "MoneyMovementsIngested" => "Movement Spec ID"
-            case "AccountReconciled"      => "Account ID"
-            case "NewFileDetected"        => "File Inventory ID"
-            case _                        => "ID"
-          val headers = Seq("Status", "Retries", "Error", "Created At", extraHeader)
+          val extraHeaders = s.selectedEventType match
+            case "MoneyMovementsIngested" =>
+              Seq(
+                "Movement Spec Name",
+                "File Name",
+                "Record Count",
+                "Ingestion Time (s)",
+                "Last Processed Line",
+                "Movement Spec ID"
+              )
+            case "AccountReconciled" => Seq("Account ID")
+            case "NewFileDetected"   => Seq("File Inventory ID")
+            case _                   => Seq("ID")
+          val headers = Seq("Status", "Retries", "Error", "Created At") ++ extraHeaders
           val rows = s.events.map { event =>
             Seq(
               span(event.status),
@@ -75,16 +89,18 @@ object EventsPage:
       )
     )
 
-  private val eventTypeOptions: Seq[(String, String)] = Seq(
-    "MoneyMovementsIngested" -> "MoneyMovementsIngested",
-    "AccountReconciled"      -> "AccountReconciled",
-    "NewFileDetected"        -> "NewFileDetected"
-  )
-
   private def extraCells(event: EventPayload): Seq[HtmlElement] = event match
-    case e: MoneyMovementsIngestedPayload => Seq(span(e.movementSpecID))
-    case e: AccountReconciledPayload      => Seq(span(e.accountID))
-    case e: NewFileDetectedPayload        => Seq(span(e.fileInventoryID))
+    case e: MoneyMovementsIngestedPayload =>
+      Seq(
+        span(e.movementSpecName),
+        span(e.fileName),
+        span(e.recordCount.toString),
+        span(e.ingestionTimeSeconds.toString),
+        span(e.lastProcessedLine.map(_.toString).getOrElse("-")),
+        span(e.movementSpecID)
+      )
+    case e: AccountReconciledPayload => Seq(span(e.accountID))
+    case e: NewFileDetectedPayload   => Seq(span(e.fileInventoryID))
 
   case class State(
     selectedEventType: String            = "MoneyMovementsIngested",
