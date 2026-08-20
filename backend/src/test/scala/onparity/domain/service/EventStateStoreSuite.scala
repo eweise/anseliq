@@ -19,7 +19,14 @@ class EventStateStoreSuite extends munit.FunSuite:
   test("publishEvent inserts event with Pending status"):
     transact(transactor):
       rollBackOnly:
-        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
+        val event = MoneyMovementsIngested(
+          movementSpecID = UUID.randomUUID(),
+          movementSpecName = "test",
+          fileName = "test",
+          recordCount = 0,
+          ingestionTimeSeconds = 0,
+          lastProcessedLine = None
+        )
         eventStore.publishEvent(event)
         val found = eventRepo.findById(event.id)
         assert(found.isDefined)
@@ -29,7 +36,14 @@ class EventStateStoreSuite extends munit.FunSuite:
   test("processNextEvent calls consumer and marks event Consumed"):
     transact(transactor):
       rollBackOnly:
-        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
+        val event = MoneyMovementsIngested(
+          movementSpecID = UUID.randomUUID(),
+          movementSpecName = "test",
+          fileName = "test",
+          recordCount = 0,
+          ingestionTimeSeconds = 0,
+          lastProcessedLine = None
+        )
         eventStore.publishEvent(event)
 
         var consumed = false
@@ -49,7 +63,14 @@ class EventStateStoreSuite extends munit.FunSuite:
   test("processNextEvent increments retryCount and keeps Pending if Exception"):
     transact(transactor):
       rollBackOnly:
-        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
+        val event = MoneyMovementsIngested(
+          movementSpecID = UUID.randomUUID(),
+          movementSpecName = "test",
+          fileName = "test",
+          recordCount = 0,
+          ingestionTimeSeconds = 0,
+          lastProcessedLine = None
+        )
         eventStore.publishEvent(event)
 
         eventStore.processNextEvent(classOf[MoneyMovementsIngested], maxRetries = 3) { _ =>
@@ -79,7 +100,14 @@ class EventStateStoreSuite extends munit.FunSuite:
   test("processNextEvent marks Error on non-retryable exception"):
     transact(transactor):
       rollBackOnly:
-        val event = MoneyMovementsIngested(movementSpecID = UUID.randomUUID())
+        val event = MoneyMovementsIngested(
+          movementSpecID = UUID.randomUUID(),
+          movementSpecName = "test",
+          fileName = "test",
+          recordCount = 0,
+          ingestionTimeSeconds = 0,
+          lastProcessedLine = None
+        )
         eventStore.publishEvent(event)
 
         eventStore.processNextEvent(classOf[MoneyMovementsIngested], maxRetries = 3) { _ =>
