@@ -11,6 +11,8 @@ import onparity.domain.model.{IllegalArgumentError, IllegalStateError, JobType}
 import onparity.testing
 
 import java.util.UUID
+import java.util.concurrent.{ConcurrentLinkedQueue, CyclicBarrier}
+import scala.jdk.CollectionConverters.*
 
 class JobManagerSuite extends munit.FunSuite:
   private val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
@@ -49,6 +51,57 @@ class JobManagerSuite extends munit.FunSuite:
         assert(jobManager.getNextAvailableJob(Reconciliation).isEmpty)
         val foundErrorJob = jobRepo.findById(jobId).get
         assertEquals(foundErrorJob.errorMessage.get, "boom")
+
+  test("submitJob is idempotent: a second submission while a job is still Submitted returns the existing job, not a duplicate"):
+    transact(transactor):
+      testing.rollBackOnly:
+        val referenceID = UUID.randomUUID()
+        val firstJobId  = jobManager.submitJob(Reconciliation, referenceID)
+        val secondJobId = jobManager.submitJob(Reconciliation, referenceID)
+
+        assertEquals(secondJobId, firstJobId)
+        assertEquals(jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).size, 1)
+
+  test("submitJob is idempotent: a second submission while a job is InProgress returns the existing job, not a duplicate"):
+    transact(transactor):
+      testing.rollBackOnly:
+        val referenceID = UUID.randomUUID()
+        val firstJobId  = jobManager.submitJob(Reconciliation, referenceID)
+        jobManager.getNextAvailableJob(Reconciliation) // moves it to InProgress
+
+        val secondJobId = jobManager.submitJob(Reconciliation, referenceID)
+
+        assertEquals(secondJobId, firstJobId)
+        assertEquals(jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).size, 1)
+
+  test("submitJob creates a new job once the previous one for the same referenceId has completed"):
+    transact(transactor):
+      testing.rollBackOnly:
+        val referenceID = UUID.randomUUID()
+        val firstJobId  = jobManager.submitJob(Reconciliation, referenceID)
+        jobManager.getNextAvailableJob(Reconciliation)
+        jobManager.completeJob(
+          firstJobId,
+          ReconciliationInfo(accountId = referenceID.toString, accountName = "test", reconciliationsCreatedCount = 1, processingTimeSeconds = 1)
+        )
+
+        val secondJobId = jobManager.submitJob(Reconciliation, referenceID)
+
+        assert(secondJobId != firstJobId, "a fresh submission after Complete should not be deduped against the finished job")
+        assertEquals(jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).size, 2)
+
+  test("submitJob creates a new job once the previous one for the same referenceId has errored"):
+    transact(transactor):
+      testing.rollBackOnly:
+        val referenceID = UUID.randomUUID()
+        val firstJobId  = jobManager.submitJob(Reconciliation, referenceID)
+        jobManager.getNextAvailableJob(Reconciliation)
+        jobManager.markJobInError(firstJobId, new IllegalStateError("boom"))
+
+        val secondJobId = jobManager.submitJob(Reconciliation, referenceID)
+
+        assert(secondJobId != firstJobId, "a fresh submission after Error should not be deduped against the failed job")
+        assertEquals(jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).size, 2)
 
   test("submitAndProcessJob succeeds"):
     transact(transactor):
@@ -125,3 +178,42 @@ class JobManagerSuite extends munit.FunSuite:
     // cleanup committed test data
     transact(transactor):
       foundJob.foreach(j => jobRepo.deleteById(j.id))
+
+  test("submitJob under real concurrency: two racing submitters end up with exactly one active job between them"):
+    // Not rolled back — needs two genuinely separate connections/transactions calling submitJob at
+    // the same time to exercise the savepoint/unique-violation recovery path inside submitJob. The
+    // earlier idempotency tests call submitJob twice sequentially within a single transaction, which
+    // never opens the race window at all (the second call's own findActiveJob already sees the
+    // first call's uncommitted insert). A CyclicBarrier lines both threads up to start their
+    // transact() call as close to simultaneously as possible, maximizing the chance both threads'
+    // findActiveJob sees "nothing" before either commits its insert.
+    val referenceID = UUID.randomUUID()
+    val barrier      = CyclicBarrier(2)
+    val results      = ConcurrentLinkedQueue[UUID]()
+    val errors       = ConcurrentLinkedQueue[Throwable]()
+
+    def race(): Unit =
+      try
+        barrier.await()
+        val id = transact(transactor)(jobManager.submitJob(Reconciliation, referenceID))
+        results.add(id)
+      catch case ex: Throwable => errors.add(ex)
+
+    val t1 = Thread(() => race())
+    val t2 = Thread(() => race())
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    try
+      assert(errors.isEmpty, s"submitJob must recover from the race internally, not surface it as an error: ${errors.asScala.toList}")
+      assertEquals(results.size, 2)
+      assertEquals(results.asScala.toSet.size, 1, "both racing submitters must agree on a single job id")
+
+      val allJobs = transact(transactor):
+        jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID)
+      assertEquals(allJobs.size, 1, "exactly one job row must exist despite the race")
+    finally
+      transact(transactor):
+        jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).foreach(j => jobRepo.deleteById(j.id))

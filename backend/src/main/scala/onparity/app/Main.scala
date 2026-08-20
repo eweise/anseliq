@@ -82,8 +82,9 @@ object Main:
                   jobManager.completeJob(job.id, jobInfo)
               catch
                 case ex: Exception =>
-                  ex.printStackTrace()
-                  throw ex
+                  logger.error("reconciliation job failed", kv("job_id", job.id), ex)
+                  transact(Transactor(dataSource = given_DataSource)):
+                    jobManager.markJobInError(job.id, ex)
           }
         catch
           case ex: Exception =>
@@ -109,21 +110,26 @@ object Main:
        * INGESTION. Processes Ingestion jobs
        */
       fork:
-        jobManager.pollForJob(JobType.Ingestion, 5): job =>
-          try {
-            val results = ingestor.ingestFileFromInventory(job.referenceId)
-            transact(Transactor(dataSource = given_DataSource)):
-              jobManager.completeJob(
-                job.id,
-                IngestionInfo( // fixme. should remove these info objects and use events instead
-                  numberOfRecordsIngested = results.recordCount,
-                  processingTimeSeconds   = results.ingestionTimeSeconds
+        try
+          jobManager.pollForJob(JobType.Ingestion, 5): job =>
+            try
+              val results = ingestor.ingestFileFromInventory(job.referenceId)
+              transact(Transactor(dataSource = given_DataSource)):
+                jobManager.completeJob(
+                  job.id,
+                  IngestionInfo( // fixme. should remove these info objects and use events instead
+                    numberOfRecordsIngested = results.recordCount,
+                    processingTimeSeconds   = results.ingestionTimeSeconds
+                  )
                 )
-              )
-          } catch
-            case ex: Exception =>
-              logger.error("failed ingestion job", kv("err", ex.getMessage), kv("job.id", job.referenceId))
-              throw ex
+            catch
+              case ex: Exception =>
+                logger.error("failed ingestion job", kv("err", ex.getMessage), kv("job.id", job.referenceId))
+                transact(Transactor(dataSource = given_DataSource)):
+                  jobManager.markJobInError(job.id, ex)
+        catch
+          case ex: Exception =>
+            logger.error("failed poll for Ingestion job", ex)
 
       /**
        * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs
@@ -165,18 +171,25 @@ object Main:
       fork:
         try
           jobManager.pollForJob(JobType.CreateFileInventory, 60): job =>
-            transact(Transactor(dataSource = given_DataSource)):
-              var filesQueued = 0
+            try
+              transact(Transactor(dataSource = given_DataSource)):
+                var filesQueued = 0
 
-              movementSpecRepo.findAll.foreach: spec =>
-                val s3FileSource = s3FileSourceFactory.createFileSource(spec.dataSourceConfig().connectionConfig)
-                val newFiles     = ingestor.detectAndQueue(spec.id, s3FileSource)
-                logger.info(s"File inventory scan: queued ${newFiles.size} new S3 files")
-                filesQueued += newFiles.size
+                movementSpecRepo.findAll.foreach: spec =>
+                  val s3FileSource = s3FileSourceFactory.createFileSource(spec.dataSourceConfig().connectionConfig)
+                  val newFiles     = ingestor.detectAndQueue(spec.id, s3FileSource)
+                  logger.info(s"File inventory scan: queued ${newFiles.size} new S3 files")
+                  filesQueued += newFiles.size
 
-              jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = filesQueued))
-
-        catch case ex: Exception => ex.printStackTrace()
+                jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = filesQueued))
+            catch
+              case ex: Exception =>
+                logger.error("CreateFileInventory job failed", kv("job_id", job.id), ex)
+                transact(Transactor(dataSource = given_DataSource)):
+                  jobManager.markJobInError(job.id, ex)
+        catch
+          case ex: Exception =>
+            logger.error("failed poll for CreateFileInventory job", ex)
 
       /**
        * Publishes GenerateReconStats jobs (once daily)
@@ -198,17 +211,25 @@ object Main:
       fork:
         try
           jobManager.pollForJob(JobType.GenerateReconStats, 60): job =>
-            transact(Transactor(dataSource = given_DataSource)):
-              val beginTime = System.currentTimeMillis()
-              val count     = reportingService.computeAndStoreDailySnapshots()
-              jobManager.completeJob(
-                job.id,
-                ReconStatsInfo(
-                  fundFlowsSnapshotted  = count,
-                  processingTimeSeconds = (System.currentTimeMillis() - beginTime) / 1000
+            try
+              transact(Transactor(dataSource = given_DataSource)):
+                val beginTime = System.currentTimeMillis()
+                val count     = reportingService.computeAndStoreDailySnapshots()
+                jobManager.completeJob(
+                  job.id,
+                  ReconStatsInfo(
+                    fundFlowsSnapshotted  = count,
+                    processingTimeSeconds = (System.currentTimeMillis() - beginTime) / 1000
+                  )
                 )
-              )
-        catch case ex: Exception => ex.printStackTrace()
+            catch
+              case ex: Exception =>
+                logger.error("GenerateReconStats job failed", kv("job_id", job.id), ex)
+                transact(Transactor(dataSource = given_DataSource)):
+                  jobManager.markJobInError(job.id, ex)
+        catch
+          case ex: Exception =>
+            logger.error("failed poll for GenerateReconStats job", ex)
 
       new App().main(args)
       shutdown.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled

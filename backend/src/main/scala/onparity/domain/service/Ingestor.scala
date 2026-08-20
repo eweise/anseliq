@@ -44,13 +44,17 @@ class Ingestor(using
     onBatchComplete: BatchProgress => BatchDecision = _ => BatchDecision.Commit
   ): IngestionResult =
     val (fileInventory, movementSpec) = transact(transactor):
+  
       val fileInventory = fileInventoryRepo
         .findById(fileInventoryID)
         .ErrIfNotFound("FileInventory", fileInventoryID)
+
       val movementSpec = movementSpecRepo
         .findById(fileInventory.movementSpecId)
         .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
+
       (fileInventory, movementSpec)
+    end val
 
     val connectionConfig = movementSpec.dataSourceConfig().connectionConfig
     val fileSource       = fileSourceFactory.createFileSource(connectionConfig)

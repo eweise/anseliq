@@ -168,6 +168,13 @@ create table recon.job
 );
 
 CREATE INDEX job_reference_id_fk ON recon.job (reference_id, created_at);
+
+-- At most one active (not yet Complete/Error) job per (job_type, reference_id): backstop against
+-- duplicate submission (event redelivery, a periodic submitter racing a slow poller, a manual
+-- retrigger, or a future multi-instance deployment) regardless of which caller wins the race.
+CREATE UNIQUE INDEX job_active_unique ON recon.job (job_type, reference_id)
+    WHERE job_status IN ('submitted', 'in_progress');
+
 CREATE INDEX job_job_status_create_at_fk ON recon.job (job_status, created_at);
 
 CREATE FUNCTION update_audit_fields_task()
