@@ -138,6 +138,18 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       AND $keyExpr = $keyValue
     """.query[Movement].run()
 
+  // Same "embed UUIDs as literal SQL text" reasoning as setReconciliationIds below: safe because
+  // ID is always a UUID, whose toString can't contain quotes or SQL metacharacters.
+  def findExistingReferenceIds(referenceIds: Iterable[ID]): Txn[Set[ID]] =
+    if referenceIds.isEmpty then Set.empty
+    else
+      val inClause = SqlLiteral(referenceIds.map(id => s"'$id'::uuid").mkString(", "))
+      sql"""
+        SELECT reference_id
+        FROM $m AS a
+        WHERE reference_id IN ($inClause)
+      """.query[ID].run().toSet
+
   // Bulk-links each movement to its own reconciliation in one statement, touching only the
   // reconciliation_id column — unlike the generic updateAll (which rewrites every column,
   // including the full properties JSONB blob, and fires once per row via JDBC batching, i.e.

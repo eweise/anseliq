@@ -30,9 +30,11 @@ class EventStore(using eventRepo: EventRepo, clock: ClockService, dataSource: Da
     }
 
   def processNextEvent[T <: Event](eventClass: Class[T], maxRetries: Int)(consumer: T => Txn[Unit]): Txn[Unit] =
+    // No separate InProgress marker: the SELECT above takes FOR UPDATE SKIP LOCKED, and this whole
+    // method runs inside one transaction (see consumeEvent), so the row is already exclusively held
+    // for the duration of processing, and no other connection can observe an intermediate status
+    // anyway under READ COMMITTED. An InProgress write here would be a same-transaction no-op.
     eventRepo.getNextPendingEvent(eventClass.getSimpleName, maxRetries).foreach { eventState =>
-//      val inProgress = eventState.copy(status = EventStatus.InProgress, updatedAt = Some(clock.now))
-//      eventRepo.update(inProgress)
       try {
         val event: T = eventClass.cast(upickle.read[Event](eventState.payload))
         consumer(event)

@@ -1,7 +1,8 @@
 package onparity.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
+import com.augustnagro.magnum.{DbCon, Transactor, transact}
 import com.typesafe.scalalogging.StrictLogging
+import org.postgresql.util.PSQLException
 import ox.scheduling.{Schedule, repeat}
 import onparity.common.model.model.ID
 import onparity.common.model.{FileInventoryInfo, IngestionInfo, JobInfo, ReconStatsInfo, ReconciliationInfo}
@@ -13,6 +14,7 @@ import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
 class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) extends StrictLogging:
+  private val UniqueViolationSqlState = "23505"
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
     val jobId = submitJob(jobType, referenceID)
@@ -34,15 +36,60 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
         ex.printStackTrace() // todo I think the txn is rolled back at this point :(
         markJobInError(processedJob.id, ex)
 
-  // todo need to handle idempotency (in all services actually)
+  // Idempotent: if an active (Submitted or InProgress) job already exists for this
+  // (jobType, referenceID), return its id instead of creating a duplicate — covers the common,
+  // non-concurrent causes of double-submission (event redelivery, a periodic submitter racing a
+  // slow poller, a manual retrigger).
+  //
+  // The check-then-insert below still has a race window between two concurrent submitters: both
+  // can see "no active job" and both attempt the insert. job_active_unique (a partial unique index
+  // on job_type+reference_id where status is submitted/in_progress) is what actually prevents the
+  // duplicate row; the loser's insert hits that constraint. In Postgres a failed statement poisons
+  // the rest of the transaction until rolled back, so the insert is wrapped in a SAVEPOINT — on a
+  // unique-violation we roll back to it (undoing just the failed insert, not the whole transaction)
+  // and re-look-up the winner, so a racing caller gets the same "return the existing job" result as
+  // the non-racing path instead of a raw constraint-violation exception.
   def submitJob(jobType: JobType, referenceID: ID): Txn[ID] =
-    val submittedJob = Job(
-      jobType     = jobType,
-      referenceId = referenceID,
-      jobStatus   = Submitted
-    )
-    jobRepo.insert(submittedJob)
-    submittedJob.id
+    findActiveJob(jobType, referenceID) match
+      case Some(existing) =>
+        logger.debug(
+          s"submitJob: active $jobType job already exists for referenceID=$referenceID, skipping duplicate submission (existing job ${existing.id})"
+        )
+        existing.id
+      case None =>
+        val submittedJob = Job(
+          jobType     = jobType,
+          referenceId = referenceID,
+          jobStatus   = Submitted
+        )
+        val connection = summon[DbCon].connection
+        val savepoint  = connection.setSavepoint()
+        try
+          jobRepo.insert(submittedJob)
+          submittedJob.id
+        catch
+          // Magnum wraps the driver's PSQLException in its own SqlException, so the unique
+          // violation has to be found by walking the cause chain rather than matching the
+          // exception's own type.
+          case ex: Exception if isUniqueViolation(ex) =>
+            connection.rollback(savepoint)
+            logger.debug(
+              s"submitJob: lost the race inserting $jobType job for referenceID=$referenceID, using the winner's job instead"
+            )
+            findActiveJob(jobType, referenceID)
+              .map(_.id)
+              .getOrElse(throw ex)
+
+  private def findActiveJob(jobType: JobType, referenceID: ID): Txn[Option[Job]] =
+    jobRepo
+      .findByJobTypeAndReferenceId(jobType, referenceID)
+      .find(j => j.jobStatus == JobStatus.Submitted || j.jobStatus == JobStatus.InProgress)
+
+  private def isUniqueViolation(ex: Throwable): Boolean =
+    ex match
+      case null                => false
+      case p: PSQLException    => p.getSQLState == UniqueViolationSqlState
+      case _                   => isUniqueViolation(ex.getCause)
 
   def completeJob(jobId: ID, jobInfo: JobInfo): Txn[Unit] =
     // validate that the right type of job info is associate its job type

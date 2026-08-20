@@ -31,3 +31,9 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
     keyValue:       String
   ): Txn[Vector[Movement]]
   def setReconciliationIds(idPairs: Iterable[(ID, ID)]): Txn[Unit]
+
+  // Used by Ledger.recordMovements to exclude already-recorded movements (matched by the
+  // deterministic, content-derived referenceId) from the batch *before* computing account balance
+  // deltas — the movement insert itself is already deduped via ON CONFLICT(reference_id) DO NOTHING,
+  // but that alone doesn't stop a retried/redelivered batch from double-counting account balances.
+  def findExistingReferenceIds(referenceIds: Iterable[ID]): Txn[Set[ID]]
