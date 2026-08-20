@@ -5,11 +5,11 @@ import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.*
 import onparity.common.model.*
 import onparity.common.model.Interval.Day
+import onparity.common.model.model.ID
 import onparity.domain.model.*
 import onparity.domain.model.Relationship.OneToMany
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
-import onparity.testing.rollBackOnly
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
@@ -37,6 +37,35 @@ class EndToEndSuite extends munit.FunSuite {
   given ingestor:           Ingestor               = Ingestor()
   given reconciler:         InMemoryReconciler     = InMemoryReconciler()
 
+  // ingestResumable (unlike the now-deleted Ingestor.ingest) commits its own batches in their own
+  // transactions rather than participating in the caller's, so these tests can no longer rely on
+  // rollBackOnly to undo their setup: everything below is committed for real and must be torn down
+  // explicitly. reconciliation has no cascade from reconciliation_spec (and reconciliation_spec none
+  // from account), so those go first; fund_flow_config's cascade then takes care of the accounts,
+  // movement specs, and any movements still attached to them.
+  private def teardown(
+    reconSpec:      ReconciliationSpec,
+    fundFlowConfig: FundFlowConfig,
+    movementSpecs:  Seq[MovementSpec],
+    reconAccountId: ID
+  ): Unit =
+    transact(transactor):
+      reconRepo.findByReconSpecID(reconSpec.id).foreach(r => reconRepo.deleteById(r.id))
+      reconSpecRepo.deleteById(reconSpec.id)
+      // .event[T] deserializes the stored JSON payload, which can fail for events published by an
+      // older, incompatible version of the case class (e.g. a real event from a long-running server
+      // process using different code) — those aren't this test's events, so skip rather than crash.
+      eventRepo
+        .findByEventType("AccountReconciled")
+        .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == reconAccountId).getOrElse(false))
+        .foreach(es => eventRepo.deleteById(es.id))
+      val movementSpecIds = movementSpecs.map(_.id).toSet
+      eventRepo
+        .findByEventType("MoneyMovementsIngested")
+        .filter(es => scala.util.Try(movementSpecIds.contains(es.event[MoneyMovementsIngested].movementSpecID)).getOrElse(false))
+        .foreach(es => eventRepo.deleteById(es.id))
+      fundFlowConfigRepo.deleteById(fundFlowConfig.id)
+
   test("1 to 1 attribute test") {
     val journalFile1 =
       """record_date, transaction_id, amount, description
@@ -53,9 +82,8 @@ class EndToEndSuite extends munit.FunSuite {
         |2025-03-06,987,50.89
         |""".stripMargin
 
-    transact(transactor) {
-      rollBackOnly {
-
+    val (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec) =
+      transact(transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
         fundFlowConfigRepo.insert(fundFlowConfig)
 
@@ -120,21 +148,25 @@ class EndToEndSuite extends munit.FunSuite {
         )
         reconSpecRepo.insert(reconSpec)
 
-        // Ingest some files
-        ingestor.ingest(
-          reportToRecon,
-          InMemoryFileSourceEntry("report"),
-          ByteArrayInputStream(reportFile1.getBytes(UTF_8))
-        )
-        ingestor.ingest(
-          journalToRecon,
-          InMemoryFileSourceEntry("journal"),
-          ByteArrayInputStream(journalFile1.getBytes(UTF_8))
-        )
+        (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec)
 
-        // Reconcile the data
-        reconciler.reconcileAccount(reconAccount.id)
+    try
+      // Ingest some files
+      ingestor.ingestResumable(
+        reportToRecon,
+        InMemoryFileSourceEntry("report"),
+        ByteArrayInputStream(reportFile1.getBytes(UTF_8))
+      )
+      ingestor.ingestResumable(
+        journalToRecon,
+        InMemoryFileSourceEntry("journal"),
+        ByteArrayInputStream(journalFile1.getBytes(UTF_8))
+      )
 
+      // Reconcile the data
+      transact(transactor)(reconciler.reconcileAccount(reconAccount.id))
+
+      transact(transactor):
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
 
@@ -146,9 +178,9 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
-      } // rollback
-    }   // transaction
-  }     // test
+    finally
+      teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
+  }
 
   test("1 to 1 where report date 1 day greater than journal date") {
     val journalFile1 =
@@ -165,9 +197,8 @@ class EndToEndSuite extends munit.FunSuite {
         |2025-03-05,123,120.50
         |""".stripMargin
 
-    transact(transactor) {
-      rollBackOnly {
-
+    val (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec) =
+      transact(transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
         fundFlowConfigRepo.insert(fundFlowConfig)
 
@@ -241,21 +272,25 @@ class EndToEndSuite extends munit.FunSuite {
         )
         reconSpecRepo.insert(reconSpec)
 
-        // Ingest some files
-        ingestor.ingest(
-          reportToRecon,
-          InMemoryFileSourceEntry("report"),
-          ByteArrayInputStream(reportFile1.getBytes(UTF_8))
-        )
-        ingestor.ingest(
-          journalToRecon,
-          InMemoryFileSourceEntry("journal"),
-          ByteArrayInputStream(journalFile1.getBytes(UTF_8))
-        )
+        (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec)
 
-        // Reconcile the data
-        reconciler.reconcileAccount(reconAccount.id)
+    try
+      // Ingest some files
+      ingestor.ingestResumable(
+        reportToRecon,
+        InMemoryFileSourceEntry("report"),
+        ByteArrayInputStream(reportFile1.getBytes(UTF_8))
+      )
+      ingestor.ingestResumable(
+        journalToRecon,
+        InMemoryFileSourceEntry("journal"),
+        ByteArrayInputStream(journalFile1.getBytes(UTF_8))
+      )
 
+      // Reconcile the data
+      transact(transactor)(reconciler.reconcileAccount(reconAccount.id))
+
+      transact(transactor):
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
 
@@ -267,9 +302,9 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
-      } // rollback
-    }   // transaction
-  }     // test
+    finally
+      teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
+  }
 
   test(
     "1 to many where journal accounts transactions by date + account have missing record on 3-4 but then reconcile on 03-5"
@@ -286,9 +321,8 @@ class EndToEndSuite extends munit.FunSuite {
         |2025-03-04,abc,234,49.50
         |""".stripMargin
 
-    transact(transactor) {
-      rollBackOnly {
-
+    val (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reconToReport, reconSpec) =
+      transact(transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
         fundFlowConfigRepo.insert(fundFlowConfig)
 
@@ -362,24 +396,30 @@ class EndToEndSuite extends munit.FunSuite {
         )
         reconSpecRepo.insert(reconSpec)
 
-        // Ingest some files
-        ingestor.ingest(
-          reconToReport,
-          InMemoryFileSourceEntry("report"),
-          ByteArrayInputStream(reportFile.getBytes(UTF_8))
-        )
-        ingestor.ingest(
-          journalToRecon,
-          InMemoryFileSourceEntry("journal"),
-          ByteArrayInputStream(journalFile.getBytes(UTF_8))
-        )
+        (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reconToReport, reconSpec)
 
-        // Reconcile the data
-        reconciler.reconcileAccount(reconAccount.id)
-        val allReconMovements  = movementRepo.findByAccount(reconAccount.id)
+    try
+      // Ingest some files
+      ingestor.ingestResumable(
+        reconToReport,
+        InMemoryFileSourceEntry("report"),
+        ByteArrayInputStream(reportFile.getBytes(UTF_8))
+      )
+      ingestor.ingestResumable(
+        journalToRecon,
+        InMemoryFileSourceEntry("journal"),
+        ByteArrayInputStream(journalFile.getBytes(UTF_8))
+      )
+
+      // Reconcile the data
+      transact(transactor)(reconciler.reconcileAccount(reconAccount.id))
+
+      transact(transactor):
         val updateReconAccount = accountRepo.findById(reconAccount.id).get
         assertEquals(updateReconAccount.balance, BigDecimal(250), "reconAccount.balance 250")
-        val reconciliations = reconRepo.findAll
+        // Scoped to this test's own reconSpec: reconRepo.findAll would pick up every other
+        // reconciliation ever committed against this shared dev database.
+        val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.size, 1, "recon size = 1")
 
         // add up movement from reconcilation. See if the amount matches
@@ -405,8 +445,7 @@ class EndToEndSuite extends munit.FunSuite {
             && m.props.getOrElse("account_id", "") == "ddd"
         )
         assert(u2.nonEmpty)
-
-      } // rollback
-    }   // transaction
-  }     // test
+    finally
+      teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reconToReport), reconAccount.id)
+  }
 }

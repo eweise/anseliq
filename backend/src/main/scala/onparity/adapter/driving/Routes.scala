@@ -185,24 +185,6 @@ class App(using
       fundFlowOperations.deleteMovementSpec(id)
     write("deleted")
 
-//  @cask.route(s"${HttpPath.movementSpec}/:id/ingest", methods = HttpCmd.POST)
-//  def ingestMovementSpec(id: String, request: cask.Request): String =
-//    val movementSpecId = UUID.fromString(id)
-//    request.exchange.startBlocking()
-//    val is = request.exchange.getInputStream
-//    transact(transactor):
-//      val movementSpec = movementSpecRepo
-//        .findById(movementSpecId)
-//        .getOrElse(throw NotFoundError(s"MovementSpec $id not found"))
-//      jobManager.submitAndProcessJob(JobType.Ingestion, movementSpec.id) { job =>
-//        val result = ingestor.ingest(movementSpec,  is)
-//        IngestionInfo(
-//          numberOfRecordsIngested = result.recordCount,
-//          processingTimeSeconds   = result.ingestionTimeSeconds
-//        )
-//      }
-//    write("ingested")
-
   @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
   def reoncileAccount(id: String, request: cask.Request): String =
     val accountId = UUID.fromString(id)
