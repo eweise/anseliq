@@ -11,9 +11,17 @@ class FileInventoryRepoLive extends Repo[FileInventory, FileInventory, UUID] wit
 
   def findBySourceSystem(sourceSystem: String)(using DbCon): Set[FileInventory] =
     sql"""
-    SELECT ${fi.all} 
+    SELECT ${fi.all}
     FROM $fi WHERE source_system = $sourceSystem
     """
       .query[FileInventory]
       .run()
       .toSet
+
+  def findAllWithMovementSpecName()(using DbCon): Vector[(FileInventory, String)] =
+    sql"""
+      SELECT fi.*, ms.name
+      FROM $fi AS fi
+      JOIN movement_spec ms ON fi.movement_spec_id = ms.id
+      ORDER BY fi.last_modified_at DESC
+    """.query[(FileInventory, String)].run()

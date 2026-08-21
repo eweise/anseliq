@@ -53,7 +53,8 @@ object LeftNav:
       "Configure",
       Seq(
         NavItem("Recon Rules", "/components/coming-soon/recon-rules", Icons.settings),
-        NavItem("Jobs", "/components/jobs", Icons.chart)
+        NavItem("Jobs", "/components/jobs", Icons.chart),
+        NavItem("File Inventory", "/components/file-inventory", Icons.document)
       )
     ),
     NavGroup(

@@ -41,7 +41,9 @@ class ReportingService(using
   private def matchRatePercent(balance: Money, reconciledBalance: Money): Option[BigDecimal] =
     if balance.signum == 0 then None
     else
-      val ratio = BigDecimal(reconciledBalance.bigDecimal.divide(balance.bigDecimal, 10, java.math.RoundingMode.HALF_UP))
+      val ratio = BigDecimal(
+        reconciledBalance.bigDecimal.divide(balance.bigDecimal, 10, java.math.RoundingMode.HALF_UP)
+      )
       Some((ratio * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
 
   private def exceptionBreakdown(fundFlowId: Option[ID], accountIdsInScope: Set[ID]): Txn[ExceptionBreakdownReport] =
@@ -98,8 +100,8 @@ class ReportingService(using
 
   /**
    * Computes today's summary() for every fund flow and upserts one row per fund flow into
-   * daily_snapshot, keyed by (fundFlowId, today). Safe to call more than once on the same day —
-   * the upsert overwrites that day's row rather than duplicating it.
+   * daily_snapshot, keyed by (fundFlowId, today). Safe to call more than once on the same day — the
+   * upsert overwrites that day's row rather than duplicating it.
    */
   def computeAndStoreDailySnapshots(): Txn[Int] =
     val today     = clock.now.toLocalDate
@@ -115,8 +117,8 @@ class ReportingService(using
 
       dailySnapshotRepo.upsert(
         DailySnapshot(
-          fundFlowId    = ff.id,
-          snapshotDate  = today,
+          fundFlowId   = ff.id,
+          snapshotDate = today,
           matchRatesJson = upickle.write(
             report.matchRates.map(m =>
               MatchRateSnapshot(m.accountId.toString, m.accountName, m.balance, m.reconciledBalance, m.matchRatePercent)
@@ -138,10 +140,10 @@ class ReportingService(using
     fundFlows.size
 
   /**
-   * Reads back the last `days` days of stored snapshots. When fundFlowId is None, aggregates
-   * across every fund flow's snapshot for each date: counts sum, and avgMatchRatePercent is a
-   * weighted average (weighted by each fund flow's ratedAccountCount that day) — equivalent to
-   * averaging matchRatePercent over every rated account across all fund flows.
+   * Reads back the last `days` days of stored snapshots. When fundFlowId is None, aggregates across
+   * every fund flow's snapshot for each date: counts sum, and avgMatchRatePercent is a weighted
+   * average (weighted by each fund flow's ratedAccountCount that day) — equivalent to averaging
+   * matchRatePercent over every rated account across all fund flows.
    */
   def trend(fundFlowId: Option[ID], days: Int = 30): Txn[TrendReport] =
     val today = clock.now.toLocalDate
@@ -171,13 +173,18 @@ object ReportingService:
         val totalRatedCount = weightedRated.map(_._2).sum
         val avgMatchRate =
           if totalRatedCount == 0 then None
-          else Some((weightedRated.map((pct, count) => pct * count).sum / totalRatedCount).setScale(2, BigDecimal.RoundingMode.HALF_UP))
+          else
+            Some(
+              (weightedRated.map((pct, count) => pct * count).sum / totalRatedCount)
+                .setScale(2, BigDecimal.RoundingMode.HALF_UP)
+            )
 
         TrendPoint(
-          date                     = date,
-          avgMatchRatePercent      = avgMatchRate,
-          openExceptionCount       = dayRows.map(_.openExceptionCount).sum,
-          unreconciledBacklogCount = dayRows.map(r => r.agingZeroToThree + r.agingFourToSeven + r.agingEightToFourteen + r.agingFifteenPlus).sum,
-          overdueCount             = dayRows.map(_.overdueCount).sum
+          date                = date,
+          avgMatchRatePercent = avgMatchRate,
+          openExceptionCount  = dayRows.map(_.openExceptionCount).sum,
+          unreconciledBacklogCount =
+            dayRows.map(r => r.agingZeroToThree + r.agingFourToSeven + r.agingEightToFourteen + r.agingFifteenPlus).sum,
+          overdueCount = dayRows.map(_.overdueCount).sum
         )
       }

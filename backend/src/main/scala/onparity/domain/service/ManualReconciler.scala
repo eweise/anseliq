@@ -35,7 +35,10 @@ class ManualReconciler(using
 
     for m <- outMovements do
       if m.movementSpecId != reconSpec.outMovementSpecId then
-        throw IllegalArgumentError("outMovementIds", s"movement ${m.id} does not belong to this spec's out-movement-spec")
+        throw IllegalArgumentError(
+          "outMovementIds",
+          s"movement ${m.id} does not belong to this spec's out-movement-spec"
+        )
       if m.reconciliationId.isDefined then
         throw IllegalArgumentError("outMovementIds", s"movement ${m.id} is already reconciled")
 
@@ -65,8 +68,9 @@ class ManualReconciler(using
     if reconciliation.status == ReconciliationStatus.Voided then
       throw IllegalStateError(s"reconciliation $reconciliationId is already voided")
 
-    val reconSpec = reconSpecRepo.findById(reconciliation.specId).ErrIfNotFound("reconciliation spec", reconciliation.specId)
-    val movements  = movementRepo.findByReconciliationID(reconciliationId)
+    val reconSpec =
+      reconSpecRepo.findById(reconciliation.specId).ErrIfNotFound("reconciliation spec", reconciliation.specId)
+    val movements = movementRepo.findByReconciliationID(reconciliationId)
 
     ledger.unreconcile(movements, reconSpec.accountId)
 
@@ -81,7 +85,7 @@ class ManualReconciler(using
       throw IllegalStateError(s"reconciliation $reconciliationId is not InProgress")
 
     reconciliation.adjustmentReason = Some(reason)
-    reconciliation.status = ReconciliationStatus.Final
+    reconciliation.status           = ReconciliationStatus.Final
     reconRepo.update(reconciliation)
 
     eventStore.publishEvent(ReconciliationWrittenOff(reconciliationID = reconciliationId, reason = reason))

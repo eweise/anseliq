@@ -160,8 +160,7 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
   def setReconciliationIds(idPairs: Iterable[(ID, ID)]): Txn[Unit] =
     if idPairs.nonEmpty then
       val valuesClause = SqlLiteral(
-        idPairs
-          .map { case (movementId, reconciliationId) => s"('$movementId'::uuid, '$reconciliationId'::uuid)" }
+        idPairs.map { case (movementId, reconciliationId) => s"('$movementId'::uuid, '$reconciliationId'::uuid)" }
           .mkString(", ")
       )
       sql"""

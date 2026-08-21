@@ -139,7 +139,7 @@ class InMemoryReconciler(using
     rule match
       case s: StringAttributeMatchRule => Seq(if direction == IN then s.inKey else s.outKey)
       case d: DateAttributeMatchRule   => Seq(if direction == IN then d.inKey else d.outKey)
-      case AndRule(rules)              => rules.flatMap(r => matchKeyAttributes(r, direction))
+      case AndRule(rules) => rules.flatMap(r => matchKeyAttributes(r, direction))
       case other =>
         throw UnsupportedOperationException(
           s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them; got ${other.getClass.getSimpleName}"
@@ -178,11 +178,10 @@ class InMemoryReconciler(using
       .mkString(" || chr(31) || ")
 
   private def matchKeyValue(rule: Rule, direction: Direction, movement: Movement): String =
-    matchKeyAttributes(rule, direction)
-      .map {
-        case s: StringAttribute => s.getValue(movement.props)
-        case d: DateAttribute   => d.getValue(movement.props).toString
-      }
+    matchKeyAttributes(rule, direction).map {
+      case s: StringAttribute => s.getValue(movement.props)
+      case d: DateAttribute   => d.getValue(movement.props).toString
+    }
       .mkString(compositeKeyDelimiter)
 
   private def fetchPage(
@@ -208,21 +207,29 @@ class InMemoryReconciler(using
    * exhausted. `lastKey` tracks the most recently consumed row's match key, which becomes the
    * checkpoint for resuming this side on a later call.
    */
-  private class MergeCursor(movementSpecId: ID, rule: Rule, direction: Direction, keyExpr: String, startKey: Option[String]):
+  private class MergeCursor(
+    movementSpecId: ID,
+    rule:           Rule,
+    direction:      Direction,
+    keyExpr:        String,
+    startKey:       Option[String]
+  ):
     private var page = fetchPage(movementSpecId, keyExpr, startKey)
     private var idx  = 0
     var lastKey: Option[String] = startKey
 
-    /** True if `current`/`key` are valid, fetching the next page first if the current one ran out. */
+    /**
+     * True if `current`/`key` are valid, fetching the next page first if the current one ran out.
+     */
     def ensure(): Boolean =
       if idx < page.size then true
       else if page.size < pageSize then false
       else
         page = fetchPage(movementSpecId, keyExpr, lastKey)
-        idx = 0
+        idx  = 0
         page.nonEmpty
 
-    def key: String       = matchKeyValue(rule, direction, page(idx))
+    def key:     String   = matchKeyValue(rule, direction, page(idx))
     def current: Movement = page(idx)
 
     /** Consumes the current row, recording its key as the new checkpoint watermark. */
@@ -238,7 +245,7 @@ class InMemoryReconciler(using
    */
   private def gatherRun(cursor: MergeCursor): Vector[Movement] =
     val matchedKey = cursor.key
-    val buf         = ListBuffer(cursor.current)
+    val buf        = ListBuffer(cursor.current)
     cursor.advance()
     var continue = true
     while continue && cursor.ensure() do
@@ -283,10 +290,12 @@ class InMemoryReconciler(using
     val logger = Logger(getClass.getName)
     val rule   = reconSpec.rule()
 
-    val inCursor  = MergeCursor(reconSpec.inMovementSpecId, rule, IN, matchKeyExpr(rule, IN, "a"), startCheckpoint.lastInMatchKey)
-    val outCursor = MergeCursor(reconSpec.outMovementSpecId, rule, OUT, matchKeyExpr(rule, OUT, "a"), startCheckpoint.lastOutMatchKey)
+    val inCursor =
+      MergeCursor(reconSpec.inMovementSpecId, rule, IN, matchKeyExpr(rule, IN, "a"), startCheckpoint.lastInMatchKey)
+    val outCursor =
+      MergeCursor(reconSpec.outMovementSpecId, rule, OUT, matchKeyExpr(rule, OUT, "a"), startCheckpoint.lastOutMatchKey)
 
-    var totalGroups = 0
+    var totalGroups   = 0
     val pendingGroups = ListBuffer[(Vector[Movement], Vector[Movement])]()
 
     def commitBatch(): Unit =
@@ -297,7 +306,7 @@ class InMemoryReconciler(using
       logger.info("committing batch", kv("checkpoint", checkpoint))
 
       val decision = transact(transactor):
-        val now = clock.now
+        val now             = clock.now
         val reconciliations = groups.map { case (inGroup, outGroup) => toReconciliation(inGroup, outGroup, now) }
         reconRepo.insertAll(reconciliations)
 
@@ -356,7 +365,11 @@ class InMemoryReconciler(using
     // end LogContext
     catch case ReconciliationStopped => stopped = true
 
-    (totalGroups, ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey), stopped)
+    (
+      totalGroups,
+      ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey),
+      stopped
+    )
   end streamMergeJoin
 
   /**
@@ -364,10 +377,11 @@ class InMemoryReconciler(using
    * about which side is "the one" — both sides always contribute exactly one movement). The pair's
    * balance is still verified, the same as OneToMany: a key match with mismatched amounts (a short
    * payment, a fee deduction, a rounding difference) is exactly the kind of thing reconciliation is
-   * supposed to catch, so it's InProgress rather than silently Final — see DisputeCategory.AmountMismatch.
-   * Unlike OneToMany, though, a 1:1 pair can never be completed later: there's no third movement
-   * that could ever arrive to close the gap under a OneToOne rule, so a mismatched pair stays
-   * InProgress permanently until resolved manually (ManualReconciler.writeOff) — no top-up phase.
+   * supposed to catch, so it's InProgress rather than silently Final — see
+   * DisputeCategory.AmountMismatch. Unlike OneToMany, though, a 1:1 pair can never be completed
+   * later: there's no third movement that could ever arrive to close the gap under a OneToOne rule,
+   * so a mismatched pair stays InProgress permanently until resolved manually
+   * (ManualReconciler.writeOff) — no top-up phase.
    */
   private def reconcileOneToOneStreaming(
     reconSpec:       ReconciliationSpec,
@@ -384,7 +398,8 @@ class InMemoryReconciler(using
         val group = Vector(inCursor.current) -> Vector(outCursor.current)
         inCursor.advance()
         outCursor.advance()
-        Some(group),
+        Some(group)
+      ,
       toReconciliation = (inGroup, outGroup, now) =>
         val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
         val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
@@ -465,8 +480,8 @@ class InMemoryReconciler(using
     streamMergeJoin(reconSpec, accountId, startCheckpoint, batchSize, jobId, allCheckpoints, onBatchComplete)(
       formGroup = (inCursor, outCursor) =>
         val matchedKey = inCursor.key
-        val inGroup     = gatherRun(inCursor)
-        val outGroup    = gatherRun(outCursor)
+        val inGroup    = gatherRun(inCursor)
+        val outGroup   = gatherRun(outCursor)
         if inGroup.size == 1 || outGroup.size == 1 then Some(inGroup -> outGroup)
         else
           Logger(getClass.getName).warn(
@@ -474,7 +489,8 @@ class InMemoryReconciler(using
             kv("recon_spec_id", reconSpec.id),
             kv("match_key", matchedKey)
           )
-          None,
+          None
+      ,
       toReconciliation = (inGroup, outGroup, now) =>
         val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
         val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
@@ -487,4 +503,3 @@ class InMemoryReconciler(using
           updatedAt    = Some(now)
         )
     )
-

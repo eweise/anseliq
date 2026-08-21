@@ -87,9 +87,9 @@ class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSo
 
   private def isUniqueViolation(ex: Throwable): Boolean =
     ex match
-      case null                => false
-      case p: PSQLException    => p.getSQLState == UniqueViolationSqlState
-      case _                   => isUniqueViolation(ex.getCause)
+      case null => false
+      case p: PSQLException => p.getSQLState == UniqueViolationSqlState
+      case _ => isUniqueViolation(ex.getCause)
 
   def completeJob(jobId: ID, jobInfo: JobInfo): Txn[Unit] =
     // validate that the right type of job info is associate its job type

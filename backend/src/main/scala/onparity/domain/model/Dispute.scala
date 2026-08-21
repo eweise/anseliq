@@ -20,11 +20,11 @@ enum DisputeStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Dispute(
-  @Id id:       ID                     = createID(),
-  referenceId:  ID,
-  targetType:   DisputeTarget,
-  category:     DisputeCategory,
-  detail:       Option[String]         = None,
+  @Id id:        ID                     = createID(),
+  referenceId:   ID,
+  targetType:    DisputeTarget,
+  category:      DisputeCategory,
+  detail:        Option[String]         = None,
   var status:    DisputeStatus          = DisputeStatus.New,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None

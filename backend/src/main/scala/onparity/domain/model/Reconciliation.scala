@@ -13,15 +13,15 @@ enum ReconciliationStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Reconciliation(
-  @Id id:        ID                     = createID(),
-  specId:        ID,
-  appliedRules:  String                 = "",
-  description:   String                 = "",
-  var status:    ReconciliationStatus   = Final,
-  var balance:   Money                  = 0,
-  var adjustmentReason: Option[String]  = None,
-  var createdAt: Option[OffsetDateTime] = None,
-  var updatedAt: Option[OffsetDateTime] = None
+  @Id id:               ID                     = createID(),
+  specId:               ID,
+  appliedRules:         String                 = "",
+  description:          String                 = "",
+  var status:           ReconciliationStatus   = Final,
+  var balance:          Money                  = 0,
+  var adjustmentReason: Option[String]         = None,
+  var createdAt:        Option[OffsetDateTime] = None,
+  var updatedAt:        Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object Reconciliation:

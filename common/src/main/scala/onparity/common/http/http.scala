@@ -22,6 +22,7 @@ object HttpPath:
   val jobs            = s"$prefix/jobs"
   val events          = s"$prefix/events"
   val reports         = s"$prefix/reports"
+  val fileInventory   = s"$prefix/file-inventory"
 
   def url(path: String) = s"http://localhost:8080$path"
 // Get rid of this crap
