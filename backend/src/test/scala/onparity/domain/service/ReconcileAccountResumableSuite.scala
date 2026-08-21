@@ -81,6 +81,41 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assert(movements.forall(_.reconciliationId.nonEmpty), "every movement should be reconciled")
     finally teardown(data)
 
+  test("OneToOne verifies amount balance: a key match with mismatched amounts stays InProgress, not Final"):
+    // A OneToOne pair is inherently a single, final judgment — there's no third movement that could
+    // ever arrive to close the gap under a OneToOne rule — but "stays InProgress" (rather than
+    // silently marked Final) is still the correct outcome: it's exactly the kind of exception
+    // (short payment, fee deduction, rounding) reconciliation exists to surface, not hide.
+    val data = transact(transactor)(DataSetup())
+    try
+      transact(transactor):
+        data.movementRepo.insert(
+          Movement(
+            inAccountId = data.journalToRecon.inAccountId, outAccountId = data.journalToRecon.outAccountId,
+            movementSpecId = data.journalToRecon.id, amount = 100, properties = JSONBProps(Map("id" -> "1"))
+          )
+        )
+        data.movementRepo.insert(
+          Movement(
+            inAccountId = data.reportToRecon.inAccountId, outAccountId = data.reportToRecon.outAccountId,
+            movementSpecId = data.reportToRecon.id, amount = 90, properties = JSONBProps(Map("id" -> "1"))
+          )
+        )
+
+      val reconciler = InMemoryReconciler()
+      val result      = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+
+      assertEquals(result.reconciliationSpecInsertCount(data.reconSpec.id), 1)
+
+      val reconciliations = transact(transactor)(data.reconRepo.findByReconSpecID(data.reconSpec.id))
+      assertEquals(reconciliations.size, 1)
+      assertEquals(reconciliations.head.status, ReconciliationStatus.InProgress)
+      assertEquals(reconciliations.head.balance, BigDecimal(10))
+
+      val movements = transact(transactor)(data.movementRepo.findByAccount(data.reconAccount.id))
+      assert(movements.forall(_.reconciliationId.nonEmpty), "both movements are still linked to the reconciliation despite the mismatch")
+    finally teardown(data)
+
   test("earlier batches commit durably even when a later batch is rolled back"):
     val data = transact(transactor)(DataSetup())
     try
