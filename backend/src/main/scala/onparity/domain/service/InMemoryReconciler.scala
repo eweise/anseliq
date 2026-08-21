@@ -334,37 +334,64 @@ class InMemoryReconciler(using
     // end  LogContext
   end reconcileAccountResumable
 
-  // v1 scope: single-attribute rules only (StringAttributeMatchRule / DateAttributeMatchRule),
-  // and only when the attribute has no modifier — StringAttribute.modifySQL/DateAttribute.modifySQL
-  // assume a JSONB-bracket-access fragment and (for String, when a modifier is present) cast it to
-  // ::text, which preserves JSON quoting (e.g. "20" with literal quote characters). That doesn't
-  // match a plain unquoted Scala string, which is what afterKey (and the checkpoint values derived
-  // from Movement.props) actually are, so composite rules and modifiers are out of scope here and
-  // throw clearly rather than silently comparing the wrong representation.
-  private def matchKeyAttribute(rule: Rule, direction: Direction): StringAttribute | DateAttribute =
+  // ASCII unit separator: joins a composite key's per-attribute values on the Scala side, mirroring
+  // chr(31) used in the SQL-side concatenation in matchKeyExpr below.
+  private val compositeKeyDelimiter = 31.toChar.toString
+
+  // Supports StringAttributeMatchRule/DateAttributeMatchRule, singly or ANDed together via
+  // AndRule (each sub-rule contributes one attribute to a composite key, in rule order — the
+  // in-side and out-side lists below are always built from the same AndRule traversal, so they
+  // pair up correctly). OrRule and any other Rule are unsupported and throw clearly rather than
+  // silently comparing the wrong thing.
+  private def matchKeyAttributes(rule: Rule, direction: Direction): Seq[StringAttribute | DateAttribute] =
     rule match
-      case s: StringAttributeMatchRule => if direction == IN then s.inKey else s.outKey
-      case d: DateAttributeMatchRule   => if direction == IN then d.inKey else d.outKey
+      case s: StringAttributeMatchRule => Seq(if direction == IN then s.inKey else s.outKey)
+      case d: DateAttributeMatchRule   => Seq(if direction == IN then d.inKey else d.outKey)
+      case AndRule(rules)              => rules.flatMap(r => matchKeyAttributes(r, direction))
       case other =>
         throw UnsupportedOperationException(
-          s"reconcileAccountResumable only supports single-attribute rules (StringAttributeMatchRule/DateAttributeMatchRule); got ${other.getClass.getSimpleName}"
+          s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them; got ${other.getClass.getSimpleName}"
         )
 
+  // Deliberately doesn't reuse Rule.sql/Attribute.modifySQL: those access properties via jsonb
+  // bracket indexing and (when a modifier is present) cast that to ::text, which preserves JSON
+  // quoting (e.g. "20" with literal quote characters) — that doesn't match the plain unquoted
+  // Scala string that matchKeyValue/afterKey use, so it's built here as ->> text extraction plus
+  // an explicit modifier translation instead. StringAttribute's SubstringModifier has no real
+  // implementation upstream (its own .apply is `???`), so it's unsupported here too.
+  private def attrSqlExpr(attr: StringAttribute | DateAttribute, tableAlias: String): String =
+    attr match
+      case s: StringAttribute =>
+        s.modifier match
+          case None => s"($tableAlias.properties['props'] ->> '${s.key}')"
+          case Some(m) =>
+            throw UnsupportedOperationException(
+              s"reconcileAccountResumable does not support string modifier ${m.getClass.getSimpleName}"
+            )
+      case d: DateAttribute =>
+        val base = s"($tableAlias.properties['props'] ->> '${d.key}')::date"
+        d.modifier match
+          case None                       => base
+          case Some(DateAdd(interval, v)) => s"($base + interval '$v ${interval.toString.toLowerCase}')::date"
+
+  // A composite key concatenates each attribute's (text-cast) SQL fragment with chr(31) (ASCII
+  // unit separator) — vanishingly unlikely to appear inside a real business identifier or date,
+  // so concatenation equality still corresponds to "every attribute is equal". The explicit
+  // ::text cast (even for the already-text String case) matters: MovementRepoLive binds
+  // afterKey/keyValue as plain text, so the SQL side must always resolve to text too, or
+  // Postgres has no applicable > / = operator for e.g. a bare `date`.
   private def matchKeyExpr(rule: Rule, direction: Direction, tableAlias: String): String =
-    matchKeyAttribute(rule, direction) match
-      case s: StringAttribute if s.modifier.isEmpty =>
-        s"($tableAlias.properties['props'] ->> '${s.key}')"
-      case d: DateAttribute if d.modifier.isEmpty =>
-        s"($tableAlias.properties['props'] ->> '${d.key}')::date"
-      case _ =>
-        throw UnsupportedOperationException(
-          "reconcileAccountResumable does not support attribute modifiers yet"
-        )
+    matchKeyAttributes(rule, direction)
+      .map(a => s"(${attrSqlExpr(a, tableAlias)})::text")
+      .mkString(" || chr(31) || ")
 
   private def matchKeyValue(rule: Rule, direction: Direction, movement: Movement): String =
-    matchKeyAttribute(rule, direction) match
-      case s: StringAttribute => s.getValue(movement.props)
-      case d: DateAttribute   => d.getValue(movement.props).toString
+    matchKeyAttributes(rule, direction)
+      .map {
+        case s: StringAttribute => s.getValue(movement.props)
+        case d: DateAttribute   => d.getValue(movement.props).toString
+      }
+      .mkString(compositeKeyDelimiter)
 
   private def fetchPage(
     movementSpecId: ID,
