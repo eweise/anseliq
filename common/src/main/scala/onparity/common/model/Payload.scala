@@ -260,6 +260,20 @@ case class TrendReportPayload(
   points: Seq[TrendPointPayload]
 ) derives ReadWriter
 
+case class FileInventoryPayload(
+  id:                 String,
+  movementSpecId:     String,
+  movementSpecName:   String,
+  sourceSystem:       String,
+  fileName:           String,
+  fileSizeBytes:      Long,
+  lastModifiedAt:     OffsetDateTime,
+  status:             String,
+  lastProcessedAt:    Option[OffsetDateTime],
+  lastProcessedLine:  Option[Long],
+  updatedAt:          Option[OffsetDateTime]
+) derives ReadWriter
+
 def combineAccountsAndMovementSpecs(
   accounts:      Seq[AccountPayload],
   movementSpecs: Seq[MovementSpecPayload]

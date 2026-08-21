@@ -41,3 +41,25 @@ class FileInventoryRepoLiveSuite extends munit.FunSuite:
         val found = fileInventoryRepo.findById(fileInventory.id).get
         assertEquals(found.status, FileInventoryStatus.PROCESSING)
         assertEquals(found.lastProcessedLine, Some(249L))
+
+  test("findAllWithMovementSpecName joins in the owning movement spec's name"):
+    val fileInventoryRepo = FileInventoryRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        data.movementSpecRepo.update(data.journalToRecon.copy(name = "Journal Import"))
+        val fileInventory = FileInventory(
+          movementSpecId      = data.journalToRecon.id,
+          sourceSystem        = "S3",
+          fileSourceEntryJson = upickle.write(InMemoryFileSourceEntry("test-file")),
+          fileSizeBytes       = 100L,
+          lastModifiedAt      = OffsetDateTime.now(),
+          status              = FileInventoryStatus.QUEUED,
+          lastProcessedAt     = None,
+          updatedAt           = None
+        )
+        fileInventoryRepo.insert(fileInventory)
+
+        val results = fileInventoryRepo.findAllWithMovementSpecName()
+        val found   = results.find((fi, _) => fi.id == fileInventory.id)
+        assertEquals(found.map((_, name) => name), Some("Journal Import"))

@@ -13,7 +13,12 @@ class DisputeService(using
   clock:        ClockService
 ):
 
-  def raise(referenceId: ID, targetType: DisputeTarget, category: DisputeCategory, detail: Option[String]): Txn[Dispute] =
+  def raise(
+    referenceId: ID,
+    targetType:  DisputeTarget,
+    category:    DisputeCategory,
+    detail:      Option[String]
+  ): Txn[Dispute] =
     targetType match
       case DisputeTarget.Movement       => movementRepo.findById(referenceId).ErrIfNotFound("movement", referenceId)
       case DisputeTarget.Reconciliation => reconRepo.findById(referenceId).ErrIfNotFound("reconciliation", referenceId)
@@ -39,11 +44,10 @@ class DisputeService(using
       case None                         => true
       case Some(DisputeStatus.Resolved) => true
       case Some(_)                      => false
-    if bodyRequired && body.forall(_.isBlank) then
-      throw IllegalArgumentError("body", "required for this entry")
+    if bodyRequired && body.forall(_.isBlank) then throw IllegalArgumentError("body", "required for this entry")
 
     newStatus.foreach { s =>
-      dispute.status = s
+      dispute.status    = s
       dispute.updatedAt = Some(clock.now)
       disputeRepo.update(dispute)
       eventStore.publishEvent(DisputeStatusChanged(disputeID = dispute.id, newStatus = s.toString))

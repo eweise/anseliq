@@ -233,6 +233,21 @@ object Payload:
       aging      = AgingBucketsPayload(buckets = r.aging.buckets, overdueCount = r.aging.overdueCount)
     )
 
+  def fileInventoryPayloadFromDomain(fi: FileInventory, movementSpecName: String): FileInventoryPayload =
+    FileInventoryPayload(
+      id                = fi.id.toString,
+      movementSpecId    = fi.movementSpecId.toString,
+      movementSpecName  = movementSpecName,
+      sourceSystem      = fi.sourceSystem,
+      fileName          = fi.fileSourceEntry().name,
+      fileSizeBytes     = fi.fileSizeBytes,
+      lastModifiedAt    = fi.lastModifiedAt,
+      status            = fi.status.toString,
+      lastProcessedAt   = fi.lastProcessedAt,
+      lastProcessedLine = fi.lastProcessedLine,
+      updatedAt         = fi.updatedAt
+    )
+
   def trendReportPayloadFromDomain(r: TrendReport): TrendReportPayload =
     TrendReportPayload(
       points = r.points.map { p =>

@@ -37,7 +37,8 @@ class App(using
   disputeRepo:        DisputeRepo,
   disputeCommentRepo: DisputeCommentRepo,
   disputeService:     DisputeService,
-  reportingService:   ReportingService
+  reportingService:   ReportingService,
+  fileInventoryRepo:  FileInventoryRepo
 ) extends cask.MainRoutes,
       StrictLogging:
 
@@ -276,13 +277,13 @@ class App(using
 
   private def disputeDetail(dispute: Dispute): Txn[DisputeDetailPayload] =
     val (accountId, accountName, referenceLabel) = disputeContext(dispute)
-    val disputePayload = Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel)
+    val disputePayload                           = Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel)
     val movementPayload = dispute.targetType match
-      case DisputeTarget.Movement => movementRepo.findById(dispute.referenceId).map(Payload.movementfromDomainModel)
+      case DisputeTarget.Movement       => movementRepo.findById(dispute.referenceId).map(Payload.movementfromDomainModel)
       case DisputeTarget.Reconciliation => None
     val reconPayload = dispute.targetType match
       case DisputeTarget.Reconciliation => reconRepo.findById(dispute.referenceId).map(Payload.reconFromDomain)
-      case DisputeTarget.Movement => None
+      case DisputeTarget.Movement       => None
     val comments = disputeCommentRepo.findByDisputeId(dispute.id).map(Payload.disputeCommentPayloadFromDomain)
     DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments)
 
@@ -326,6 +327,13 @@ class App(using
   def getEvents(eventType: String): String =
     transact(transactor):
       write(eventRepo.findByEventType(eventType).map(Payload.eventPayloadFromDomain))
+
+  // File Inventory
+  @cask.route(s"${HttpPath.fileInventory}", methods = HttpCmd.GET)
+  def getFileInventory(): String =
+    transact(transactor):
+      val entries = fileInventoryRepo.findAllWithMovementSpecName()
+      write(entries.map((fi, movementSpecName) => Payload.fileInventoryPayloadFromDomain(fi, movementSpecName)))
 
   // ReconSpec
   @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)

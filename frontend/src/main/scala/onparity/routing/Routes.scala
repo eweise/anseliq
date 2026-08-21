@@ -36,6 +36,7 @@ object Routes:
           ),
           path("jobs")(JobsPage()),
           path("events")(EventsPage()),
+          path("file-inventory")(FileInventoryPage()),
           path("exceptions")(ExceptionsPage()),
           path("exceptions" / segment)(id => ExceptionDetailPage(id)),
           path("coming-soon" / "recon-rules")(ComingSoonPage("Recon Rules")),
