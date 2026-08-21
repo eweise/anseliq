@@ -541,10 +541,14 @@ class InMemoryReconciler(using
   end streamMergeJoin
 
   /**
-   * OneToOne: every key match is an unconditional 1:1 pair — no amount/balance check, the rule key
-   * alone is trusted, and the reconciliation is always Final (default status/balance). Unlike
-   * OneToMany, a 1:1 pair can never be partial: either both sides showed up and matched, or they
-   * didn't, so there's no InProgress/top-up concept here.
+   * OneToOne: every key match is an unconditional 1:1 pair (unlike OneToMany, there's no ambiguity
+   * about which side is "the one" — both sides always contribute exactly one movement). The pair's
+   * balance is still verified, the same as OneToMany: a key match with mismatched amounts (a short
+   * payment, a fee deduction, a rounding difference) is exactly the kind of thing reconciliation is
+   * supposed to catch, so it's InProgress rather than silently Final — see DisputeCategory.AmountMismatch.
+   * Unlike OneToMany, though, a 1:1 pair can never be completed later: there's no third movement
+   * that could ever arrive to close the gap under a OneToOne rule, so a mismatched pair stays
+   * InProgress permanently until resolved manually (ManualReconciler.writeOff) — no top-up phase.
    */
   private def reconcileOneToOneStreaming(
     reconSpec:       ReconciliationSpec,
@@ -562,8 +566,17 @@ class InMemoryReconciler(using
         inCursor.advance()
         outCursor.advance()
         Some(group),
-      toReconciliation = (_, _, now) =>
-        Reconciliation(specId = reconSpec.id, appliedRules = rule.sql, createdAt = Some(now), updatedAt = Some(now))
+      toReconciliation = (inGroup, outGroup, now) =>
+        val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
+        val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
+        Reconciliation(
+          specId       = reconSpec.id,
+          appliedRules = rule.sql,
+          status       = status,
+          balance      = balance,
+          createdAt    = Some(now),
+          updatedAt    = Some(now)
+        )
     )
 
   /**
