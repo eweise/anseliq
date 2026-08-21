@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
 import onparity.domain.DataSetup
 import onparity.domain.model.helper.JSONBProps
-import onparity.domain.model.{IllegalArgumentError, IllegalStateError, Movement, MovementSpec, ReconciliationStatus}
+import onparity.domain.model.{AccountReconciled, IllegalArgumentError, IllegalStateError, Movement, MovementSpec, ReconciliationStatus}
 import onparity.domain.port.driven.{JobRepo, Txn}
 import onparity.testing.rollBackOnly
 
@@ -226,13 +226,16 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.writeOff(recon.id, "should not work")
 
   test("after writeOff, InMemoryReconciler no longer tries to top up the reconciliation"):
-    transact(transactor):
-      rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler    = ManualReconciler()
-        val automaticReconciler = InMemoryReconciler()
-
+    // reconcileAccountResumable commits its own transaction internally (unlike the rest of this
+    // suite's tests, which call ManualReconciler methods directly within a rollBackOnly wrapper), so
+    // it can't see this test's setup unless that setup is committed for real. Same real-commit +
+    // explicit-teardown pattern as ReconcileAccountResumableSuite.
+    given data: DataSetup = transact(transactor)(DataSetup())
+    import data.given
+    val manualReconciler    = ManualReconciler()
+    val automaticReconciler = InMemoryReconciler()
+    try
+      val recon = transact(transactor):
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 90)
         val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "will write off")
@@ -240,9 +243,19 @@ class ManualReconcilerSuite extends munit.FunSuite:
 
         // A fresh unmatched out-movement that would otherwise top up this reconciliation's residual
         createMovement(data.reportToRecon, 10)
+        recon
 
-        automaticReconciler.reconcileAccount(data.reconAccount.id)
+      automaticReconciler.reconcileAccountResumable(data.reconAccount.id)
 
-        val stillClosed = data.reconRepo.findById(recon.id).get
-        assertEquals(stillClosed.status, ReconciliationStatus.Final)
-        assertEquals(stillClosed.balance, BigDecimal(10))
+      val stillClosed = transact(transactor)(data.reconRepo.findById(recon.id).get)
+      assertEquals(stillClosed.status, ReconciliationStatus.Final)
+      assertEquals(stillClosed.balance, BigDecimal(10))
+    finally
+      transact(transactor):
+        eventRepo
+          .findByEventType("AccountReconciled")
+          .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == data.reconAccount.id).getOrElse(false))
+          .foreach(es => eventRepo.deleteById(es.id))
+        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        data.reconSpecRepo.deleteById(data.reconSpec.id)
+        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
