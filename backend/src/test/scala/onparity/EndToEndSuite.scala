@@ -164,7 +164,7 @@ class EndToEndSuite extends munit.FunSuite {
       )
 
       // Reconcile the data
-      transact(transactor)(reconciler.reconcileAccount(reconAccount.id))
+      reconciler.reconcileAccountResumable(reconAccount.id)
 
       transact(transactor):
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
@@ -288,7 +288,7 @@ class EndToEndSuite extends munit.FunSuite {
       )
 
       // Reconcile the data
-      transact(transactor)(reconciler.reconcileAccount(reconAccount.id))
+      reconciler.reconcileAccountResumable(reconAccount.id)
 
       transact(transactor):
         val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
@@ -412,7 +412,7 @@ class EndToEndSuite extends munit.FunSuite {
       )
 
       // Reconcile the data
-      transact(transactor)(reconciler.reconcileAccount(reconAccount.id))
+      reconciler.reconcileAccountResumable(reconAccount.id)
 
       transact(transactor):
         val updateReconAccount = accountRepo.findById(reconAccount.id).get
