@@ -1,7 +1,7 @@
 package onparity.domain.service
 
 import onparity.common.model.model.Properties
-import onparity.common.model.{BAIParserConfig, CSVParserConfig, ParserConfig}
+import onparity.common.model.{BAIField, BAIParserConfig, CSVParserConfig, ParserConfig}
 import onparity.domain.model.NonRetryableError
 
 import scala.util.Try
@@ -23,7 +23,7 @@ object Parser:
           columns     = csv.columnDefinitions,
           amountField = csv.amountField
         )
-      case BAIParserConfig => BAIParser()
+      case bai: BAIParserConfig => BAIParser(bai)
 
 case class CSVParser(
   columns:     Map[Int, String],
@@ -68,8 +68,15 @@ case class CSVParser(
  * ingested from the start in one pass. Relies on the file having well-formed 49/98/99 trailers to
  * flush the final pending transaction — a truncated file missing all trailers would silently drop
  * its last transaction.
+ *
+ * Which fields actually become properties (and under what name) is driven by
+ * `config.fieldMappings`, the same "which + what name" idea as CSV's columnDefinitions — just keyed
+ * by the fixed set of known BAI2 fields instead of an arbitrary column index, since BAI2's layout
+ * is a standard rather than something each source defines. Amount is not one of those selectable
+ * fields: its position is always known, so it's captured automatically into ParsedLine.maybeAmount
+ * rather than requiring the user to identify it.
  */
-class BAIParser extends Parser:
+class BAIParser(config: BAIParserConfig = BAIParserConfig()) extends Parser:
   private var currentAccountNumber: Option[String]     = None
   private var pending:              Option[ParsedLine] = None
 
@@ -99,13 +106,16 @@ class BAIParser extends Parser:
     pending = None
     result
 
+  private def rawFieldValue(field: BAIField, fields: Array[String]): String = field match
+    case BAIField.AccountNumber           => currentAccountNumber.getOrElse("")
+    case BAIField.TypeCode                => fields.lift(1).getOrElse("")
+    case BAIField.FundsType               => fields.lift(3).getOrElse("")
+    case BAIField.BankReferenceNumber     => fields.lift(4).getOrElse("")
+    case BAIField.CustomerReferenceNumber => fields.lift(5).getOrElse("")
+    case BAIField.Text                    => fields.drop(6).mkString(",")
+
   private def toTransaction(fields: Array[String]): ParsedLine =
-    val typeCode                = fields.lift(1).getOrElse("")
-    val amountStr               = fields.lift(2).getOrElse("")
-    val fundsType               = fields.lift(3).getOrElse("")
-    val bankReferenceNumber     = fields.lift(4).getOrElse("")
-    val customerReferenceNumber = fields.lift(5).getOrElse("")
-    val text                    = fields.drop(6).mkString(",")
+    val amountStr = fields.lift(2).getOrElse("")
 
     // BAI2 amounts are unsigned integers in the minor currency unit (e.g. "150000" = 1500.00),
     // per spec, not a decimal string.
@@ -116,16 +126,13 @@ class BAIParser extends Parser:
 
     ParsedLine(
       maybeAmount = amount,
-      props = Map(
-        "account_number"            -> currentAccountNumber.getOrElse(""),
-        "type_code"                 -> typeCode,
-        "funds_type"                -> fundsType,
-        "bank_reference_number"     -> bankReferenceNumber,
-        "customer_reference_number" -> customerReferenceNumber,
-        "text"                      -> text
-      )
+      props       = config.fieldMappings.map((field, name) => name -> rawFieldValue(field, fields))
     )
 
+  // If Text isn't a field the user chose to store, there's nothing for a continuation to extend.
   private def appendContinuation(txn: ParsedLine, fields: Array[String]): ParsedLine =
-    val extra = fields.drop(1).mkString(",")
-    txn.copy(props = txn.props.updated("text", txn.props.getOrElse("text", "") + extra))
+    config.fieldMappings.get(BAIField.Text) match
+      case None => txn
+      case Some(textPropName) =>
+        val extra = fields.drop(1).mkString(",")
+        txn.copy(props = txn.props.updated(textPropName, txn.props.getOrElse(textPropName, "") + extra))
