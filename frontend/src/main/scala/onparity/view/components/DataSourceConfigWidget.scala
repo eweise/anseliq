@@ -168,33 +168,9 @@ object DataSourceConfigWidget:
             "S3 Connection"
           ),
           div(
-            cls := "mt-2 flex flex-col gap-3",
-            div(
-              cls := "relative border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
-              label(
-                cls := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide text-md-on-surface-variant dark:text-gray-400",
-                "Bucket"
-              ),
-              input(
-                typ          := "text",
-                cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-sm focus:outline-none rounded",
-                defaultValue := initialState.s3Bucket,
-                onInput.mapToValue --> Observer[String](v => state.update(_.copy(s3Bucket = v)))
-              )
-            ),
-            div(
-              cls := "relative border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
-              label(
-                cls := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide text-md-on-surface-variant dark:text-gray-400",
-                "File Path"
-              ),
-              input(
-                typ          := "text",
-                cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-sm focus:outline-none rounded",
-                defaultValue := initialState.s3FilePath,
-                onInput.mapToValue --> Observer[String](v => state.update(_.copy(s3FilePath = v)))
-              )
-            )
+            cls := "mt-2",
+            Form.field("s3Bucket", "Bucket", initialState.s3Bucket, v => state.update(_.copy(s3Bucket = v))),
+            Form.field("s3FilePath", "File Path", initialState.s3FilePath, v => state.update(_.copy(s3FilePath = v)))
           )
         )
       )

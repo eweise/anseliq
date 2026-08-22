@@ -33,6 +33,8 @@ class IngestorSuite extends munit.FunSuite:
 
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
 
+  given disputeRepo: DisputeRepo = DisputeRepoLive()
+
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
 
   given ledger: Ledger = Ledger()
@@ -100,3 +102,78 @@ class IngestorSuite extends munit.FunSuite:
           stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, clockService.now)))
         )
         assert(result.isEmpty)
+
+  private def openFileMissingDisputes(referenceId: UUID): Txn[Vector[Dispute]] =
+    disputeRepo.findAll.filter(d => d.referenceId == referenceId && d.category == DisputeCategory.FileMissing)
+
+  test("checkForMissingFile does nothing when expectedCadenceHours isn't configured"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec     = MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id)
+        movementSpecRepo.insert(spec)
+        clockService.addHours(1000)
+
+        ingestor.checkForMissingFile(spec)
+        assert(openFileMissingDisputes(spec.id).isEmpty)
+
+  test("checkForMissingFile raises nothing while the most recent file is still within cadence"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec = MovementSpec(
+          inAccountId          = data.reconAccount.id,
+          outAccountId         = data.journalAccount.id,
+          expectedCadenceHours = Some(24)
+        )
+        movementSpecRepo.insert(spec)
+        fileInventoryRepo.insert(createExistingFileInventory(spec.id))
+
+        ingestor.checkForMissingFile(spec)
+        assert(openFileMissingDisputes(spec.id).isEmpty)
+
+  test("checkForMissingFile raises a FileMissing dispute once the most recent file ages past cadence"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec = MovementSpec(
+          inAccountId          = data.reconAccount.id,
+          outAccountId         = data.journalAccount.id,
+          expectedCadenceHours = Some(24)
+        )
+        movementSpecRepo.insert(spec)
+        fileInventoryRepo.insert(createExistingFileInventory(spec.id))
+
+        clockService.addHours(25)
+        ingestor.checkForMissingFile(spec)
+
+        val disputes = openFileMissingDisputes(spec.id)
+        assertEquals(disputes.size, 1)
+        assertEquals(disputes.head.targetType, DisputeTarget.MovementSpec)
+        assertEquals(disputes.head.status, DisputeStatus.New)
+
+        // Rerunning the check (e.g. the next scan cycle) must not raise a second dispute.
+        ingestor.checkForMissingFile(spec)
+        assertEquals(openFileMissingDisputes(spec.id).size, 1)
+
+  test("checkForMissingFile falls back to the spec's own createdAt when no file has ever arrived"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec = MovementSpec(
+          inAccountId          = data.reconAccount.id,
+          outAccountId         = data.journalAccount.id,
+          expectedCadenceHours = Some(24)
+        )
+        movementSpecRepo.insert(spec)
+        val persisted = movementSpecRepo.findById(spec.id).get
+        assert(persisted.createdAt.isDefined, "createdAt should be populated by the update_movement_spec trigger on insert")
+
+        clockService.addHours(25)
+        ingestor.checkForMissingFile(persisted)
+
+        assertEquals(openFileMissingDisputes(spec.id).size, 1)

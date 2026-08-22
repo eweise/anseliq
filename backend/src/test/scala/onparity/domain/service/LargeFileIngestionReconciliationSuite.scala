@@ -48,6 +48,8 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 
   given jobRepo: JobRepo = JobRepoLive()
 
+  given disputeRepo: DisputeRepo = DisputeRepoLive()
+
   private def csvSpec(spec: MovementSpec): MovementSpec =
     spec.copy(
       dataSourceJson = upickle.write(

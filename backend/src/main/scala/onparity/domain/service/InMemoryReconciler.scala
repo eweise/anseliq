@@ -43,7 +43,8 @@ class InMemoryReconciler(using
   val eventStore:         EventStore,
   val clock:              ClockService,
   val transactor:         Transactor,
-  val jobRepo:            JobRepo
+  val jobRepo:            JobRepo,
+  val disputeRepo:        DisputeRepo
 ):
 
   private val pageSize = 10000
@@ -274,15 +275,22 @@ class InMemoryReconciler(using
    *     a group it can't resolve (already consumed either way, so it won't be retried).
    *   - `toReconciliation` builds the Reconciliation for one group, given the batch's shared
    *     timestamp.
+   *
+   * `raiseDisputeOnMismatch` controls whether a group landing InProgress auto-raises a dispute right
+   * here. True for OneToOne, where a group only ever forms once both sides have actually shown up, so
+   * InProgress is a genuine terminal mismatch. False for OneToMany: a group's first formation says
+   * nothing about whether the rest of the "many" side is still in transit (a different file, a delayed
+   * batch) — that's aging-gated separately in completeInProgressReconciliations, not raised on sight.
    */
   private def streamMergeJoin(
-    reconSpec:       ReconciliationSpec,
-    accountId:       ID,
-    startCheckpoint: ReconciliationCheckpoint,
-    batchSize:       Int,
-    jobId:           Option[ID],
-    allCheckpoints:  Map[ID, ReconciliationCheckpoint],
-    onBatchComplete: SpecBatchProgress => BatchDecision
+    reconSpec:              ReconciliationSpec,
+    accountId:              ID,
+    startCheckpoint:        ReconciliationCheckpoint,
+    batchSize:              Int,
+    jobId:                  Option[ID],
+    allCheckpoints:         Map[ID, ReconciliationCheckpoint],
+    onBatchComplete:        SpecBatchProgress => BatchDecision,
+    raiseDisputeOnMismatch: Boolean
   )(
     formGroup:        (MergeCursor, MergeCursor) => Option[(Vector[Movement], Vector[Movement])],
     toReconciliation: (Vector[Movement], Vector[Movement], OffsetDateTime) => Reconciliation
@@ -322,6 +330,23 @@ class InMemoryReconciler(using
         // ledger.reconcile (unchanged, still used by reconcileAccount) does the equivalent sum
         // internally per reconciliation; here the sum spans every reconciliation in the batch.
         ledger.markReconciled(accountId, batchDelta)
+
+        // See raiseDisputeOnMismatch's doc above streamMergeJoin: only meaningful where a group's
+        // first formation is itself proof that nothing more is expected to arrive for it.
+        if raiseDisputeOnMismatch then
+          reconciliations.filter(_.status == ReconciliationStatus.InProgress).foreach: recon =>
+            disputeRepo
+              .insertIfNoOpenDispute(
+                Dispute(
+                  referenceId = recon.id,
+                  targetType  = DisputeTarget.Reconciliation,
+                  category    = DisputeCategory.AmountMismatch,
+                  detail      = Some(s"Balance mismatch of ${recon.balance}"),
+                  createdAt   = Some(now),
+                  updatedAt   = Some(now)
+                )
+              )
+              .foreach(dispute => eventStore.publishEvent(DisputeRaised(disputeID = dispute.id)))
 
         jobId.foreach: id =>
           val job                = jobRepo.findById(id).ErrIfNotFound("Job", id)
@@ -393,7 +418,7 @@ class InMemoryReconciler(using
     onBatchComplete: SpecBatchProgress => BatchDecision
   ): (Int, ReconciliationCheckpoint, Boolean) =
     val rule = reconSpec.rule()
-    streamMergeJoin(reconSpec, accountId, startCheckpoint, batchSize, jobId, allCheckpoints, onBatchComplete)(
+    streamMergeJoin(reconSpec, accountId, startCheckpoint, batchSize, jobId, allCheckpoints, onBatchComplete, raiseDisputeOnMismatch = true)(
       formGroup = (inCursor, outCursor) =>
         val group = Vector(inCursor.current) -> Vector(outCursor.current)
         inCursor.advance()
@@ -477,7 +502,7 @@ class InMemoryReconciler(using
     onBatchComplete: SpecBatchProgress => BatchDecision
   ): (Int, ReconciliationCheckpoint, Boolean) =
     val rule = reconSpec.rule()
-    streamMergeJoin(reconSpec, accountId, startCheckpoint, batchSize, jobId, allCheckpoints, onBatchComplete)(
+    streamMergeJoin(reconSpec, accountId, startCheckpoint, batchSize, jobId, allCheckpoints, onBatchComplete, raiseDisputeOnMismatch = false)(
       formGroup = (inCursor, outCursor) =>
         val matchedKey = inCursor.key
         val inGroup    = gatherRun(inCursor)

@@ -5,12 +5,13 @@ import onparity.domain.model.*
 import onparity.domain.port.driven.*
 
 class DisputeService(using
-  disputeRepo:  DisputeRepo,
-  commentRepo:  DisputeCommentRepo,
-  movementRepo: MovementRepo,
-  reconRepo:    ReconciliationRepo,
-  eventStore:   EventStore,
-  clock:        ClockService
+  disputeRepo:      DisputeRepo,
+  commentRepo:      DisputeCommentRepo,
+  movementRepo:     MovementRepo,
+  reconRepo:        ReconciliationRepo,
+  movementSpecRepo: MovementSpecRepo,
+  eventStore:       EventStore,
+  clock:            ClockService
 ):
 
   def raise(
@@ -22,6 +23,7 @@ class DisputeService(using
     targetType match
       case DisputeTarget.Movement       => movementRepo.findById(referenceId).ErrIfNotFound("movement", referenceId)
       case DisputeTarget.Reconciliation => reconRepo.findById(referenceId).ErrIfNotFound("reconciliation", referenceId)
+      case DisputeTarget.MovementSpec   => movementSpecRepo.findById(referenceId).ErrIfNotFound("movement spec", referenceId)
 
     val now = clock.now
     val dispute = disputeRepo.insertReturning(

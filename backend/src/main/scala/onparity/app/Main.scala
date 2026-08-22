@@ -41,10 +41,10 @@ object Main:
     given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
     given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
     given ledger:             Ledger                 = Ledger()
+    given disputeRepo:        DisputeRepo            = DisputeRepoLive()
     given ingestor:           Ingestor               = Ingestor()
     given reconciler:         InMemoryReconciler     = InMemoryReconciler()
     given manualReconciler:   ManualReconciler       = ManualReconciler()
-    given disputeRepo:        DisputeRepo            = DisputeRepoLive()
     given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
     given disputeService:     DisputeService         = DisputeService()
     given dailySnapshotRepo:  DailySnapshotRepo      = DailySnapshotRepoLive()
@@ -176,6 +176,7 @@ object Main:
                 var filesQueued = 0
 
                 movementSpecRepo.findAll.foreach: spec =>
+                  ingestor.checkForMissingFile(spec)
                   val s3FileSource = s3FileSourceFactory.createFileSource(spec.dataSourceConfig().connectionConfig)
                   val newFiles     = ingestor.detectAndQueue(spec.id, s3FileSource)
                   logger.info(s"File inventory scan: queued ${newFiles.size} new S3 files")

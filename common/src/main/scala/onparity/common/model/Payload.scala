@@ -151,11 +151,12 @@ case class AccountPayload(
     errors
 
 case class MovementSpecPayload(
-  id:               Option[String]           = None,
-  name:             String                   = "",
-  inAccountId:      String                   = "",
-  outAccountId:     String                   = "",
-  dataSourceConfig: Option[DataSourceConfig] = None
+  id:                   Option[String]           = None,
+  name:                 String                   = "",
+  inAccountId:          String                   = "",
+  outAccountId:         String                   = "",
+  dataSourceConfig:     Option[DataSourceConfig] = None,
+  expectedCadenceHours: Option[Int]              = None
 ) derives ReadWriter
 
 case class MovementPayload(
@@ -176,10 +177,10 @@ case class MovementSpecAndAccounts(
 ) derives ReadWriter
 
 enum DisputeTargetPayload derives ReadWriter:
-  case Movement, Reconciliation
+  case Movement, Reconciliation, MovementSpec
 
 enum DisputeCategoryPayload derives ReadWriter:
-  case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality
+  case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing
 
 enum DisputeStatusPayload derives ReadWriter:
   case New, Investigating, Escalated, Resolved

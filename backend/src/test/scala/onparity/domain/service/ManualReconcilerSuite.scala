@@ -2,11 +2,11 @@ package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import onparity.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
+import onparity.adapter.driven.{DbDataSource, DisputeRepoLive, EventRepoLive, JobRepoLive}
 import onparity.domain.DataSetup
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.model.{AccountReconciled, IllegalArgumentError, IllegalStateError, Movement, MovementSpec, ReconciliationStatus}
-import onparity.domain.port.driven.{JobRepo, Txn}
+import onparity.domain.port.driven.{DisputeRepo, JobRepo, Txn}
 import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
@@ -18,6 +18,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
   given eventRepo:  EventRepoLive()
   given eventStore: EventStore = EventStore()
   given jobRepo:    JobRepo = JobRepoLive()
+  given disputeRepo: DisputeRepo = DisputeRepoLive()
 
   def createMovement(movementSpec: MovementSpec, amount: BigDecimal)(using data: DataSetup): Txn[Movement] =
     val m = Movement(

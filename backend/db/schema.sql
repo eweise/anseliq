@@ -34,13 +34,14 @@ CREATE INDEX account_props_index
 
 create table recon.movement_spec
 (
-    id               uuid primary key,
-    name             text,
-    in_account_id    uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    out_account_id   uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    data_source_json text                                  not null,
-    created_at       timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at       timestamptz default CURRENT_TIMESTAMP not null
+    id                      uuid primary key,
+    name                    text,
+    in_account_id           uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_id          uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    data_source_json        text                                  not null,
+    created_at              timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at              timestamptz default CURRENT_TIMESTAMP not null,
+    expected_cadence_hours  int
 );
 
 create table recon.reconciliation_spec
@@ -286,3 +287,12 @@ CREATE TRIGGER update_daily_snapshot
     ON recon.daily_snapshot
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
+
+-- At most one open (non-resolved) dispute per (reference_id, category) pair, so auto-raising a
+-- dispute on every reconciliation run is idempotent via ON CONFLICT ... DO NOTHING rather than a
+-- check-then-insert race. Scoped to category (not just reference_id) so an unrelated dispute type
+-- can still be raised against the same reconciliation/movement; excludes resolved disputes so a
+-- genuinely new occurrence of the same issue after a prior one was resolved isn't blocked forever.
+CREATE UNIQUE INDEX dispute_reference_id_category_open_unique
+    ON recon.dispute (reference_id, category)
+    WHERE status <> 'resolved';

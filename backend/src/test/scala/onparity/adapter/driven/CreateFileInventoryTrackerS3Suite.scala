@@ -42,6 +42,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   given movementSpecRepo:  MovementSpecRepo  = MovementSpecRepoLive()
   given ledger:            Ledger            = Ledger()
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
+  given disputeRepo:       DisputeRepo       = DisputeRepoLive()
 
   override def beforeAll(): Unit =
     s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())

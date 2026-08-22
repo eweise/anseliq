@@ -64,13 +64,13 @@ class PopulateS3Buckets extends munit.FunSuite:
 
     s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
 
-    for i <- 0 until 10 do {
+    for i <- 0 until 2 do {
       var bankContents     = ""
       var internalContents = ""
-      for (x <- 1 until 100) {
+      for (x <- 1 until 2) {
         val transactionID = UUID.randomUUID()
         val amount        = x * 10
-        bankContents += s"""$transactionID,$amount\n"""
+        bankContents += s"""$transactionID,${amount + 1}\n"""
 
         val amount1 = amount / 2
         val amount2 = amount - amount1

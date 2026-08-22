@@ -36,6 +36,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
   given jobRepo: JobRepo = JobRepoLive()
 
+  given disputeRepo: DisputeRepo = DisputeRepoLive()
+
   given ledger: Ledger = Ledger()
 
   private def teardown(data: DataSetup): Unit =
@@ -114,7 +116,24 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       val movements = transact(transactor)(data.movementRepo.findByAccount(data.reconAccount.id))
       assert(movements.forall(_.reconciliationId.nonEmpty), "both movements are still linked to the reconciliation despite the mismatch")
-    finally teardown(data)
+
+      // The mismatch must be surfaced as an exception, not just sit as a nonzero Reconciliation.balance
+      // that nothing else queries.
+      val disputes = transact(transactor)(disputeRepo.findAll.filter(_.referenceId == reconciliations.head.id))
+      assertEquals(disputes.size, 1)
+      assertEquals(disputes.head.targetType, DisputeTarget.Reconciliation)
+      assertEquals(disputes.head.category, DisputeCategory.AmountMismatch)
+      assertEquals(disputes.head.status, DisputeStatus.New)
+
+      // Rerunning reconciliation must not raise a second dispute for the same mismatch.
+      reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+      val disputesAfterRerun = transact(transactor)(disputeRepo.findAll.filter(_.referenceId == reconciliations.head.id))
+      assertEquals(disputesAfterRerun.size, 1, "rerunning reconciliation must not duplicate the open dispute")
+    finally
+      transact(transactor):
+        val reconIds = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.id).toSet
+        disputeRepo.findAll.filter(d => reconIds.contains(d.referenceId)).foreach(d => disputeRepo.deleteById(d.id))
+      teardown(data)
 
   test("OneToOne match with equal amounts is Final with a zero balance"):
     val data = transact(transactor)(DataSetup())
@@ -378,6 +397,13 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(acct1.balance, BigDecimal(-40))
       assertEquals(acct1.reconciledBalance, BigDecimal(-40))
       assertEquals(acct1.unreconciledBalance, BigDecimal(0))
+
+      // Unlike OneToOne, a OneToMany group landing InProgress on its first formation doesn't mean
+      // anything is actually wrong yet — the rest of the "many" side could simply still be in
+      // transit (a delayed file, a later batch). No dispute should be raised until aging says
+      // otherwise, so this must not create one just because the reconciliation exists.
+      val disputesAfterFirstRun = transact(transactor)(disputeRepo.findAll.filter(_.referenceId == recons1.head.id))
+      assert(disputesAfterFirstRun.isEmpty, "a fresh OneToMany InProgress reconciliation must not auto-raise a dispute")
 
       transact(transactor):
         ops.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g2"))

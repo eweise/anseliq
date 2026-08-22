@@ -48,6 +48,7 @@ object ExceptionsPage:
   private def targetLabel(targetType: DisputeTargetPayload): String = targetType match
     case DisputeTargetPayload.Movement       => "Movement"
     case DisputeTargetPayload.Reconciliation => "Reconciliation"
+    case DisputeTargetPayload.MovementSpec   => "Movement Spec"
 
   private def renderRow(d: DisputePayload): Seq[HtmlElement] =
     Seq(

@@ -56,11 +56,12 @@ object Payload:
 
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
     MovementSpecPayload(
-      id               = Some(spec.id.toString),
-      name             = spec.name,
-      inAccountId      = spec.inAccountId.toString,
-      outAccountId     = spec.outAccountId.toString,
-      dataSourceConfig = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s))
+      id                   = Some(spec.id.toString),
+      name                 = spec.name,
+      inAccountId          = spec.inAccountId.toString,
+      outAccountId         = spec.outAccountId.toString,
+      dataSourceConfig     = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s)),
+      expectedCadenceHours = spec.expectedCadenceHours
     )
 
   def reconRelationshipToDomain(comRel: ComRel): Rel =
@@ -155,6 +156,7 @@ object Payload:
   def disputeTargetToDomain(p: DisputeTargetPayload): DisputeTarget = p match
     case DisputeTargetPayload.Movement       => DisputeTarget.Movement
     case DisputeTargetPayload.Reconciliation => DisputeTarget.Reconciliation
+    case DisputeTargetPayload.MovementSpec   => DisputeTarget.MovementSpec
 
   def disputeCategoryToDomain(p: DisputeCategoryPayload): DisputeCategory = p match
     case DisputeCategoryPayload.AmountMismatch     => DisputeCategory.AmountMismatch
@@ -162,6 +164,7 @@ object Payload:
     case DisputeCategoryPayload.Duplicate          => DisputeCategory.Duplicate
     case DisputeCategoryPayload.TimingDifference   => DisputeCategory.TimingDifference
     case DisputeCategoryPayload.DataQuality        => DisputeCategory.DataQuality
+    case DisputeCategoryPayload.FileMissing        => DisputeCategory.FileMissing
 
   def disputeStatusToDomain(p: DisputeStatusPayload): DisputeStatus = p match
     case DisputeStatusPayload.New           => DisputeStatus.New
@@ -196,6 +199,7 @@ object Payload:
   def disputeTargetFromDomain(d: DisputeTarget): DisputeTargetPayload = d match
     case DisputeTarget.Movement       => DisputeTargetPayload.Movement
     case DisputeTarget.Reconciliation => DisputeTargetPayload.Reconciliation
+    case DisputeTarget.MovementSpec   => DisputeTargetPayload.MovementSpec
 
   def disputeCategoryFromDomain(d: DisputeCategory): DisputeCategoryPayload = d match
     case DisputeCategory.AmountMismatch     => DisputeCategoryPayload.AmountMismatch
@@ -203,6 +207,7 @@ object Payload:
     case DisputeCategory.Duplicate          => DisputeCategoryPayload.Duplicate
     case DisputeCategory.TimingDifference   => DisputeCategoryPayload.TimingDifference
     case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
+    case DisputeCategory.FileMissing        => DisputeCategoryPayload.FileMissing
 
   def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
     case DisputeStatus.New           => DisputeStatusPayload.New
