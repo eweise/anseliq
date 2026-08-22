@@ -31,6 +31,18 @@ object BAIParserConfig:
     BAIField.Text                    -> "text"
   )
 
+// JSON-lines source: one standalone JSON document per file row (not a single JSON array covering
+// the whole file). Like CSV, the set of fields is arbitrary and user-defined, so fieldMappings is
+// keyed by a JSONPath expression (e.g. "$.transaction.customerRef") rather than a fixed field set
+// like BAI2 — the user identifies both which value to pull and what property name to store it
+// under, the same "which + what name" shape as CSV's columnDefinitions. amountPath is the JSONPath
+// to the amount, mirroring CSV's amountField — unlike BAI2, JSON has no fixed position to infer it
+// from automatically.
+case class JSONParserConfig(
+  fieldMappings: Map[String, String] = Map.empty,
+  amountPath:    Option[String]      = None
+) extends ParserConfig
+
 case class DataSourceConfig(
   parserConfig:     ParserConfig,
   connectionConfig: ConnectionConfig = S3ConnectionConfig("", "") // fixme should default this?
