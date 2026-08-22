@@ -15,16 +15,25 @@ object DataSourceConfigWidget:
   enum ParserType:
     case CSV, BAI, JSON
 
+  // The user picks which CSV column positions to store (and under what name) rather than every
+  // field implicitly getting stored in list order — columnIndex is typed explicitly (as text, so a
+  // partially-edited/blank value doesn't get coerced mid-input) so a row for position 5 doesn't
+  // require also defining rows for positions 0-4.
+  case class CsvFieldRow(columnIndex: String = "", name: String = "")
+
   // JSONPath is arbitrary and user-defined (like CSV columns, unlike BAI2's fixed field set), so
   // this is a growable list of (path, stored name) pairs, the same shape as CSV's column list.
   case class JsonFieldRow(path: String = "", name: String = "")
 
   case class State(
-    enabled:        Boolean      = false,
-    parserType:     ParserType   = ParserType.CSV,
-    hasHeader:      Boolean      = true,
-    columns:        List[String] = List.empty,
-    amountColIndex: Option[Int]  = None,
+    enabled:    Boolean    = false,
+    parserType: ParserType = ParserType.CSV,
+    hasHeader:  Boolean    = true,
+    // csvAmountIndex is a position into csvFields (which row is the amount), not a CSV column
+    // index itself — same indirection as jsonAmountIndex below, resolved to the real column index
+    // only when building CSVParserConfig.
+    csvFields:      List[CsvFieldRow] = List.empty,
+    csvAmountIndex: Option[Int]       = None,
     // BAI2's fields are fixed and known (unlike CSV columns), so this is a name PER field rather
     // than a growable list — baiFieldsIncluded tracks which ones are turned on, and baiFieldNames
     // keeps every field's typed name (even while excluded) so toggling one back on doesn't lose it.
@@ -40,12 +49,13 @@ object DataSourceConfigWidget:
     def fromConfig(cfg: Option[DataSourceConfig]): State = cfg match
       case None => State()
       case Some(DataSourceConfig(CSVParserConfig(hasHeader, colDefs, amountField), S3ConnectionConfig(bucket, path))) =>
+        val rows = colDefs.toList.sortBy(_._1).map((idx, name) => CsvFieldRow(idx.toString, name))
         State(
           enabled        = true,
           parserType     = ParserType.CSV,
           hasHeader      = hasHeader,
-          columns        = colDefs.toList.sortBy(_._1).map(_._2),
-          amountColIndex = amountField,
+          csvFields      = rows,
+          csvAmountIndex = amountField.map(af => rows.indexWhere(_.columnIndex == af.toString)).filter(_ >= 0),
           s3Bucket       = bucket,
           s3FilePath     = path
         )
@@ -75,9 +85,11 @@ object DataSourceConfigWidget:
         val parserConfig = s.parserType match
           case ParserType.CSV =>
             CSVParserConfig(
-              hasHeader         = s.hasHeader,
-              columnDefinitions = s.columns.zipWithIndex.map((name, i) => i -> name).toMap,
-              amountField       = s.amountColIndex
+              hasHeader = s.hasHeader,
+              columnDefinitions = s.csvFields
+                .flatMap(r => r.columnIndex.trim.toIntOption.map(idx => idx -> r.name))
+                .toMap,
+              amountField = s.csvAmountIndex.flatMap(s.csvFields.lift).flatMap(_.columnIndex.trim.toIntOption)
             )
           case ParserType.BAI =>
             BAIParserConfig(fieldMappings = s.baiFieldNames.filter((field, _) => s.baiFieldsIncluded.contains(field)))
@@ -156,14 +168,14 @@ object DataSourceConfigWidget:
           ),
           div(
             cls <-- state.signal.map(s =>
-              if s.columns.isEmpty then "hidden" else "mb-3 border border-md-outline rounded overflow-hidden"
+              if s.csvFields.isEmpty then "hidden" else "mb-3 border border-md-outline rounded overflow-hidden"
             ),
             table(
               cls := "w-full text-xs border-collapse",
               thead(
                 cls := "bg-md-surface-variant",
                 tr(
-                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium w-10", "Col"),
+                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium w-20", "Column #"),
                   th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "Field Name"),
                   th(cls := "text-center px-2 py-2 text-md-on-surface-variant font-medium w-14", "Amount?"),
                   th(cls := "w-6")
@@ -172,19 +184,34 @@ object DataSourceConfigWidget:
               tbody(
                 // splitByIndex reuses the tr DOM node at each index across state updates,
                 // preserving input focus when typing
-                children <-- state.signal.map(_.columns).splitByIndex { (idx, initialColName, colSignal) =>
+                children <-- state.signal.map(_.csvFields).splitByIndex { (idx, initialRow, rowSignal) =>
                   tr(
                     cls := "border-t border-md-outline-variant",
-                    td(cls := "px-2 py-1.5 text-md-on-surface-variant font-medium", idx.toString),
+                    td(
+                      cls := "px-2 py-1.5",
+                      input(
+                        typ          := "number",
+                        cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
+                        placeholder  := "0",
+                        defaultValue := initialRow.columnIndex,
+                        inContext(el => rowSignal --> Observer[CsvFieldRow](r => el.ref.value = r.columnIndex)),
+                        onInput.mapToValue --> Observer[String](v =>
+                          state.update(s =>
+                            s.copy(csvFields = s.csvFields.updated(idx, s.csvFields(idx).copy(columnIndex = v)))
+                          )
+                        )
+                      )
+                    ),
                     td(
                       cls := "px-2 py-1.5",
                       input(
                         typ          := "text",
                         cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
-                        defaultValue := initialColName,
-                        inContext(el => colSignal --> Observer[String](v => el.ref.value = v)),
+                        defaultValue := initialRow.name,
+                        inContext(el => rowSignal --> Observer[CsvFieldRow](r => el.ref.value = r.name)),
                         onInput.mapToValue --> Observer[String](v =>
-                          state.update(s => s.copy(columns = s.columns.updated(idx, v)))
+                          state
+                            .update(s => s.copy(csvFields = s.csvFields.updated(idx, s.csvFields(idx).copy(name = v))))
                         )
                       )
                     ),
@@ -192,10 +219,10 @@ object DataSourceConfigWidget:
                       cls := "text-center px-2 py-1.5",
                       input(
                         typ      := "radio",
-                        nameAttr := "amountCol",
+                        nameAttr := "csvAmountField",
                         cls      := "accent-md-primary",
-                        checked <-- state.signal.map(_.amountColIndex.contains(idx)),
-                        onChange --> (_ => state.update(s => s.copy(amountColIndex = Some(idx))))
+                        checked <-- state.signal.map(_.csvAmountIndex.contains(idx)),
+                        onChange --> (_ => state.update(s => s.copy(csvAmountIndex = Some(idx))))
                       )
                     ),
                     td(
@@ -205,13 +232,13 @@ object DataSourceConfigWidget:
                         cls := "text-gray-300 hover:text-md-error",
                         onClick --> (_ =>
                           state.update { s =>
-                            val newCols = s.columns.patch(idx, Nil, 1)
-                            val newAmt = s.amountColIndex.flatMap { i =>
+                            val newFields = s.csvFields.patch(idx, Nil, 1)
+                            val newAmt = s.csvAmountIndex.flatMap { i =>
                               if i == idx then None
                               else if i > idx then Some(i - 1)
                               else Some(i)
                             }
-                            s.copy(columns = newCols, amountColIndex = newAmt)
+                            s.copy(csvFields = newFields, csvAmountIndex = newAmt)
                           }
                         ),
                         "✕"
@@ -225,8 +252,8 @@ object DataSourceConfigWidget:
           button(
             typ := "button",
             cls := "border border-dashed border-md-primary text-md-primary rounded px-3 py-1.5 text-xs hover:bg-md-primary-container transition-colors",
-            onClick --> (_ => state.update(s => s.copy(columns = s.columns :+ ""))),
-            "+ Add Column"
+            onClick --> (_ => state.update(s => s.copy(csvFields = s.csvFields :+ CsvFieldRow()))),
+            "+ Add Field"
           )
         ),
         // BAI2-specific configuration: the field set is fixed and known, so this is a checkbox
