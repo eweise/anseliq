@@ -48,8 +48,9 @@ object RuleWidget:
       .find(_.id.contains(specId))
       .flatMap(_.dataSourceConfig)
       .collect {
-        case DataSourceConfig(CSVParserConfig(_, cols, _), _)    => cols.values.toSeq
-        case DataSourceConfig(BAIParserConfig(fieldMappings), _) => fieldMappings.values.toSeq
+        case DataSourceConfig(CSVParserConfig(_, cols, _), _)        => cols.values.toSeq
+        case DataSourceConfig(BAIParserConfig(fieldMappings), _)     => fieldMappings.values.toSeq
+        case DataSourceConfig(JSONParserConfig(fieldMappings, _), _) => fieldMappings.values.toSeq
       }
       .getOrElse(Seq.empty)
 

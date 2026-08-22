@@ -1,12 +1,23 @@
 package onparity.view.components
 
 import com.raquo.laminar.api.L.*
-import onparity.common.model.{BAIField, BAIParserConfig, CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
+import onparity.common.model.{
+  BAIField,
+  BAIParserConfig,
+  CSVParserConfig,
+  DataSourceConfig,
+  JSONParserConfig,
+  S3ConnectionConfig
+}
 
 object DataSourceConfigWidget:
 
   enum ParserType:
-    case CSV, BAI
+    case CSV, BAI, JSON
+
+  // JSONPath is arbitrary and user-defined (like CSV columns, unlike BAI2's fixed field set), so
+  // this is a growable list of (path, stored name) pairs, the same shape as CSV's column list.
+  case class JsonFieldRow(path: String = "", name: String = "")
 
   case class State(
     enabled:        Boolean      = false,
@@ -19,6 +30,8 @@ object DataSourceConfigWidget:
     // keeps every field's typed name (even while excluded) so toggling one back on doesn't lose it.
     baiFieldNames:     Map[BAIField, String] = BAIParserConfig.defaultFieldMappings,
     baiFieldsIncluded: Set[BAIField]         = BAIField.values.toSet,
+    jsonFields:        List[JsonFieldRow]    = List.empty,
+    jsonAmountIndex:   Option[Int]           = None,
     s3Bucket:          String                = "",
     s3FilePath:        String                = ""
   )
@@ -45,6 +58,16 @@ object DataSourceConfigWidget:
           s3Bucket          = bucket,
           s3FilePath        = path
         )
+      case Some(DataSourceConfig(JSONParserConfig(fieldMappings, amountPath), S3ConnectionConfig(bucket, path))) =>
+        val rows = fieldMappings.toList.map((p, n) => JsonFieldRow(p, n))
+        State(
+          enabled         = true,
+          parserType      = ParserType.JSON,
+          jsonFields      = rows,
+          jsonAmountIndex = amountPath.map(ap => rows.indexWhere(_.path == ap)).filter(_ >= 0),
+          s3Bucket        = bucket,
+          s3FilePath      = path
+        )
 
     def toConfig(s: State): Option[DataSourceConfig] =
       if !s.enabled then None
@@ -58,6 +81,11 @@ object DataSourceConfigWidget:
             )
           case ParserType.BAI =>
             BAIParserConfig(fieldMappings = s.baiFieldNames.filter((field, _) => s.baiFieldsIncluded.contains(field)))
+          case ParserType.JSON =>
+            JSONParserConfig(
+              fieldMappings = s.jsonFields.filter(_.path.nonEmpty).map(r => r.path -> r.name).toMap,
+              amountPath    = s.jsonAmountIndex.flatMap(s.jsonFields.lift).map(_.path).filter(_.nonEmpty)
+            )
         Some(
           DataSourceConfig(
             parserConfig     = parserConfig,
@@ -99,7 +127,11 @@ object DataSourceConfigWidget:
         Form.selectField(
           "parserType",
           "File Format",
-          Seq(ParserType.CSV.toString -> "CSV", ParserType.BAI.toString -> "BAI2"),
+          Seq(
+            ParserType.CSV.toString  -> "CSV",
+            ParserType.BAI.toString  -> "BAI2",
+            ParserType.JSON.toString -> "JSON (one record per line)"
+          ),
           initialState.parserType.toString,
           v => state.update(_.copy(parserType = ParserType.valueOf(v)))
         ),
@@ -256,6 +288,102 @@ object DataSourceConfigWidget:
                 }*
               )
             )
+          )
+        ),
+        // JSON-specific configuration: one standalone JSON document per file row. Fields are
+        // arbitrary and user-defined (like CSV columns, unlike BAI2's fixed set), identified by a
+        // JSONPath expression rather than a column index — same growable-list shape as CSV's table.
+        div(
+          cls <-- state.signal.map(s => if !s.enabled || s.parserType != ParserType.JSON then "hidden" else ""),
+          div(
+            cls <-- state.signal.map(s =>
+              if s.jsonFields.isEmpty then "hidden" else "mb-3 border border-md-outline rounded overflow-hidden"
+            ),
+            table(
+              cls := "w-full text-xs border-collapse",
+              thead(
+                cls := "bg-md-surface-variant",
+                tr(
+                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "JSON Path"),
+                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "Field Name"),
+                  th(cls := "text-center px-2 py-2 text-md-on-surface-variant font-medium w-14", "Amount?"),
+                  th(cls := "w-6")
+                )
+              ),
+              tbody(
+                // splitByIndex reuses the tr DOM node at each index across state updates,
+                // preserving input focus when typing
+                children <-- state.signal.map(_.jsonFields).splitByIndex { (idx, initialRow, rowSignal) =>
+                  tr(
+                    cls := "border-t border-md-outline-variant",
+                    td(
+                      cls := "px-2 py-1.5",
+                      input(
+                        typ          := "text",
+                        cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
+                        placeholder  := "$.path.to.field",
+                        defaultValue := initialRow.path,
+                        inContext(el => rowSignal --> Observer[JsonFieldRow](r => el.ref.value = r.path)),
+                        onInput.mapToValue --> Observer[String](v =>
+                          state.update(s =>
+                            s.copy(jsonFields = s.jsonFields.updated(idx, s.jsonFields(idx).copy(path = v)))
+                          )
+                        )
+                      )
+                    ),
+                    td(
+                      cls := "px-2 py-1.5",
+                      input(
+                        typ          := "text",
+                        cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
+                        defaultValue := initialRow.name,
+                        inContext(el => rowSignal --> Observer[JsonFieldRow](r => el.ref.value = r.name)),
+                        onInput.mapToValue --> Observer[String](v =>
+                          state.update(s =>
+                            s.copy(jsonFields = s.jsonFields.updated(idx, s.jsonFields(idx).copy(name = v)))
+                          )
+                        )
+                      )
+                    ),
+                    td(
+                      cls := "text-center px-2 py-1.5",
+                      input(
+                        typ      := "radio",
+                        nameAttr := "jsonAmountField",
+                        cls      := "accent-md-primary",
+                        checked <-- state.signal.map(_.jsonAmountIndex.contains(idx)),
+                        onChange --> (_ => state.update(s => s.copy(jsonAmountIndex = Some(idx))))
+                      )
+                    ),
+                    td(
+                      cls := "px-1 py-1.5 text-center",
+                      button(
+                        typ := "button",
+                        cls := "text-gray-300 hover:text-md-error",
+                        onClick --> (_ =>
+                          state.update { s =>
+                            val newFields = s.jsonFields.patch(idx, Nil, 1)
+                            val newAmt = s.jsonAmountIndex.flatMap { i =>
+                              if i == idx then None
+                              else if i > idx then Some(i - 1)
+                              else Some(i)
+                            }
+                            s.copy(jsonFields = newFields, jsonAmountIndex = newAmt)
+                          }
+                        ),
+                        "✕"
+                      )
+                    )
+                  )
+                }
+              )
+            )
+          ),
+          button(
+            typ := "button",
+            cls := "border border-dashed border-md-primary text-md-primary rounded px-3 py-1.5 text-xs hover:bg-md-primary-container transition-colors",
+            onClick --> (_ => state.update(s => s.copy(jsonFields = s.jsonFields :+ JsonFieldRow()))),
+            "+ Add Field"
           )
         ),
         div(
