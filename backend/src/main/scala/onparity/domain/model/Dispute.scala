@@ -8,11 +8,11 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum DisputeTarget derives DbCodec:
-  case Movement, Reconciliation
+  case Movement, Reconciliation, MovementSpec
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum DisputeCategory derives DbCodec:
-  case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality
+  case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum DisputeStatus derives DbCodec:

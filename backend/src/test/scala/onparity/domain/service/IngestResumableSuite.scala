@@ -31,6 +31,8 @@ class IngestResumableSuite extends munit.FunSuite:
 
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
 
+  given disputeRepo: DisputeRepo = DisputeRepoLive()
+
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
 
   given ledger: Ledger = Ledger()

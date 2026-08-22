@@ -34,6 +34,8 @@ class Ingestor(using
   val eventStore:        EventStore,
   val fileInventoryRepo: FileInventoryRepo,
   val fileSourceFactory: FileSourceFactory,
+  val disputeRepo:       DisputeRepo,
+  val clock:             ClockService,
   val transactor:        Transactor
 ):
 
@@ -207,6 +209,32 @@ class Ingestor(using
       fileInventoryRepo.insert(fileInventory)
       eventStore.publishEvent(NewFileDetected(fileInventoryID = fileInventory.id))
       fileInventory
+
+  /**
+   * Auto-raises a FileMissing dispute against the MovementSpec itself when no new file has been
+   * detected within its expectedCadenceHours window. Unlike AmountMismatch (which always targets a
+   * real Reconciliation row), a missing file has no FileInventory row to reference — there's nothing
+   * to point at except the spec that expected it. A no-op when expectedCadenceHours isn't configured
+   * (not every spec is fed by a scheduled file drop, so there's nothing to compare against). The
+   * baseline for "since when" is the most recently seen file for this spec, or the spec's own
+   * createdAt if none has ever arrived; insertIfNoOpenDispute keeps repeated scans idempotent.
+   */
+  def checkForMissingFile(movementSpec: MovementSpec): Txn[Unit] =
+    movementSpec.expectedCadenceHours.foreach: cadenceHours =>
+      val lastSeenAt =
+        fileInventoryRepo.findLatestByMovementSpecId(movementSpec.id).map(_.lastModifiedAt).orElse(movementSpec.createdAt)
+      lastSeenAt.foreach: since =>
+        if clock.now.isAfter(since.plusHours(cadenceHours)) then
+          val dispute = Dispute(
+            referenceId = movementSpec.id,
+            targetType  = DisputeTarget.MovementSpec,
+            category    = DisputeCategory.FileMissing,
+            detail      = Some(s"No new file detected for '${movementSpec.name}' since $since (expected every $cadenceHours hours)"),
+            createdAt   = Some(clock.now),
+            updatedAt   = Some(clock.now)
+          )
+          disputeRepo.insertIfNoOpenDispute(dispute).foreach: raised =>
+            eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
 
   def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
     fileInventoryRepo

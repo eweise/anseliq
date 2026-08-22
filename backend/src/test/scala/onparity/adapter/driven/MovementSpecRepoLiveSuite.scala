@@ -2,7 +2,10 @@ package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
+import onparity.common.model.MovementSpecPayload
 import onparity.domain.model.*
+import onparity.domain.port.driven.*
+import onparity.domain.service.FundFlowOperations
 import onparity.testing.rollBackOnly
 
 import java.util.UUID
@@ -59,3 +62,37 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
 
         val results = movementSpecRepo.findByFundFlowId(fundFlowA.id)
         assertEquals(results.size, 1)
+
+  test("expectedCadenceHours round-trips through FundFlowOperations create/update and the DB"):
+    transact(transactor):
+      rollBackOnly:
+        given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
+        given accountRepo:        AccountRepo            = AccountRepoLive()
+        given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
+        given movementRepo:       MovementRepo           = MovementRepoLive()
+        given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+        val fundFlowOperations = FundFlowOperations()
+
+        val fundFlow = FundFlowConfig(name = UUID.randomUUID().toString)
+        fundFlowConfigRepo.insert(fundFlow)
+        val inAccount  = Account(name = "in", fundFlowId = fundFlow.id)
+        val outAccount = Account(name = "out", fundFlowId = fundFlow.id)
+        accountRepo.insert(inAccount)
+        accountRepo.insert(outAccount)
+
+        val created = fundFlowOperations.createMovementSpec(
+          MovementSpecPayload(
+            inAccountId          = inAccount.id.toString,
+            outAccountId         = outAccount.id.toString,
+            expectedCadenceHours = Some(24)
+          )
+        )
+        assertEquals(created.expectedCadenceHours, Some(24))
+        assertEquals(movementSpecRepo.findById(UUID.fromString(created.id.get)).get.expectedCadenceHours, Some(24))
+
+        val updated = fundFlowOperations.updateMovementSpec(
+          created.id.get,
+          created.copy(expectedCadenceHours = None)
+        )
+        assertEquals(updated.expectedCadenceHours, None)
+        assertEquals(movementSpecRepo.findById(UUID.fromString(created.id.get)).get.expectedCadenceHours, None)

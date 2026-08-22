@@ -109,6 +109,15 @@ object MaintainMovementSpecPage:
         },
         dsWidget,
         div(
+          cls := "mt-4",
+          Form.field(
+            "expectedCadenceHours",
+            "Expected File Cadence (hours)",
+            initial.expectedCadenceHours.map(_.toString).getOrElse(""),
+            v => spec.update(_.copy(expectedCadenceHours = v.trim.toIntOption))
+          )
+        ),
+        div(
           cls := "flex justify-end gap-2 mt-6",
           Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),
           Buttons.linkButton("Save", Observer[Unit](_ => saveBus.emit(())))

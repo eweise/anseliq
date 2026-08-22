@@ -13,6 +13,7 @@ class ReportingService(using
   movementRepo:       MovementRepo,
   reconRepo:          ReconciliationRepo,
   reconSpecRepo:      ReconciliationSpecRepo,
+  movementSpecRepo:   MovementSpecRepo,
   fundFlowConfigRepo: FundFlowConfigRepo,
   dailySnapshotRepo:  DailySnapshotRepo,
   clock:              ClockService
@@ -66,6 +67,8 @@ class ReportingService(using
           recon <- reconRepo.findById(d.referenceId)
           spec  <- reconSpecRepo.findById(recon.specId)
         yield spec.accountId
+      case DisputeTarget.MovementSpec =>
+        movementSpecRepo.findById(d.referenceId).map(_.inAccountId)
 
   private def agingBuckets(reconAccounts: Vector[Account]): Txn[AgingBucketsReport] =
     val counts  = scala.collection.mutable.Map(agingBucketOrder.map(_ -> 0)*)

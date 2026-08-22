@@ -281,9 +281,11 @@ class App(using
     val movementPayload = dispute.targetType match
       case DisputeTarget.Movement       => movementRepo.findById(dispute.referenceId).map(Payload.movementfromDomainModel)
       case DisputeTarget.Reconciliation => None
+      case DisputeTarget.MovementSpec   => None
     val reconPayload = dispute.targetType match
       case DisputeTarget.Reconciliation => reconRepo.findById(dispute.referenceId).map(Payload.reconFromDomain)
       case DisputeTarget.Movement       => None
+      case DisputeTarget.MovementSpec   => None
     val comments = disputeCommentRepo.findByDisputeId(dispute.id).map(Payload.disputeCommentPayloadFromDomain)
     DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments)
 
@@ -298,6 +300,10 @@ class App(using
         val reconSpec = reconSpecRepo.findById(recon.specId).ErrIfNotFound("reconciliation spec", recon.specId)
         val account   = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
         (account.id.toString, account.name, recon.description)
+      case DisputeTarget.MovementSpec =>
+        val spec    = movementSpecRepo.findById(dispute.referenceId).ErrIfNotFound("movement spec", dispute.referenceId)
+        val account = accountRepo.findById(spec.inAccountId).ErrIfNotFound("account", spec.inAccountId)
+        (account.id.toString, account.name, spec.name)
 
   // Reports
   @cask.route(s"${HttpPath.reports}/summary", methods = HttpCmd.GET)
