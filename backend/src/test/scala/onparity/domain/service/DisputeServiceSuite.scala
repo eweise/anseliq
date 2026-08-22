@@ -70,6 +70,20 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(dispute.category, DisputeCategory.AmountMismatch)
         assertEquals(dispute.detail, None)
 
+  test("raise rejects a category that isn't valid for the given target"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val movement = createMovement(data.journalToRecon, 100)
+
+        // AmountMismatch is only ever raised against a Reconciliation (see DisputeCategory.validTargets) —
+        // pairing it with a Movement should be rejected before even checking whether the movement exists.
+        intercept[IllegalArgumentError]:
+          disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.AmountMismatch, None)
+
   test("raise on a nonexistent Movement errors"):
     transact(transactor):
       rollBackOnly:
@@ -88,7 +102,7 @@ class DisputeServiceSuite extends munit.FunSuite:
         val disputeService = DisputeService()
 
         intercept[NotFoundError]:
-          disputeService.raise(java.util.UUID.randomUUID(), DisputeTarget.Reconciliation, DisputeCategory.TimingDifference, None)
+          disputeService.raise(java.util.UUID.randomUUID(), DisputeTarget.Reconciliation, DisputeCategory.AmountMismatch, None)
 
   test("addComment to Resolved without a body errors"):
     transact(transactor):

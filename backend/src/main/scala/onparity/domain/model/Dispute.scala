@@ -10,9 +10,26 @@ import java.util.UUID
 enum DisputeTarget derives DbCodec:
   case Movement, Reconciliation, MovementSpec
 
-@Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum DisputeCategory derives DbCodec:
   case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing
+
+/**
+ * Which DisputeTarget(s) a category is meaningful against — e.g. FileMissing has no FileInventory
+ * row to reference (that's the whole point of the category) so it can only ever target the
+ * MovementSpec that expected the file, while AmountMismatch is only ever raised against a
+ * Reconciliation. Checked by DisputeService.raise so a mismatched pairing (wrong Scala call site,
+ * a bad manual API request, or a raw DB write) is rejected at the one place it actually needs to be
+ * caught — it can't be enforced at compile time because Dispute crosses two serialization
+ * boundaries (the JSON payload and the Postgres row) where any type-level link is already erased.
+ */
+extension (category: DisputeCategory)
+  def validTargets: Set[DisputeTarget] = category match
+    case DisputeCategory.AmountMismatch     => Set(DisputeTarget.Reconciliation)
+    case DisputeCategory.MissingCounterpart => Set(DisputeTarget.Movement)
+    case DisputeCategory.Duplicate          => Set(DisputeTarget.Movement)
+    case DisputeCategory.TimingDifference   => Set(DisputeTarget.Movement)
+    case DisputeCategory.DataQuality        => Set(DisputeTarget.Movement)
+    case DisputeCategory.FileMissing        => Set(DisputeTarget.MovementSpec)
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum DisputeStatus derives DbCodec:

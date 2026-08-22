@@ -20,6 +20,12 @@ class DisputeService(using
     category:    DisputeCategory,
     detail:      Option[String]
   ): Txn[Dispute] =
+    if !category.validTargets.contains(targetType) then
+      throw IllegalArgumentError(
+        "targetType",
+        s"$category cannot target $targetType (valid target(s): ${category.validTargets.mkString(", ")})"
+      )
+
     targetType match
       case DisputeTarget.Movement       => movementRepo.findById(referenceId).ErrIfNotFound("movement", referenceId)
       case DisputeTarget.Reconciliation => reconRepo.findById(referenceId).ErrIfNotFound("reconciliation", referenceId)

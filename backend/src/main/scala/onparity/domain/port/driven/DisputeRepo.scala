@@ -1,7 +1,8 @@
 package onparity.domain.port.driven
 
 import com.augustnagro.magnum.DbCon
-import onparity.domain.model.Dispute
+import onparity.common.model.model.ID
+import onparity.domain.model.{Dispute, DisputeCategory}
 
 trait DisputeRepo extends DomainRepo[Dispute, Dispute]:
   /**
@@ -9,3 +10,5 @@ trait DisputeRepo extends DomainRepo[Dispute, Dispute]:
    * pair — see the dispute_reference_id_category_open_unique index. Returns None on conflict.
    */
   def insertIfNoOpenDispute(dispute: Dispute)(using DbCon): Option[Dispute]
+
+  def findOpenByReferenceIdAndCategory(referenceId: ID, category: DisputeCategory)(using DbCon): Option[Dispute]

@@ -35,6 +35,8 @@ class IngestorSuite extends munit.FunSuite:
 
   given disputeRepo: DisputeRepo = DisputeRepoLive()
 
+  given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
+
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
 
   given ledger: Ledger = Ledger()
@@ -158,6 +160,41 @@ class IngestorSuite extends munit.FunSuite:
         // Rerunning the check (e.g. the next scan cycle) must not raise a second dispute.
         ingestor.checkForMissingFile(spec)
         assertEquals(openFileMissingDisputes(spec.id).size, 1)
+
+  test("checkForMissingFile resolves an open dispute once a new file arrives within cadence"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec = MovementSpec(
+          inAccountId          = data.reconAccount.id,
+          outAccountId         = data.journalAccount.id,
+          expectedCadenceHours = Some(24)
+        )
+        movementSpecRepo.insert(spec)
+        fileInventoryRepo.insert(createExistingFileInventory(spec.id))
+
+        clockService.addHours(25)
+        ingestor.checkForMissingFile(spec)
+        val raised = openFileMissingDisputes(spec.id)
+        assertEquals(raised.size, 1)
+        assertEquals(raised.head.status, DisputeStatus.New)
+
+        // A fresh file lands (e.g. detectAndQueue found a new one this cycle) — its lastModifiedAt
+        // is "now", so the spec is back within cadence.
+        fileInventoryRepo.insert(createExistingFileInventory(spec.id))
+        ingestor.checkForMissingFile(spec)
+
+        val afterResolve = disputeRepo.findById(raised.head.id).get
+        assertEquals(afterResolve.status, DisputeStatus.Resolved)
+
+        val comments = disputeCommentRepo.findByDisputeId(raised.head.id)
+        assertEquals(comments.size, 1)
+        assertEquals(comments.head.newStatus, Some(DisputeStatus.Resolved))
+
+        // Rerunning the check again (still within cadence) must not re-resolve or add a second comment.
+        ingestor.checkForMissingFile(spec)
+        assertEquals(disputeCommentRepo.findByDisputeId(raised.head.id).size, 1)
 
   test("checkForMissingFile falls back to the spec's own createdAt when no file has ever arrived"):
     transact(transactor):

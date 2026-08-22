@@ -12,6 +12,7 @@ import ox.flow.Flow
 
 import java.io.InputStream
 import java.time.Instant.now
+import java.time.OffsetDateTime
 
 case class IngestionResult(
   recordCount:          Int,
@@ -35,6 +36,7 @@ class Ingestor(using
   val fileInventoryRepo: FileInventoryRepo,
   val fileSourceFactory: FileSourceFactory,
   val disputeRepo:       DisputeRepo,
+  val disputeCommentRepo: DisputeCommentRepo,
   val clock:             ClockService,
   val transactor:        Transactor
 ):
@@ -211,30 +213,55 @@ class Ingestor(using
       fileInventory
 
   /**
-   * Auto-raises a FileMissing dispute against the MovementSpec itself when no new file has been
-   * detected within its expectedCadenceHours window. Unlike AmountMismatch (which always targets a
-   * real Reconciliation row), a missing file has no FileInventory row to reference — there's nothing
-   * to point at except the spec that expected it. A no-op when expectedCadenceHours isn't configured
-   * (not every spec is fed by a scheduled file drop, so there's nothing to compare against). The
-   * baseline for "since when" is the most recently seen file for this spec, or the spec's own
-   * createdAt if none has ever arrived; insertIfNoOpenDispute keeps repeated scans idempotent.
+   * Auto-raises (or auto-resolves) a FileMissing dispute against the MovementSpec itself, based on
+   * whether a new file has been detected within its expectedCadenceHours window. Unlike
+   * AmountMismatch (which always targets a real Reconciliation row), a missing file has no
+   * FileInventory row to reference — there's nothing to point at except the spec that expected it.
+   * A no-op when expectedCadenceHours isn't configured (not every spec is fed by a scheduled file
+   * drop, so there's nothing to compare against). The baseline for "since when" is the most recently
+   * seen file for this spec, or the spec's own createdAt if none has ever arrived.
    */
   def checkForMissingFile(movementSpec: MovementSpec): Txn[Unit] =
     movementSpec.expectedCadenceHours.foreach: cadenceHours =>
       val lastSeenAt =
         fileInventoryRepo.findLatestByMovementSpecId(movementSpec.id).map(_.lastModifiedAt).orElse(movementSpec.createdAt)
       lastSeenAt.foreach: since =>
-        if clock.now.isAfter(since.plusHours(cadenceHours)) then
-          val dispute = Dispute(
-            referenceId = movementSpec.id,
-            targetType  = DisputeTarget.MovementSpec,
-            category    = DisputeCategory.FileMissing,
-            detail      = Some(s"No new file detected for '${movementSpec.name}' since $since (expected every $cadenceHours hours)"),
-            createdAt   = Some(clock.now),
-            updatedAt   = Some(clock.now)
-          )
-          disputeRepo.insertIfNoOpenDispute(dispute).foreach: raised =>
-            eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
+        if clock.now.isAfter(since.plusHours(cadenceHours)) then raiseFileMissingDispute(movementSpec, cadenceHours, since)
+        else resolveFileMissingDispute(movementSpec)
+
+  // insertIfNoOpenDispute keeps repeated scans idempotent: reruns of this spec, or a spec that's
+  // still overdue on a later cycle, must not raise a second dispute for the same gap.
+  private def raiseFileMissingDispute(movementSpec: MovementSpec, cadenceHours: Int, since: OffsetDateTime): Txn[Unit] =
+    val dispute = Dispute(
+      referenceId = movementSpec.id,
+      targetType  = DisputeTarget.MovementSpec,
+      category    = DisputeCategory.FileMissing,
+      detail      = Some(s"No new file detected for '${movementSpec.name}' since $since (expected every $cadenceHours hours)"),
+      createdAt   = Some(clock.now),
+      updatedAt   = Some(clock.now)
+    )
+    disputeRepo.insertIfNoOpenDispute(dispute).foreach: raised =>
+      eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
+
+  // The mirror image of raiseFileMissingDispute: once a file shows up within cadence again, any
+  // open FileMissing dispute for this spec is stale and should close itself, the same way a human
+  // resolving a dispute would (status change + an explanatory comment), not just be forgotten.
+  private def resolveFileMissingDispute(movementSpec: MovementSpec): Txn[Unit] =
+    disputeRepo.findOpenByReferenceIdAndCategory(movementSpec.id, DisputeCategory.FileMissing).foreach: dispute =>
+      dispute.status    = DisputeStatus.Resolved
+      dispute.updatedAt = Some(clock.now)
+      disputeRepo.update(dispute)
+      eventStore.publishEvent(DisputeStatusChanged(disputeID = dispute.id, newStatus = DisputeStatus.Resolved.toString))
+
+      val comment = disputeCommentRepo.insertReturning(
+        DisputeComment(
+          disputeId = dispute.id,
+          body      = Some(s"Auto-resolved: a new file was detected for '${movementSpec.name}'."),
+          newStatus = Some(DisputeStatus.Resolved),
+          createdAt = Some(clock.now)
+        )
+      )
+      eventStore.publishEvent(DisputeCommentAdded(disputeID = dispute.id, commentID = comment.id))
 
   def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
     fileInventoryRepo

@@ -1,7 +1,8 @@
 package onparity.adapter.driven
 
 import com.augustnagro.magnum.{DbCon, Repo, sql}
-import onparity.domain.model.Dispute
+import onparity.common.model.model.ID
+import onparity.domain.model.{Dispute, DisputeCategory}
 import onparity.domain.port.driven.DisputeRepo
 
 import java.util.UUID
@@ -15,4 +16,12 @@ class DisputeRepoLive extends Repo[Dispute, Dispute, UUID] with DisputeRepo:
       VALUES ($dispute)
       ON CONFLICT (reference_id, category) WHERE status <> 'resolved' DO NOTHING
       RETURNING ${d.all}
+    """.query[Dispute].run().headOption
+
+  def findOpenByReferenceIdAndCategory(referenceId: ID, category: DisputeCategory)(using DbCon): Option[Dispute] =
+    sql"""
+      SELECT ${d.all}
+      FROM $d
+      WHERE reference_id = $referenceId AND category = $category AND status <> 'resolved'
+      LIMIT 1
     """.query[Dispute].run().headOption
