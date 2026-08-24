@@ -12,8 +12,8 @@ import upickle.default.*
 object UnreconciledMovementsPage:
 
   case class State(
-    accounts:   Seq[AccountPayload]           = Seq.empty,
-    movements:  Seq[MovementPayload]          = Seq.empty,
+    accounts:   Seq[AccountPayload]            = Seq.empty,
+    movements:  Seq[MovementPayload]           = Seq.empty,
     reconSpecs: Seq[ReconciliationSpecPayload] = Seq.empty
   )
 
@@ -41,9 +41,9 @@ object UnreconciledMovementsPage:
         case Right(specs) => state.update(_.copy(reconSpecs = specs))
         case Left(e)      => AppState.globalError.set(Some(e))
       },
-      cls := "flex flex-col items-center mb-8 pt-20",
+      cls := "flex flex-col mb-8 pt-20",
       div(
-        cls := "my-8 text-center",
+        cls := "my-8 w-full px-8",
         PageHeader.title(
           child.text <-- state.signal.map { s =>
             val name = s.accounts.find(_.id.contains(accountId)).map(_.name).getOrElse(accountId)

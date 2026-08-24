@@ -25,10 +25,10 @@ object ExceptionsPage:
         case Right(ds) => state.update(_.copy(disputes = ds))
         case Left(e)   => AppState.globalError.set(Some(e))
       },
-      onMountCallback { _ => loadBus.emit(()) },
-      cls := "flex flex-col items-center mb-8 pt-20",
+      onMountCallback(_ => loadBus.emit(())),
+      cls := "flex flex-col mb-8 pt-20",
       div(
-        cls := "my-8 text-center w-full max-w-7xl",
+        cls := "my-8 w-full px-8",
         PageHeader.title("Exceptions & Disputes"),
         child <-- state.signal.map { s =>
           Table.create(

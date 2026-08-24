@@ -99,21 +99,21 @@ object FundFlowPage:
         case (id, Left(e)) =>
           state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.Failed(e))))
       },
-      cls := "flex flex-col items-center mb-8 pt-20 w-full",
+      cls := "flex flex-col mb-8 pt-20",
       div(
-        cls := "w-full max-w-5xl px-8",
+        cls := "w-full px-8",
         PageHeader.title(ff.name)
       ),
       div(
         cls := "w-full border-b border-gray-200 mb-6",
         div(
-          cls := "max-w-5xl mx-auto px-8 flex -mb-px space-x-8",
+          cls := "w-full px-8 flex -mb-px space-x-8",
           tabButton("Accounts", "Account", activeTab),
           tabButton("Configuration", "Configuration", activeTab)
         )
       ),
       div(
-        cls := "w-full max-w-5xl px-8",
+        cls := "w-full px-8",
         child <-- activeTab.signal.map {
           case "Configuration" =>
             div(

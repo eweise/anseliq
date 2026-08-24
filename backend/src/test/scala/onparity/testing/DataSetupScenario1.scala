@@ -4,7 +4,7 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.*
 import onparity.common.model.*
-import onparity.common.model.ReconRelationship.{OneToMany}
+import onparity.common.model.ReconRelationship.OneToMany
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
 
@@ -46,9 +46,10 @@ class DataSetupScenario1 extends munit.FunSuite:
       val journalToRecon =
         operations.createMovementSpec(
           MovementSpecPayload(
-            name         = "Journal to Recon",
-            outAccountId = journalAccount.id.get,
-            inAccountId  = reconAccount.id.get,
+            expectedCadenceHours = Some(24),
+            name                 = "Journal to Recon",
+            outAccountId         = journalAccount.id.get,
+            inAccountId          = reconAccount.id.get,
             dataSourceConfig = Some(
               DataSourceConfig(
                 parserConfig = CSVParserConfig(
@@ -67,9 +68,10 @@ class DataSetupScenario1 extends munit.FunSuite:
 
       val reconToBank = operations.createMovementSpec(
         MovementSpecPayload(
-          name         = "Recon to Bank",
-          outAccountId = reconAccount.id.get,
-          inAccountId  = bankAccount.id.get,
+          expectedCadenceHours = Some(24),
+          name                 = "Recon to Bank",
+          outAccountId         = reconAccount.id.get,
+          inAccountId          = bankAccount.id.get,
           dataSourceConfig = Some(
             DataSourceConfig(
               parserConfig = CSVParserConfig(

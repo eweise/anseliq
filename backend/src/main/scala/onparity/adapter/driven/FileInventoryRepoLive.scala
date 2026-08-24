@@ -21,7 +21,7 @@ class FileInventoryRepoLive extends Repo[FileInventory, FileInventory, UUID] wit
 
   def findAllWithMovementSpecName()(using DbCon): Vector[(FileInventory, String)] =
     sql"""
-      SELECT fi.*, ms.name
+      SELECT ${fi.alias("fi").all}, ms.name
       FROM $fi AS fi
       JOIN movement_spec ms ON fi.movement_spec_id = ms.id
       ORDER BY fi.last_modified_at DESC

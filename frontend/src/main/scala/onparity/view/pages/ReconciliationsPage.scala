@@ -19,15 +19,15 @@ object ReconciliationsPage:
 
   private def statusPill(r: ReconciliationPayload): HtmlElement =
     val (label, tone) = r.status match
-      case "InProgress"                                    => "In Progress" -> Pill.Tone.Warning
+      case "InProgress"                                     => "In Progress" -> Pill.Tone.Warning
       case "Final" if r.adjustmentReason.exists(_.nonEmpty) => "Written Off" -> Pill.Tone.Serious
-      case "Final"                                          => "Final"      -> Pill.Tone.Good
-      case "Voided"                                         => "Voided"     -> Pill.Tone.Neutral
-      case other                                            => other        -> Pill.Tone.Neutral
+      case "Final"                                          => "Final"       -> Pill.Tone.Good
+      case "Voided"                                         => "Voided"      -> Pill.Tone.Neutral
+      case other                                            => other         -> Pill.Tone.Neutral
     Pill(label, tone)
 
   def apply(accountId: String, specId: String): HtmlElement =
-    val state = Var(State())
+    val state       = Var(State())
     val loadBus     = EventBus[Unit]()
     val unmatchBus  = EventBus[String]()
     val writeOffBus = EventBus[(String, String)]()
@@ -61,16 +61,25 @@ object ReconciliationsPage:
           loadBus.emit(())
         case Left(e) => AppState.globalError.set(Some(e))
       },
-      onMountCallback { _ => loadBus.emit(()) },
-      cls := "flex flex-col items-center mb-8 pt-20",
+      onMountCallback(_ => loadBus.emit(())),
+      cls := "flex flex-col mb-8 pt-20",
       div(
-        cls := "my-8 text-center",
+        cls := "my-8 w-full px-8",
         PageHeader.title("Reconciliations"),
         Buttons.linkButton("Back to Recon Specs", Observer[Unit](_ => Nav.toReconSpecs(accountId))),
         Buttons.textButton("Manual Match", Observer[Unit](_ => Nav.toManualMatch(accountId, specId))),
         child <-- state.signal.map { s =>
           Table.create(
-            Seq("Description", "Status", "Applied Rules", "Balance", "Adjustment Reason", "Created At", "Updated At", "Actions"),
+            Seq(
+              "Description",
+              "Status",
+              "Applied Rules",
+              "Balance",
+              "Adjustment Reason",
+              "Created At",
+              "Updated At",
+              "Actions"
+            ),
             s.recons.map(r =>
               Seq(
                 span(r.description),
@@ -87,12 +96,13 @@ object ReconciliationsPage:
                     div(
                       cls := "flex flex-col gap-1",
                       (if r.status == "InProgress" then
-                         if s.editingWriteOff.contains(r.id) then
-                           writeOffInput(r.id, writeOffBus)
+                         if s.editingWriteOff.contains(r.id) then writeOffInput(r.id, writeOffBus)
                          else
-                           Buttons.textButton("Write Off", Observer[Unit](_ => state.update(_.copy(editingWriteOff = Some(r.id)))))
-                       else
-                         span(): HtmlElement),
+                           Buttons.textButton(
+                             "Write Off",
+                             Observer[Unit](_ => state.update(_.copy(editingWriteOff = Some(r.id))))
+                           )
+                       else span(): HtmlElement),
                       Buttons.textButton("Unmatch", Observer[Unit](_ => unmatchBus.emit(r.id)))
                     )
                 )
