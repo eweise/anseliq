@@ -197,21 +197,27 @@ class Ingestor(using
     val newFiles    = sourceFiles.filterNot(f => existingFileSourceEntries.contains(f))
 
     newFiles.map: newFile =>
-      val fileSourceEntryJson = upickle.write(newFile)
-      val now                 = clock.now
-      val fileInventory = FileInventory(
-        movementSpecId      = movementSpecID,
-        sourceSystem        = source.sourceSystem,
-        fileSourceEntryJson = fileSourceEntryJson,
-        fileSizeBytes       = newFile.fileSizeBytes,
-        lastModifiedAt      = newFile.lastModifiedAt,
-        status              = FileInventoryStatus.QUEUED,
-        lastProcessedAt     = Some(now),
-        updatedAt           = Some(now)
-      )
+      val fileInventory: FileInventory = createFileInventory(movementSpecID, source, newFile)
       fileInventoryRepo.insert(fileInventory)
       eventStore.publishEvent(NewFileDetected(fileInventoryID = fileInventory.id))
       fileInventory
+
+  // separated out method so it could be overridden in tests
+  protected def createFileInventory(movementSpecID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory = {
+    val fileSourceEntryJson = upickle.write(newFile)
+    val now                 = clock.now
+    val fileInventory = FileInventory(
+      movementSpecId      = movementSpecID,
+      sourceSystem        = source.sourceSystem,
+      fileSourceEntryJson = fileSourceEntryJson,
+      fileSizeBytes       = newFile.fileSizeBytes,
+      lastModifiedAt      = newFile.lastModifiedAt,
+      status              = FileInventoryStatus.QUEUED,
+      lastProcessedAt     = Some(now),
+      updatedAt           = Some(now)
+    )
+    fileInventory
+  }
 
   /**
    * Auto-raises (or auto-resolves) a FileMissing dispute against the MovementSpec itself, based on

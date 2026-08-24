@@ -1,43 +1,23 @@
 package onparity
 
-import com.augustnagro.magnum.{Transactor, transact}
+import com.augustnagro.magnum.transact
 import com.typesafe.config.ConfigFactory
-import onparity.adapter.driven.*
+import onparity.app.AppEnv
 import onparity.common.model.*
 import onparity.common.model.Interval.Day
 import onparity.common.model.model.ID
 import onparity.domain.model.*
 import onparity.domain.model.Relationship.OneToMany
-import onparity.domain.port.driven.*
-import onparity.domain.service.*
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
-import javax.sql.DataSource
 
 class EndToEndSuite extends munit.FunSuite {
-  given clock: ClockService = ClockServiceLive()
 
-  given transactor: Transactor = Transactor(dataSource)
-
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-
-  given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
-  given movementRepo:       MovementRepo           = MovementRepoLive()
-  given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
-  given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
-  given accountRepo:        AccountRepo            = AccountRepoLive()
-  given eventRepo:          EventRepo              = EventRepoLive()
-  given eventStore:         EventStore             = EventStore()
-  given jobRepo:            JobRepo                = JobRepoLive()
-  given disputeRepo:        DisputeRepo            = DisputeRepoLive()
-  given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
-  given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
-  given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
-  given ledger:             Ledger                 = Ledger()
-  given ingestor:           Ingestor               = Ingestor()
-  given reconciler:         InMemoryReconciler     = InMemoryReconciler()
+  // Reuses Main's exact adapter wiring instead of hand-duplicating it here, so this suite can't
+  // drift out of sync with production wiring the way it previously did.
+  private val env = AppEnv(config = ConfigFactory.load("test-application.conf"))
+  export env.given
 
   // ingestResumable (unlike the now-deleted Ingestor.ingest) commits its own batches in their own
   // transactions rather than participating in the caller's, so these tests can no longer rely on
@@ -64,7 +44,9 @@ class EndToEndSuite extends munit.FunSuite {
       val movementSpecIds = movementSpecs.map(_.id).toSet
       eventRepo
         .findByEventType("MoneyMovementsIngested")
-        .filter(es => scala.util.Try(movementSpecIds.contains(es.event[MoneyMovementsIngested].movementSpecID)).getOrElse(false))
+        .filter(es =>
+          scala.util.Try(movementSpecIds.contains(es.event[MoneyMovementsIngested].movementSpecID)).getOrElse(false)
+        )
         .foreach(es => eventRepo.deleteById(es.id))
       fundFlowConfigRepo.deleteById(fundFlowConfig.id)
 
@@ -180,8 +162,7 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
-    finally
-      teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
+    finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
 
   test("1 to 1 where report date 1 day greater than journal date") {
@@ -304,8 +285,7 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
-    finally
-      teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
+    finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
 
   test(
@@ -447,7 +427,6 @@ class EndToEndSuite extends munit.FunSuite {
             && m.props.getOrElse("account_id", "") == "ddd"
         )
         assert(u2.nonEmpty)
-    finally
-      teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reconToReport), reconAccount.id)
+    finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reconToReport), reconAccount.id)
   }
 }
