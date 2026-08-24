@@ -32,7 +32,8 @@ case class TrendPoint(
   date:                     LocalDate,
   avgMatchRatePercent:      Option[BigDecimal],
   openExceptionCount:       Int,
-  unreconciledBacklogCount: Int, // sum of the four aging buckets
+  openExceptionsByCategory: Map[String, Int], // DisputeCategory.toString -> count, summed across fund flows in scope
+  unreconciledBacklogCount: Int,              // sum of the four aging buckets
   overdueCount:             Int
 )
 

@@ -254,6 +254,7 @@ case class TrendPointPayload(
   date:                     String, // ISO-8601 (yyyy-MM-dd)
   avgMatchRatePercent:      Option[BigDecimal],
   openExceptionCount:       Int,
+  openExceptionsByCategory: Map[String, Int],
   unreconciledBacklogCount: Int,
   overdueCount:             Int
 ) derives ReadWriter

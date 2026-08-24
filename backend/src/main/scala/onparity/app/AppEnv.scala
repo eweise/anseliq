@@ -242,6 +242,11 @@ class AppEnv(
               transact(Transactor(dataSource = dataSource)):
                 val beginTime = System.currentTimeMillis()
                 val count     = reportingService.computeAndStoreDailySnapshots()
+
+                val staleMismatchCount = reconSpecRepo.findAll.map(reconciler.raiseStaleMismatchDisputes).sum
+                if staleMismatchCount > 0 then
+                  logger.info(s"raised $staleMismatchCount stale OneToMany AmountMismatch dispute(s)")
+
                 jobManager.completeJob(
                   job.id,
                   ReconStatsInfo(

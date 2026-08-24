@@ -193,10 +193,15 @@ object ReportingService:
                 .setScale(2, BigDecimal.RoundingMode.HALF_UP)
             )
 
+        val byCategory = dayRows
+          .flatMap(r => upickle.read[Map[String, Int]](r.exceptionsByCategoryJson))
+          .groupMapReduce(_._1)(_._2)(_ + _)
+
         TrendPoint(
-          date                = date,
-          avgMatchRatePercent = avgMatchRate,
-          openExceptionCount  = dayRows.map(_.openExceptionCount).sum,
+          date                     = date,
+          avgMatchRatePercent      = avgMatchRate,
+          openExceptionCount       = dayRows.map(_.openExceptionCount).sum,
+          openExceptionsByCategory = byCategory,
           unreconciledBacklogCount =
             dayRows.map(r => r.agingZeroToThree + r.agingFourToSeven + r.agingEightToFourteen + r.agingFifteenPlus).sum,
           overdueCount = dayRows.map(_.overdueCount).sum

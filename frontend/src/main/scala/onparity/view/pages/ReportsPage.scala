@@ -133,8 +133,30 @@ object ReportsPage:
         cls := "flex gap-2 mt-3 flex-wrap",
         statusLabels.map(s => Pill(s"$s: ${summary.exceptions.byStatus.getOrElse(s, 0)}", statusTone(s)))
       ),
-      trendChart("Open exceptions over time", trend.map(_.points.map(p => p.date -> p.openExceptionCount.toDouble)))
+      exceptionTrendChart(categoryLabels, trend)
     )
+
+  // One line per category rather than a single aggregate line, so a spike is traceable to which
+  // kind of exception caused it. Categories with zero activity across the whole window are left
+  // out of the chart/legend entirely — with 6 possible categories, most fund flows only ever see
+  // one or two, and a legend padded with flat-zero lines is more noise than signal.
+  private def exceptionTrendChart(categoryLabels: Seq[String], trend: Option[TrendReportPayload]): HtmlElement =
+    trend match
+      case Some(t) if t.points.nonEmpty =>
+        val datasets = categoryLabels
+          .map(cat => cat -> t.points.map(p => p.openExceptionsByCategory.getOrElse(cat, 0).toDouble))
+          .filter(_._2.exists(_ > 0))
+        if datasets.isEmpty then div()
+        else
+          div(
+            cls := "mt-4 pt-4 border-t border-md-outline",
+            h4(
+              cls := "text-xs font-medium mb-2 text-md-on-surface-variant dark:text-gray-400",
+              "Open exceptions over time"
+            ),
+            ChartCanvas.multiLine(Val(ChartCanvas.MultiSeries(t.points.map(_.date), datasets)))
+          )
+      case _ => div()
 
   private def statusTone(status: String): Pill.Tone = status match
     case "New"           => Pill.Tone.Accent
