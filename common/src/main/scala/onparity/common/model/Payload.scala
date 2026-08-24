@@ -83,11 +83,12 @@ case class JobInfoPayload(
 ) derives ReadWriter
 
 case class FundFlowPayload(
-  id:        Option[String]         = None,
-  name:      String                 = "",
-  accounts:  Seq[AccountPayload]    = Seq(),
-  createdAt: Option[OffsetDateTime] = None,
-  updatedAt: Option[OffsetDateTime] = None
+  id:               Option[String]         = None,
+  name:             String                 = "",
+  accounts:         Seq[AccountPayload]    = Seq(),
+  createdAt:        Option[OffsetDateTime] = None,
+  updatedAt:        Option[OffsetDateTime] = None,
+  dailyCutoffHours: Int                    = 0
 ) derives ReadWriter
 
 enum ReconRelationship derives ReadWriter:
@@ -262,17 +263,17 @@ case class TrendReportPayload(
 ) derives ReadWriter
 
 case class FileInventoryPayload(
-  id:                 String,
-  movementSpecId:     String,
-  movementSpecName:   String,
-  sourceSystem:       String,
-  fileName:           String,
-  fileSizeBytes:      Long,
-  lastModifiedAt:     OffsetDateTime,
-  status:             String,
-  lastProcessedAt:    Option[OffsetDateTime],
-  lastProcessedLine:  Option[Long],
-  updatedAt:          Option[OffsetDateTime]
+  id:                String,
+  movementSpecId:    String,
+  movementSpecName:  String,
+  sourceSystem:      String,
+  fileName:          String,
+  fileSizeBytes:     Long,
+  lastModifiedAt:    OffsetDateTime,
+  status:            String,
+  lastProcessedAt:   Option[OffsetDateTime],
+  lastProcessedLine: Option[Long],
+  updatedAt:         Option[OffsetDateTime]
 ) derives ReadWriter
 
 def combineAccountsAndMovementSpecs(

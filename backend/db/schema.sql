@@ -8,10 +8,14 @@ create schema if not exists recon;
 
 create table recon.fund_flow_config
 (
-    id         uuid primary key,
-    name       text                                  not null unique,
-    created_at timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at timestamptz default CURRENT_TIMESTAMP not null
+    id                 uuid primary key,
+    name               text                                  not null unique,
+    created_at         timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at         timestamptz default CURRENT_TIMESTAMP not null,
+    -- Hour of day (0-23, server local time) after which the daily reporting snapshot for "today"
+    -- is allowed to be generated. Defaults to 0 (midnight) so it fires as soon as the day rolls
+    -- over unless a fund flow configures a later cutoff to let its data settle first.
+    daily_cutoff_hours int         default 0                 not null
 );
 
 create table recon.account

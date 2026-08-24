@@ -6,7 +6,7 @@ import onparity.common.model.*
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, PageHeader, Pill, Table}
+import onparity.view.components.{Buttons, Form, PageHeader, Pill, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -30,12 +30,26 @@ object FundFlowPage:
 
   private def renderPage(ff: FundFlowPayload): HtmlElement =
     val ffId              = ff.id.getOrElse("")
+    val ffVar             = Var(ff)
     val state             = Var(State())
     val configureReconBus = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
     val reconcileBus      = EventBus[String]()
+    val saveFundFlowBus   = EventBus[Unit]()
 
     div(
+      saveFundFlowBus.events.flatMapSwitch { _ =>
+        ApiClient.put[FundFlowPayload, FundFlowPayload](
+          HttpPath.url(s"${HttpPath.fundFlow}/$ffId"),
+          ffVar.now(),
+          SessionStore.token
+        )
+      } --> {
+        case Right(updated) =>
+          ffVar.set(updated)
+          AppState.activeFundFlow.set(Some(updated))
+        case Left(e) => AppState.globalError.set(Some(e))
+      },
       ApiClient
         .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token) --> {
         case Right(accounts) => state.update(_.copy(accounts = accounts))
@@ -102,7 +116,7 @@ object FundFlowPage:
       cls := "flex flex-col mb-8 pt-20",
       div(
         cls := "w-full px-8",
-        PageHeader.title(ff.name)
+        PageHeader.title(child.text <-- ffVar.signal.map(_.name))
       ),
       div(
         cls := "w-full border-b border-gray-200 mb-6",
@@ -117,6 +131,17 @@ object FundFlowPage:
         child <-- activeTab.signal.map {
           case "Configuration" =>
             div(
+              div(
+                cls := "mb-6 max-w-md",
+                Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v))),
+                Form.field(
+                  "ffDailyCutoffHours",
+                  "Daily Report Cutoff (hour of day, 0-23)",
+                  ff.dailyCutoffHours.toString,
+                  v => ffVar.update(_.copy(dailyCutoffHours = v.trim.toIntOption.getOrElse(0)))
+                ),
+                Buttons.linkButton("Save Fund Flow", Observer[Unit](_ => saveFundFlowBus.emit(())))
+              ),
               div(
                 cls := "mb-4",
                 Buttons.linkButton(

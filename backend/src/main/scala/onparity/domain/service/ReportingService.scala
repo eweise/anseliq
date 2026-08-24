@@ -102,15 +102,26 @@ class ReportingService(using
   ) derives upickle.default.ReadWriter
 
   /**
-   * Computes today's summary() for every fund flow and upserts one row per fund flow into
-   * daily_snapshot, keyed by (fundFlowId, today). Safe to call more than once on the same day — the
-   * upsert overwrites that day's row rather than duplicating it.
+   * Meant to be polled frequently (e.g. every minute) rather than run once on a fixed schedule,
+   * since "the right time to snapshot" depends on each fund flow's own dailyCutoffHours, not on
+   * when the app happened to start. For each fund flow, today's snapshot becomes due once
+   * clock.now's time-of-day passes that fund flow's cutoff hour — letting a fund flow that expects
+   * late-arriving data delay its snapshot instead of capturing a partial day. A fund flow already
+   * snapshotted for today is skipped (checked via existsForDate) so a 1-minute poll cadence doesn't
+   * recompute summary() every minute for the rest of the day once it's already run. Doesn't
+   * backfill: a period whose cutoff passed while the app was down is never generated retroactively,
+   * only today's is ever considered.
    */
   def computeAndStoreDailySnapshots(): Txn[Int] =
-    val today     = clock.now.toLocalDate
-    val fundFlows = fundFlowConfigRepo.findAll
+    val now   = clock.now
+    val today = now.toLocalDate
 
-    for ff <- fundFlows do
+    val dueFundFlows = fundFlowConfigRepo.findAll.filter { ff =>
+      val cutoff = today.atStartOfDay.atOffset(now.getOffset).plusHours(ff.dailyCutoffHours)
+      !now.isBefore(cutoff) && !dailySnapshotRepo.existsForDate(ff.id, today)
+    }
+
+    for ff <- dueFundFlows do
       val report = summary(Some(ff.id))
       val rated  = report.matchRates.flatMap(m => m.matchRatePercent.map(pct => pct -> m))
       val avgMatchRate =
@@ -140,7 +151,7 @@ class ReportingService(using
         )
       )
 
-    fundFlows.size
+    dueFundFlows.size
 
   /**
    * Reads back the last `days` days of stored snapshots. When fundFlowId is None, aggregates across

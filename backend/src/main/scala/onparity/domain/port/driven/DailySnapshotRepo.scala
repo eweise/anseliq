@@ -12,3 +12,5 @@ trait DailySnapshotRepo extends DomainRepo[DailySnapshot, DailySnapshot]:
   def upsert(snapshot: DailySnapshot): Txn[Unit]
 
   def findTrend(fundFlowId: ID, from: LocalDate, to: LocalDate): Txn[Vector[DailySnapshot]]
+
+  def existsForDate(fundFlowId: ID, date: LocalDate): Txn[Boolean]

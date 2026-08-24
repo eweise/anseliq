@@ -216,17 +216,20 @@ class AppEnv(
             logger.error("failed poll for CreateFileInventory job", ex)
 
       /**
-       * Publishes GenerateReconStats jobs (once daily)
+       * Publishes GenerateReconStats jobs. Runs every minute rather than once every 24 hours
+       * because "due" now depends on each fund flow's own dailyCutoffHours, not on when the app
+       * happened to start — computeAndStoreDailySnapshots itself is the cheap no-op once a fund
+       * flow's snapshot for today already exists, so a tight poll interval is safe here.
        */
       fork:
         val reconStatsScanId = UUID.fromString("00000000-0000-0000-0000-000000000002")
-        repeat(Schedule.fixedInterval(24.hours)) {
+        repeat(Schedule.fixedInterval(1.minute)) {
           try
             transact(Transactor(dataSource = dataSource)):
               jobManager.submitJob(JobType.GenerateReconStats, reconStatsScanId)
           catch
             case ex: Exception =>
-              logger.error(s"Error submitting GenerateReconStats job, will retry in 24h", ex)
+              logger.error(s"Error submitting GenerateReconStats job, will retry in 1m", ex)
         }
 
       /**
