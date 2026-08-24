@@ -31,15 +31,17 @@ object Payload:
 
   def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
     FundFlowConfig(
-      name = payload.name
+      name             = payload.name,
+      dailyCutoffHours = payload.dailyCutoffHours
     )
 
   def fundFlowPayloadFromDomain(ff: FundFlowConfig): FundFlowPayload =
     FundFlowPayload(
-      id        = Some(ff.id.toString),
-      name      = ff.name,
-      createdAt = ff.createdAt,
-      updatedAt = ff.updatedAt
+      id               = Some(ff.id.toString),
+      name             = ff.name,
+      createdAt        = ff.createdAt,
+      updatedAt        = ff.updatedAt,
+      dailyCutoffHours = ff.dailyCutoffHours
     )
 
   def accountPayloadFromDomain(account: Account): AccountPayload =

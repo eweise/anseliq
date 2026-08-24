@@ -34,6 +34,12 @@ object MaintainFundFlowPage:
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
         h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Fund Flow"),
         Form.field("name", "Name", initial.name, v => ff.update(_.copy(name = v))),
+        Form.field(
+          "dailyCutoffHours",
+          "Daily Report Cutoff (hour of day, 0-23)",
+          initial.dailyCutoffHours.toString,
+          v => ff.update(_.copy(dailyCutoffHours = v.trim.toIntOption.getOrElse(0)))
+        ),
         initial.createdAt.fold(div())(ca =>
           Form.field("created_at", "Created At", ViewHelper.formatDateTime(ca), enabled = false)
         ),

@@ -28,7 +28,7 @@ class FundFlowOperations(using
     if payload.id.isEmpty then IllegalArgumentException("Fund flow ID is required")
     val ffID       = UUID.fromString(payload.id.get)
     var existingFF = fundFlowConfigRepo.findById(ffID).ErrIfNotFound("fund flow", ffID)
-    existingFF = existingFF.copy(name = payload.name)
+    existingFF = existingFF.copy(name = payload.name, dailyCutoffHours = payload.dailyCutoffHours)
     fundFlowConfigRepo.update(existingFF)
     Payload.fundFlowPayloadFromDomain(existingFF)
 

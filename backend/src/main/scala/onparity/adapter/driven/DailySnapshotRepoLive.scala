@@ -38,3 +38,10 @@ class DailySnapshotRepoLive extends Repo[DailySnapshot, DailySnapshot, UUID] wit
       AND snapshot_date BETWEEN $from AND $to
       ORDER BY snapshot_date
     """.query[DailySnapshot].run()
+
+  def existsForDate(fundFlowId: ID, date: LocalDate): Txn[Boolean] =
+    sql"""
+      SELECT EXISTS(
+        SELECT 1 FROM $d WHERE fund_flow_id = $fundFlowId AND snapshot_date = $date
+      )
+    """.query[Boolean].run().head

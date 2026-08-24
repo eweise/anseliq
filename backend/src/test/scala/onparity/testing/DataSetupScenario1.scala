@@ -32,7 +32,12 @@ class DataSetupScenario1 extends munit.FunSuite:
 
   test("Setup data for a complete Fund flow scenario"):
     transact(transactor):
-      val fundFlowConfig = operations.createFundFlow(FundFlowPayload(name = s"Scenario1-${UUID.randomUUID()}"))
+      val fundFlowConfig = operations.createFundFlow(
+        FundFlowPayload(
+          name             = s"Scenario1-${UUID.randomUUID()}",
+          dailyCutoffHours = 0
+        )
+      )
 
       val journalAccount =
         operations.createAccount(AccountPayload(name = "Journal", fundFlowId = fundFlowConfig.id.get))

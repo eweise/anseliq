@@ -55,16 +55,16 @@ object ReportsPage:
         loadFundFlowsBus.emit(())
         loadFor(None)
       },
-      cls := "flex flex-col items-center mb-8 pt-20",
+      cls := "flex flex-col mb-8 pt-20",
       div(
-        cls := "my-8 w-full max-w-5xl",
+        cls := "my-8 w-full px-8",
         div(
           cls := "flex justify-between items-center mb-6",
           PageHeader.title("Reports & Analytics"),
           child <-- state.signal.map(s => fundFlowSelect(s.fundFlows, loadFor))
         ),
         child <-- state.signal.map {
-          case State(_, None, _)             => div()
+          case State(_, None, _)              => div()
           case State(_, Some(summary), trend) => widgets(summary, trend)
         }
       )
@@ -79,7 +79,7 @@ object ReportsPage:
 
   private def widgets(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
     div(
-      cls := "grid grid-cols-1 gap-6",
+      cls := "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
       matchRateCard(summary, trend),
       exceptionCard(summary, trend),
       agingCard(summary, trend)
@@ -96,10 +96,15 @@ object ReportsPage:
       div(
         cls := "text-sm text-md-on-surface-variant dark:text-gray-400 mb-3",
         avg match
-          case Some(a) => s"${a.setScale(1, BigDecimal.RoundingMode.HALF_UP)}% reconciled across ${rated.size} account(s)"
-          case None    => "No reconciling accounts with a balance to measure"
+          case Some(a) =>
+            s"${a.setScale(1, BigDecimal.RoundingMode.HALF_UP)}% reconciled across ${rated.size} account(s)"
+          case None => "No reconciling accounts with a balance to measure"
       ),
-      ChartCanvas("bar", Val(Series(rated.map(_.accountName), rated.flatMap(_.matchRatePercent).map(_.toDouble))), horizontal = true),
+      ChartCanvas(
+        "bar",
+        Val(Series(rated.map(_.accountName), rated.flatMap(_.matchRatePercent).map(_.toDouble))),
+        horizontal = true
+      ),
       if excluded.nonEmpty then
         div(
           cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mt-2",
@@ -108,14 +113,17 @@ object ReportsPage:
       else div(),
       trendChart(
         "Match rate over time",
-        trend.map(t => t.points.filter(_.avgMatchRatePercent.isDefined).map(p => p.date -> p.avgMatchRatePercent.get.toDouble))
+        trend.map(t =>
+          t.points.filter(_.avgMatchRatePercent.isDefined).map(p => p.date -> p.avgMatchRatePercent.get.toDouble)
+        )
       )
     )
 
   private def exceptionCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
-    val categoryLabels = Seq("AmountMismatch", "MissingCounterpart", "Duplicate", "TimingDifference", "DataQuality")
+    val categoryLabels =
+      Seq("AmountMismatch", "MissingCounterpart", "Duplicate", "TimingDifference", "DataQuality", "FileMissing")
     val categoryValues = categoryLabels.map(c => summary.exceptions.byCategory.getOrElse(c, 0).toDouble)
-    val statusLabels    = Seq("New", "Investigating", "Escalated")
+    val statusLabels   = Seq("New", "Investigating", "Escalated")
 
     div(
       cls := "border border-md-outline rounded-lg p-4",
@@ -132,7 +140,7 @@ object ReportsPage:
     case "New"           => Pill.Tone.Accent
     case "Investigating" => Pill.Tone.Warning
     case "Escalated"     => Pill.Tone.Critical
-    case _                => Pill.Tone.Neutral
+    case _               => Pill.Tone.Neutral
 
   private def agingCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
     div(
@@ -140,10 +148,16 @@ object ReportsPage:
       h3(cls := "font-medium mb-1 text-md-on-surface dark:text-white", "Unreconciled aging"),
       div(
         cls := "mb-3",
-        Pill(s"${summary.aging.overdueCount} overdue", if summary.aging.overdueCount > 0 then Pill.Tone.Critical else Pill.Tone.Good)
+        Pill(
+          s"${summary.aging.overdueCount} overdue",
+          if summary.aging.overdueCount > 0 then Pill.Tone.Critical else Pill.Tone.Good
+        )
       ),
       ChartCanvas("bar", Val(Series(summary.aging.buckets.map(_._1), summary.aging.buckets.map(_._2.toDouble)))),
-      trendChart("Unreconciled backlog over time", trend.map(_.points.map(p => p.date -> p.unreconciledBacklogCount.toDouble)))
+      trendChart(
+        "Unreconciled backlog over time",
+        trend.map(_.points.map(p => p.date -> p.unreconciledBacklogCount.toDouble))
+      )
     )
 
   // Shared by all three cards: a small line chart of one metric over the last 30 days, or nothing
