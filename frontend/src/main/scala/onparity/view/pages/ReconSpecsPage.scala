@@ -35,9 +35,9 @@ object ReconSpecsPage:
         case Right(specs) => state.update(_.copy(movementSpecs = specs))
         case Left(e)      => AppState.globalError.set(Some(e))
       },
-      cls := "flex flex-col items-center mb-8 pt-20",
+      cls := "flex flex-col mb-8 pt-20",
       div(
-        cls := "my-8 text-center",
+        cls := "my-8 w-full px-8",
         Buttons.linkButton(
           "Add Recon Spec",
           Observer[Unit](_ => Nav.toMaintainReconSpec(accountId))

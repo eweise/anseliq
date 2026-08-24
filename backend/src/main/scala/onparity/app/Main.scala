@@ -50,6 +50,10 @@ object Main:
     given dailySnapshotRepo:  DailySnapshotRepo      = DailySnapshotRepoLive()
     given reportingService:   ReportingService       = ReportingService()
 
+    // set the hours on the clock ahead if arg is present
+    args.headOption.foreach: hour =>
+      clock.addHours(hour.toInt)
+
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdown.countDown()))
 
     val logger = Logger(getClass.getName)

@@ -36,9 +36,9 @@ object EventsPage:
         case Right(events) => state.update(_.copy(events = events))
         case Left(e)       => AppState.globalError.set(Some(e))
       },
-      cls := "flex flex-col items-center mb-8 pt-20 px-8 w-full",
+      cls := "flex flex-col mb-8 pt-20",
       div(
-        cls := "w-full max-w-5xl",
+        cls := "w-full px-8",
         PageHeader.title("Events"),
         div(
           cls := "mb-6 flex items-end gap-3",

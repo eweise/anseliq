@@ -39,29 +39,29 @@ object LeftNav:
     NavGroup(
       "Overview",
       Seq(
-        NavItem("Home", "/", Icons.home)
+        NavItem("Dashboard", "/", Icons.home)
       )
     ),
     NavGroup(
-      "Reconcile",
+      "Operations",
       Seq(
         NavItem("Ledgers", "/components/fund-flows", Icons.document),
-        NavItem("Exceptions & Disputes", "/components/exceptions", Icons.document)
+        NavItem("Exceptions & Disputes", "/components/exceptions", Icons.document),
+        NavItem("File Inventory", "/components/file-inventory", Icons.document),
+        NavItem("Jobs", "/components/jobs", Icons.chart),
+        NavItem("Events", "/components/events", Icons.document)
       )
     ),
     NavGroup(
       "Configure",
       Seq(
-        NavItem("Recon Rules", "/components/coming-soon/recon-rules", Icons.settings),
-        NavItem("Jobs", "/components/jobs", Icons.chart),
-        NavItem("File Inventory", "/components/file-inventory", Icons.document)
+        NavItem("Recon Rules", "/components/coming-soon/recon-rules", Icons.settings)
       )
     ),
     NavGroup(
       "Insights",
       Seq(
-        NavItem("Reports & Analytics", "/components/reports", Icons.chart),
-        NavItem("Events", "/components/events", Icons.document)
+        NavItem("Reports & Analytics", "/components/reports", Icons.chart)
       )
     ),
     NavGroup(
