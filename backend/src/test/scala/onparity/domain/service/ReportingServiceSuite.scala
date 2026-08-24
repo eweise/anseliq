@@ -261,6 +261,29 @@ class ReportingServiceSuite extends munit.FunSuite:
     assertEquals(p.unreconciledBacklogCount, 5) // 1+1+2+1
     assertEquals(p.overdueCount, 4)
 
+  test("aggregateSnapshotsByDate: sums openExceptionsByCategory across fund flows sharing a date, per category"):
+    val date = java.time.LocalDate.of(2026, 1, 15)
+    val rows = Vector(
+      DailySnapshot(
+        fundFlowId               = createID(),
+        snapshotDate             = date,
+        exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 2, "FileMissing" -> 1))
+      ),
+      DailySnapshot(
+        fundFlowId               = createID(),
+        snapshotDate             = date,
+        exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 3, "Duplicate" -> 1))
+      )
+    )
+
+    val points = ReportingService.aggregateSnapshotsByDate(rows)
+
+    assertEquals(points.size, 1)
+    assertEquals(
+      points.head.openExceptionsByCategory,
+      Map("AmountMismatch" -> 5, "FileMissing" -> 1, "Duplicate" -> 1)
+    )
+
   test(
     "aggregateSnapshotsByDate: a fund flow with no rated accounts that day (None) is excluded from the weighted average, not treated as 0"
   ):

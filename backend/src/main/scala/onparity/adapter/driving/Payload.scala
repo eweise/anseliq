@@ -262,6 +262,7 @@ object Payload:
           date                     = p.date.toString,
           avgMatchRatePercent      = p.avgMatchRatePercent,
           openExceptionCount       = p.openExceptionCount,
+          openExceptionsByCategory = p.openExceptionsByCategory,
           unreconciledBacklogCount = p.unreconciledBacklogCount,
           overdueCount             = p.overdueCount
         )

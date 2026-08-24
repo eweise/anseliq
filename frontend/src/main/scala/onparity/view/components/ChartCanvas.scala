@@ -11,6 +11,10 @@ object ChartCanvas:
 
   case class Series(labels: Seq[String], values: Seq[Double])
 
+  // One line chart, multiple named series sharing the same x-axis labels (e.g. one line per
+  // exception category over time) — unlike Series, which is a single dataset.
+  case class MultiSeries(labels: Seq[String], datasets: Seq[(String, Seq[Double])])
+
   private val paletteLight = js.Array("#6d28d9", "#0891b2", "#d97706", "#059669", "#db2777", "#6366f1")
   private val paletteDark  = js.Array("#a78bfa", "#22d3ee", "#fbbf24", "#34d399", "#f472b6", "#818cf8")
 
@@ -90,6 +94,65 @@ object ChartCanvas:
           .combineWithFn(AppState.darkMode.signal)((series, dark) => (series, dark)) --> Observer[(Series, Boolean)] {
           case (series, dark) => render(el.ref, series, dark)
         }
+      },
+      onUnmountCallback(_ => chartInstance.foreach(_.destroy()))
+    )
+
+  def multiLine(dataSignal: Signal[MultiSeries]): HtmlElement =
+    var chartInstance: Option[Chart] = None
+
+    def render(canvas: dom.HTMLCanvasElement, series: MultiSeries, dark: Boolean): Unit =
+      chartInstance.foreach(_.destroy())
+
+      val textColor = if dark then "#e5e7eb" else "#374151"
+      val gridColor = if dark then "#374151" else "#9ca3af"
+      val colors    = if dark then paletteDark else paletteLight
+
+      val scalesConfig = js.Dynamic.literal(
+        x = js.Dynamic
+          .literal(ticks = js.Dynamic.literal(color = textColor), grid = js.Dynamic.literal(color = gridColor)),
+        y = js.Dynamic
+          .literal(ticks = js.Dynamic.literal(color = textColor), grid = js.Dynamic.literal(color = gridColor))
+      )
+
+      // Same borderColor/borderWidth reasoning as the single-line case in apply above, just one
+      // color per named dataset instead of one shared color, cycling the palette if there are
+      // more series than palette entries.
+      val datasets = series.datasets.zipWithIndex.map { case ((name, values), i) =>
+        val color = colors(i % colors.length)
+        js.Dynamic.literal(
+          label                = name,
+          data                 = js.Array(values.map(v => v: js.Any)*),
+          borderColor          = color,
+          backgroundColor      = color,
+          pointBackgroundColor = color,
+          borderWidth          = 2,
+          pointRadius          = 3,
+          tension              = 0.2,
+          fill                 = false
+        )
+      }
+
+      val config = js.Dynamic.literal(
+        `type` = "line",
+        data = js.Dynamic.literal(
+          labels   = js.Array(series.labels*),
+          datasets = js.Array(datasets*)
+        ),
+        options = js.Dynamic.literal(
+          responsive = true,
+          plugins = js.Dynamic
+            .literal(legend = js.Dynamic.literal(display = true, labels = js.Dynamic.literal(color = textColor))),
+          scales = scalesConfig
+        )
+      )
+      chartInstance = Some(new Chart(canvas.getContext("2d"), config))
+
+    canvasTag(
+      heightAttr := 220,
+      inContext { el =>
+        dataSignal.combineWithFn(AppState.darkMode.signal)((series, dark) => (series, dark)) -->
+          Observer[(MultiSeries, Boolean)] { case (series, dark) => render(el.ref, series, dark) }
       },
       onUnmountCallback(_ => chartInstance.foreach(_.destroy()))
     )
