@@ -89,6 +89,24 @@ object Payload:
       case Rel.OneToMany  => ComRel.OneToMany
       case Rel.ManyToMany => ComRel.ManyToMany
 
+  def reconciliationDetailPayloadFromDomain(
+    recon:       Reconciliation,
+    spec:        ReconciliationSpec,
+    accountName: String,
+    movements:   Seq[Movement]
+  ): ReconciliationDetailPayload =
+    ReconciliationDetailPayload(
+      reconciliation = reconFromDomain(recon),
+      spec = ReconciliationSpecSummaryPayload(
+        id           = spec.id.toString,
+        agingLimit   = spec.agingLimit,
+        relationship = reconRelationshipFromDomain(spec.relationship),
+        ruleJson     = spec.ruleJson,
+        accountName  = accountName
+      ),
+      movements = movements.map(m => ReconciliationMovementPayload(id = m.id.toString, amount = m.amount))
+    )
+
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
     ReconciliationPayload(
       id               = recon.id.toString,

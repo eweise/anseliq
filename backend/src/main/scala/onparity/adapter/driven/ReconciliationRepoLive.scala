@@ -28,3 +28,13 @@ class ReconciliationRepoLive extends Repo[Reconciliation, Reconciliation, UUID] 
       AND status = $status
       ORDER BY created_at
     """.query[Reconciliation].run()
+
+  def findByAccountID(accountId: ID, limit: Int): Txn[Vector[Reconciliation]] =
+    sql"""
+      SELECT ${r.alias("a").all}
+      FROM $r AS a
+      JOIN reconciliation_spec rs ON rs.id = a.spec_id
+      WHERE rs.account_id = $accountId
+      ORDER BY a.created_at DESC
+      LIMIT $limit
+    """.query[Reconciliation].run()

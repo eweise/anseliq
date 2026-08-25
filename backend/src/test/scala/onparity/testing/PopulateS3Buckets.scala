@@ -31,13 +31,13 @@ class PopulateS3Buckets extends munit.FunSuite:
 
     val buckets = s3Client.listBuckets()
 
-    for i <- 0 until 10 do {
+    for i <- 0 until 1 do {
       var bankContents     = ""
       var internalContents = ""
-      for (x <- 1 until 100) {
+      for (x <- 1 until 2) {
         val transactionID = UUID.randomUUID()
         bankContents += s"""$transactionID,${x * 10}\n"""
-        internalContents += s"""$transactionID,${x * 10},${OffsetDateTime.now()}\n"""
+        internalContents += s"""$transactionID,${x * 10 + 1},${OffsetDateTime.now()}\n"""
       }
       s3Client.putObject(
         PutObjectRequest

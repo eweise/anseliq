@@ -23,14 +23,18 @@ object Routes:
           path("accounts" / segment / "maintain-recon-spec" / segment)((accountId, reconSpecId) =>
             MaintainReconSpecPage(accountId, reconSpecId)
           ),
-          path("accounts" / segment / "ingest" / segment)((accountId, reconSpecId) => IngestPage(accountId, reconSpecId)),
+          path("accounts" / segment / "ingest" / segment)((accountId, reconSpecId) =>
+            IngestPage(accountId, reconSpecId)
+          ),
           path("accounts" / segment / "reconciliations" / segment)((accountId, reconSpecId) =>
             ReconciliationsPage(accountId, reconSpecId)
           ),
+          path("reconciliations" / segment)(id => ReconciliationDetailPage(id)),
           path("accounts" / segment / "manual-match" / segment)((accountId, reconSpecId) =>
             ManualMatchPage(accountId, reconSpecId)
           ),
           path("accounts" / segment / "unreconciled-movements")(accountId => UnreconciledMovementsPage(accountId)),
+          path("accounts" / segment / "recent-reconciliations")(accountId => AccountReconciliationsPage(accountId)),
           path("maintain-movement-spec" / segment / segment / segment)((outAccountId, inAccountId, id) =>
             MaintainMovementSpecPage(outAccountId, inAccountId, id)
           ),

@@ -17,7 +17,8 @@ object ReconciliationsPage:
     editingWriteOff: Option[String]             = None // reconciliation id currently showing the reason field
   )
 
-  private def statusPill(r: ReconciliationPayload): HtmlElement =
+  // Shared with ReconciliationDetailPage so both pages render status identically.
+  def statusPill(r: ReconciliationPayload): HtmlElement =
     val (label, tone) = r.status match
       case "InProgress"                                     => "In Progress" -> Pill.Tone.Warning
       case "Final" if r.adjustmentReason.exists(_.nonEmpty) => "Written Off" -> Pill.Tone.Serious
@@ -82,7 +83,17 @@ object ReconciliationsPage:
             ),
             s.recons.map(r =>
               Seq(
-                span(r.description),
+                a(
+                  href := s"/components/reconciliations/${r.id}",
+                  cls  := "text-md-primary hover:underline cursor-pointer",
+                  onClick --> { e =>
+                    e.preventDefault()
+                    Nav.toReconciliationDetail(r.id)
+                  },
+                  // description can be blank on real data — fall back to something visibly clickable
+                  // rather than an empty, invisible link.
+                  if r.description.trim.nonEmpty then r.description else "View"
+                ),
                 statusPill(r),
                 span(r.appliedRules),
                 span(r.balance.toString),

@@ -119,7 +119,7 @@ object FundFlowPage:
         PageHeader.title(child.text <-- ffVar.signal.map(_.name))
       ),
       div(
-        cls := "w-full border-b border-gray-200 mb-6",
+        cls := "w-full border-b border-gray-200 dark:border-gray-700 mb-6",
         div(
           cls := "w-full px-8 flex -mb-px space-x-8",
           tabButton("Accounts", "Account", activeTab),
@@ -167,9 +167,6 @@ object FundFlowPage:
                     "Cash Balance",
                     "Unreconciled Balance",
                     "Unreconciled Count",
-                    "",
-                    "",
-                    "",
                     ""
                   ),
                   s.accounts.sortBy(_.name).map { account =>
@@ -184,6 +181,18 @@ object FundFlowPage:
                           unreconCount.toString
                         )
                       else span(cls := "text-right w-full inline-block", unreconCount.toString)
+                    val reconciliationsCell =
+                      if account.isRecon then
+                        a(
+                          href := s"/components/accounts/$accountId/recent-reconciliations",
+                          cls  := "text-md-primary hover:underline cursor-pointer",
+                          onClick --> { e =>
+                            e.preventDefault()
+                            Nav.toAccountReconciliations(accountId)
+                          },
+                          "Reconciliations"
+                        )
+                      else span()
                     Seq(
                       span(cls := "inline-block w-40", account.name),
                       if account.isRecon then Pill("Recon", Pill.Tone.Accent) else Pill("Source", Pill.Tone.Neutral),
@@ -192,10 +201,11 @@ object FundFlowPage:
                         cls := "text-right w-full inline-block",
                         if (account.isRecon) then f"$$${account.unreconciledBalance}%.2f" else ""
                       ),
-                      unreconCell
+                      unreconCell,
+                      reconciliationsCell
                     )
                   },
-                  numCols = Set(2, 3, 4, 5)
+                  numCols = Set(2, 3, 4)
                 )
               }
             )
@@ -208,8 +218,9 @@ object FundFlowPage:
     button(
       cls <-- activeTab.signal.map { active =>
         val base = "px-4 pb-3 text-sm font-medium border-b-2 transition-colors"
-        if active == tabId then s"$base border-gray-900 text-gray-900"
-        else s"$base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+        if active == tabId then s"$base border-gray-900 text-gray-900 dark:border-white dark:text-white"
+        else
+          s"$base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500"
       },
       onClick --> (_ => activeTab.set(tabId)),
       label
