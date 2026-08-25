@@ -193,6 +193,22 @@ case class MovementPayload(
   createdAt:        OffsetDateTime
 ) derives ReadWriter
 
+// Read-only summary for the movement detail page: resolves account/spec names server-side
+// (rather than requiring the caller to look them up) and carries metaData, which MovementPayload
+// (used by list/table views) doesn't.
+case class MovementDetailPayload(
+  id:                String,
+  referenceId:       String,
+  outAccountName:    String,
+  outAccountBalance: Money,
+  inAccountName:     String,
+  inAccountBalance:  Money,
+  amount:            Money,
+  properties:        Properties,
+  metaData:          Properties,
+  movementSpecName:  String
+) derives ReadWriter
+
 case class MovementSpecAndAccounts(
   spec:       MovementSpecPayload,
   inAccount:  AccountPayload,

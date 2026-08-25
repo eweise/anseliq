@@ -80,6 +80,19 @@ object ReconciliationDetailPage:
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Related Movements"),
       Table.create(
         Seq("ID", "Amount"),
-        d.movements.map(m => Seq(span(m.id), span(m.amount.toString)))
+        d.movements.map(m =>
+          Seq(
+            a(
+              href := s"/components/movements/${m.id}",
+              cls  := "text-md-primary hover:underline cursor-pointer",
+              onClick --> { e =>
+                e.preventDefault()
+                Nav.toMovementDetail(m.id)
+              },
+              m.id
+            ),
+            span(m.amount.toString)
+          )
+        )
       )
     )

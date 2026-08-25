@@ -13,6 +13,7 @@ object HttpPath:
   val movementSpecs   = s"$prefix/movement-specs"
   val movementSpec    = s"$prefix/movement-spec"
   val movements       = s"$prefix/movements"
+  val movement        = s"$prefix/movement"
   val reconSpecs      = s"$prefix/recon-specs"
   val reconSpec       = s"$prefix/recon-spec"
   val reconciliations = s"$prefix/reconciliations"
