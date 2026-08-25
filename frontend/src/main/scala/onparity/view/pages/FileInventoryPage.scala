@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
 import onparity.common.model.*
 import onparity.http.ApiClient
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Icons, PageHeader, Table}
@@ -19,10 +20,8 @@ object FileInventoryPage:
         .merge(EventStream.fromValue((), emitOnce = true), fetchBus.events)
         .flatMapSwitch { _ =>
           ApiClient.get[Seq[FileInventoryPayload]](HttpPath.url(HttpPath.fileInventory), SessionStore.token)
-        } --> {
-        case Right(entries) => state.update(_.copy(entries = entries))
-        case Left(e)        => AppState.globalError.set(Some(e))
-      },
+        }
+        .apiBind(entries => state.update(_.copy(entries = entries))),
       cls := "flex flex-col mb-8 pt-20",
       div(
         cls := "w-full px-8",

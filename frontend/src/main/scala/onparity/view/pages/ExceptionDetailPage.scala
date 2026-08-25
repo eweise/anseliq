@@ -2,9 +2,17 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.{AddDisputeCommentRequest, DisputeCommentPayload, DisputeDetailPayload, DisputeStatusPayload, MovementPayload, ReconciliationPayload}
+import onparity.common.model.{
+  AddDisputeCommentRequest,
+  DisputeCommentPayload,
+  DisputeDetailPayload,
+  DisputeStatusPayload,
+  MovementPayload,
+  ReconciliationPayload
+}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Buttons, Form, PageHeader, Pill}
@@ -32,12 +40,12 @@ object ExceptionDetailPage:
   // (no status change) and for a Resolved transition, so we can reject a bad submission before it
   // ever reaches the backend rather than surfacing a raw 500/stack trace to the user.
   private def bodyRequired(newStatus: Option[DisputeStatusPayload]): Boolean = newStatus match
-    case None                              => true
+    case None                                => true
     case Some(DisputeStatusPayload.Resolved) => true
     case Some(_)                             => false
 
   def apply(id: String): HtmlElement =
-    val state          = Var(State())
+    val state           = Var(State())
     val loadBus         = EventBus[Unit]()
     val submitBus       = EventBus[(Option[DisputeStatusPayload], Option[String])]()
     val statusVar       = Var("")
@@ -48,25 +56,20 @@ object ExceptionDetailPage:
       ApiClient.get[DisputeDetailPayload](HttpPath.url(s"${HttpPath.dispute}/$id"), SessionStore.token)
 
     div(
-      loadBus.events.flatMapSwitch(_ => load()) --> {
-        case Right(d) => state.update(_.copy(detail = Some(d)))
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+      loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
       submitBus.events.flatMapSwitch { (newStatus, body) =>
         ApiClient.post[DisputeDetailPayload, AddDisputeCommentRequest](
           HttpPath.url(s"${HttpPath.dispute}/$id/comments"),
           AddDisputeCommentRequest(body, newStatus),
           SessionStore.token
         )
-      } --> {
-        case Right(d) =>
-          state.update(_.copy(detail = Some(d)))
-          statusVar.set("")
-          bodyVar.set("")
-          validationError.set(None)
-        case Left(e) => AppState.globalError.set(Some(e))
+      }.apiBind { d =>
+        state.update(_.copy(detail = Some(d)))
+        statusVar.set("")
+        bodyVar.set("")
+        validationError.set(None)
       },
-      onMountCallback { _ => loadBus.emit(()) },
+      onMountCallback(_ => loadBus.emit(())),
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center w-full max-w-4xl",
@@ -171,8 +174,7 @@ object ExceptionDetailPage:
           val body      = Some(bodyVar.now()).filter(_.nonEmpty)
           if bodyRequired(newStatus) && body.isEmpty then
             validationError.set(Some("A comment is required for this change."))
-          else
-            submitBus.emit((newStatus, body))
+          else submitBus.emit((newStatus, body))
         )
       )
     )

@@ -6,6 +6,7 @@ import onparity.common.model.*
 import onparity.common.model.JobInfoStatus.Complete
 import onparity.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Reconciliation}
 import onparity.http.ApiClient
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Form, Icons, PageHeader, Table}
@@ -25,10 +26,8 @@ object JobsPage:
         )
         .flatMapSwitch { jobType =>
           ApiClient.get[Seq[JobInfoPayload]](HttpPath.url(s"${HttpPath.jobs}/$jobType"), SessionStore.token)
-        } --> {
-        case Right(jobs) => state.update(_.copy(jobs = jobs))
-        case Left(e)     => AppState.globalError.set(Some(e))
-      },
+        }
+        .apiBind(jobs => state.update(_.copy(jobs = jobs))),
       cls := "flex flex-col mb-8 pt-20",
       div(
         cls := "w-full px-8",

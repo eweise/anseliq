@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.*
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, Form, PageHeader, Pill, Table}
 import upickle.default.*
@@ -44,34 +45,28 @@ object FundFlowPage:
           ffVar.now(),
           SessionStore.token
         )
-      } --> {
-        case Right(updated) =>
-          ffVar.set(updated)
-          AppState.activeFundFlow.set(Some(updated))
-        case Left(e) => AppState.globalError.set(Some(e))
+      }.apiBind { updated =>
+        ffVar.set(updated)
+        AppState.activeFundFlow.set(Some(updated))
       },
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token) --> {
-        case Right(accounts) => state.update(_.copy(accounts = accounts))
-        case Left(e)         => AppState.globalError.set(Some(e))
-      },
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .apiBind(accounts => state.update(_.copy(accounts = accounts))),
       ApiClient
         .get[FundFlowSummaryViewPayload](
           HttpPath.url(s"${HttpPath.fundFlow}/$ffId/summary"),
           SessionStore.token
-        ) --> {
-        case Right(summary) =>
+        )
+        .apiBind { summary =>
           val counts = summary.accounts.flatMap(a => a.account.id.map(_ -> a.unreconciledCount)).toMap
           state.update(_.copy(unreconciledCounts = counts))
-        case Left(e) => AppState.globalError.set(Some(e))
-      },
-      ApiClient.get[Seq[MovementSpecPayload]](
-        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
-        SessionStore.token
-      ) --> {
-        case Right(specs) => state.update(_.copy(movementSpecs = specs))
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
+        },
+      ApiClient
+        .get[Seq[MovementSpecPayload]](
+          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          SessionStore.token
+        )
+        .apiBind(specs => state.update(_.copy(movementSpecs = specs))),
       configureReconBus.events.flatMapSwitch { account =>
         ApiClient
           .get[Seq[ReconciliationSpecPayload]](
@@ -96,10 +91,7 @@ object FundFlowPage:
         case Left(e) =>
           AppState.globalError.set(Some(e))
           EventStream.empty
-      } --> {
-        case Right(specs) => state.update(_.copy(movementSpecs = specs))
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
+      }.apiBind(specs => state.update(_.copy(movementSpecs = specs))),
       reconcileBus.events.map { id =>
         state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.InProgress)))
         id

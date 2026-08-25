@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{AccountPayload, MovementSpecPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, DataSourceConfigWidget, Form}
 import upickle.default.*
@@ -26,22 +27,21 @@ object MaintainMovementSpecPage:
     id:           String,
     ff:           onparity.common.model.FundFlowPayload
   ): HtmlElement =
-    val ffId       = ff.id.getOrElse("")
-    val blank      = MovementSpecPayload(outAccountId = outAccountId, inAccountId = inAccountId)
-    val loadState  = Var[LoadState](if id == "new" then LoadState.Ready(blank) else LoadState.Loading)
-    val loadBus    = EventBus[Unit]()
+    val ffId      = ff.id.getOrElse("")
+    val blank     = MovementSpecPayload(outAccountId = outAccountId, inAccountId = inAccountId)
+    val loadState = Var[LoadState](if id == "new" then LoadState.Ready(blank) else LoadState.Loading)
+    val loadBus   = EventBus[Unit]()
 
     div(
-      loadBus.events.flatMapSwitch(_ =>
-        ApiClient.get[Seq[MovementSpecPayload]](
-          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
-          SessionStore.token
+      loadBus.events
+        .flatMapSwitch(_ =>
+          ApiClient.get[Seq[MovementSpecPayload]](
+            HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+            SessionStore.token
+          )
         )
-      ) --> {
-        case Right(specs) => loadState.set(LoadState.Ready(specs.find(_.id.contains(id)).getOrElse(blank)))
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
-      onMountCallback { _ => if id != "new" then loadBus.emit(()) },
+        .apiBind(specs => loadState.set(LoadState.Ready(specs.find(_.id.contains(id)).getOrElse(blank)))),
+      onMountCallback(_ => if id != "new" then loadBus.emit(())),
       child <-- loadState.signal.map {
         case LoadState.Loading =>
           div(
@@ -61,25 +61,23 @@ object MaintainMovementSpecPage:
 
     div(
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token) --> {
-        case Right(accs) => accounts.set(accs)
-        case Left(e)     => AppState.globalError.set(Some(e))
-      },
-      saveBus.events.sample(dsSignal).flatMapSwitch { dsConfig =>
-        val s     = spec.now().copy(dataSourceConfig = dsConfig)
-        val token = SessionStore.token
-        if s.id.isDefined
-        then
-          ApiClient.put[MovementSpecPayload, MovementSpecPayload](
-            HttpPath.url(s"${HttpPath.movementSpec}/${s.id.get}"),
-            s,
-            token
-          )
-        else ApiClient.post[MovementSpecPayload, MovementSpecPayload](HttpPath.url(HttpPath.movementSpec), s, token)
-      } --> {
-        case Right(_) => Nav.back()
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .apiBind(accs => accounts.set(accs)),
+      saveBus.events
+        .sample(dsSignal)
+        .flatMapSwitch { dsConfig =>
+          val s     = spec.now().copy(dataSourceConfig = dsConfig)
+          val token = SessionStore.token
+          if s.id.isDefined
+          then
+            ApiClient.put[MovementSpecPayload, MovementSpecPayload](
+              HttpPath.url(s"${HttpPath.movementSpec}/${s.id.get}"),
+              s,
+              token
+            )
+          else ApiClient.post[MovementSpecPayload, MovementSpecPayload](HttpPath.url(HttpPath.movementSpec), s, token)
+        }
+        .apiBind(_ => Nav.back()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",

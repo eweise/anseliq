@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{AccountPayload, MovementPayload, ReconciliationSpecPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, PageHeader, Table}
 import upickle.default.*
@@ -23,24 +24,20 @@ object UnreconciledMovementsPage:
 
     div(
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token) --> {
-        case Right(accs) => state.update(_.copy(accounts = accs))
-        case Left(e)     => AppState.globalError.set(Some(e))
-      },
-      ApiClient.get[Seq[MovementPayload]](
-        HttpPath.url(s"${HttpPath.account}/$accountId/unreconciled-movements"),
-        SessionStore.token
-      ) --> {
-        case Right(ms) => state.update(_.copy(movements = ms))
-        case Left(e)   => AppState.globalError.set(Some(e))
-      },
-      ApiClient.get[Seq[ReconciliationSpecPayload]](
-        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
-        SessionStore.token
-      ) --> {
-        case Right(specs) => state.update(_.copy(reconSpecs = specs))
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .apiBind(accs => state.update(_.copy(accounts = accs))),
+      ApiClient
+        .get[Seq[MovementPayload]](
+          HttpPath.url(s"${HttpPath.account}/$accountId/unreconciled-movements"),
+          SessionStore.token
+        )
+        .apiBind(ms => state.update(_.copy(movements = ms))),
+      ApiClient
+        .get[Seq[ReconciliationSpecPayload]](
+          HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+          SessionStore.token
+        )
+        .apiBind(specs => state.update(_.copy(reconSpecs = specs))),
       cls := "flex flex-col mb-8 pt-20",
       div(
         cls := "my-8 w-full px-8",

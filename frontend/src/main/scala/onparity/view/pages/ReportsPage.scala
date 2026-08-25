@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
 import onparity.common.model.{FundFlowPayload, ReportsSummaryPayload, TrendReportPayload}
 import onparity.http.ApiClient
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.ChartCanvas.Series
 import onparity.view.components.{ChartCanvas, Form, PageHeader, Pill}
@@ -39,18 +40,9 @@ object ReportsPage:
       loadTrendBus.emit(fundFlowId)
 
     div(
-      loadFundFlowsBus.events.flatMapSwitch(_ => loadFundFlows()) --> {
-        case Right(ffs) => state.update(_.copy(fundFlows = ffs))
-        case Left(e)    => AppState.globalError.set(Some(e))
-      },
-      loadSummaryBus.events.flatMapSwitch(loadSummary) --> {
-        case Right(s) => state.update(_.copy(summary = Some(s)))
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
-      loadTrendBus.events.flatMapSwitch(loadTrend) --> {
-        case Right(t) => state.update(_.copy(trend = Some(t)))
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+      loadFundFlowsBus.events.flatMapSwitch(_ => loadFundFlows()).apiBind(ffs => state.update(_.copy(fundFlows = ffs))),
+      loadSummaryBus.events.flatMapSwitch(loadSummary).apiBind(s => state.update(_.copy(summary = Some(s)))),
+      loadTrendBus.events.flatMapSwitch(loadTrend).apiBind(t => state.update(_.copy(trend = Some(t)))),
       onMountCallback { _ =>
         loadFundFlowsBus.emit(())
         loadFor(None)

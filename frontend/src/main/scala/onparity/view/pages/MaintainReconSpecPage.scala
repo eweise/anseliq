@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{MovementSpecPayload, ReconRelationship, ReconciliationSpecPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, Form, RuleWidget}
 import upickle.default.*
@@ -20,22 +21,25 @@ object MaintainReconSpecPage:
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
       case Some(ff) => renderPage(accountId, reconSpecId, ff)
 
-  private def renderPage(accountId: String, reconSpecId: String, ff: onparity.common.model.FundFlowPayload): HtmlElement =
-    val ffId       = ff.id.getOrElse("")
-    val loadState  = Var[LoadState](if reconSpecId == "new" then LoadState.Ready(None) else LoadState.Loading)
-    val loadBus    = EventBus[Unit]()
+  private def renderPage(
+    accountId:   String,
+    reconSpecId: String,
+    ff:          onparity.common.model.FundFlowPayload
+  ): HtmlElement =
+    val ffId      = ff.id.getOrElse("")
+    val loadState = Var[LoadState](if reconSpecId == "new" then LoadState.Ready(None) else LoadState.Loading)
+    val loadBus   = EventBus[Unit]()
 
     div(
-      loadBus.events.flatMapSwitch(_ =>
-        ApiClient.get[Seq[ReconciliationSpecPayload]](
-          HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
-          SessionStore.token
+      loadBus.events
+        .flatMapSwitch(_ =>
+          ApiClient.get[Seq[ReconciliationSpecPayload]](
+            HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+            SessionStore.token
+          )
         )
-      ) --> {
-        case Right(specs) => loadState.set(LoadState.Ready(specs.find(_.id.contains(reconSpecId))))
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
-      onMountCallback { _ => if reconSpecId != "new" then loadBus.emit(()) },
+        .apiBind(specs => loadState.set(LoadState.Ready(specs.find(_.id.contains(reconSpecId))))),
+      onMountCallback(_ => if reconSpecId != "new" then loadBus.emit(())),
       child <-- loadState.signal.map {
         case LoadState.Loading =>
           div(
@@ -71,41 +75,38 @@ object MaintainReconSpecPage:
     )
 
     div(
-      ApiClient.get[Seq[MovementSpecPayload]](
-        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
-        SessionStore.token
-      ) --> {
-        case Right(specs) =>
+      ApiClient
+        .get[Seq[MovementSpecPayload]](
+          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          SessionStore.token
+        )
+        .apiBind { specs =>
           movementSpecs.set(specs)
           if initialSpec.isEmpty then
             val inSpec  = specs.find(_.inAccountId == accountId).flatMap(_.id).getOrElse("")
             val outSpec = specs.find(_.outAccountId == accountId).flatMap(_.id).getOrElse("")
             spec.update(_.copy(inMovementSpecId = inSpec, outMovementSpecId = outSpec))
-        case Left(e) => AppState.globalError.set(Some(e))
-      },
-      saveBus.events.sample(ruleSignal).flatMapSwitch { rule =>
-        val s     = spec.now().copy(rule = rule)
-        val token = SessionStore.token
-        if s.id.isDefined
-        then
-          ApiClient.put[ReconciliationSpecPayload, ReconciliationSpecPayload](
-            HttpPath.url(s"${HttpPath.reconSpec}/${s.id.get}"),
-            s,
-            token
-          )
-        else
-          ApiClient
-            .post[ReconciliationSpecPayload, ReconciliationSpecPayload](HttpPath.url(HttpPath.reconSpec), s, token)
-      } --> {
-        case Right(_) => Nav.back()
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+        },
+      saveBus.events
+        .sample(ruleSignal)
+        .flatMapSwitch { rule =>
+          val s     = spec.now().copy(rule = rule)
+          val token = SessionStore.token
+          if s.id.isDefined
+          then
+            ApiClient.put[ReconciliationSpecPayload, ReconciliationSpecPayload](
+              HttpPath.url(s"${HttpPath.reconSpec}/${s.id.get}"),
+              s,
+              token
+            )
+          else
+            ApiClient
+              .post[ReconciliationSpecPayload, ReconciliationSpecPayload](HttpPath.url(HttpPath.reconSpec), s, token)
+        }
+        .apiBind(_ => Nav.back()),
       deleteBus.events.flatMapSwitch { _ =>
         ApiClient.delete(HttpPath.url(s"${HttpPath.reconSpec}/${spec.now().id.get}"), SessionStore.token)
-      } --> {
-        case Right(_) => Nav.back()
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+      }.apiBind(_ => Nav.back()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",

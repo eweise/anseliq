@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{MovementSpecPayload, ReconciliationSpecPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, Pill, Table}
 import upickle.default.*
@@ -21,20 +22,18 @@ object ReconSpecsPage:
     val state = Var(State())
 
     div(
-      ApiClient.get[Seq[ReconciliationSpecPayload]](
-        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
-        SessionStore.token
-      ) --> {
-        case Right(specs) => state.update(_.copy(reconSpecs = specs))
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
-      ApiClient.get[Seq[MovementSpecPayload]](
-        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
-        SessionStore.token
-      ) --> {
-        case Right(specs) => state.update(_.copy(movementSpecs = specs))
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
+      ApiClient
+        .get[Seq[ReconciliationSpecPayload]](
+          HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+          SessionStore.token
+        )
+        .apiBind(specs => state.update(_.copy(reconSpecs = specs))),
+      ApiClient
+        .get[Seq[MovementSpecPayload]](
+          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          SessionStore.token
+        )
+        .apiBind(specs => state.update(_.copy(movementSpecs = specs))),
       cls := "flex flex-col mb-8 pt-20",
       div(
         cls := "my-8 w-full px-8",

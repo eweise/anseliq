@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.ReconciliationPayload
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Buttons, PageHeader, Table}
@@ -24,10 +25,7 @@ object AccountReconciliationsPage:
       )
 
     div(
-      loadBus.events.flatMapSwitch(_ => load()) --> {
-        case Right(rs) => state.update(_.copy(recons = rs))
-        case Left(e)   => AppState.globalError.set(Some(e))
-      },
+      loadBus.events.flatMapSwitch(_ => load()).apiBind(rs => state.update(_.copy(recons = rs))),
       onMountCallback(_ => loadBus.emit(())),
       cls := "flex flex-col mb-8 pt-20",
       div(
