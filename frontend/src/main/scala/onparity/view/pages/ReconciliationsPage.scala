@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{ReconciliationPayload, WriteOffRequest}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Buttons, PageHeader, Pill, Table}
@@ -40,27 +41,19 @@ object ReconciliationsPage:
       )
 
     div(
-      loadBus.events.flatMapSwitch(_ => load()) --> {
-        case Right(rs) => state.update(_.copy(recons = rs))
-        case Left(e)   => AppState.globalError.set(Some(e))
-      },
+      loadBus.events.flatMapSwitch(_ => load()).apiBind(rs => state.update(_.copy(recons = rs))),
       unmatchBus.events.flatMapSwitch { reconId =>
         ApiClient.postRaw(HttpPath.url(s"${HttpPath.reconciliation}/$reconId/unmatch"), "", SessionStore.token)
-      } --> {
-        case Right(_) => loadBus.emit(())
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+      }.apiBind(_ => loadBus.emit(())),
       writeOffBus.events.flatMapSwitch { (reconId, reason) =>
         ApiClient.postRaw(
           HttpPath.url(s"${HttpPath.reconciliation}/$reconId/write-off"),
           write(WriteOffRequest(reason)),
           SessionStore.token
         )
-      } --> {
-        case Right(_) =>
-          state.update(_.copy(editingWriteOff = None))
-          loadBus.emit(())
-        case Left(e) => AppState.globalError.set(Some(e))
+      }.apiBind { _ =>
+        state.update(_.copy(editingWriteOff = None))
+        loadBus.emit(())
       },
       onMountCallback(_ => loadBus.emit(())),
       cls := "flex flex-col mb-8 pt-20",

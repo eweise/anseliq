@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{ManualMatchRequest, MovementPayload, ReconciliationPayload, ReconciliationSpecPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, Icons, PageHeader, Table}
 import upickle.default.*
@@ -22,11 +23,11 @@ object ManualMatchPage:
   )
 
   def apply(accountId: String, reconSpecId: String): HtmlElement =
-    val spec     = Var(ReconciliationSpecPayload())
-    val state    = Var(State())
-    val loadBus  = EventBus[Unit]()
+    val spec         = Var(ReconciliationSpecPayload())
+    val state        = Var(State())
+    val loadBus      = EventBus[Unit]()
     val movementsBus = EventBus[ReconciliationSpecPayload]()
-    val matchBus = EventBus[Unit]()
+    val matchBus     = EventBus[Unit]()
 
     def loadReconSpec() =
       ApiClient.get[Seq[ReconciliationSpecPayload]](
@@ -35,23 +36,23 @@ object ManualMatchPage:
       )
 
     def loadMovements(s: ReconciliationSpecPayload) =
-      ApiClient.get[Seq[MovementPayload]](
-        HttpPath.url(s"${HttpPath.movements}/${s.inMovementSpecId}/unreconciled"),
-        SessionStore.token
-      ).combineWith(
-        ApiClient.get[Seq[MovementPayload]](
-          HttpPath.url(s"${HttpPath.movements}/${s.outMovementSpecId}/unreconciled"),
+      ApiClient
+        .get[Seq[MovementPayload]](
+          HttpPath.url(s"${HttpPath.movements}/${s.inMovementSpecId}/unreconciled"),
           SessionStore.token
         )
-      )
+        .combineWith(
+          ApiClient.get[Seq[MovementPayload]](
+            HttpPath.url(s"${HttpPath.movements}/${s.outMovementSpecId}/unreconciled"),
+            SessionStore.token
+          )
+        )
 
     div(
-      loadBus.events.flatMapSwitch(_ => loadReconSpec()) --> {
-        case Right(specs) =>
-          val found = specs.find(_.id.contains(reconSpecId)).getOrElse(ReconciliationSpecPayload())
-          spec.set(found)
-          movementsBus.emit(found)
-        case Left(e) => AppState.globalError.set(Some(e))
+      loadBus.events.flatMapSwitch(_ => loadReconSpec()).apiBind { specs =>
+        val found = specs.find(_.id.contains(reconSpecId)).getOrElse(ReconciliationSpecPayload())
+        spec.set(found)
+        movementsBus.emit(found)
       },
       movementsBus.events.flatMapSwitch(loadMovements) --> {
         case (Right(ins), Right(outs)) =>
@@ -70,13 +71,11 @@ object ManualMatchPage:
           ),
           SessionStore.token
         )
-      } --> {
-        case Right(recon) =>
-          state.update(_.copy(message = Some(s"Match saved as ${recon.status}")))
-          movementsBus.emit(spec.now())
-        case Left(e) => AppState.globalError.set(Some(e))
+      }.apiBind { recon =>
+        state.update(_.copy(message = Some(s"Match saved as ${recon.status}")))
+        movementsBus.emit(spec.now())
       },
-      onMountCallback { _ => loadBus.emit(()) },
+      onMountCallback(_ => loadBus.emit(())),
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8 text-center w-full max-w-4xl",
@@ -94,7 +93,9 @@ object ManualMatchPage:
                     input(
                       typ := "checkbox",
                       checked <-- state.signal.map(_.selectedIn.contains(m.id)),
-                      onClick.mapToUnit --> Observer[Unit](_ => state.update(st => st.copy(selectedIn = toggle(st.selectedIn, m.id))))
+                      onClick.mapToUnit --> Observer[Unit](_ =>
+                        state.update(st => st.copy(selectedIn = toggle(st.selectedIn, m.id)))
+                      )
                     ),
                     referenceIdCell(m, state),
                     span(m.amount.toString)
@@ -114,7 +115,9 @@ object ManualMatchPage:
                     input(
                       typ := "checkbox",
                       checked <-- state.signal.map(_.selectedOut.contains(m.id)),
-                      onClick.mapToUnit --> Observer[Unit](_ => state.update(st => st.copy(selectedOut = toggle(st.selectedOut, m.id))))
+                      onClick.mapToUnit --> Observer[Unit](_ =>
+                        state.update(st => st.copy(selectedOut = toggle(st.selectedOut, m.id)))
+                      )
                     ),
                     referenceIdCell(m, state),
                     span(m.amount.toString)
@@ -165,7 +168,9 @@ object ManualMatchPage:
           onClick.mapToUnit --> Observer[Unit](_ =>
             state.update(st => st.copy(expandedProperties = toggle(st.expandedProperties, m.id)))
           ),
-          child <-- state.signal.map(s => if s.expandedProperties.contains(m.id) then Icons.minusCircle else Icons.plusCircle)
+          child <-- state.signal.map(s =>
+            if s.expandedProperties.contains(m.id) then Icons.minusCircle else Icons.plusCircle
+          )
         ),
         span(m.referenceId)
       ),

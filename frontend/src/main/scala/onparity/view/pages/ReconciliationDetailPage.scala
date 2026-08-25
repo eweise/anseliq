@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.ReconciliationDetailPayload
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Buttons, PageHeader, Table}
@@ -21,10 +22,7 @@ object ReconciliationDetailPage:
       ApiClient.get[ReconciliationDetailPayload](HttpPath.url(s"${HttpPath.reconciliation}/$id"), SessionStore.token)
 
     div(
-      loadBus.events.flatMapSwitch(_ => load()) --> {
-        case Right(d) => state.update(_.copy(detail = Some(d)))
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+      loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),
       cls := "flex flex-col items-center mb-8 pt-20",
       div(

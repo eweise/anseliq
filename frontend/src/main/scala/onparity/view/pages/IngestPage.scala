@@ -7,6 +7,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{MovementSpecPayload, ReconciliationSpecPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.Buttons
 
@@ -21,7 +22,11 @@ object IngestPage:
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
       case Some(ff) => renderPage(accountId, reconSpecId, ff)
 
-  private def renderPage(accountId: String, reconSpecId: String, ff: onparity.common.model.FundFlowPayload): HtmlElement =
+  private def renderPage(
+    accountId:   String,
+    reconSpecId: String,
+    ff:          onparity.common.model.FundFlowPayload
+  ): HtmlElement =
     val reconSpec     = Var(ReconciliationSpecPayload())
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
     val statuses      = Var(Map.empty[String, UploadStatus])
@@ -29,20 +34,18 @@ object IngestPage:
     val fileReadBus   = EventBus[(String, String)]()
 
     div(
-      ApiClient.get[Seq[ReconciliationSpecPayload]](
-        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
-        SessionStore.token
-      ) --> {
-        case Right(specs) => specs.find(_.id.contains(reconSpecId)).foreach(reconSpec.set)
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
-      ApiClient.get[Seq[MovementSpecPayload]](
-        HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
-        SessionStore.token
-      ) --> {
-        case Right(specs) => movementSpecs.set(specs)
-        case Left(e)      => AppState.globalError.set(Some(e))
-      },
+      ApiClient
+        .get[Seq[ReconciliationSpecPayload]](
+          HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+          SessionStore.token
+        )
+        .apiBind(specs => specs.find(_.id.contains(reconSpecId)).foreach(reconSpec.set)),
+      ApiClient
+        .get[Seq[MovementSpecPayload]](
+          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          SessionStore.token
+        )
+        .apiBind(specs => movementSpecs.set(specs)),
       fileReadBus.events.flatMapSwitch { (specId, content) =>
         statuses.update(_.updated(specId, UploadStatus.Uploading))
         ApiClient

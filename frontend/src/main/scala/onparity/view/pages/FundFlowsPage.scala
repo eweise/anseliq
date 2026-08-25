@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.FundFlowPayload
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Buttons, PageHeader, Table}
@@ -16,11 +17,9 @@ object FundFlowsPage:
     val fundFlows = Var(Seq.empty[FundFlowPayload])
 
     div(
-      ApiClient.get[Seq[FundFlowPayload]](HttpPath.url(HttpPath.fundFlows), SessionStore.token) --> {
-        case Right(ffs) =>
-          fundFlows.set(ffs)
-          AppState.fundFlows.set(ffs)
-        case Left(err) => AppState.globalError.set(Some(err))
+      ApiClient.get[Seq[FundFlowPayload]](HttpPath.url(HttpPath.fundFlows), SessionStore.token).apiBind { ffs =>
+        fundFlows.set(ffs)
+        AppState.fundFlows.set(ffs)
       },
       cls := "flex flex-col mb-8 pt-20",
       div(

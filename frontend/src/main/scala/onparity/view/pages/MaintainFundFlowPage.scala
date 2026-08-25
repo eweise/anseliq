@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.FundFlowPayload
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Buttons, Form}
@@ -25,10 +26,7 @@ object MaintainFundFlowPage:
         then
           ApiClient.put[FundFlowPayload, FundFlowPayload](HttpPath.url(s"${HttpPath.fundFlow}/${f.id.get}"), f, token)
         else ApiClient.post[FundFlowPayload, FundFlowPayload](HttpPath.url(HttpPath.fundFlow), f, token)
-      } --> {
-        case Right(_) => Nav.toFundFlows()
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+      }.apiBind(_ => Nav.toFundFlows()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",

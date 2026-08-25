@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
 import onparity.common.model.*
 import onparity.http.ApiClient
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
 import onparity.view.components.{Form, Icons, PageHeader, Table}
@@ -32,10 +33,8 @@ object EventsPage:
             HttpPath.url(s"${HttpPath.events}/$eventType"),
             SessionStore.token
           )
-        } --> {
-        case Right(events) => state.update(_.copy(events = events))
-        case Left(e)       => AppState.globalError.set(Some(e))
-      },
+        }
+        .apiBind(events => state.update(_.copy(events = events))),
       cls := "flex flex-col mb-8 pt-20",
       div(
         cls := "w-full px-8",

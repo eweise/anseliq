@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.AccountPayload
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, Form}
 import upickle.default.*
@@ -26,11 +27,9 @@ object MaintainAccountPage:
       },
       loadBus.events.flatMapSwitch { _ =>
         ApiClient.get[AccountPayload](HttpPath.url(s"${HttpPath.account}/$accountId"), SessionStore.token)
-      } --> {
-        case Right(a) =>
-          account.set(a)
-          setNameBus.emit(a.name)
-        case Left(e) => AppState.globalError.set(Some(e))
+      }.apiBind { a =>
+        account.set(a)
+        setNameBus.emit(a.name)
       },
       saveBus.events.flatMapSwitch { _ =>
         val a     = account.now()
@@ -38,10 +37,7 @@ object MaintainAccountPage:
         if a.id.isDefined
         then ApiClient.put[AccountPayload, AccountPayload](HttpPath.url(s"${HttpPath.account}/${a.id.get}"), a, token)
         else ApiClient.post[AccountPayload, AccountPayload](HttpPath.url(HttpPath.account), a, token)
-      } --> {
-        case Right(_) => Nav.back()
-        case Left(e)  => AppState.globalError.set(Some(e))
-      },
+      }.apiBind(_ => Nav.back()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",

@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import onparity.common.http.BackendApiUrl
 import onparity.common.model.RandomMessage
 import onparity.http.ApiClient
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.Icons
 import upickle.default.*
@@ -17,10 +18,7 @@ object WelcomePage:
     div(
       fetchBus.events.flatMapSwitch { _ =>
         ApiClient.get[RandomMessage](BackendApiUrl.randomMessage2, SessionStore.token)
-      } --> {
-        case Right(RandomMessage(text)) => message.set(Some(text))
-        case Left(err)                  => AppState.globalError.set(Some(err))
-      },
+      }.apiBind { case RandomMessage(text) => message.set(Some(text)) },
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
         cls := "my-8",

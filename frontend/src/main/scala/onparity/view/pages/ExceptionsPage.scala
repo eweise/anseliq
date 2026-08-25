@@ -5,6 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{DisputePayload, DisputeStatusPayload, DisputeTargetPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
+import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{PageHeader, Pill, Table}
 import upickle.default.*
@@ -21,10 +22,7 @@ object ExceptionsPage:
       ApiClient.get[Seq[DisputePayload]](HttpPath.url(HttpPath.disputes), SessionStore.token)
 
     div(
-      loadBus.events.flatMapSwitch(_ => load()) --> {
-        case Right(ds) => state.update(_.copy(disputes = ds))
-        case Left(e)   => AppState.globalError.set(Some(e))
-      },
+      loadBus.events.flatMapSwitch(_ => load()).apiBind(ds => state.update(_.copy(disputes = ds))),
       onMountCallback(_ => loadBus.emit(())),
       cls := "flex flex-col mb-8 pt-20",
       div(
