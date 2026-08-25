@@ -173,6 +173,25 @@ object Payload:
       createdAt        = dmMovement.createdAt.get
     )
 
+  def movementDetailPayloadFromDomain(
+    m:                Movement,
+    outAccountName:   String,
+    inAccountName:    String,
+    movementSpecName: String
+  ): MovementDetailPayload =
+    MovementDetailPayload(
+      id                = m.id.toString,
+      referenceId       = m.referenceId.toString,
+      outAccountName    = outAccountName,
+      outAccountBalance = m.outAccountBalance,
+      inAccountName     = inAccountName,
+      inAccountBalance  = m.inAccountBalance,
+      amount            = m.amount,
+      properties        = m.properties.props,
+      metaData          = m.metaData.props,
+      movementSpecName  = movementSpecName
+    )
+
   def disputeTargetToDomain(p: DisputeTargetPayload): DisputeTarget = p match
     case DisputeTargetPayload.Movement       => DisputeTarget.Movement
     case DisputeTargetPayload.Reconciliation => DisputeTarget.Reconciliation

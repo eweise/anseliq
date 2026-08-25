@@ -53,3 +53,5 @@ object Nav:
 
   def toAccountReconciliations(accountId: String): Unit =
     push(s"/components/accounts/$accountId/recent-reconciliations")
+
+  def toMovementDetail(id: String): Unit = push(s"/components/movements/$id")

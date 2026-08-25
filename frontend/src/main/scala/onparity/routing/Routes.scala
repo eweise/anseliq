@@ -30,6 +30,7 @@ object Routes:
             ReconciliationsPage(accountId, reconSpecId)
           ),
           path("reconciliations" / segment)(id => ReconciliationDetailPage(id)),
+          path("movements" / segment)(id => MovementDetailPage(id)),
           path("accounts" / segment / "manual-match" / segment)((accountId, reconSpecId) =>
             ManualMatchPage(accountId, reconSpecId)
           ),
