@@ -168,6 +168,12 @@ class App(using
       val payload   = movements.map(Payload.movementfromDomainModel)
       write(payload)
 
+  @cask.route(s"${HttpPath.account}/:id/reconciliations", methods = HttpCmd.GET)
+  def reconciliationsByAccount(id: String, limit: Int = 100): String =
+    transact(transactor):
+      val reconciliations = reconRepo.findByAccountID(UUID.fromString(id), limit)
+      write(reconciliations.map(Payload.reconFromDomain))
+
   @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
@@ -219,6 +225,16 @@ class App(using
         payload.description
       )
       write(Payload.reconFromDomain(reconciliation))
+
+  @cask.route(s"${HttpPath.reconciliation}/:id", methods = HttpCmd.GET)
+  def getReconciliationDetail(id: String): String =
+    transact(transactor):
+      val reconId   = UUID.fromString(id)
+      val recon     = reconRepo.findById(reconId).ErrIfNotFound("reconciliation", reconId)
+      val spec      = reconSpecRepo.findById(recon.specId).ErrIfNotFound("reconciliation spec", recon.specId)
+      val account   = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
+      val movements = movementRepo.findByReconciliationID(reconId)
+      write(Payload.reconciliationDetailPayloadFromDomain(recon, spec, account.name, movements))
 
   @cask.route(s"${HttpPath.reconciliation}/:id/unmatch", methods = HttpCmd.POST)
   def unmatchReconciliation(id: String): String =

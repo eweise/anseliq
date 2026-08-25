@@ -116,6 +116,28 @@ case class ReconciliationPayload(
   var updatedAt:    OffsetDateTime
 ) derives ReadWriter
 
+case class ReconciliationMovementPayload(
+  id:     String,
+  amount: Money
+) derives ReadWriter
+
+// Distinct from ReconciliationSpecPayload (the maintain-form shape, keyed by accountId and the
+// parsed Rule): this is a read-only summary for the reconciliation detail page, exposing the raw
+// ruleJson and a resolved accountName rather than requiring the caller to look either up itself.
+case class ReconciliationSpecSummaryPayload(
+  id:           String,
+  agingLimit:   Int,
+  relationship: ReconRelationship,
+  ruleJson:     String,
+  accountName:  String
+) derives ReadWriter
+
+case class ReconciliationDetailPayload(
+  reconciliation: ReconciliationPayload,
+  spec:           ReconciliationSpecSummaryPayload,
+  movements:      Seq[ReconciliationMovementPayload]
+) derives ReadWriter
+
 case class ManualMatchRequest(
   inMovementIds:  Seq[String],
   outMovementIds: Seq[String],

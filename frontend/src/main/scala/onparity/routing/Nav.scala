@@ -48,3 +48,8 @@ object Nav:
     push(s"/components/accounts/$accountId/unreconciled-movements")
 
   def toExceptionDetail(id: String): Unit = push(s"/components/exceptions/$id")
+
+  def toReconciliationDetail(id: String): Unit = push(s"/components/reconciliations/$id")
+
+  def toAccountReconciliations(accountId: String): Unit =
+    push(s"/components/accounts/$accountId/recent-reconciliations")
