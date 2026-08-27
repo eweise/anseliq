@@ -113,7 +113,7 @@ object DataSourceConfigWidget:
       hr(cls := "my-4 border-md-outline-variant"),
       div(
         cls := "flex items-center justify-between mb-3",
-        span(cls := "text-xs font-semibold uppercase tracking-widest text-md-on-surface-variant", "Data Source"),
+        span(cls := Form.sectionLabelCls, "Data Source"),
         div(
           cls := "flex items-center gap-2 cursor-pointer",
           onClick --> (_ => state.update(s => s.copy(enabled = !s.enabled))),
@@ -168,16 +168,26 @@ object DataSourceConfigWidget:
           ),
           div(
             cls <-- state.signal.map(s =>
-              if s.csvFields.isEmpty then "hidden" else "mb-3 border border-md-outline rounded overflow-hidden"
+              if s.csvFields.isEmpty then "hidden"
+              else s"mb-3 ${Form.tableContainerCls}"
             ),
             table(
-              cls := "w-full text-xs border-collapse",
+              cls := Form.tableCls,
               thead(
-                cls := "bg-md-surface-variant",
+                cls := Form.tableHeadCls,
                 tr(
-                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium w-20", "Column #"),
-                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "Field Name"),
-                  th(cls := "text-center px-2 py-2 text-md-on-surface-variant font-medium w-14", "Amount?"),
+                  th(
+                    cls := s"text-left px-2 py-2 w-20 ${Form.tableHeaderCellCls}",
+                    "Column #"
+                  ),
+                  th(
+                    cls := s"text-left px-2 py-2 ${Form.tableHeaderCellCls}",
+                    "Field Name"
+                  ),
+                  th(
+                    cls := s"text-center px-2 py-2 w-14 ${Form.tableHeaderCellCls}",
+                    "Amount?"
+                  ),
                   th(cls := "w-6")
                 )
               ),
@@ -186,33 +196,29 @@ object DataSourceConfigWidget:
                 // preserving input focus when typing
                 children <-- state.signal.map(_.csvFields).splitByIndex { (idx, initialRow, rowSignal) =>
                   tr(
-                    cls := "border-t border-md-outline-variant",
+                    cls := Form.tableRowCls,
                     td(
                       cls := "px-2 py-1.5",
-                      input(
-                        typ          := "number",
-                        cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
-                        placeholder  := "0",
-                        defaultValue := initialRow.columnIndex,
-                        inContext(el => rowSignal --> Observer[CsvFieldRow](r => el.ref.value = r.columnIndex)),
-                        onInput.mapToValue --> Observer[String](v =>
+                      Form.tableInput(
+                        "number",
+                        initialRow.columnIndex,
+                        v =>
                           state.update(s =>
                             s.copy(csvFields = s.csvFields.updated(idx, s.csvFields(idx).copy(columnIndex = v)))
-                          )
-                        )
+                          ),
+                        placeholderText = "0",
+                        updates         = rowSignal.map(_.columnIndex).changes
                       )
                     ),
                     td(
                       cls := "px-2 py-1.5",
-                      input(
-                        typ          := "text",
-                        cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
-                        defaultValue := initialRow.name,
-                        inContext(el => rowSignal --> Observer[CsvFieldRow](r => el.ref.value = r.name)),
-                        onInput.mapToValue --> Observer[String](v =>
+                      Form.tableInput(
+                        "text",
+                        initialRow.name,
+                        v =>
                           state
-                            .update(s => s.copy(csvFields = s.csvFields.updated(idx, s.csvFields(idx).copy(name = v))))
-                        )
+                            .update(s => s.copy(csvFields = s.csvFields.updated(idx, s.csvFields(idx).copy(name = v)))),
+                        updates = rowSignal.map(_.name).changes
                       )
                     ),
                     td(
@@ -263,25 +269,34 @@ object DataSourceConfigWidget:
         div(
           cls <-- state.signal.map(s => if !s.enabled || s.parserType != ParserType.BAI then "hidden" else ""),
           div(
-            cls := "mb-2 text-xs text-md-on-surface-variant",
+            cls := s"mb-2 text-xs ${Form.mutedTextCls}",
             "Amount is captured automatically from the BAI2 transaction record."
           ),
           div(
-            cls := "mb-3 border border-md-outline rounded overflow-hidden",
+            cls := s"mb-3 ${Form.tableContainerCls}",
             table(
-              cls := "w-full text-xs border-collapse",
+              cls := Form.tableCls,
               thead(
-                cls := "bg-md-surface-variant",
+                cls := Form.tableHeadCls,
                 tr(
-                  th(cls := "text-center px-2 py-2 text-md-on-surface-variant font-medium w-14", "Include"),
-                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "BAI2 Field"),
-                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "Stored As")
+                  th(
+                    cls := s"text-center px-2 py-2 w-14 ${Form.tableHeaderCellCls}",
+                    "Include"
+                  ),
+                  th(
+                    cls := s"text-left px-2 py-2 ${Form.tableHeaderCellCls}",
+                    "BAI2 Field"
+                  ),
+                  th(
+                    cls := s"text-left px-2 py-2 ${Form.tableHeaderCellCls}",
+                    "Stored As"
+                  )
                 )
               ),
               tbody(
                 BAIField.values.toSeq.map { field =>
                   tr(
-                    cls := "border-t border-md-outline-variant",
+                    cls := Form.tableRowCls,
                     td(
                       cls := "text-center px-2 py-1.5",
                       input(
@@ -298,17 +313,13 @@ object DataSourceConfigWidget:
                         )
                       )
                     ),
-                    td(cls := "px-2 py-1.5 text-md-on-surface-variant", field.toString),
+                    td(cls := s"px-2 py-1.5 ${Form.mutedTextCls}", field.toString),
                     td(
                       cls := "px-2 py-1.5",
-                      input(
-                        typ := "text",
-                        cls := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
-                        defaultValue := initialState.baiFieldNames
-                          .getOrElse(field, BAIParserConfig.defaultFieldMappings(field)),
-                        onInput.mapToValue --> Observer[String](v =>
-                          state.update(s => s.copy(baiFieldNames = s.baiFieldNames.updated(field, v)))
-                        )
+                      Form.tableInput(
+                        "text",
+                        initialState.baiFieldNames.getOrElse(field, BAIParserConfig.defaultFieldMappings(field)),
+                        v => state.update(s => s.copy(baiFieldNames = s.baiFieldNames.updated(field, v)))
                       )
                     )
                   )
@@ -324,16 +335,26 @@ object DataSourceConfigWidget:
           cls <-- state.signal.map(s => if !s.enabled || s.parserType != ParserType.JSON then "hidden" else ""),
           div(
             cls <-- state.signal.map(s =>
-              if s.jsonFields.isEmpty then "hidden" else "mb-3 border border-md-outline rounded overflow-hidden"
+              if s.jsonFields.isEmpty then "hidden"
+              else s"mb-3 ${Form.tableContainerCls}"
             ),
             table(
-              cls := "w-full text-xs border-collapse",
+              cls := Form.tableCls,
               thead(
-                cls := "bg-md-surface-variant",
+                cls := Form.tableHeadCls,
                 tr(
-                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "JSON Path"),
-                  th(cls := "text-left px-2 py-2 text-md-on-surface-variant font-medium", "Field Name"),
-                  th(cls := "text-center px-2 py-2 text-md-on-surface-variant font-medium w-14", "Amount?"),
+                  th(
+                    cls := s"text-left px-2 py-2 ${Form.tableHeaderCellCls}",
+                    "JSON Path"
+                  ),
+                  th(
+                    cls := s"text-left px-2 py-2 ${Form.tableHeaderCellCls}",
+                    "Field Name"
+                  ),
+                  th(
+                    cls := s"text-center px-2 py-2 w-14 ${Form.tableHeaderCellCls}",
+                    "Amount?"
+                  ),
                   th(cls := "w-6")
                 )
               ),
@@ -342,34 +363,30 @@ object DataSourceConfigWidget:
                 // preserving input focus when typing
                 children <-- state.signal.map(_.jsonFields).splitByIndex { (idx, initialRow, rowSignal) =>
                   tr(
-                    cls := "border-t border-md-outline-variant",
+                    cls := Form.tableRowCls,
                     td(
                       cls := "px-2 py-1.5",
-                      input(
-                        typ          := "text",
-                        cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
-                        placeholder  := "$.path.to.field",
-                        defaultValue := initialRow.path,
-                        inContext(el => rowSignal --> Observer[JsonFieldRow](r => el.ref.value = r.path)),
-                        onInput.mapToValue --> Observer[String](v =>
+                      Form.tableInput(
+                        "text",
+                        initialRow.path,
+                        v =>
                           state.update(s =>
                             s.copy(jsonFields = s.jsonFields.updated(idx, s.jsonFields(idx).copy(path = v)))
-                          )
-                        )
+                          ),
+                        placeholderText = "$.path.to.field",
+                        updates         = rowSignal.map(_.path).changes
                       )
                     ),
                     td(
                       cls := "px-2 py-1.5",
-                      input(
-                        typ          := "text",
-                        cls          := "w-full border border-md-outline rounded px-2 py-1 text-xs focus:outline-none focus:border-md-primary",
-                        defaultValue := initialRow.name,
-                        inContext(el => rowSignal --> Observer[JsonFieldRow](r => el.ref.value = r.name)),
-                        onInput.mapToValue --> Observer[String](v =>
+                      Form.tableInput(
+                        "text",
+                        initialRow.name,
+                        v =>
                           state.update(s =>
                             s.copy(jsonFields = s.jsonFields.updated(idx, s.jsonFields(idx).copy(name = v)))
-                          )
-                        )
+                          ),
+                        updates = rowSignal.map(_.name).changes
                       )
                     ),
                     td(
@@ -415,10 +432,7 @@ object DataSourceConfigWidget:
         ),
         div(
           cls := "mt-4",
-          span(
-            cls := "text-xs font-semibold uppercase tracking-widest text-md-on-surface-variant",
-            "S3 Connection"
-          ),
+          span(cls := Form.sectionLabelCls, "S3 Connection"),
           div(
             cls := "mt-2",
             Form.field("s3Bucket", "Bucket", initialState.s3Bucket, v => state.update(_.copy(s3Bucket = v))),
