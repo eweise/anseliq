@@ -7,6 +7,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{
   BAIParserConfig,
   CSVParserConfig,
+  FixedWidthParserConfig,
   FundFlowPayload,
   JSONParserConfig,
   MovementSpecPayload,
@@ -127,6 +128,23 @@ object TestParserPage:
           fieldMappings.toSeq.map((path, name) =>
             Seq(span(path), span(if amountPath.contains(path) then s"$name (amount)" else name))
           ) ++ amountOnlyRow
+        )
+      )
+    case FixedWidthParserConfig(hasHeader, fields) =>
+      div(
+        div(
+          cls := "text-sm mb-2 text-md-on-surface dark:text-gray-200",
+          s"Format: Fixed Width${if hasHeader then " (first row is a header, skipped)" else " (no header row)"}"
+        ),
+        Table.create(
+          Seq("Start", "End", "Field Name"),
+          fields.map(f =>
+            Seq(
+              span(f.startPosition.toString),
+              span(f.endPosition.toString),
+              span(if f.isAmount then s"${f.name} (amount)" else f.name)
+            )
+          )
         )
       )
 

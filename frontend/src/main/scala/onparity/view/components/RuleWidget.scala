@@ -51,6 +51,7 @@ object RuleWidget:
         case DataSourceConfig(CSVParserConfig(_, cols, _), _)        => cols.values.toSeq
         case DataSourceConfig(BAIParserConfig(fieldMappings), _)     => fieldMappings.values.toSeq
         case DataSourceConfig(JSONParserConfig(fieldMappings, _), _) => fieldMappings.values.toSeq
+        case DataSourceConfig(FixedWidthParserConfig(_, fields), _)  => fields.map(_.name)
       }
       .getOrElse(Seq.empty)
 

@@ -57,7 +57,7 @@ object MaintainMovementSpecPage:
     val accounts = Var(Seq.empty[AccountPayload])
     val saveBus  = EventBus[Unit]()
 
-    val (dsWidget, dsSignal) = DataSourceConfigWidget(initial.dataSourceConfig)
+    val (dsWidget, dsSignal, dsErrors) = DataSourceConfigWidget(initial.dataSourceConfig)
 
     div(
       ApiClient
@@ -118,7 +118,12 @@ object MaintainMovementSpecPage:
         div(
           cls := "flex justify-end gap-2 mt-6",
           Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),
-          Buttons.linkButton("Save", Observer[Unit](_ => saveBus.emit(())))
+          Buttons
+            .linkButton("Save", Observer[Unit](_ => saveBus.emit(())))
+            .amend(
+              cls := "disabled:opacity-40 disabled:cursor-not-allowed",
+              disabled <-- dsErrors.map(_.nonEmpty)
+            )
         )
       )
     )
