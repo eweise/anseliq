@@ -1,6 +1,6 @@
 package onparity.domain.service
 
-import onparity.common.model.{BAIField, BAIParserConfig, JSONParserConfig}
+import onparity.common.model.{BAIField, BAIParserConfig, FixedWidthField, FixedWidthParserConfig, JSONParserConfig}
 
 class ParserSuite extends munit.FunSuite:
 
@@ -141,6 +141,50 @@ class ParserSuite extends munit.FunSuite:
       JSONParser(config).parse("""{"amount": "not-a-number"}""", 0)
 
   test("JSONParser with no amountPath configured never sets an amount"):
-    val config = JSONParserConfig(fieldMappings = Map("$.id" -> "id"))
+    val config       = JSONParserConfig(fieldMappings = Map("$.id" -> "id"))
     val Some(result) = JSONParser(config).parse("""{"id": "abc", "amount": 100}""", 0): @unchecked
+    assertEquals(result.maybeAmount, None)
+
+  private val fixedWidthLine = "ACME CORP 0001500.00WIRE TRANSFER"
+  //                            123456789012345678901234567890123
+  //                            1        10       20       30
+
+  test("FixedWidthParser extracts fields by 1-based inclusive position, trimming padding"):
+    val config = FixedWidthParserConfig(
+      fields = Seq(
+        FixedWidthField("name", 1, 10),
+        FixedWidthField("id", 11, 14),
+        FixedWidthField("amount", 15, 20, isAmount = true),
+        FixedWidthField("text", 21, 33)
+      )
+    )
+    val Some(result) = FixedWidthParser(config).parse(fixedWidthLine, 0): @unchecked
+    assertEquals(result.props("name"), "ACME CORP")
+    assertEquals(result.props("id"), "0001")
+    assertEquals(result.props("text"), "WIRE TRANSFER")
+    assertEquals(result.maybeAmount, Some(BigDecimal("500.00")))
+
+  test("FixedWidthParser skips the first line when hasHeader is true"):
+    val config = FixedWidthParserConfig(hasHeader = true, fields = Seq(FixedWidthField("name", 1, 10)))
+    val parser = FixedWidthParser(config)
+    assertEquals(parser.parse("HEADER LINE HERE", 0), None)
+    assertEquals(parser.parse(fixedWidthLine, 1).map(_.props("name")), Some("ACME CORP"))
+
+  test("FixedWidthParser returns None for a blank line"):
+    assertEquals(FixedWidthParser(FixedWidthParserConfig()).parse("   ", 0), None)
+
+  test("FixedWidthParser clamps a field range past the end of a short line instead of throwing"):
+    val config       = FixedWidthParserConfig(fields = Seq(FixedWidthField("name", 1, 10), FixedWidthField("tail", 5, 50)))
+    val Some(result) = FixedWidthParser(config).parse("AB", 0): @unchecked
+    assertEquals(result.props("name"), "AB")
+    assertEquals(result.props("tail"), "")
+
+  test("FixedWidthParser throws ParserError on a malformed amount"):
+    val config = FixedWidthParserConfig(fields = Seq(FixedWidthField("amount", 1, 10, isAmount = true)))
+    intercept[ParserError]:
+      FixedWidthParser(config).parse("not-a-num!", 0)
+
+  test("FixedWidthParser with no field marked isAmount never sets an amount"):
+    val config       = FixedWidthParserConfig(fields = Seq(FixedWidthField("name", 1, 10)))
+    val Some(result) = FixedWidthParser(config).parse(fixedWidthLine, 0): @unchecked
     assertEquals(result.maybeAmount, None)

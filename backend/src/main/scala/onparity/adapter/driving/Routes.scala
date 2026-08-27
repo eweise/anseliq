@@ -177,14 +177,24 @@ class App(using
   @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
+    validateDataSourceConfig(payload)
     transact(transactor):
       write(fundFlowOperations.createMovementSpec(payload))
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
+    validateDataSourceConfig(payload)
     transact(transactor):
       write(fundFlowOperations.updateMovementSpec(id, payload))
+
+  // Re-checks the same rules the frontend validates inline (DataSourceConfig.validate, in common)
+  // as a safety net against a bypassed or buggy frontend — not the primary UX for catching mistakes.
+  private def validateDataSourceConfig(payload: MovementSpecPayload): Unit =
+    payload.dataSourceConfig.foreach { ds =>
+      val errors = ds.validate
+      if errors.nonEmpty then throw IllegalArgumentError("dataSourceConfig", errors.mkString("; "))
+    }
 
   @cask.route(s"${HttpPath.movementSpec}/:id/test-parse", methods = HttpCmd.POST)
   def testParseMovementSpec(id: String, request: cask.Request): String =
