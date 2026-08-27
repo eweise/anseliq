@@ -380,6 +380,14 @@ object FundFlowPage:
         "Edit Relationship"
       ),
       button(
+        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+        onClick --> { _ =>
+          state.update(_.copy(selectedMovementSpec = None))
+          Nav.toTestParser(spec.id.getOrElse(""))
+        },
+        "Test Parser"
+      ),
+      button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600",
         onClick --> { _ =>
           state.update(_.copy(selectedMovementSpec = None))

@@ -23,6 +23,15 @@ case class IngestionResult(
 
 case class BatchProgress(linesProcessedInBatch: Int, lastLineInBatch: Long)
 
+case class ParsedRowResult(lineNumber: Long, props: Map[String, String], amount: Option[BigDecimal])
+case class ParseErrorResult(lineNumber: Long, message: String)
+case class ParseTestResult(
+  rows:           Seq[ParsedRowResult],
+  errors:         Seq[ParseErrorResult],
+  linesProcessed: Int,
+  truncated:      Boolean // true if the file had more than maxLines lines and was cut short
+)
+
 enum BatchDecision:
   case Commit, Rollback
 
@@ -185,6 +194,38 @@ class Ingestor(using
       lastProcessedLine    = lastCommittedLine,
       completed            = completed
     )
+
+  /**
+   * Lets a user try a movementSpec's parser config against a real sample file before wiring up real
+   * ingestion, entirely in memory — no FileInventory row, no Movements written, nothing persisted
+   * at all. Unlike ingestResumable, a row that throws ParserError doesn't abort the whole run; it's
+   * collected alongside the successful rows so the user can see exactly which lines fail and why,
+   * in one pass. maxLines caps how many lines of the upload are ever parsed, regardless of the
+   * file's real size, so a user can't accidentally hang the request on a huge upload.
+   *
+   * Takes an already-resolved MovementSpec (the caller does the lookup), the same division of
+   * responsibility as ingestResumable/ingestFileFromInventory — this method itself touches no DB at
+   * all, purely in-memory parsing, which also makes it trivial to unit test directly.
+   */
+  def testParse(movementSpec: MovementSpec, content: String, maxLines: Int = 1000): ParseTestResult =
+    val parser = Parser(movementSpec.dataSourceConfig().parserConfig)
+
+    val allLines  = content.linesIterator.take(maxLines + 1).toVector
+    val truncated = allLines.size > maxLines
+    val lines     = if truncated then allLines.dropRight(1) else allLines
+
+    val rows   = scala.collection.mutable.ArrayBuffer.empty[ParsedRowResult]
+    val errors = scala.collection.mutable.ArrayBuffer.empty[ParseErrorResult]
+
+    lines.zipWithIndex.foreach { (line, idx) =>
+      try
+        parser.parse(line, idx).foreach { parsed =>
+          rows += ParsedRowResult(idx, parsed.props, parsed.maybeAmount)
+        }
+      catch case e: ParserError => errors += ParseErrorResult(idx, e.getMessage)
+    }
+
+    ParseTestResult(rows.toSeq, errors.toSeq, lines.size, truncated)
 
   def detectAndQueue(movementSpecID: ID, source: FileSource): Txn[Vector[FileInventory]] =
     val inventories = fileInventoryRepo

@@ -15,13 +15,13 @@ import java.util.UUID
 import javax.sql.DataSource
 
 class IngestorSuite extends munit.FunSuite:
-  given transactor:   Transactor   = Transactor(dataSource)
+  given transactor: Transactor = Transactor(dataSource)
 
   given clockService: ClockService = ClockServiceLive()
 
-  given dataSource:   DataSource   = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
 
-  given eventRepo:    EventRepo    = EventRepoLive()
+  given eventRepo: EventRepo = EventRepoLive()
 
   given eventStore: EventStore = EventStore()
 
@@ -64,7 +64,6 @@ class IngestorSuite extends munit.FunSuite:
       updatedAt           = None
     )
 
-
   test("detectAndQueue inserts new files with QUEUED status"):
     transact(transactor):
       rollBackOnly:
@@ -104,6 +103,71 @@ class IngestorSuite extends munit.FunSuite:
           stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, clockService.now)))
         )
         assert(result.isEmpty)
+
+  private def csvMovementSpec(data: DataSetup): Txn[MovementSpec] =
+    val spec = MovementSpec(
+      inAccountId  = data.reconAccount.id,
+      outAccountId = data.journalAccount.id,
+      dataSourceJson = upickle.write(
+        DataSourceConfig(
+          parserConfig = CSVParserConfig(
+            hasHeader         = true,
+            columnDefinitions = Map(0 -> "id", 1 -> "amount"),
+            amountField       = Some(1)
+          )
+        )
+      )
+    )
+    movementSpecRepo.insert(spec)
+    spec
+
+  test("testParse: parses rows against the spec's parser config without writing anything"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec     = csvMovementSpec(data)
+
+        val content = "id,amount\n1,100.50\n2,200.25\n"
+        val result  = ingestor.testParse(spec, content)
+
+        assertEquals(result.errors, Seq.empty)
+        assertEquals(result.truncated, false)
+        assertEquals(result.linesProcessed, 3, "header + 2 data lines")
+        assertEquals(result.rows.size, 2)
+        assertEquals(result.rows.map(_.amount), Seq(Some(BigDecimal("100.50")), Some(BigDecimal("200.25"))))
+        assertEquals(result.rows.head.props, Map("id" -> "1", "amount" -> "100.50"))
+
+        assert(movementRepo.findByAccount(data.reconAccount.id).isEmpty, "testParse must not write any movements")
+
+  test("testParse: a malformed amount is captured as an error for that line, without aborting the rest"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec     = csvMovementSpec(data)
+
+        val content = "id,amount\n1,not-a-number\n2,200.25\n"
+        val result  = ingestor.testParse(spec, content)
+
+        assertEquals(result.rows.size, 1)
+        assertEquals(result.rows.head.props("id"), "2")
+        assertEquals(result.errors.size, 1)
+        assertEquals(result.errors.head.lineNumber, 1L)
+
+  test("testParse: caps at maxLines and reports truncated"):
+    transact(transactor):
+      rollBackOnly:
+        val ingestor = Ingestor()
+        val data     = DataSetup()
+        val spec     = csvMovementSpec(data)
+
+        val content = ("id,amount" +: (1 to 5).map(i => s"$i,$i.00")).mkString("\n")
+        val result  = ingestor.testParse(spec, content, maxLines = 3)
+
+        assertEquals(result.linesProcessed, 3)
+        assertEquals(result.truncated, true)
+        assertEquals(result.rows.size, 2, "header + 2 data lines within the 3-line cap")
 
   private def openFileMissingDisputes(referenceId: UUID): Txn[Vector[Dispute]] =
     disputeRepo.findAll.filter(d => d.referenceId == referenceId && d.category == DisputeCategory.FileMissing)
@@ -208,7 +272,10 @@ class IngestorSuite extends munit.FunSuite:
         )
         movementSpecRepo.insert(spec)
         val persisted = movementSpecRepo.findById(spec.id).get
-        assert(persisted.createdAt.isDefined, "createdAt should be populated by the update_movement_spec trigger on insert")
+        assert(
+          persisted.createdAt.isDefined,
+          "createdAt should be populated by the update_movement_spec trigger on insert"
+        )
 
         clockService.addHours(25)
         ingestor.checkForMissingFile(persisted)

@@ -193,6 +193,24 @@ case class MovementPayload(
   createdAt:        OffsetDateTime
 ) derives ReadWriter
 
+case class ParsedRowPayload(
+  lineNumber: Long,
+  props:      Properties,
+  amount:     Option[BigDecimal]
+) derives ReadWriter
+
+case class ParseErrorPayload(
+  lineNumber: Long,
+  message:    String
+) derives ReadWriter
+
+case class ParseTestResultPayload(
+  rows:           Seq[ParsedRowPayload],
+  errors:         Seq[ParseErrorPayload],
+  linesProcessed: Int,
+  truncated:      Boolean
+) derives ReadWriter
+
 // Read-only summary for the movement detail page: resolves account/spec names server-side
 // (rather than requiring the caller to look them up) and carries metaData, which MovementPayload
 // (used by list/table views) doesn't.

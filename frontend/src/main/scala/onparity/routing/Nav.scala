@@ -55,3 +55,6 @@ object Nav:
     push(s"/components/accounts/$accountId/recent-reconciliations")
 
   def toMovementDetail(id: String): Unit = push(s"/components/movements/$id")
+
+  def toTestParser(movementSpecId: String): Unit =
+    push(s"/components/movement-specs/$movementSpecId/test-parse")
