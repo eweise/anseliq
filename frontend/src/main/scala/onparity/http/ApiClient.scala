@@ -22,6 +22,12 @@ object ApiClient:
   def postRaw(url: String, body: String, token: String): EventStream[Either[String, Unit]] =
     EventStream.fromFuture(fetchRaw(url, "POST", Some(body), token))
 
+  // Like postRaw, but for endpoints that return a real JSON payload instead of a bare success —
+  // sends body as-is (unlike post[A,B], which JSON-encodes it via write), so this is for sending
+  // something that's already raw text (e.g. an uploaded file's contents) and getting typed JSON back.
+  def postRawExpectJson[A: Reader](url: String, body: String, token: String): EventStream[Either[String, A]] =
+    EventStream.fromFuture(fetchJson[A](url, "POST", Some(body), token))
+
   def put[A: Reader, B: Writer](url: String, body: B, token: String): EventStream[Either[String, A]] =
     EventStream.fromFuture(fetchJson[A](url, "PUT", Some(write(body)), token))
 

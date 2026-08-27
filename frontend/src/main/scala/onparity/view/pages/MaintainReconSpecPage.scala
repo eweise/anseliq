@@ -12,10 +12,6 @@ import upickle.default.*
 
 object MaintainReconSpecPage:
 
-  private enum LoadState:
-    case Loading
-    case Ready(spec: Option[ReconciliationSpecPayload])
-
   def apply(accountId: String, reconSpecId: String): HtmlElement =
     AppState.activeFundFlow.now() match
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
@@ -191,3 +187,7 @@ object MaintainReconSpecPage:
         onChange.mapToValue --> Observer[String](changeFn)
       ).amend(specs.map(s => option(value := s.id.getOrElse(""), s.name))*)
     )
+
+  private enum LoadState:
+    case Loading
+    case Ready(spec: Option[ReconciliationSpecPayload])

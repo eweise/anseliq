@@ -186,6 +186,15 @@ class App(using
     transact(transactor):
       write(fundFlowOperations.updateMovementSpec(id, payload))
 
+  @cask.route(s"${HttpPath.movementSpec}/:id/test-parse", methods = HttpCmd.POST)
+  def testParseMovementSpec(id: String, request: cask.Request): String =
+    val content = request.text()
+    transact(transactor):
+      val movementSpecId = UUID.fromString(id)
+      val movementSpec   = movementSpecRepo.findById(movementSpecId).ErrIfNotFound("MovementSpec", movementSpecId)
+      val result         = ingestor.testParse(movementSpec, content)
+      write(Payload.parseTestResultPayloadFromDomain(result))
+
   @cask.delete(s"${HttpPath.movementSpec}/:id")
   def deleteMovementSpec(id: String): String =
     transact(transactor):

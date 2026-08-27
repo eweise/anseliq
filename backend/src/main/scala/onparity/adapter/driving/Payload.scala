@@ -2,6 +2,7 @@ package onparity.adapter.driving
 
 import onparity.common.model.{ReconRelationship as ComRel, *}
 import onparity.domain.model.{Relationship as Rel, *}
+import onparity.domain.service.ParseTestResult
 import upickle.default.read as upickleRead
 
 import java.util.UUID
@@ -171,6 +172,14 @@ object Payload:
       properties       = dmMovement.properties.props,
       reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull,
       createdAt        = dmMovement.createdAt.get
+    )
+
+  def parseTestResultPayloadFromDomain(r: ParseTestResult): ParseTestResultPayload =
+    ParseTestResultPayload(
+      rows           = r.rows.map(row => ParsedRowPayload(row.lineNumber, row.props, row.amount)),
+      errors         = r.errors.map(e => ParseErrorPayload(e.lineNumber, e.message)),
+      linesProcessed = r.linesProcessed,
+      truncated      = r.truncated
     )
 
   def movementDetailPayloadFromDomain(
