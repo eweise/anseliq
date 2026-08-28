@@ -1,6 +1,8 @@
 package onparity.http
 
 import com.raquo.airstream.core.EventStream
+import onparity.routing.Nav
+import onparity.state.SessionStore
 import org.scalajs.dom
 import upickle.default.*
 
@@ -9,6 +11,16 @@ import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
 import scala.scalajs.js
 
 object ApiClient:
+
+  // A 401 means the token is missing/invalid/expired — every route requires one now (except
+  // /login itself, which never 401s regardless of credentials; see authDecorator on the backend).
+  // Centralized here rather than in every page: any call anywhere in the app hitting a stale
+  // session bounces the user back to /login instead of failing silently or showing a confusing
+  // "HTTP 401: Unauthorized" error banner.
+  private def handleUnauthorized(status: Int): Unit =
+    if status == 401 then
+      SessionStore.clear()
+      Nav.push("/login")
 
   def get[A: Reader](url: String, token: String): EventStream[Either[String, A]] =
     EventStream.fromFuture(fetchJson[A](url, "GET", None, token))
@@ -59,7 +71,9 @@ object ApiClient:
       .flatMap { resp =>
         resp.text().toFuture.map { bodyText =>
           if resp.ok then Right(read[A](bodyText))
-          else Left(s"HTTP ${resp.status}: $bodyText")
+          else
+            handleUnauthorized(resp.status)
+            Left(s"HTTP ${resp.status}: $bodyText")
         }
       }
       .recover { case e => Left(e.getMessage) }
@@ -83,7 +97,9 @@ object ApiClient:
       .flatMap { resp =>
         resp.text().toFuture.map { bodyText =>
           if resp.ok then Right(())
-          else Left(s"HTTP ${resp.status}: $bodyText")
+          else
+            handleUnauthorized(resp.status)
+            Left(s"HTTP ${resp.status}: $bodyText")
         }
       }
       .recover { case e => Left(e.getMessage) }

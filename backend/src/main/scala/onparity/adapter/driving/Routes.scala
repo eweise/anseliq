@@ -4,6 +4,7 @@ import com.augustnagro.magnum.*
 import com.typesafe.scalalogging.StrictLogging
 import onparity.common.http.HttpPath
 import onparity.common.model.*
+import onparity.common.util.JwtHelper
 import onparity.domain.model.*
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
@@ -38,12 +39,17 @@ class App(using
   disputeCommentRepo: DisputeCommentRepo,
   disputeService:     DisputeService,
   reportingService:   ReportingService,
-  fileInventoryRepo:  FileInventoryRepo
+  fileInventoryRepo:  FileInventoryRepo,
+  userRepo:           UserRepo,
+  userService:        UserService,
+  authService:        AuthService,
+  jwtSecret:          JwtSecret
 ) extends cask.MainRoutes,
       StrictLogging:
 
+  override def port: Int = sys.env.get("CASK_PORT").map(_.toInt).getOrElse(8080)
+
   val prefixPath = "/api/v1"
-  val loginPath  = s"$prefixPath / login"
 
   val randomMessagePath          = s"$prefixPath / random-message"
   val randomMessage2Path         = s"$prefixPath / random-message2"
@@ -51,7 +57,12 @@ class App(using
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
   val transactor                 = Transactor(dataSource)
 
-  override def mainDecorators = Seq(corsDecorator())
+  // authDecorator must come after corsDecorator: a CORS preflight (OPTIONS) request is
+  // short-circuited by corsDecorator before it ever reaches authDecorator, so preflight requests
+  // never need a token. Order also determines which curried parameter list a decorator's injected
+  // map lands in for a route that declares one (e.g. `(currentUser: UserClaim)`) — authDecorator
+  // must be last so its map is the one bound there.
+  override def mainDecorators = Seq(corsDecorator(), authDecorator(jwtSecret))
 
   @cask.get("api/v1/random-message")
   def getRandomMessage() =
@@ -173,6 +184,62 @@ class App(using
     transact(transactor):
       val reconciliations = reconRepo.findByAccountID(UUID.fromString(id), limit)
       write(reconciliations.map(Payload.reconFromDomain))
+
+  @cask.route(HttpPath.login, methods = HttpCmd.POST)
+  def login(request: cask.Request): String =
+    val payload = read[LoginRequest](request.text())
+    transact(transactor):
+      authService.login(payload.email, payload.password) match
+        case Right(token) => write(LoginSuccess(accessToken = token, refreshToken = ""))
+        case Left(msg)    => throw UnauthorizedError(msg)
+
+  private def requireAdmin(currentUser: JwtHelper.UserClaim): Unit =
+    if currentUser.role != UserRole.Admin.toString then throw ForbiddenError("Admin role required")
+
+  @cask.route(HttpPath.users, methods = HttpCmd.GET)
+  def listUsers()(currentUser: JwtHelper.UserClaim): String =
+    requireAdmin(currentUser)
+    transact(transactor):
+      write(userService.listUsers().map(Payload.userPayloadFromDomain))
+
+  // methods = Seq("post"), not HttpCmd.POST: listUsers (above) already registers "options" at this
+  // exact path (HttpCmd.GET includes it too, for CORS preflight) — cask errors on two endpoints
+  // sharing the same method+path pair, so a second "options" registration here would collide.
+  @cask.route(HttpPath.users, methods = Seq("post"))
+  def createUser(request: cask.Request)(currentUser: JwtHelper.UserClaim): String =
+    requireAdmin(currentUser)
+    val payload = read[CreateUserRequest](request.text())
+    transact(transactor):
+      val user = userService.createUser(
+        payload.email,
+        payload.firstName,
+        payload.lastName,
+        UserRole.valueOf(payload.role),
+        payload.password
+      )
+      write(Payload.userPayloadFromDomain(user))
+
+  @cask.route(s"${HttpPath.users}/:id", methods = HttpCmd.PUT)
+  def updateUser(id: String, request: cask.Request)(currentUser: JwtHelper.UserClaim): String =
+    requireAdmin(currentUser)
+    val payload = read[UpdateUserRequest](request.text())
+    transact(transactor):
+      val user = userService.updateUser(
+        UUID.fromString(id),
+        payload.firstName,
+        payload.lastName,
+        UserRole.valueOf(payload.role),
+        payload.active
+      )
+      write(Payload.userPayloadFromDomain(user))
+
+  @cask.route(s"${HttpPath.users}/:id/reset-password", methods = HttpCmd.POST)
+  def resetUserPassword(id: String, request: cask.Request)(currentUser: JwtHelper.UserClaim): String =
+    requireAdmin(currentUser)
+    val payload = read[ResetPasswordRequest](request.text())
+    transact(transactor):
+      userService.resetPassword(UUID.fromString(id), payload.newPassword)
+    write("ok")
 
   @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
   def createMovementSpec(request: cask.Request): String =
@@ -457,6 +524,22 @@ class App(using
           cask.Response("", statusCode = 200, headers = corsHeaders)
         )
       else delegate(ctx, Map.empty).map(response => response.copy(headers = response.headers ++ corsHeaders))
+
+  // Applied globally (see mainDecorators above) so every route requires a valid Bearer token
+  // except /login itself (can't require a token to get a token). A route that needs to know who's
+  // calling declares an extra curried parameter list — e.g. `(currentUser: JwtHelper.UserClaim)` —
+  // which cask binds from this decorator's injected map; routes that don't declare it are
+  // unaffected (cask only reads as many decorator-contributed param lists as a method declares).
+  class authDecorator(jwtSecret: JwtSecret) extends cask.RawDecorator:
+    def wrapFunction(ctx: cask.model.Request, delegate: Delegate) =
+      if ctx.exchange.getRequestPath == HttpPath.login then delegate(ctx, Map.empty)
+      else
+        val bearerToken = ctx.headers.get("authorization").flatMap(_.headOption).collect { case s"Bearer $token" =>
+          token
+        }
+        bearerToken.flatMap(t => JwtHelper.decode(t, jwtSecret.value).toOption) match
+          case None        => cask.router.Result.Success(cask.Response("Unauthorized", statusCode = 401))
+          case Some(claim) => delegate(ctx, Map("currentUser" -> claim))
 
   logger.info("Initializing backend")
   initialize()
