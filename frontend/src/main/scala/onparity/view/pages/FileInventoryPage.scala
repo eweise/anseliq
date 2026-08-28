@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Icons, PageHeader, Table}
+import onparity.view.components.{PageHeader, Table}
 
 object FileInventoryPage:
 
@@ -22,18 +22,13 @@ object FileInventoryPage:
           ApiClient.get[Seq[FileInventoryPayload]](HttpPath.url(HttpPath.fileInventory), SessionStore.token)
         }
         .apiBind(entries => state.update(_.copy(entries = entries))),
-      PageHeader.titleRow(PageHeader.title("File Inventory")),
+      PageHeader.titleRow(
+        cls := "flex items-center justify-between",
+        PageHeader.title("File Inventory"),
+        PageHeader.refreshButton(Observer[Unit](_ => fetchBus.emit(())))
+      ),
       div(
         cls := "w-full px-8",
-        div(
-          cls := "mb-6 flex items-end justify-end gap-3",
-          button(
-            cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-10 h-10 rounded-full hover:bg-green-500",
-            typ := "button",
-            onClick --> (_ => fetchBus.emit(())),
-            Icons.refresh
-          )
-        ),
         child <-- state.signal.map { s =>
           val headers = Seq(
             "Movement Spec",

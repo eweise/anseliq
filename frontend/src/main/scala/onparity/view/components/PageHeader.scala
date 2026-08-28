@@ -51,3 +51,17 @@ object PageHeader:
       span(cls := "text-base leading-none", "←"),
       span("Back")
     )
+
+  // The one Refresh slot a page whose data can change while the user is looking at it (Jobs,
+  // Events, File Inventory today) should use: right-aligned on the title row itself, next to the
+  // title — the standard spot for a page-level refresh action. Previously each page placed it
+  // differently (alone on its own right-aligned row, or inline after a filter dropdown) and styled
+  // it as a solid green circle, a level of color saturation nothing else on these pages earns.
+  // Ghost icon-only styling instead, matching the dark-mode toggle in the top bar.
+  def refreshButton(onRefresh: Observer[Unit]): HtmlElement =
+    button(
+      typ := "button",
+      cls := "flex items-center justify-center w-9 h-9 rounded-full text-gray-600 dark:text-gray-300 hover:bg-md-primary-container dark:hover:bg-md-primary-container-dark transition-colors",
+      onClick.mapToUnit --> onRefresh,
+      Icons.refresh
+    )

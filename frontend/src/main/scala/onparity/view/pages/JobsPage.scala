@@ -9,7 +9,7 @@ import onparity.http.ApiClient
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Form, Icons, PageHeader, Table}
+import onparity.view.components.{Form, PageHeader, Table}
 import upickle.default.*
 
 object JobsPage:
@@ -28,7 +28,11 @@ object JobsPage:
           ApiClient.get[Seq[JobInfoPayload]](HttpPath.url(s"${HttpPath.jobs}/$jobType"), SessionStore.token)
         }
         .apiBind(jobs => state.update(_.copy(jobs = jobs))),
-      PageHeader.titleRow(PageHeader.title("Jobs")),
+      PageHeader.titleRow(
+        cls := "flex items-center justify-between",
+        PageHeader.title("Jobs"),
+        PageHeader.refreshButton(Observer[Unit](_ => fetchBus.emit(state.now().selectedJobType.toString)))
+      ),
       div(
         cls := "w-full px-8",
         div(
@@ -44,12 +48,6 @@ object JobsPage:
                 state.update(s => s.copy(selectedJobType = JobTypeInfo.valueOf(v), jobs = Seq.empty))
                 fetchBus.emit(v)
             )
-          ),
-          button(
-            cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-10 h-10 rounded-full hover:bg-green-500",
-            typ := "button",
-            onClick --> (_ => fetchBus.emit(state.now().selectedJobType.toString)),
-            Icons.refresh
           )
         ),
         child <-- state.signal.map { s =>
