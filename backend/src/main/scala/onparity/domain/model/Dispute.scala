@@ -17,8 +17,8 @@ enum DisputeCategory derives DbCodec:
  * Which DisputeTarget(s) a category is meaningful against — e.g. FileMissing has no FileInventory
  * row to reference (that's the whole point of the category) so it can only ever target the
  * MovementSpec that expected the file, while AmountMismatch is only ever raised against a
- * Reconciliation. Checked by DisputeService.raise so a mismatched pairing (wrong Scala call site,
- * a bad manual API request, or a raw DB write) is rejected at the one place it actually needs to be
+ * Reconciliation. Checked by DisputeService.raise so a mismatched pairing (wrong Scala call site, a
+ * bad manual API request, or a raw DB write) is rejected at the one place it actually needs to be
  * caught — it can't be enforced at compile time because Dispute crosses two serialization
  * boundaries (the JSON payload and the Postgres row) where any type-level link is already erased.
  */
@@ -37,14 +37,20 @@ enum DisputeStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Dispute(
-  @Id id:        ID                     = createID(),
-  referenceId:   ID,
-  targetType:    DisputeTarget,
-  category:      DisputeCategory,
-  detail:        Option[String]         = None,
-  var status:    DisputeStatus          = DisputeStatus.New,
-  var createdAt: Option[OffsetDateTime] = None,
-  var updatedAt: Option[OffsetDateTime] = None
+  @Id id:      ID             = createID(),
+  referenceId: ID,
+  targetType:  DisputeTarget,
+  category:    DisputeCategory,
+  detail:      Option[String] = None,
+  // None means system-raised (the two InMemoryReconciler.scala sites and Ingestor's
+  // raiseFileMissingDispute all insert directly via disputeRepo, bypassing DisputeService.raise,
+  // so they never have a human actor to attribute). assignedToUserId starts unset for every
+  // dispute — nothing assigns one automatically; DisputeService.assign is the only way it's set.
+  raisedByUserId:       Option[ID]             = None,
+  var assignedToUserId: Option[ID]             = None,
+  var status:           DisputeStatus          = DisputeStatus.New,
+  var createdAt:        Option[OffsetDateTime] = None,
+  var updatedAt:        Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object Dispute:

@@ -12,7 +12,10 @@ object Routes:
       styleAttr := "display: contents",
       initRouting
     ).amend(
-      pathEnd(WelcomePage()),
+      // Unconditional redirect, no session check needed here: /components/dashboard already has
+      // its own whenFalse guard below, which bounces to /login if there's no session — reusing it
+      // rather than duplicating the same check at the root.
+      pathEnd(runEffect(BrowserNavigation.pushState(url = "/components/dashboard"))),
       path("login")(LoginPage()),
       // No session (missing/cleared token) -> bounce to /login instead of rendering the page.
       // This only catches the case of navigating straight to a /components/... URL with no
@@ -28,6 +31,7 @@ object Routes:
         firstMatch(
           whenFalse(SessionStore.current.now().isEmpty) {
             firstMatch(
+              path("dashboard")(DashboardPage()),
               path("fund-flows")(FundFlowsPage()),
               path("fund-flow")(FundFlowPage()),
               path("maintain-fund-flow")(MaintainFundFlowPage()),
@@ -49,6 +53,7 @@ object Routes:
                 ManualMatchPage(accountId, reconSpecId)
               ),
               path("accounts" / segment / "unreconciled-movements")(accountId => UnreconciledMovementsPage(accountId)),
+              path("unreconciled-movements")(AllUnreconciledMovementsPage()),
               path("accounts" / segment / "recent-reconciliations")(accountId => AccountReconciliationsPage(accountId)),
               path("maintain-movement-spec" / segment / segment / segment)((outAccountId, inAccountId, id) =>
                 MaintainMovementSpecPage(outAccountId, inAccountId, id)

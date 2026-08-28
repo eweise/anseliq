@@ -335,3 +335,11 @@ EXECUTE PROCEDURE update_audit_fields_task();
 insert into recon.app_user (id, email, password_hash, first_name, last_name, role)
 values ('00000000-0000-0000-0000-000000000001', 'admin@onparity.local',
         '$2y$12$/w6Sva4dYXUtPOrWuveq3O/lTdh6uVXa3IYDpklb4NK.6JGkPOiPm', 'Admin', 'User', 'admin');
+
+-- Added here (not inline in recon.dispute's own create table above) because recon.app_user must
+-- already exist for these FK references to resolve on a fresh `make create-db` run — app_user is
+-- defined later in this file than dispute. "on delete set null", not cascade: deleting a user
+-- shouldn't delete the disputes they raised/were assigned, just orphan the reference.
+ALTER TABLE recon.dispute
+    ADD COLUMN raised_by_user_id   uuid REFERENCES recon.app_user (id) ON DELETE SET NULL,
+    ADD COLUMN assigned_to_user_id uuid REFERENCES recon.app_user (id) ON DELETE SET NULL;

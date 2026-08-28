@@ -155,12 +155,13 @@ class InMemoryReconciler(using
       val raised = stale.flatMap { recon =>
         disputeRepo.insertIfNoOpenDispute(
           Dispute(
-            referenceId = recon.id,
-            targetType  = DisputeTarget.Reconciliation,
-            category    = DisputeCategory.AmountMismatch,
-            detail      = Some(s"Balance mismatch of ${recon.balance}, unresolved after ${reconSpec.agingLimit} day(s)"),
-            createdAt   = Some(now),
-            updatedAt   = Some(now)
+            referenceId    = recon.id,
+            targetType     = DisputeTarget.Reconciliation,
+            category       = DisputeCategory.AmountMismatch,
+            detail         = Some(s"Balance mismatch of ${recon.balance}, unresolved after ${reconSpec.agingLimit} day(s)"),
+            raisedByUserId = None, // system-raised, no human actor
+            createdAt      = Some(now),
+            updatedAt      = Some(now)
           )
         )
       }
@@ -381,12 +382,13 @@ class InMemoryReconciler(using
               disputeRepo
                 .insertIfNoOpenDispute(
                   Dispute(
-                    referenceId = recon.id,
-                    targetType  = DisputeTarget.Reconciliation,
-                    category    = DisputeCategory.AmountMismatch,
-                    detail      = Some(s"Balance mismatch of ${recon.balance}"),
-                    createdAt   = Some(now),
-                    updatedAt   = Some(now)
+                    referenceId    = recon.id,
+                    targetType     = DisputeTarget.Reconciliation,
+                    category       = DisputeCategory.AmountMismatch,
+                    detail         = Some(s"Balance mismatch of ${recon.balance}"),
+                    raisedByUserId = None, // system-raised, no human actor
+                    createdAt      = Some(now),
+                    updatedAt      = Some(now)
                   )
                 )
                 .foreach(dispute => eventStore.publishEvent(DisputeRaised(disputeID = dispute.id)))

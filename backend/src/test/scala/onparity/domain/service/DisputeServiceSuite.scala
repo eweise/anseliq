@@ -2,22 +2,45 @@ package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import onparity.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive}
+import onparity.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive, UserRepoLive}
 import onparity.domain.DataSetup
 import onparity.domain.model.helper.JSONBProps
-import onparity.domain.model.{DisputeCategory, DisputeStatus, DisputeTarget, IllegalArgumentError, Movement, MovementSpec, NotFoundError}
-import onparity.domain.port.driven.{JobRepo, Txn}
+import onparity.domain.model.{
+  DisputeCategory,
+  DisputeStatus,
+  DisputeTarget,
+  IllegalArgumentError,
+  Movement,
+  MovementSpec,
+  NotFoundError,
+  User,
+  UserRole
+}
+import onparity.domain.port.driven.{JobRepo, Txn, UserRepo}
 import onparity.testing.rollBackOnly
 
+import java.util.UUID
 import javax.sql.DataSource
 
 class DisputeServiceSuite extends munit.FunSuite:
-  given transactor: Transactor = Transactor(dataSource)
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given transactor: Transactor   = Transactor(dataSource)
+  given dataSource: DataSource   = DbDataSource.create(ConfigFactory.load("test-application.conf"))
   given clockSvc:   ClockService = ClockServiceLive()
-  given eventRepo:  EventRepoLive()
+  given eventRepo: EventRepoLive()
   given eventStore: EventStore = EventStore()
-  given jobRepo:    JobRepo = JobRepoLive()
+  given jobRepo:    JobRepo    = JobRepoLive()
+  given userRepo:   UserRepo   = UserRepoLive()
+
+  private def testUser()(using UserRepo, com.augustnagro.magnum.DbCon): User =
+    val user = User(
+      email        = s"${UUID.randomUUID()}@example.com",
+      passwordHash = "hash",
+      firstName    = "Test",
+      lastName     = "Analyst",
+      role         = UserRole.Analyst
+    )
+    userRepo.insert(user)
+    user
 
   def createMovement(movementSpec: MovementSpec, amount: BigDecimal)(using data: DataSetup): Txn[Movement] =
     val m = Movement(
@@ -39,7 +62,12 @@ class DisputeServiceSuite extends munit.FunSuite:
 
         val movement = createMovement(data.journalToRecon, 100)
 
-        val dispute = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.MissingCounterpart, Some("no match found"))
+        val dispute = disputeService.raise(
+          movement.id,
+          DisputeTarget.Movement,
+          DisputeCategory.MissingCounterpart,
+          Some("no match found")
+        )
 
         assertEquals(dispute.referenceId, movement.id)
         assertEquals(dispute.targetType, DisputeTarget.Movement)
@@ -57,11 +85,12 @@ class DisputeServiceSuite extends munit.FunSuite:
         given data: DataSetup = DataSetup()
         import data.given
         val manualReconciler = ManualReconciler()
-        val disputeService    = DisputeService()
+        val disputeService   = DisputeService()
 
         val inMovement  = createMovement(data.journalToRecon, 300)
         val outMovement = createMovement(data.reportToRecon, 100)
-        val recon = manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "partial match")
+        val recon =
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "partial match")
 
         val dispute = disputeService.raise(recon.id, DisputeTarget.Reconciliation, DisputeCategory.AmountMismatch, None)
 
@@ -102,7 +131,12 @@ class DisputeServiceSuite extends munit.FunSuite:
         val disputeService = DisputeService()
 
         intercept[NotFoundError]:
-          disputeService.raise(java.util.UUID.randomUUID(), DisputeTarget.Reconciliation, DisputeCategory.AmountMismatch, None)
+          disputeService.raise(
+            java.util.UUID.randomUUID(),
+            DisputeTarget.Reconciliation,
+            DisputeCategory.AmountMismatch,
+            None
+          )
 
   test("addComment to Resolved without a body errors"):
     transact(transactor):
@@ -127,7 +161,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
 
-        val comment = disputeService.addComment(dispute.id, Some("was a re-ingested duplicate, deleted downstream"), Some(DisputeStatus.Resolved))
+        val comment = disputeService.addComment(
+          dispute.id,
+          Some("was a re-ingested duplicate, deleted downstream"),
+          Some(DisputeStatus.Resolved)
+        )
 
         assertEquals(comment.body, Some("was a re-ingested duplicate, deleted downstream"))
         assertEquals(comment.newStatus, Some(DisputeStatus.Resolved))
@@ -216,3 +254,69 @@ class DisputeServiceSuite extends munit.FunSuite:
 
         val thread = data.disputeCommentRepo.findByDisputeId(dispute.id)
         assertEquals(thread.map(_.body), Vector(Some("first"), Some("second"), Some("third")))
+
+  test("raise with raisedByUserId persists the actor who raised it"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val user     = testUser()
+        val movement = createMovement(data.journalToRecon, 100)
+
+        val dispute = disputeService.raise(
+          movement.id,
+          DisputeTarget.Movement,
+          DisputeCategory.MissingCounterpart,
+          None,
+          raisedByUserId = Some(user.id)
+        )
+
+        assertEquals(dispute.raisedByUserId, Some(user.id))
+        val persisted = data.disputeRepo.findById(dispute.id).get
+        assertEquals(persisted.raisedByUserId, Some(user.id))
+
+  test("raise with no raisedByUserId leaves it unset (system-raised)"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+
+        assertEquals(dispute.raisedByUserId, None)
+
+  test("assign sets assignedToUserId and bumps updatedAt"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val user              = testUser()
+        val movement          = createMovement(data.journalToRecon, 100)
+        val dispute           = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+        val originalUpdatedAt = dispute.updatedAt
+
+        clockSvc.addHours(1)
+        val assigned = disputeService.assign(dispute.id, user.id)
+
+        assertEquals(assigned.assignedToUserId, Some(user.id))
+        assert(assigned.updatedAt.exists(ua => originalUpdatedAt.exists(oua => ua.isAfter(oua))))
+
+        val persisted = data.disputeRepo.findById(dispute.id).get
+        assertEquals(persisted.assignedToUserId, Some(user.id))
+
+  test("assign on a non-existent dispute throws NotFoundError"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val user = testUser()
+        intercept[NotFoundError]:
+          disputeService.assign(UUID.randomUUID(), user.id)

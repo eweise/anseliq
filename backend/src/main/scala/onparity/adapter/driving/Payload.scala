@@ -234,26 +234,34 @@ object Payload:
 
   /**
    * accountId/accountName/referenceLabel must be resolved by the caller (see Routes.scala) since
-   * which repos to query depends on dispute.targetType.
+   * which repos to query depends on dispute.targetType. raisedByName/assignedToName are likewise
+   * resolved by the caller (via userRepo) rather than looked up here, so this stays a pure mapping
+   * function with no repo access of its own — same reasoning as the other three.
    */
   def disputePayloadFromDomain(
     dispute:        Dispute,
     accountId:      String,
     accountName:    String,
-    referenceLabel: String
+    referenceLabel: String,
+    raisedByName:   Option[String] = None,
+    assignedToName: Option[String] = None
   ): DisputePayload =
     DisputePayload(
-      id             = dispute.id.toString,
-      referenceId    = dispute.referenceId.toString,
-      targetType     = disputeTargetFromDomain(dispute.targetType),
-      category       = disputeCategoryFromDomain(dispute.category),
-      detail         = dispute.detail,
-      status         = disputeStatusFromDomain(dispute.status),
-      accountId      = accountId,
-      accountName    = accountName,
-      referenceLabel = referenceLabel,
-      createdAt      = dispute.createdAt.get,
-      updatedAt      = dispute.updatedAt.get
+      id               = dispute.id.toString,
+      referenceId      = dispute.referenceId.toString,
+      targetType       = disputeTargetFromDomain(dispute.targetType),
+      category         = disputeCategoryFromDomain(dispute.category),
+      detail           = dispute.detail,
+      status           = disputeStatusFromDomain(dispute.status),
+      accountId        = accountId,
+      accountName      = accountName,
+      referenceLabel   = referenceLabel,
+      createdAt        = dispute.createdAt.get,
+      updatedAt        = dispute.updatedAt.get,
+      raisedByUserId   = dispute.raisedByUserId.map(_.toString),
+      raisedByName     = raisedByName,
+      assignedToUserId = dispute.assignedToUserId.map(_.toString),
+      assignedToName   = assignedToName
     )
 
   def disputeTargetFromDomain(d: DisputeTarget): DisputeTargetPayload = d match
@@ -296,6 +304,18 @@ object Payload:
       },
       exceptions = ExceptionBreakdownPayload(byCategory = r.exceptions.byCategory, byStatus = r.exceptions.byStatus),
       aging      = AgingBucketsPayload(buckets = r.aging.buckets, overdueCount = r.aging.overdueCount)
+    )
+
+  def unreconciledMovementPayloadFromDomain(m: UnreconciledMovementDetail): UnreconciledMovementPayload =
+    UnreconciledMovementPayload(
+      movementId  = m.movementId.toString,
+      referenceId = m.referenceId.toString,
+      amount      = m.amount,
+      accountId   = m.accountId.toString,
+      accountName = m.accountName,
+      ageDays     = m.ageDays,
+      agingBucket = m.agingBucket,
+      createdAt   = m.createdAt
     )
 
   def fileInventoryPayloadFromDomain(fi: FileInventory, movementSpecName: String): FileInventoryPayload =
