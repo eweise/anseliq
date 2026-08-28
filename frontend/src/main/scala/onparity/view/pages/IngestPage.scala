@@ -9,7 +9,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.Buttons
+import onparity.view.components.PageHeader
 
 object IngestPage:
 
@@ -58,6 +58,7 @@ object IngestPage:
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-lg p-8",
+        PageHeader.backLink(Observer[Unit](_ => Nav.back())),
         h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-2", "Ingest Files"),
         child <-- movementSpecs.signal.combineWith(reconSpec.signal).map { (specs, rs) =>
           val relevantIds = Set(rs.inMovementSpecId, rs.outMovementSpecId)
@@ -88,8 +89,7 @@ object IngestPage:
               )
             }*
           )
-        },
-        div(cls := "flex justify-end mt-6", Buttons.textButton("Back", Observer[Unit](_ => Nav.back())))
+        }
       )
     )
 

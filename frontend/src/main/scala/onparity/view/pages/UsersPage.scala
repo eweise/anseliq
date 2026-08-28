@@ -14,16 +14,15 @@ object UsersPage:
   def apply(): HtmlElement =
     val users = Var(Seq.empty[UserPayload])
 
-    div(
+    PageHeader.page(
       ApiClient.get[Seq[UserPayload]](HttpPath.url(HttpPath.users), SessionStore.token).apiBind(users.set),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(
+        cls := "flex justify-between items-center",
+        PageHeader.title("Users & Roles"),
+        Buttons.linkButton("Add User", Observer[Unit](_ => Nav.toMaintainUser()))
+      ),
       div(
         cls := "w-full px-8",
-        div(
-          cls := "flex justify-between items-center my-8",
-          PageHeader.title("Users & Roles"),
-          Buttons.linkButton("Add User", Observer[Unit](_ => Nav.toMaintainUser()))
-        ),
         child <-- users.signal.map { us =>
           Table.create(
             Seq("Name", "Email", "Role", "Active", ""),

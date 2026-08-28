@@ -29,11 +29,11 @@ object DashboardPage:
     else genericDashboard()
 
   private def genericDashboard(): HtmlElement =
-    div(
-      cls := "flex flex-col items-center justify-center pt-32",
-      h2(
-        cls := "text-xl font-medium text-md-on-surface dark:text-white",
-        s"Welcome${SessionStore.currentUserNow.map(u => s", ${u.email}").getOrElse("")}"
+    PageHeader.page(
+      PageHeader.titleRow(
+        PageHeader.title(
+          s"Welcome${SessionStore.currentUserNow.map(u => s", ${u.email}").getOrElse("")}"
+        )
       )
     )
 
@@ -48,7 +48,7 @@ object DashboardPage:
       case DisputeFilter.CreatedByMe  => s.disputes.filter(d => myUserId.isDefined && d.raisedByUserId == myUserId)
       case DisputeFilter.All          => s.disputes
 
-    div(
+    PageHeader.page(
       loadBus.events
         .flatMapSwitch(_ => ApiClient.get[Seq[DisputePayload]](HttpPath.url(HttpPath.disputes), SessionStore.token))
         .apiBind(ds => state.update(_.copy(disputes = ds))),
@@ -64,10 +64,9 @@ object DashboardPage:
         loadBus.emit(())
         loadSummaryBus.emit(())
       },
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(PageHeader.title("Dashboard")),
       div(
-        cls := "my-8 w-full px-8",
-        PageHeader.title("Dashboard"),
+        cls := "w-full px-8",
         child.maybe <-- state.signal.map(_.summary.map(agingCard)),
         h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "My Disputes"),
         div(

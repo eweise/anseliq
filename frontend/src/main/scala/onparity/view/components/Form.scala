@@ -31,6 +31,42 @@ object Form:
       )
     )
 
+  // A bounded numeric stepper (native up/down arrows via type="number" + min/max/step) rather than
+  // field's free-text input — for values like an hour-of-day where any out-of-range or non-numeric
+  // text would be a silently-clamped/defaulted value downstream otherwise. Deliberately compact
+  // (fixed w-44, not field's w-full): this is for small bounded numbers embedded among other
+  // controls, not a standalone form field taking up a whole row. whitespace-nowrap on the label is
+  // load-bearing, not cosmetic: the label is absolutely positioned (so it doesn't add to the
+  // input's own layout height), which means an unconstrained-width parent lets a long label wrap
+  // onto multiple lines and grow down over the input's value instead of just sitting in the sliver
+  // above the border — keep `lbl` short enough to actually fit one line at this width regardless.
+  def numberField(
+    id:       String,
+    lbl:      String,
+    value:    Int,
+    min:      Int,
+    max:      Int,
+    changeFn: Int => Unit
+  ): HtmlElement =
+    div(
+      cls := "relative mb-5 w-44 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
+      label(
+        forId := id,
+        cls   := "absolute -top-2.5 left-3 bg-white dark:bg-gray-800 px-1 text-xs font-medium tracking-wide whitespace-nowrap text-md-on-surface-variant dark:text-gray-400",
+        lbl
+      ),
+      input(
+        idAttr       := id,
+        typ          := "number",
+        minAttr      := min.toString,
+        maxAttr      := max.toString,
+        stepAttr     := "1",
+        defaultValue := value.toString,
+        cls          := "w-full px-3 py-2.5 bg-transparent text-md-on-surface dark:text-white text-base focus:outline-none rounded",
+        onInput.mapToValue --> Observer[String](v => v.toIntOption.filter(n => n >= min && n <= max).foreach(changeFn))
+      )
+    )
+
   def selectField(
     id:       String,
     lbl:      String,

@@ -45,7 +45,7 @@ object TestParserPage:
     val state       = Var(State())
     val fileReadBus = EventBus[String]()
 
-    div(
+    PageHeader.page(
       ApiClient
         .get[Seq[MovementSpecPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"), SessionStore.token)
         .apiBind(specs => state.update(_.copy(movementSpec = specs.find(_.id.contains(movementSpecId))))),
@@ -60,17 +60,20 @@ object TestParserPage:
         case Right(result) => state.update(_.copy(result = Some(result), status = UploadStatus.Done))
         case Left(e)       => state.update(_.copy(status = UploadStatus.Failed(e)))
       },
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(
+        PageHeader.backLink(Observer[Unit](_ => Nav.back())),
+        div(
+          cls := "flex justify-between items-start",
+          PageHeader.title(
+            child.text <-- state.signal.map(s =>
+              s"Test Parser — ${s.movementSpec.map(_.name).getOrElse(movementSpecId)}"
+            )
+          ),
+          child.maybe <-- state.signal.map(_.movementSpec.map(editParserButton))
+        )
+      ),
       div(
         cls := "w-full px-8",
-        div(
-          cls := "flex gap-2",
-          Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
-          child.maybe <-- state.signal.map(_.movementSpec.map(editParserButton))
-        ),
-        PageHeader.title(
-          child.text <-- state.signal.map(s => s"Test Parser — ${s.movementSpec.map(_.name).getOrElse(movementSpecId)}")
-        ),
         child <-- state.signal.map(s => s.movementSpec.map(specConfigSection).getOrElse(div())),
         uploadSection(state, fileReadBus),
         child <-- state.signal.map(resultSection)

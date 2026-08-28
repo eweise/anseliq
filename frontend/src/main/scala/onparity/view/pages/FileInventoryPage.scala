@@ -15,17 +15,16 @@ object FileInventoryPage:
     val state    = Var(State())
     val fetchBus = EventBus[Unit]()
 
-    div(
+    PageHeader.page(
       EventStream
         .merge(EventStream.fromValue((), emitOnce = true), fetchBus.events)
         .flatMapSwitch { _ =>
           ApiClient.get[Seq[FileInventoryPayload]](HttpPath.url(HttpPath.fileInventory), SessionStore.token)
         }
         .apiBind(entries => state.update(_.copy(entries = entries))),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(PageHeader.title("File Inventory")),
       div(
         cls := "w-full px-8",
-        PageHeader.title("File Inventory"),
         div(
           cls := "mb-6 flex items-end justify-end gap-3",
           button(

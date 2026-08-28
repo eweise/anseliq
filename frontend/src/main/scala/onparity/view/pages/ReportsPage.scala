@@ -39,7 +39,7 @@ object ReportsPage:
       loadSummaryBus.emit(fundFlowId)
       loadTrendBus.emit(fundFlowId)
 
-    div(
+    PageHeader.page(
       loadFundFlowsBus.events.flatMapSwitch(_ => loadFundFlows()).apiBind(ffs => state.update(_.copy(fundFlows = ffs))),
       loadSummaryBus.events.flatMapSwitch(loadSummary).apiBind(s => state.update(_.copy(summary = Some(s)))),
       loadTrendBus.events.flatMapSwitch(loadTrend).apiBind(t => state.update(_.copy(trend = Some(t)))),
@@ -47,14 +47,13 @@ object ReportsPage:
         loadFundFlowsBus.emit(())
         loadFor(None)
       },
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(
+        cls := "flex justify-between items-center",
+        PageHeader.title("Reports & Analytics"),
+        child <-- state.signal.map(s => fundFlowSelect(s.fundFlows, loadFor))
+      ),
       div(
-        cls := "my-8 w-full px-8",
-        div(
-          cls := "flex justify-between items-center mb-6",
-          PageHeader.title("Reports & Analytics"),
-          child <-- state.signal.map(s => fundFlowSelect(s.fundFlows, loadFor))
-        ),
+        cls := "w-full px-8",
         child <-- state.signal.map {
           case State(_, None, _)              => div()
           case State(_, Some(summary), trend) => widgets(summary, trend)

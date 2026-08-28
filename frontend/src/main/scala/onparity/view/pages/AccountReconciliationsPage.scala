@@ -8,7 +8,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, PageHeader, Table}
+import onparity.view.components.{PageHeader, Table}
 
 object AccountReconciliationsPage:
 
@@ -24,17 +24,15 @@ object AccountReconciliationsPage:
         SessionStore.token
       )
 
-    div(
+    PageHeader.page(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(rs => state.update(_.copy(recons = rs))),
       onMountCallback(_ => loadBus.emit(())),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(
+        PageHeader.backLink(Observer[Unit](_ => Nav.back())),
+        PageHeader.title("Recent Reconciliations")
+      ),
       div(
         cls := "w-full px-8",
-        div(
-          cls := "flex justify-between items-center my-8",
-          PageHeader.title("Recent Reconciliations"),
-          Buttons.linkButton("Back", Observer[Unit](_ => Nav.back()))
-        ),
         child <-- state.signal.map { s =>
           Table.create(
             Seq("Description", "Status", "Applied Rules", "Balance", "Adjustment Reason", "Created At", "Updated At"),

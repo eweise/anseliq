@@ -22,7 +22,7 @@ object EventsPage:
     val state    = Var(State())
     val fetchBus = EventBus[String]()
 
-    div(
+    PageHeader.page(
       EventStream
         .merge(
           EventStream.fromValue(state.now().selectedEventType, emitOnce = true),
@@ -35,10 +35,9 @@ object EventsPage:
           )
         }
         .apiBind(events => state.update(_.copy(events = events))),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(PageHeader.title("Events")),
       div(
         cls := "w-full px-8",
-        PageHeader.title("Events"),
         div(
           cls := "mb-6 flex items-end gap-3",
           div(

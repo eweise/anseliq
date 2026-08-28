@@ -16,25 +16,24 @@ object FundFlowsPage:
   def apply(): HtmlElement =
     val fundFlows = Var(Seq.empty[FundFlowPayload])
 
-    div(
+    PageHeader.page(
       ApiClient.get[Seq[FundFlowPayload]](HttpPath.url(HttpPath.fundFlows), SessionStore.token).apiBind { ffs =>
         fundFlows.set(ffs)
         AppState.fundFlows.set(ffs)
       },
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(
+        cls := "flex justify-between items-center",
+        PageHeader.title("Ledgers"),
+        Buttons.linkButton(
+          "Create",
+          Observer[Unit](_ =>
+            AppState.activeFundFlow.set(None)
+            Nav.toMaintainFundFlow()
+          )
+        )
+      ),
       div(
         cls := "w-full px-8",
-        div(
-          cls := "flex justify-between items-center my-8",
-          PageHeader.title("Ledgers"),
-          Buttons.linkButton(
-            "Create",
-            Observer[Unit](_ =>
-              AppState.activeFundFlow.set(None)
-              Nav.toMaintainFundFlow()
-            )
-          )
-        ),
         child <-- fundFlows.signal.map { ffs =>
           Table.create(
             Seq("Name", "Created At", "Updated At", "", ""),

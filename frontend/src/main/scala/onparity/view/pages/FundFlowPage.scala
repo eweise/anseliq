@@ -38,7 +38,7 @@ object FundFlowPage:
     val reconcileBus      = EventBus[String]()
     val saveFundFlowBus   = EventBus[Unit]()
 
-    div(
+    PageHeader.page(
       saveFundFlowBus.events.flatMapSwitch { _ =>
         ApiClient.put[FundFlowPayload, FundFlowPayload](
           HttpPath.url(s"${HttpPath.fundFlow}/$ffId"),
@@ -105,9 +105,8 @@ object FundFlowPage:
         case (id, Left(e)) =>
           state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.Failed(e))))
       },
-      cls := "flex flex-col mb-8 pt-20",
-      div(
-        cls := "w-full px-8",
+      PageHeader.titleRow(
+        PageHeader.backLink(Observer[Unit](_ => Nav.toFundFlows())),
         PageHeader.title(child.text <-- ffVar.signal.map(_.name))
       ),
       div(
@@ -123,31 +122,39 @@ object FundFlowPage:
         child <-- activeTab.signal.map {
           case "Configuration" =>
             div(
+              cls := "flex flex-col gap-6",
               div(
-                cls := "mb-6 max-w-md",
+                cls := "border border-md-outline dark:border-gray-700 rounded-lg p-6 max-w-md",
+                h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Fund Flow Settings"),
                 Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v))),
-                Form.field(
+                Form.numberField(
                   "ffDailyCutoffHours",
-                  "Daily Report Cutoff (hour of day, 0-23)",
-                  ff.dailyCutoffHours.toString,
-                  v => ffVar.update(_.copy(dailyCutoffHours = v.trim.toIntOption.getOrElse(0)))
+                  "Cutoff Hour (0-23)",
+                  ff.dailyCutoffHours,
+                  0,
+                  23,
+                  v => ffVar.update(_.copy(dailyCutoffHours = v))
                 ),
                 Buttons.linkButton("Save Fund Flow", Observer[Unit](_ => saveFundFlowBus.emit(())))
               ),
               div(
-                cls := "mb-4",
-                Buttons.linkButton(
-                  "New Account",
-                  Observer[Unit](_ =>
-                    state.update(_.copy(selectedAccount = None, selectedMovementSpec = None))
-                    Nav.toMaintainAccount(None)
+                cls := "border border-md-outline dark:border-gray-700 rounded-lg p-6",
+                div(
+                  cls := "flex items-center justify-between mb-4",
+                  h3(cls := "font-medium text-md-on-surface dark:text-white", "Accounts"),
+                  Buttons.linkButton(
+                    "New Account",
+                    Observer[Unit](_ =>
+                      state.update(_.copy(selectedAccount = None, selectedMovementSpec = None))
+                      Nav.toMaintainAccount(None)
+                    )
                   )
-                )
-              ),
-              child <-- state.signal.map { s =>
-                if s.accounts.isEmpty then div(cls := "text-gray-500 text-sm", "No accounts")
-                else renderDiagram(s, ff, configureReconBus, deleteSpecBus, state)
-              }
+                ),
+                child <-- state.signal.map { s =>
+                  if s.accounts.isEmpty then div(cls := "text-gray-500 dark:text-gray-400 text-sm", "No accounts")
+                  else renderDiagram(s, ff, configureReconBus, deleteSpecBus, state)
+                }
+              )
             )
           case "Account" =>
             div(
@@ -173,6 +180,14 @@ object FundFlowPage:
                           unreconCount.toString
                         )
                       else span(cls := "text-right w-full inline-block", unreconCount.toString)
+                    val unreconBalanceCell =
+                      if account.isRecon then
+                        span(
+                          cls := "text-right w-full inline-block text-blue-600 hover:underline cursor-pointer",
+                          onClick --> (_ => Nav.toUnreconciledMovements(accountId)),
+                          f"$$${account.unreconciledBalance}%.2f"
+                        )
+                      else span()
                     val reconciliationsCell =
                       if account.isRecon then
                         a(
@@ -189,10 +204,7 @@ object FundFlowPage:
                       span(cls := "inline-block w-40", account.name),
                       if account.isRecon then Pill("Recon", Pill.Tone.Accent) else Pill("Source", Pill.Tone.Neutral),
                       span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
-                      span(
-                        cls := "text-right w-full inline-block",
-                        if (account.isRecon) then f"$$${account.unreconciledBalance}%.2f" else ""
-                      ),
+                      unreconBalanceCell,
                       unreconCell,
                       reconciliationsCell
                     )
