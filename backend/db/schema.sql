@@ -301,3 +301,37 @@ EXECUTE PROCEDURE update_audit_fields_task();
 CREATE UNIQUE INDEX dispute_reference_id_category_open_unique
     ON recon.dispute (reference_id, category)
     WHERE status <> 'resolved';
+
+-- Named app_user, not user: "user" is a reserved word in Postgres (collides with the CURRENT_USER
+-- function), which would force every raw-SQL reference to be quoted. role is a fixed, global enum
+-- (UserRole: Admin/Analyst/Viewer) persisted as plain text, matching this schema's existing
+-- convention for every other Scala enum column (event_state.status, dispute.status, job.job_type) —
+-- no Postgres CREATE TYPE, no custom codec. Stored lowercase ('admin', not 'Admin'): the @Table(...,
+-- SqlNameMapper.CamelToSnakeCase) on UserRole downcases enum case names too, not just column/table
+-- names, so the literal text a DbCodec writes/expects is lowercase, confirmed by direct testing
+-- (this is the exact same lowercase-vs-capitalized mismatch already present, and noted as harmless
+-- since always overridden by application code, on dispute.status's 'new' default).
+create table recon.app_user
+(
+    id            uuid primary key,
+    email         text                                  not null unique,
+    password_hash text                                  not null,
+    first_name    text                                  not null,
+    last_name     text                                  not null,
+    role          text        default 'viewer'          not null,
+    active        bool        default true               not null,
+    created_at    timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at    timestamptz default CURRENT_TIMESTAMP not null
+);
+
+CREATE TRIGGER update_app_user
+    BEFORE INSERT OR UPDATE
+    ON recon.app_user
+    FOR EACH ROW
+EXECUTE PROCEDURE update_audit_fields_task();
+
+-- Seed one default Admin so the app is usable right after `make create-db`. Password is
+-- "changeme123" (bcrypt, cost 12) — rotate it immediately via the Users & Roles admin page.
+insert into recon.app_user (id, email, password_hash, first_name, last_name, role)
+values ('00000000-0000-0000-0000-000000000001', 'admin@onparity.local',
+        '$2y$12$/w6Sva4dYXUtPOrWuveq3O/lTdh6uVXa3IYDpklb4NK.6JGkPOiPm', 'Admin', 'User', 'admin');

@@ -5,12 +5,13 @@ import com.raquo.laminar.api.L.*
 object Form:
 
   def field(
-    id:      String,
-    lbl:     String,
-    value:   String,
-    inputFn: String => Unit      = _ => (),
-    enabled: Boolean             = true,
-    updates: EventStream[String] = EventStream.empty
+    id:        String,
+    lbl:       String,
+    value:     String,
+    inputFn:   String => Unit      = _ => (),
+    enabled:   Boolean             = true,
+    updates:   EventStream[String] = EventStream.empty,
+    inputType: String              = "text"
   ): HtmlElement =
     div(
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
@@ -21,6 +22,7 @@ object Form:
       ),
       input(
         idAttr       := id,
+        typ          := inputType,
         defaultValue := value,
         cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-base focus:outline-none rounded",
         onInput.mapToValue --> Observer[String](inputFn),
@@ -34,7 +36,8 @@ object Form:
     lbl:      String,
     options:  Seq[(String, String)],
     selected: String,
-    changeFn: String => Unit
+    changeFn: String => Unit,
+    updates:  EventStream[String] = EventStream.empty
   ): HtmlElement =
     div(
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
@@ -47,7 +50,8 @@ object Form:
         idAttr := id,
         cls    := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-base focus:outline-none rounded",
         onMountCallback(ctx => ctx.thisNode.ref.value = selected),
-        onChange.mapToValue --> Observer[String](changeFn)
+        onChange.mapToValue --> Observer[String](changeFn),
+        inContext(el => updates --> Observer[String](v => el.ref.value = v))
       ).amend(options.map((v, optLbl) => option(value := v, optLbl))*)
     )
 

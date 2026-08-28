@@ -57,6 +57,10 @@ class AppEnv(
   given disputeService:     DisputeService         = DisputeService()
   given dailySnapshotRepo:  DailySnapshotRepo      = DailySnapshotRepoLive()
   given reportingService:   ReportingService       = ReportingService()
+  given userRepo:           UserRepo               = UserRepoLive()
+  given userService:        UserService            = UserService()
+  given jwtSecret:          JwtSecret              = JwtSecret(config.getString("jwt.secret"))
+  given authService:        AuthService            = AuthService()
 
   // Ingestor isn't a plain constructor parameter like fileSourceFactory/clock because its default
   // (Ingestor()) itself needs ~10 sibling givens (ledger, movementRepo, ...) declared above — a

@@ -126,7 +126,8 @@ lazy val backend = (project in file("backend"))
       "io.circe"                   %% "circe-core"          % "0.14.10",
       "io.circe"                   %% "circe-parser"        % "0.14.10",
       "software.amazon.awssdk"      % "s3"                  % "2.29.0",
-      "com.jayway.jsonpath"         % "json-path"           % "2.9.0"
+      "com.jayway.jsonpath"         % "json-path"           % "2.9.0",
+      "at.favre.lib"                 % "bcrypt"              % "0.10.2"
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     // Most tests isolate themselves with rollBackOnly, but a few (e.g. IngestResumableSuite) commit

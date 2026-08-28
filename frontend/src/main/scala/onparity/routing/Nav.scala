@@ -58,3 +58,8 @@ object Nav:
 
   def toTestParser(movementSpecId: String): Unit =
     push(s"/components/movement-specs/$movementSpecId/test-parse")
+
+  def toUsers(): Unit = push("/components/users")
+
+  def toMaintainUser(userId: String = "new"): Unit =
+    push(s"/components/maintain-user/$userId")

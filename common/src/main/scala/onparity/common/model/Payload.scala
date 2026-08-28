@@ -40,22 +40,35 @@ import onparity.common.model.OffsetDateTimeRW.given
 /**
  * Shared models between Backend and Frontend
  */
-case class LoginRequest(username: String, password: String)
-case class LoginSuccess(accessToken: String, refreshToken: String)
-case class LoginFailure(reason: String)
+case class LoginRequest(email: String, password: String) derives ReadWriter
+case class LoginSuccess(accessToken: String, refreshToken: String) derives ReadWriter
 case class RandomMessage(text: String) derives ReadWriter
 
-object LoginRequest {
-  given JsonCodec[LoginRequest] = DeriveJsonCodec.gen[LoginRequest]
-}
+case class UserPayload(
+  id:        Option[String] = None,
+  email:     String         = "",
+  firstName: String         = "",
+  lastName:  String         = "",
+  role:      String         = "Viewer",
+  active:    Boolean        = true
+) derives ReadWriter
 
-object LoginSuccess {
-  given JsonCodec[LoginSuccess] = DeriveJsonCodec.gen[LoginSuccess]
-}
+case class CreateUserRequest(
+  email:     String,
+  firstName: String,
+  lastName:  String,
+  role:      String,
+  password:  String
+) derives ReadWriter
 
-object LoginFailure {
-  given JsonCodec[LoginFailure] = DeriveJsonCodec.gen[LoginFailure]
-}
+case class UpdateUserRequest(
+  firstName: String,
+  lastName:  String,
+  role:      String,
+  active:    Boolean
+) derives ReadWriter
+
+case class ResetPasswordRequest(newPassword: String) derives ReadWriter
 
 object RandomMessage {
   given JsonCodec[RandomMessage] = DeriveJsonCodec.gen[RandomMessage]

@@ -57,6 +57,18 @@ object Payload:
       properties          = account.properties.props
     )
 
+  // No passwordHash field — this payload is the one that goes back to the frontend, and a
+  // password hash (even hashed) has no legitimate reason to leave the backend.
+  def userPayloadFromDomain(user: User): UserPayload =
+    UserPayload(
+      id        = Some(user.id.toString),
+      email     = user.email,
+      firstName = user.firstName,
+      lastName  = user.lastName,
+      role      = user.role.toString,
+      active    = user.active
+    )
+
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
     MovementSpecPayload(
       id                   = Some(spec.id.toString),
