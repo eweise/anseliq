@@ -290,8 +290,9 @@ class Ingestor(using
       category    = DisputeCategory.FileMissing,
       detail =
         Some(s"No new file detected for '${movementSpec.name}' since $since (expected every $cadenceHours hours)"),
-      createdAt = Some(clock.now),
-      updatedAt = Some(clock.now)
+      raisedByUserId = None, // system-raised, no human actor
+      createdAt      = Some(clock.now),
+      updatedAt      = Some(clock.now)
     )
     disputeRepo
       .insertIfNoOpenDispute(dispute)

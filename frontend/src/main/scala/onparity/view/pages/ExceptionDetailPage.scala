@@ -48,6 +48,7 @@ object ExceptionDetailPage:
     val state           = Var(State())
     val loadBus         = EventBus[Unit]()
     val submitBus       = EventBus[(Option[DisputeStatusPayload], Option[String])]()
+    val assignBus       = EventBus[Unit]()
     val statusVar       = Var("")
     val bodyVar         = Var("")
     val validationError = Var(Option.empty[String])
@@ -69,6 +70,11 @@ object ExceptionDetailPage:
         bodyVar.set("")
         validationError.set(None)
       },
+      assignBus.events
+        .flatMapSwitch(_ =>
+          ApiClient.postEmpty[DisputeDetailPayload](HttpPath.url(s"${HttpPath.dispute}/$id/assign"), SessionStore.token)
+        )
+        .apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),
       cls := "flex flex-col items-center mb-8 pt-20",
       div(
@@ -85,6 +91,7 @@ object ExceptionDetailPage:
                 Pill(d.dispute.status.toString, statusTone(d.dispute.status)),
                 Pill(d.dispute.targetType.toString, Pill.Tone.Neutral)
               ),
+              assignmentDetails(d, assignBus),
               targetDetails(d),
               h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
               div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
@@ -92,6 +99,17 @@ object ExceptionDetailPage:
             )
         }
       )
+    )
+
+  private def assignmentDetails(d: DisputeDetailPayload, assignBus: EventBus[Unit]): HtmlElement =
+    val myUserId    = SessionStore.currentUserNow.map(_.userId)
+    val alreadyMine = myUserId.isDefined && d.dispute.assignedToUserId == myUserId
+    div(
+      cls := "flex items-center gap-4 mb-4 text-sm text-md-on-surface-variant dark:text-gray-400",
+      span(s"Raised by: ${d.dispute.raisedByName.getOrElse("System")}"),
+      span(s"Assigned to: ${d.dispute.assignedToName.getOrElse("Unassigned")}"),
+      if alreadyMine then div()
+      else Buttons.textButton("Assign to me", Observer[Unit](_ => assignBus.emit(())))
     )
 
   private def targetDetails(d: DisputeDetailPayload): HtmlElement =

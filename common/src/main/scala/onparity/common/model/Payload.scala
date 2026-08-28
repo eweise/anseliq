@@ -42,7 +42,6 @@ import onparity.common.model.OffsetDateTimeRW.given
  */
 case class LoginRequest(email: String, password: String) derives ReadWriter
 case class LoginSuccess(accessToken: String, refreshToken: String) derives ReadWriter
-case class RandomMessage(text: String) derives ReadWriter
 
 case class UserPayload(
   id:        Option[String] = None,
@@ -69,10 +68,6 @@ case class UpdateUserRequest(
 ) derives ReadWriter
 
 case class ResetPasswordRequest(newPassword: String) derives ReadWriter
-
-object RandomMessage {
-  given JsonCodec[RandomMessage] = DeriveJsonCodec.gen[RandomMessage]
-}
 
 enum MovementStatus:
   case Reconciled, WithinSLA, OutOfSLA
@@ -263,17 +258,21 @@ case class RaiseDisputeRequest(
 ) derives ReadWriter
 
 case class DisputePayload(
-  id:             String,
-  referenceId:    String,
-  targetType:     DisputeTargetPayload,
-  category:       DisputeCategoryPayload,
-  detail:         Option[String],
-  status:         DisputeStatusPayload,
-  accountId:      String,
-  accountName:    String,
-  referenceLabel: String,
-  createdAt:      OffsetDateTime,
-  updatedAt:      OffsetDateTime
+  id:               String,
+  referenceId:      String,
+  targetType:       DisputeTargetPayload,
+  category:         DisputeCategoryPayload,
+  detail:           Option[String],
+  status:           DisputeStatusPayload,
+  accountId:        String,
+  accountName:      String,
+  referenceLabel:   String,
+  createdAt:        OffsetDateTime,
+  updatedAt:        OffsetDateTime,
+  raisedByUserId:   Option[String] = None,
+  raisedByName:     Option[String] = None,
+  assignedToUserId: Option[String] = None,
+  assignedToName:   Option[String] = None
 ) derives ReadWriter
 
 case class DisputeCommentPayload(
@@ -317,6 +316,19 @@ case class ReportsSummaryPayload(
   matchRates: Seq[MatchRatePayload],
   exceptions: ExceptionBreakdownPayload,
   aging:      AgingBucketsPayload
+) derives ReadWriter
+
+// Drill-through row for the aging chart's "click to see the movements" link — one row per
+// (recon account, unreconciled movement), matching AgingBucketsPayload's own per-account counting.
+case class UnreconciledMovementPayload(
+  movementId:  String,
+  referenceId: String,
+  amount:      Money,
+  accountId:   String,
+  accountName: String,
+  ageDays:     Long,
+  agingBucket: String,
+  createdAt:   OffsetDateTime
 ) derives ReadWriter
 
 case class TrendPointPayload(

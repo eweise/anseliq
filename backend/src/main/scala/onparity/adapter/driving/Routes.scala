@@ -51,8 +51,6 @@ class App(using
 
   val prefixPath = "/api/v1"
 
-  val randomMessagePath          = s"$prefixPath / random-message"
-  val randomMessage2Path         = s"$prefixPath / random-message2"
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
   val transactor                 = Transactor(dataSource)
@@ -63,18 +61,6 @@ class App(using
   // map lands in for a route that declares one (e.g. `(currentUser: UserClaim)`) — authDecorator
   // must be last so its map is the one bound there.
   override def mainDecorators = Seq(corsDecorator(), authDecorator(jwtSecret))
-
-  @cask.get("api/v1/random-message")
-  def getRandomMessage() =
-    cask.Response(
-      data = write(RandomMessage("random message"))
-    )
-
-  @cask.get("api/v1/random-message2")
-  def getNextRandomMessage() =
-    cask.Response(
-      data = write(RandomMessage("next random message"))
-    )
 
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts", methods = HttpCmd.GET)
   def accountsByFundFlowID(fundFlowID: String): String =
@@ -347,27 +333,22 @@ class App(using
 
   // Disputes
   @cask.route(HttpPath.dispute, methods = HttpCmd.POST)
-  def raiseDispute(request: cask.Request): String =
+  def raiseDispute(request: cask.Request)(currentUser: JwtHelper.UserClaim): String =
     val payload = read[RaiseDisputeRequest](request.text())
     transact(transactor):
       val dispute = disputeService.raise(
         UUID.fromString(payload.referenceId),
         Payload.disputeTargetToDomain(payload.targetType),
         Payload.disputeCategoryToDomain(payload.category),
-        payload.detail
+        payload.detail,
+        raisedByUserId = Some(UUID.fromString(currentUser.userId))
       )
-      val (accountId, accountName, referenceLabel) = disputeContext(dispute)
-      write(Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel))
+      write(disputePayloadWithNames(dispute))
 
   @cask.route(HttpPath.disputes, methods = HttpCmd.GET)
   def listDisputes(): String =
     transact(transactor):
-      val disputes = disputeRepo.findAll
-      val payload = disputes.map { d =>
-        val (accountId, accountName, referenceLabel) = disputeContext(d)
-        Payload.disputePayloadFromDomain(d, accountId, accountName, referenceLabel)
-      }
-      write(payload)
+      write(disputeRepo.findAll.map(disputePayloadWithNames))
 
   @cask.route(s"${HttpPath.dispute}/:id", methods = HttpCmd.GET)
   def getDispute(id: String): String =
@@ -387,9 +368,30 @@ class App(using
       val dispute = disputeRepo.findById(UUID.fromString(id)).ErrIfNotFound("dispute", UUID.fromString(id))
       write(disputeDetail(dispute))
 
-  private def disputeDetail(dispute: Dispute): Txn[DisputeDetailPayload] =
+  // Self-assign only — see DisputeService.assign's own doc. No admin gate: any authenticated user
+  // may assign a dispute to themselves.
+  @cask.route(s"${HttpPath.dispute}/:id/assign", methods = HttpCmd.POST)
+  def assignDisputeToMe(id: String)(currentUser: JwtHelper.UserClaim): String =
+    transact(transactor):
+      val dispute = disputeService.assign(UUID.fromString(id), UUID.fromString(currentUser.userId))
+      write(disputeDetail(dispute))
+
+  private def userDisplay(userId: Option[UUID]): Txn[Option[String]] =
+    userId.flatMap(id => userRepo.findById(id)).map(u => s"${u.firstName} ${u.lastName}")
+
+  private def disputePayloadWithNames(dispute: Dispute): Txn[DisputePayload] =
     val (accountId, accountName, referenceLabel) = disputeContext(dispute)
-    val disputePayload                           = Payload.disputePayloadFromDomain(dispute, accountId, accountName, referenceLabel)
+    Payload.disputePayloadFromDomain(
+      dispute,
+      accountId,
+      accountName,
+      referenceLabel,
+      raisedByName   = userDisplay(dispute.raisedByUserId),
+      assignedToName = userDisplay(dispute.assignedToUserId)
+    )
+
+  private def disputeDetail(dispute: Dispute): Txn[DisputeDetailPayload] =
+    val disputePayload = disputePayloadWithNames(dispute)
     val movementPayload = dispute.targetType match
       case DisputeTarget.Movement       => movementRepo.findById(dispute.referenceId).map(Payload.movementfromDomainModel)
       case DisputeTarget.Reconciliation => None
@@ -429,6 +431,15 @@ class App(using
     transact(transactor):
       val report = reportingService.trend(fundFlowId.map(UUID.fromString), days)
       write(Payload.trendReportPayloadFromDomain(report))
+
+  // Drill-through list backing the aging chart's click-through — same fundFlowId scoping as
+  // /reports/summary (omitted -> every fund flow), one row per (recon account, unreconciled
+  // movement).
+  @cask.route(s"${HttpPath.reports}/unreconciled-movements", methods = HttpCmd.GET)
+  def getReportsUnreconciledMovements(fundFlowId: Option[String] = None): String =
+    transact(transactor):
+      val rows = reportingService.unreconciledMovements(fundFlowId.map(UUID.fromString))
+      write(rows.map(Payload.unreconciledMovementPayloadFromDomain))
 
   // Jobs
   @cask.route(s"${HttpPath.jobs}/:jobType", methods = HttpCmd.GET)

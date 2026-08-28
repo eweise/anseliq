@@ -36,8 +36,6 @@ object PathDef {
    */
   val prefix:                 PathCodec[Unit] = Root / "api" / "v1"
   val login:                  PathCodec[Unit] = prefix / "login"
-  val randomMessage:          PathCodec[Unit] = prefix / "random-message"
-  val randomMessage2:         PathCodec[Unit] = prefix / "random-message2"
   val fundFlows:              PathCodec[Unit] = prefix / "fund-flows"
   val accounts:               PathCodec[Unit] = prefix / "account"
   val ping:                   PathCodec[Unit] = prefix / "scala"
@@ -51,8 +49,6 @@ object BackendApiUrl {
   import onparity.common.BuildInfo.backendBaseUrl
 
   val login:                  String = generateUrl(PathDef.login.format(()))
-  val randomMessage:          String = generateUrl(PathDef.randomMessage.format(()))
-  val randomMessage2:         String = generateUrl(PathDef.randomMessage2.format(()))
   val fundFlows:              String = generateUrl(PathDef.fundFlows.format(()))
   val accounts:               String = generateUrl(PathDef.accounts.format(()))
   val subscribeServerMessage: String = generateWsUrl(PathDef.subscribeServerMessage.format(()))

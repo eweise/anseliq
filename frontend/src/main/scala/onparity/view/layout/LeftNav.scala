@@ -44,7 +44,7 @@ object LeftNav:
     NavGroup(
       "Overview",
       Seq(
-        NavItem("Dashboard", "/", Icons.home)
+        NavItem("Dashboard", "/components/dashboard", Icons.home)
       )
     ),
     NavGroup(

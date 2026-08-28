@@ -70,6 +70,12 @@ class ReportingService(using
       case DisputeTarget.MovementSpec =>
         movementSpecRepo.findById(d.referenceId).map(_.inAccountId)
 
+  private def agingBucketFor(ageDays: Long): String =
+    if ageDays <= 3 then "0-3"
+    else if ageDays <= 7 then "4-7"
+    else if ageDays <= 14 then "8-14"
+    else "15+"
+
   private def agingBuckets(reconAccounts: Vector[Account]): Txn[AgingBucketsReport] =
     val counts  = scala.collection.mutable.Map(agingBucketOrder.map(_ -> 0)*)
     var overdue = 0
@@ -78,17 +84,39 @@ class ReportingService(using
       val agingLimit = reconSpecRepo.findByAccountID(account.id).headOption.map(_.agingLimit)
       movementRepo.findUnReconciledByAccount(account.id).foreach { m =>
         val ageDays = ChronoUnit.DAYS.between(m.createdAt.get, clock.now)
-        val bucket =
-          if ageDays <= 3 then "0-3"
-          else if ageDays <= 7 then "4-7"
-          else if ageDays <= 14 then "8-14"
-          else "15+"
-        counts(bucket) += 1
+        counts(agingBucketFor(ageDays)) += 1
         agingLimit.foreach(limit => if ageDays > limit then overdue += 1)
       }
     }
 
     AgingBucketsReport(agingBucketOrder.map(b => b -> counts(b)), overdue)
+
+  // Drill-through row list backing the aging chart on the Dashboard/Reports pages — same account
+  // scoping (isRecon accounts, optionally narrowed to one fund flow) and the same per-account
+  // iteration as agingBuckets above, so a bucket's count here always matches the chart.
+  def unreconciledMovements(fundFlowId: Option[ID]): Txn[Seq[UnreconciledMovementDetail]] =
+    fundFlowId.foreach(id => fundFlowConfigRepo.findById(id).ErrIfNotFound("fund flow", id))
+
+    val accounts = fundFlowId match
+      case Some(id) => accountRepo.findByFundFlow(id)
+      case None     => accountRepo.findAll()
+    val reconAccounts = accounts.filter(_.isRecon)
+
+    reconAccounts.flatMap { account =>
+      movementRepo.findUnReconciledByAccount(account.id).map { m =>
+        val ageDays = ChronoUnit.DAYS.between(m.createdAt.get, clock.now)
+        UnreconciledMovementDetail(
+          movementId  = m.id,
+          referenceId = m.referenceId,
+          amount      = m.amount,
+          accountId   = account.id,
+          accountName = account.name,
+          ageDays     = ageDays,
+          agingBucket = agingBucketFor(ageDays),
+          createdAt   = m.createdAt.get
+        )
+      }
+    }
 
   // Storage shape for the match-rates snapshot blob — mirrors MatchRatePayload (String account id,
   // since ID/UUID has no upickle ReadWriter in this codebase) but stays in the domain layer rather
