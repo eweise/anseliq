@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Form, Icons, PageHeader, Table}
+import onparity.view.components.{Form, PageHeader, Table}
 import upickle.default.*
 
 object EventsPage:
@@ -35,7 +35,11 @@ object EventsPage:
           )
         }
         .apiBind(events => state.update(_.copy(events = events))),
-      PageHeader.titleRow(PageHeader.title("Events")),
+      PageHeader.titleRow(
+        cls := "flex items-center justify-between",
+        PageHeader.title("Events"),
+        PageHeader.refreshButton(Observer[Unit](_ => fetchBus.emit(state.now().selectedEventType)))
+      ),
       div(
         cls := "w-full px-8",
         div(
@@ -51,12 +55,6 @@ object EventsPage:
                 state.update(s => s.copy(selectedEventType = v, events = Seq.empty))
                 fetchBus.emit(v)
             )
-          ),
-          button(
-            cls := "flex border border-gray-200 bg-green-400 text-white justify-center items-center w-10 h-10 rounded-full hover:bg-green-500",
-            typ := "button",
-            onClick --> (_ => fetchBus.emit(state.now().selectedEventType)),
-            Icons.refresh
           )
         ),
         child <-- state.signal.map { s =>
