@@ -8,7 +8,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{PageHeader, Table}
+import onparity.view.components.{Card, PageHeader, Table}
 
 object ReconciliationDetailPage:
 
@@ -40,7 +40,7 @@ object ReconciliationDetailPage:
   private def reconciliationSection(d: ReconciliationDetailPayload): HtmlElement =
     val r = d.reconciliation
     div(
-      cls := "border border-md-outline rounded-lg p-4 mb-4",
+      cls := s"${Card.cls} p-4 mb-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Reconciliation"),
       div(
         cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
@@ -58,7 +58,7 @@ object ReconciliationDetailPage:
   private def reconSpecSection(d: ReconciliationDetailPayload): HtmlElement =
     val s = d.spec
     div(
-      cls := "border border-md-outline rounded-lg p-4 mb-4",
+      cls := s"${Card.cls} p-4 mb-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Reconciliation Spec"),
       div(
         cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
@@ -72,7 +72,7 @@ object ReconciliationDetailPage:
 
   private def movementsSection(d: ReconciliationDetailPayload): HtmlElement =
     div(
-      cls := "border border-md-outline rounded-lg p-4",
+      cls := s"${Card.cls} p-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Related Movements"),
       Table.create(
         Seq("ID", "Amount"),
@@ -80,7 +80,7 @@ object ReconciliationDetailPage:
           Seq(
             a(
               href := s"/components/movements/${m.id}",
-              cls  := "text-md-primary hover:underline cursor-pointer",
+              cls  := "text-md-on-surface dark:text-gray-200 hover:underline cursor-pointer",
               onClick --> { e =>
                 e.preventDefault()
                 Nav.toMovementDetail(m.id)

@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, Form, PageHeader, Pill, Table}
+import onparity.view.components.{Buttons, Card, Form, PageHeader, Pill, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -124,7 +124,7 @@ object FundFlowPage:
             div(
               cls := "flex flex-col gap-6",
               div(
-                cls := "border border-md-outline dark:border-gray-700 rounded-lg p-6 max-w-md",
+                cls := s"${Card.cls} p-6 max-w-md",
                 h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Fund Flow Settings"),
                 Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v))),
                 Form.numberField(
@@ -138,7 +138,7 @@ object FundFlowPage:
                 Buttons.linkButton("Save Fund Flow", Observer[Unit](_ => saveFundFlowBus.emit(())))
               ),
               div(
-                cls := "border border-md-outline dark:border-gray-700 rounded-lg p-6",
+                cls := s"${Card.cls} p-6",
                 div(
                   cls := "flex items-center justify-between mb-4",
                   h3(cls := "font-medium text-md-on-surface dark:text-white", "Accounts"),

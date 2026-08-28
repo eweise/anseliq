@@ -77,7 +77,7 @@ object ReconciliationsPage:
               Seq(
                 a(
                   href := s"/components/reconciliations/${r.id}",
-                  cls  := "text-md-primary hover:underline cursor-pointer",
+                  cls  := "text-md-on-surface dark:text-gray-200 hover:underline cursor-pointer",
                   onClick --> { e =>
                     e.preventDefault()
                     Nav.toReconciliationDetail(r.id)

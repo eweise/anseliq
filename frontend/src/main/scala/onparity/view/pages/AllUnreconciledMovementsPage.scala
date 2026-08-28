@@ -52,7 +52,7 @@ object AllUnreconciledMovementsPage:
       span(m.accountName),
       a(
         href := s"/components/movements/${m.movementId}",
-        cls  := "text-md-primary hover:underline cursor-pointer",
+        cls  := "text-md-on-surface dark:text-gray-200 hover:underline cursor-pointer",
         onClick --> { e =>
           e.preventDefault()
           Nav.toMovementDetail(m.movementId)

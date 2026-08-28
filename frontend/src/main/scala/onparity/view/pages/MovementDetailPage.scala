@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.PageHeader
+import onparity.view.components.{Card, PageHeader}
 
 object MovementDetailPage:
 
@@ -38,7 +38,7 @@ object MovementDetailPage:
 
   private def movementSection(d: MovementDetailPayload): HtmlElement =
     div(
-      cls := "border border-md-outline rounded-lg p-4 mb-4",
+      cls := s"${Card.cls} p-4 mb-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Movement"),
       div(
         cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
@@ -53,8 +53,7 @@ object MovementDetailPage:
 
   private def propertiesSection(title: String, props: Map[String, String], last: Boolean): HtmlElement =
     div(
-      cls := (if last then "border border-md-outline rounded-lg p-4"
-              else "border border-md-outline rounded-lg p-4 mb-4"),
+      cls := (if last then s"${Card.cls} p-4" else s"${Card.cls} p-4 mb-4"),
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", title),
       if props.isEmpty then div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400", "None")
       else

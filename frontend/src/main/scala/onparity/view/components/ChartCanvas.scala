@@ -18,7 +18,17 @@ object ChartCanvas:
   private val paletteLight = js.Array("#6d28d9", "#0891b2", "#d97706", "#059669", "#db2777", "#6366f1")
   private val paletteDark  = js.Array("#a78bfa", "#22d3ee", "#fbbf24", "#34d399", "#f472b6", "#818cf8")
 
-  def apply(chartType: String, dataSignal: Signal[Series], horizontal: Boolean = false): HtmlElement =
+  def apply(
+    chartType:  String,
+    dataSignal: Signal[Series],
+    horizontal: Boolean = false,
+    // Bar/doughnut datasets default to one palette color per bar/segment (right for genuinely
+    // distinct categories — accounts, exception types). Some single-series bar charts are ordinal
+    // buckets (e.g. aging: 0-3/4-7/8-14/15+) rather than unrelated categories, where a rainbow
+    // implies a categorical distinction that isn't there — monochrome renders every bar in the
+    // same single palette color instead.
+    monochrome: Boolean = false
+  ): HtmlElement =
     var chartInstance: Option[Chart] = None
 
     def render(canvas: dom.HTMLCanvasElement, series: Series, dark: Boolean): Unit =
@@ -68,7 +78,7 @@ object ChartCanvas:
         else
           js.Dynamic.literal(
             data            = js.Array(series.values.map(v => v: js.Any)*),
-            backgroundColor = colors,
+            backgroundColor = if monochrome then colors(0) else colors,
             borderWidth     = 0
           )
 

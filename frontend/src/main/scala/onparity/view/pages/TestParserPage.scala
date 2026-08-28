@@ -19,7 +19,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, PageHeader, Table}
+import onparity.view.components.{Buttons, Card, PageHeader, Table}
 
 object TestParserPage:
 
@@ -90,7 +90,7 @@ object TestParserPage:
   // to upload (which columns/fields, in what format) instead of guessing from the spec's name alone.
   private def specConfigSection(spec: MovementSpecPayload): HtmlElement =
     div(
-      cls := "border border-md-outline rounded-lg p-4 mb-4 max-w-lg",
+      cls := s"${Card.cls} p-4 mb-4 max-w-lg",
       h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Parser Configuration"),
       spec.dataSourceConfig match
         case None           => div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400", "No parser configured")
@@ -153,7 +153,7 @@ object TestParserPage:
 
   private def uploadSection(state: Var[State], fileReadBus: EventBus[String]): HtmlElement =
     div(
-      cls := "border border-md-outline rounded-lg p-4 mb-4 max-w-lg",
+      cls := s"${Card.cls} p-4 mb-4 max-w-lg",
       h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Upload a sample file"),
       div(
         cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mb-3",
@@ -213,7 +213,7 @@ object TestParserPage:
           if r.rows.isEmpty then div()
           else
             div(
-              cls := "border border-md-outline rounded-lg p-4",
+              cls := s"${Card.cls} p-4",
               h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Parsed Rows"),
               parsedRowsTable(r.rows)
             )
