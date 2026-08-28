@@ -8,7 +8,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, PageHeader, Table}
+import onparity.view.components.{PageHeader, Table}
 
 object ReconciliationDetailPage:
 
@@ -21,24 +21,20 @@ object ReconciliationDetailPage:
     def load() =
       ApiClient.get[ReconciliationDetailPayload](HttpPath.url(s"${HttpPath.reconciliation}/$id"), SessionStore.token)
 
-    div(
+    PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),
-      cls := "flex flex-col items-center mb-8 pt-20",
-      div(
-        cls := "my-8 text-left w-full max-w-4xl",
-        Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
-        child <-- state.signal.map {
-          case State(None) => div()
-          case State(Some(d)) =>
-            div(
-              PageHeader.title(s"Reconciliation — ${d.reconciliation.description}"),
-              reconciliationSection(d),
-              reconSpecSection(d),
-              movementsSection(d)
-            )
-        }
-      )
+      PageHeader.backLink(Observer[Unit](_ => Nav.back())),
+      child <-- state.signal.map {
+        case State(None) => div()
+        case State(Some(d)) =>
+          div(
+            PageHeader.title(s"Reconciliation — ${d.reconciliation.description}"),
+            reconciliationSection(d),
+            reconSpecSection(d),
+            movementsSection(d)
+          )
+      }
     )
 
   private def reconciliationSection(d: ReconciliationDetailPayload): HtmlElement =

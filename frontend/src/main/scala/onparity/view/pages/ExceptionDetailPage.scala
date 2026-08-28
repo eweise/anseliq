@@ -56,7 +56,7 @@ object ExceptionDetailPage:
     def load() =
       ApiClient.get[DisputeDetailPayload](HttpPath.url(s"${HttpPath.dispute}/$id"), SessionStore.token)
 
-    div(
+    PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
       submitBus.events.flatMapSwitch { (newStatus, body) =>
         ApiClient.post[DisputeDetailPayload, AddDisputeCommentRequest](
@@ -76,29 +76,24 @@ object ExceptionDetailPage:
         )
         .apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),
-      cls := "flex flex-col items-center mb-8 pt-20",
-      div(
-        cls := "my-8 text-center w-full max-w-4xl",
-        Buttons.linkButton("Back", Observer[Unit](_ => Nav.push("/components/exceptions"))),
-        child <-- state.signal.map {
-          case State(None) => div()
-          case State(Some(d)) =>
+      PageHeader.backLink(Observer[Unit](_ => Nav.push("/components/exceptions"))),
+      child <-- state.signal.map {
+        case State(None) => div()
+        case State(Some(d)) =>
+          div(
+            PageHeader.title(s"Dispute — ${d.dispute.category.toString}"),
             div(
-              cls := "text-left",
-              PageHeader.title(s"Dispute — ${d.dispute.category.toString}"),
-              div(
-                cls := "flex gap-2 mb-4",
-                Pill(d.dispute.status.toString, statusTone(d.dispute.status)),
-                Pill(d.dispute.targetType.toString, Pill.Tone.Neutral)
-              ),
-              assignmentDetails(d, assignBus),
-              targetDetails(d),
-              h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
-              div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
-              commentForm(statusVar, bodyVar, validationError, submitBus)
-            )
-        }
-      )
+              cls := "flex gap-2 mb-4",
+              Pill(d.dispute.status.toString, statusTone(d.dispute.status)),
+              Pill(d.dispute.targetType.toString, Pill.Tone.Neutral)
+            ),
+            assignmentDetails(d, assignBus),
+            targetDetails(d),
+            h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
+            div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
+            commentForm(statusVar, bodyVar, validationError, submitBus)
+          )
+      }
     )
 
   private def assignmentDetails(d: DisputeDetailPayload, assignBus: EventBus[Unit]): HtmlElement =

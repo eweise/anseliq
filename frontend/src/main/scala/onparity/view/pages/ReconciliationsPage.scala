@@ -40,7 +40,7 @@ object ReconciliationsPage:
         SessionStore.token
       )
 
-    div(
+    PageHeader.page(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(rs => state.update(_.copy(recons = rs))),
       unmatchBus.events.flatMapSwitch { reconId =>
         ApiClient.postRaw(HttpPath.url(s"${HttpPath.reconciliation}/$reconId/unmatch"), "", SessionStore.token)
@@ -56,10 +56,9 @@ object ReconciliationsPage:
         loadBus.emit(())
       },
       onMountCallback(_ => loadBus.emit(())),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(PageHeader.title("Reconciliations")),
       div(
-        cls := "my-8 w-full px-8",
-        PageHeader.title("Reconciliations"),
+        cls := "w-full px-8",
         Buttons.linkButton("Back to Recon Specs", Observer[Unit](_ => Nav.toReconSpecs(accountId))),
         Buttons.textButton("Manual Match", Observer[Unit](_ => Nav.toManualMatch(accountId, specId))),
         child <-- state.signal.map { s =>

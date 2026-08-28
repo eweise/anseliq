@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, Icons, PageHeader, Table}
+import onparity.view.components.{Icons, PageHeader, Table}
 import upickle.default.*
 
 object ManualMatchPage:
@@ -48,7 +48,7 @@ object ManualMatchPage:
           )
         )
 
-    div(
+    PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => loadReconSpec()).apiBind { specs =>
         val found = specs.find(_.id.contains(reconSpecId)).getOrElse(ReconciliationSpecPayload())
         spec.set(found)
@@ -76,81 +76,77 @@ object ManualMatchPage:
         movementsBus.emit(spec.now())
       },
       onMountCallback(_ => loadBus.emit(())),
-      cls := "flex flex-col items-center mb-8 pt-20",
+      PageHeader.backLink(Observer[Unit](_ => Nav.toReconciliations(accountId, reconSpecId))),
+      PageHeader.title("Manual Match"),
       div(
-        cls := "my-8 text-center w-full max-w-4xl",
-        PageHeader.title("Manual Match"),
-        Buttons.linkButton("Back", Observer[Unit](_ => Nav.toReconciliations(accountId, reconSpecId))),
+        cls := "grid grid-cols-2 gap-4 mt-6 text-left",
         div(
-          cls := "grid grid-cols-2 gap-4 mt-6 text-left",
-          div(
-            h3(cls := "font-medium mb-2", "In Movements"),
-            child <-- state.signal.map { s =>
-              Table.create(
-                Seq("", "Reference ID", "Amount"),
-                s.inMovements.map(m =>
-                  Seq(
-                    input(
-                      typ := "checkbox",
-                      checked <-- state.signal.map(_.selectedIn.contains(m.id)),
-                      onClick.mapToUnit --> Observer[Unit](_ =>
-                        state.update(st => st.copy(selectedIn = toggle(st.selectedIn, m.id)))
-                      )
-                    ),
-                    referenceIdCell(m, state),
-                    span(m.amount.toString)
-                  )
-                ),
-                numCols = Set(2)
-              )
-            }
-          ),
-          div(
-            h3(cls := "font-medium mb-2", "Out Movements"),
-            child <-- state.signal.map { s =>
-              Table.create(
-                Seq("", "Reference ID", "Amount"),
-                s.outMovements.map(m =>
-                  Seq(
-                    input(
-                      typ := "checkbox",
-                      checked <-- state.signal.map(_.selectedOut.contains(m.id)),
-                      onClick.mapToUnit --> Observer[Unit](_ =>
-                        state.update(st => st.copy(selectedOut = toggle(st.selectedOut, m.id)))
-                      )
-                    ),
-                    referenceIdCell(m, state),
-                    span(m.amount.toString)
-                  )
-                ),
-                numCols = Set(2)
-              )
-            }
-          )
-        ),
-        div(
-          cls := "mt-4 text-sm",
-          child.text <-- state.signal.map { s =>
-            val inTotal  = s.inMovements.filter(m => s.selectedIn.contains(m.id)).map(_.amount).sum
-            val outTotal = s.outMovements.filter(m => s.selectedOut.contains(m.id)).map(_.amount).sum
-            val diff     = inTotal - outTotal
-            val note     = if diff == BigDecimal(0) then "will close as Final" else "will save as InProgress"
-            s"Selected In: ${s.selectedIn.size} ($inTotal)  Selected Out: ${s.selectedOut.size} ($outTotal)  Diff: $diff — $note"
+          h3(cls := "font-medium mb-2", "In Movements"),
+          child <-- state.signal.map { s =>
+            Table.create(
+              Seq("", "Reference ID", "Amount"),
+              s.inMovements.map(m =>
+                Seq(
+                  input(
+                    typ := "checkbox",
+                    checked <-- state.signal.map(_.selectedIn.contains(m.id)),
+                    onClick.mapToUnit --> Observer[Unit](_ =>
+                      state.update(st => st.copy(selectedIn = toggle(st.selectedIn, m.id)))
+                    )
+                  ),
+                  referenceIdCell(m, state),
+                  span(m.amount.toString)
+                )
+              ),
+              numCols = Set(2)
+            )
           }
         ),
         div(
-          cls := "mt-4",
-          child.maybe <-- state.signal.map(_.message.map(m => span(cls := "text-sm", m)))
-        ),
-        div(
-          cls := "mt-4",
-          button(
-            cls := "bg-md-primary text-md-on-primary rounded-full px-6 py-2.5 text-sm font-medium disabled:opacity-40",
-            typ := "button",
-            disabled <-- state.signal.map(s => s.selectedIn.isEmpty || s.selectedOut.isEmpty),
-            onClick.mapToUnit --> Observer[Unit](_ => matchBus.emit(())),
-            "Match Selected"
-          )
+          h3(cls := "font-medium mb-2", "Out Movements"),
+          child <-- state.signal.map { s =>
+            Table.create(
+              Seq("", "Reference ID", "Amount"),
+              s.outMovements.map(m =>
+                Seq(
+                  input(
+                    typ := "checkbox",
+                    checked <-- state.signal.map(_.selectedOut.contains(m.id)),
+                    onClick.mapToUnit --> Observer[Unit](_ =>
+                      state.update(st => st.copy(selectedOut = toggle(st.selectedOut, m.id)))
+                    )
+                  ),
+                  referenceIdCell(m, state),
+                  span(m.amount.toString)
+                )
+              ),
+              numCols = Set(2)
+            )
+          }
+        )
+      ),
+      div(
+        cls := "mt-4 text-sm",
+        child.text <-- state.signal.map { s =>
+          val inTotal  = s.inMovements.filter(m => s.selectedIn.contains(m.id)).map(_.amount).sum
+          val outTotal = s.outMovements.filter(m => s.selectedOut.contains(m.id)).map(_.amount).sum
+          val diff     = inTotal - outTotal
+          val note     = if diff == BigDecimal(0) then "will close as Final" else "will save as InProgress"
+          s"Selected In: ${s.selectedIn.size} ($inTotal)  Selected Out: ${s.selectedOut.size} ($outTotal)  Diff: $diff — $note"
+        }
+      ),
+      div(
+        cls := "mt-4",
+        child.maybe <-- state.signal.map(_.message.map(m => span(cls := "text-sm", m)))
+      ),
+      div(
+        cls := "mt-4",
+        button(
+          cls := "bg-md-primary text-md-on-primary rounded-full px-6 py-2.5 text-sm font-medium disabled:opacity-40",
+          typ := "button",
+          disabled <-- state.signal.map(s => s.selectedIn.isEmpty || s.selectedOut.isEmpty),
+          onClick.mapToUnit --> Observer[Unit](_ => matchBus.emit(())),
+          "Match Selected"
         )
       )
     )

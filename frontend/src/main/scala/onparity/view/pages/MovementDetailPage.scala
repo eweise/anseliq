@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, PageHeader}
+import onparity.view.components.PageHeader
 
 object MovementDetailPage:
 
@@ -20,24 +20,20 @@ object MovementDetailPage:
     def load() =
       ApiClient.get[MovementDetailPayload](HttpPath.url(s"${HttpPath.movement}/$id"), SessionStore.token)
 
-    div(
+    PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),
-      cls := "flex flex-col items-center mb-8 pt-20",
-      div(
-        cls := "my-8 text-left w-full max-w-4xl",
-        Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
-        child <-- state.signal.map {
-          case State(None) => div()
-          case State(Some(d)) =>
-            div(
-              PageHeader.title(s"Movement — ${d.referenceId}"),
-              movementSection(d),
-              propertiesSection("Properties", d.properties, last = false),
-              propertiesSection("Metadata", d.metaData, last     = true)
-            )
-        }
-      )
+      PageHeader.backLink(Observer[Unit](_ => Nav.back())),
+      child <-- state.signal.map {
+        case State(None) => div()
+        case State(Some(d)) =>
+          div(
+            PageHeader.title(s"Movement — ${d.referenceId}"),
+            movementSection(d),
+            propertiesSection("Properties", d.properties, last = false),
+            propertiesSection("Metadata", d.metaData, last     = true)
+          )
+      }
     )
 
   private def movementSection(d: MovementDetailPayload): HtmlElement =

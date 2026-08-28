@@ -21,13 +21,12 @@ object ExceptionsPage:
     def load() =
       ApiClient.get[Seq[DisputePayload]](HttpPath.url(HttpPath.disputes), SessionStore.token)
 
-    div(
+    PageHeader.page(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(ds => state.update(_.copy(disputes = ds))),
       onMountCallback(_ => loadBus.emit(())),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(PageHeader.title("Exceptions & Disputes")),
       div(
-        cls := "my-8 w-full px-8",
-        PageHeader.title("Exceptions & Disputes"),
+        cls := "w-full px-8",
         child <-- state.signal.map { s =>
           Table.create(
             Seq("Status", "Category", "Type", "Account", "Reference", "Detail"),

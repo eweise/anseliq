@@ -22,7 +22,7 @@ object UnreconciledMovementsPage:
     val ffId  = AppState.activeFundFlow.now().flatMap(_.id).getOrElse("")
     val state = Var(State())
 
-    div(
+    PageHeader.page(
       ApiClient
         .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
         .apiBind(accs => state.update(_.copy(accounts = accs))),
@@ -38,16 +38,17 @@ object UnreconciledMovementsPage:
           SessionStore.token
         )
         .apiBind(specs => state.update(_.copy(reconSpecs = specs))),
-      cls := "flex flex-col mb-8 pt-20",
-      div(
-        cls := "my-8 w-full px-8",
+      PageHeader.titleRow(
+        PageHeader.backLink(Observer[Unit](_ => Nav.back())),
         PageHeader.title(
           child.text <-- state.signal.map { s =>
             val name = s.accounts.find(_.id.contains(accountId)).map(_.name).getOrElse(accountId)
             s"$name — Unreconciled Movements"
           }
-        ),
-        Buttons.linkButton("Back", Observer[Unit](_ => Nav.back())),
+        )
+      ),
+      div(
+        cls := "w-full px-8",
         Buttons.textButton(
           "Manual Match",
           Observer[Unit](_ =>

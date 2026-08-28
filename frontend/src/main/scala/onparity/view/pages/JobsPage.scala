@@ -18,7 +18,7 @@ object JobsPage:
     val state    = Var(State())
     val fetchBus = EventBus[String]()
 
-    div(
+    PageHeader.page(
       EventStream
         .merge(
           EventStream.fromValue(JobTypeInfo.Reconciliation.toString, emitOnce = true),
@@ -28,10 +28,9 @@ object JobsPage:
           ApiClient.get[Seq[JobInfoPayload]](HttpPath.url(s"${HttpPath.jobs}/$jobType"), SessionStore.token)
         }
         .apiBind(jobs => state.update(_.copy(jobs = jobs))),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(PageHeader.title("Jobs")),
       div(
         cls := "w-full px-8",
-        PageHeader.title("Jobs"),
         div(
           cls := "mb-6 flex items-end gap-3",
           div(

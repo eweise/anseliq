@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, Pill, Table}
+import onparity.view.components.{Buttons, PageHeader, Pill, Table}
 import upickle.default.*
 
 object ReconSpecsPage:
@@ -21,7 +21,7 @@ object ReconSpecsPage:
     val ffId  = AppState.activeFundFlow.now().flatMap(_.id).getOrElse("")
     val state = Var(State())
 
-    div(
+    PageHeader.page(
       ApiClient
         .get[Seq[ReconciliationSpecPayload]](
           HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
@@ -34,9 +34,9 @@ object ReconSpecsPage:
           SessionStore.token
         )
         .apiBind(specs => state.update(_.copy(movementSpecs = specs))),
-      cls := "flex flex-col mb-8 pt-20",
+      PageHeader.titleRow(PageHeader.title("Reconciliation Specs")),
       div(
-        cls := "my-8 w-full px-8",
+        cls := "w-full px-8",
         Buttons.linkButton(
           "Add Recon Spec",
           Observer[Unit](_ => Nav.toMaintainReconSpec(accountId))
