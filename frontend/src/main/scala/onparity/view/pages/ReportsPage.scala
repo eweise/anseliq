@@ -7,7 +7,7 @@ import onparity.http.ApiClient
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.ChartCanvas.Series
-import onparity.view.components.{ChartCanvas, Form, PageHeader, Pill}
+import onparity.view.components.{Card, ChartCanvas, Form, PageHeader, Pill}
 import upickle.default.*
 
 object ReportsPage:
@@ -82,7 +82,7 @@ object ReportsPage:
     val avg      = if rated.isEmpty then None else Some(rated.flatMap(_.matchRatePercent).sum / rated.size)
 
     div(
-      cls := "border border-md-outline rounded-lg p-4",
+      cls := s"${Card.cls} p-4",
       h3(cls := "font-medium mb-1 text-md-on-surface dark:text-white", "Match rate"),
       div(
         cls := "text-sm text-md-on-surface-variant dark:text-gray-400 mb-3",
@@ -117,7 +117,7 @@ object ReportsPage:
     val statusLabels   = Seq("New", "Investigating", "Escalated")
 
     div(
-      cls := "border border-md-outline rounded-lg p-4",
+      cls := s"${Card.cls} p-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Open exceptions by category"),
       ChartCanvas("doughnut", Val(Series(categoryLabels, categoryValues))),
       div(
@@ -157,7 +157,7 @@ object ReportsPage:
 
   private def agingCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
     div(
-      cls := "border border-md-outline rounded-lg p-4",
+      cls := s"${Card.cls} p-4",
       h3(cls := "font-medium mb-1 text-md-on-surface dark:text-white", "Unreconciled aging"),
       div(
         cls := "mb-3",
@@ -166,7 +166,11 @@ object ReportsPage:
           if summary.aging.overdueCount > 0 then Pill.Tone.Critical else Pill.Tone.Good
         )
       ),
-      ChartCanvas("bar", Val(Series(summary.aging.buckets.map(_._1), summary.aging.buckets.map(_._2.toDouble)))),
+      ChartCanvas(
+        "bar",
+        Val(Series(summary.aging.buckets.map(_._1), summary.aging.buckets.map(_._2.toDouble))),
+        monochrome = true
+      ),
       trendChart(
         "Unreconciled backlog over time",
         trend.map(_.points.map(p => p.date -> p.unreconciledBacklogCount.toDouble))

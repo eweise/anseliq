@@ -8,7 +8,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.SessionStore
 import onparity.view.components.ChartCanvas.Series
-import onparity.view.components.{ChartCanvas, PageHeader, Pill, Table}
+import onparity.view.components.{Card, ChartCanvas, PageHeader, Pill, Table}
 
 object DashboardPage:
 
@@ -92,7 +92,7 @@ object DashboardPage:
   // movements" without adding that machinery just for this one card).
   private def agingCard(summary: ReportsSummaryPayload): HtmlElement =
     div(
-      cls := "border border-md-outline rounded-lg p-4 mb-6 max-w-xl cursor-pointer hover:border-md-primary transition-colors",
+      cls := s"${Card.cls} p-4 mb-6 max-w-xl cursor-pointer hover:shadow-md transition-shadow",
       onClick --> (_ => Nav.toAllUnreconciledMovements()),
       h3(cls := "font-medium mb-1 text-md-on-surface dark:text-white", "Unreconciled aging"),
       div(
@@ -102,7 +102,11 @@ object DashboardPage:
           if summary.aging.overdueCount > 0 then Pill.Tone.Critical else Pill.Tone.Good
         )
       ),
-      ChartCanvas("bar", Val(Series(summary.aging.buckets.map(_._1), summary.aging.buckets.map(_._2.toDouble))))
+      ChartCanvas(
+        "bar",
+        Val(Series(summary.aging.buckets.map(_._1), summary.aging.buckets.map(_._2.toDouble))),
+        monochrome = true
+      )
     )
 
   private def filterButton(label: String, filter: DisputeFilter, state: Var[State]): HtmlElement =
@@ -133,17 +137,23 @@ object DashboardPage:
   private def renderRow(d: DisputePayload): Seq[HtmlElement] =
     Seq(
       Pill(d.status.toString, statusTone(d.status)),
-      Pill(d.category.toString, Pill.Tone.Accent),
+      Pill(d.category.toString, Pill.Tone.Neutral),
       Pill(targetLabel(d.targetType), Pill.Tone.Neutral),
       span(d.accountName),
       span(d.referenceLabel),
       a(
         href := s"/components/exceptions/${d.id}",
-        cls  := "text-md-primary hover:underline cursor-pointer",
+        cls  := "flex items-center gap-2 hover:underline cursor-pointer",
         onClick --> { e =>
           e.preventDefault()
           Nav.toExceptionDetail(d.id)
         },
-        d.detail.getOrElse("View")
+        d.detail
+          .map(text => span(cls := "truncate max-w-xs text-md-on-surface dark:text-gray-200", text))
+          .getOrElse(div()),
+        span(
+          cls := "text-md-primary dark:text-md-primary-dark text-xs font-medium whitespace-nowrap",
+          "View →"
+        )
       )
     )

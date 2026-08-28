@@ -9,7 +9,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.PageHeader
+import onparity.view.components.{Card, PageHeader}
 
 object IngestPage:
 
@@ -67,7 +67,7 @@ object IngestPage:
             relevant.map { ms =>
               val specId = ms.id.getOrElse("")
               div(
-                cls := "border border-md-outline rounded-lg p-4",
+                cls := s"${Card.cls} p-4",
                 div(
                   cls := "flex items-center justify-between mb-3",
                   child <-- statuses.signal.map(m => statusBadge(m.getOrElse(specId, UploadStatus.Idle)))

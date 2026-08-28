@@ -50,17 +50,23 @@ object ExceptionsPage:
   private def renderRow(d: DisputePayload): Seq[HtmlElement] =
     Seq(
       Pill(d.status.toString, statusTone(d.status)),
-      Pill(d.category.toString, Pill.Tone.Accent),
+      Pill(d.category.toString, Pill.Tone.Neutral),
       Pill(targetLabel(d.targetType), Pill.Tone.Neutral),
       span(d.accountName),
       span(d.referenceLabel),
       a(
         href := s"/components/exceptions/${d.id}",
-        cls  := "text-md-primary hover:underline cursor-pointer",
+        cls  := "flex items-center gap-2 hover:underline cursor-pointer",
         onClick --> { e =>
           e.preventDefault()
           Nav.toExceptionDetail(d.id)
         },
-        d.detail.getOrElse("View")
+        d.detail
+          .map(text => span(cls := "truncate max-w-xs text-md-on-surface dark:text-gray-200", text))
+          .getOrElse(div()),
+        span(
+          cls := "text-md-primary dark:text-md-primary-dark text-xs font-medium whitespace-nowrap",
+          "View →"
+        )
       )
     )

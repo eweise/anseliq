@@ -15,7 +15,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, Form, PageHeader, Pill}
+import onparity.view.components.{Buttons, Card, Form, PageHeader, Pill}
 import upickle.default.*
 
 object ExceptionDetailPage:
@@ -109,7 +109,7 @@ object ExceptionDetailPage:
 
   private def targetDetails(d: DisputeDetailPayload): HtmlElement =
     div(
-      cls := "border border-md-outline rounded-lg p-4 mb-4",
+      cls := s"${Card.cls} p-4 mb-4",
       div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400 mb-2", s"Account: ${d.dispute.accountName}"),
       d.dispute.detail
         .map(det => div(cls := "text-sm mb-2 text-md-on-surface dark:text-gray-200", s"Raised with: $det"))
