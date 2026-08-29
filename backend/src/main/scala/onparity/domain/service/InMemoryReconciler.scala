@@ -193,17 +193,25 @@ class InMemoryReconciler(using
   // Scala string that matchKeyValue/afterKey use, so it's built here as ->> text extraction plus
   // an explicit modifier translation instead. StringAttribute's SubstringModifier has no real
   // implementation upstream (its own .apply is `???`), so it's unsupported here too.
+  // The composite key expression is spliced into raw SQL as a literal (SqlLiteral in
+  // MovementRepoLive), not bound as a parameter, so a constant containing a quote must be escaped
+  // here or it would break the generated SQL.
+  private def escapeSqlLiteral(value: String): String = value.replace("'", "''")
+
   private def attrSqlExpr(attr: StringAttribute | DateAttribute, tableAlias: String): String =
     attr match
       case s: StringAttribute =>
         s.modifier match
-          case None => s"($tableAlias.properties['props'] ->> '${s.key}')"
+          case None if s.isConstant => s"'${escapeSqlLiteral(s.key)}'"
+          case None                 => s"($tableAlias.properties['props'] ->> '${s.key}')"
           case Some(m) =>
             throw UnsupportedOperationException(
               s"reconcileAccountResumable does not support string modifier ${m.getClass.getSimpleName}"
             )
       case d: DateAttribute =>
-        val base = s"($tableAlias.properties['props'] ->> '${d.key}')::date"
+        val base =
+          if d.isConstant then s"'${escapeSqlLiteral(d.key)}'::date"
+          else s"($tableAlias.properties['props'] ->> '${d.key}')::date"
         d.modifier match
           case None                       => base
           case Some(DateAdd(interval, v)) => s"($base + interval '$v ${interval.toString.toLowerCase}')::date"

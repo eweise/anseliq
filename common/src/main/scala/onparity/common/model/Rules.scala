@@ -43,7 +43,6 @@ trait AttributeMatcher:
 case object NoOpRule extends Rule:
   def sql: String = ""
 
-
 case class StringAttributeMatchRule(
   inKey:  StringAttribute,
   outKey: StringAttribute
@@ -52,10 +51,12 @@ case class StringAttributeMatchRule(
     derives ReadWriter:
 
   def sql: String =
-    val inAttributeFrag  = s" move_in.properties ['props'] ['${inKey.key}']"
-    val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
-    val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
-    val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
+    val inAttributeFrag =
+      if inKey.isConstant then s"'${inKey.key}'" else s" move_in.properties ['props'] ['${inKey.key}']"
+    val outAttributeFrag =
+      if outKey.isConstant then s"'${outKey.key}'" else s" move_out.properties ['props'] ['${outKey.key}']"
+    val inModifiedFrag  = if inKey.isConstant then inAttributeFrag else inKey.modifySQL(inAttributeFrag)
+    val outModifiedFrag = if outKey.isConstant then outAttributeFrag else outKey.modifySQL(outAttributeFrag)
     s"$inModifiedFrag = $outModifiedFrag"
 
 case class DateAttributeMatchRule(
@@ -66,18 +67,23 @@ case class DateAttributeMatchRule(
     derives ReadWriter:
 
   def sql: String =
-    val inAttributeFrag  = s" move_in.properties ['props'] ['${inKey.key}']"
-    val outAttributeFrag = s" move_out.properties ['props'] ['${outKey.key}']"
-    val inModifiedFrag   = inKey.modifySQL(inAttributeFrag)
-    val outModifiedFrag  = outKey.modifySQL(outAttributeFrag)
+    val inAttributeFrag =
+      if inKey.isConstant then s"'${inKey.key}'::date" else s" move_in.properties ['props'] ['${inKey.key}']"
+    val outAttributeFrag =
+      if outKey.isConstant then s"'${outKey.key}'::date" else s" move_out.properties ['props'] ['${outKey.key}']"
+    val inModifiedFrag  = if inKey.isConstant then inAttributeFrag else inKey.modifySQL(inAttributeFrag)
+    val outModifiedFrag = if outKey.isConstant then outAttributeFrag else outKey.modifySQL(outAttributeFrag)
     s"$inModifiedFrag = $outModifiedFrag"
 
 sealed abstract class Attribute[A](val key: String) extends Ordering[String]:
   def modifySQL(frag: String): String
 
 case class StringAttribute(
+  // The field name in a movement's props — or, when isConstant is true, the literal value itself
+  // (matched against the other side's field on every row, rather than looked up per-row).
   override val key: String,
-  val modifier:     Option[StringModifier] = None
+  val modifier:     Option[StringModifier] = None,
+  val isConstant:   Boolean                = false
 ) extends Attribute[String](key = key),
       CanCompareProperties
     derives ReadWriter:
@@ -89,14 +95,19 @@ case class StringAttribute(
     x.compareTo(y)
 
   def getValue(props: Properties): String =
-    val value = props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
+    val value =
+      if isConstant then key
+      else props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
     modifier.map(_.apply(value)).getOrElse(value)
 
   override def compare(x: String, y: String): Int = x.compareTo(y)
 
 case class DateAttribute(
+  // The field name in a movement's props — or, when isConstant is true, an ISO-8601 (yyyy-MM-dd)
+  // literal date, matched against the other side's field on every row rather than looked up per-row.
   override val key: String,
-  val modifier:     Option[DateModifier] = None
+  val modifier:     Option[DateModifier] = None,
+  val isConstant:   Boolean              = false
 ) extends Attribute[OffsetDateTime](key = key),
       CanCompareProperties
     derives ReadWriter:
@@ -108,8 +119,11 @@ case class DateAttribute(
     x.compareTo(y)
 
   def getValue(props: Properties): LocalDate =
-    val strValue: String = props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
-    val dateValue = java.time.LocalDate.parse(strValue)
+    val dateValue =
+      if isConstant then java.time.LocalDate.parse(key)
+      else
+        val strValue: String = props.getOrElse(key, throw IllegalArgumentException(s"property for key $key not found"))
+        java.time.LocalDate.parse(strValue)
     modifier.map(_.apply(dateValue)).getOrElse(dateValue)
 
   override def compare(x: String, y: String): Int =
