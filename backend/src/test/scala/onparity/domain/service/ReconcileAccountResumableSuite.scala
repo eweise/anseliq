@@ -501,3 +501,55 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       val raised     = transact(transactor)(reconciler.raiseStaleMismatchDisputes(data.reconSpec))
       assertEquals(raised, 0)
     finally teardown(data)
+
+  // Own MovementSpecs, same reasoning as oneToManySpec above: keeps this rule's movements out of
+  // reach of data.reconSpec's own "id"-keyed OneToOne rule.
+  private def constantMatchSpec(data: DataSetup): (MovementSpec, MovementSpec, ReconciliationSpec) =
+    val inSpec  = MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id)
+    val outSpec = MovementSpec(outAccountId = data.reconAccount.id, inAccountId = data.reportAccount.id)
+    // outKey is pinned to the literal "12345" rather than looked up from each out-movement's own
+    // props — every out-movement trivially satisfies this side of the rule regardless of its own
+    // "id", so only in-movements whose real "id" equals "12345" can ever pair with one.
+    val rule = StringAttributeMatchRule(
+      inKey  = StringAttribute(key = "id"),
+      outKey = StringAttribute(key = "12345", isConstant = true)
+    )
+    val spec = ReconciliationSpec(
+      accountId         = data.reconAccount.id,
+      ruleJson          = upickle.write(rule),
+      inMovementSpecId  = inSpec.id,
+      outMovementSpecId = outSpec.id
+    )
+    transact(transactor):
+      movementSpecRepo.insert(inSpec)
+      movementSpecRepo.insert(outSpec)
+      data.reconSpecRepo.insert(spec)
+    (inSpec, outSpec, spec)
+
+  test("a rule with a constant on one side only matches in-movements whose field equals that constant"):
+    val data                    = transact(transactor)(DataSetup())
+    val (inSpec, outSpec, spec) = constantMatchSpec(data)
+    given ops: FundFlowOperations = FundFlowOperations()
+    try
+      transact(transactor):
+        // matches: this in-movement's real "id" equals the constant the out side is pinned to.
+        ops.postAmount(inSpec, 100, referenceID = createID(), Map("id" -> "12345"))
+        // the out-movement's own "id" is irrelevant — its side of the rule never looks at it.
+        ops.postAmount(outSpec, 100, referenceID = createID(), Map("id" -> "unused"))
+        // does not match: this in-movement's "id" differs from the constant, so it has no pairing
+        // out-movement to match against.
+        ops.postAmount(inSpec, 50, referenceID = createID(), Map("id" -> "999"))
+
+      val reconciler = InMemoryReconciler()
+      val result     = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+
+      assertEquals(result.reconciliationSpecInsertCount(spec.id), 1, "only the constant-matching pair reconciles")
+
+      val unreconciled = transact(transactor)(movementRepo.findUnReconciledByAccount(data.reconAccount.id))
+      assertEquals(unreconciled.size, 1, "the id=999 in-movement is left unreconciled")
+      assertEquals(unreconciled.head.props.get("id"), Some("999"))
+    finally
+      transact(transactor):
+        data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        data.reconSpecRepo.deleteById(spec.id)
+      teardown(data)
