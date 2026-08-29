@@ -7,7 +7,8 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, Card, Form, PageHeader, Pill, Table}
+import onparity.view.ViewHelper
+import onparity.view.components.{Buttons, Card, Form, PageHeader, Pill, RuleWidget, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -114,6 +115,7 @@ object FundFlowPage:
         div(
           cls := "w-full px-8 flex -mb-px space-x-8",
           tabButton("Accounts", "Account", activeTab),
+          tabButton("Search Movements", "Search", activeTab),
           tabButton("Configuration", "Configuration", activeTab)
         )
       ),
@@ -213,7 +215,8 @@ object FundFlowPage:
                 )
               }
             )
-          case _ => div()
+          case "Search" => searchMovementsTab(ffId, state)
+          case _        => div()
         }
       )
     )
@@ -228,6 +231,218 @@ object FundFlowPage:
       },
       onClick --> (_ => activeTab.set(tabId)),
       label
+    )
+
+  case class SearchState(
+    accountId:          String                                   = "",
+    amount:             String                                   = "",
+    movementSpecId:     String                                   = "",
+    properties:         Map[String, String]                      = Map.empty,
+    fileSourceFilename: String                                   = "",
+    unreconciledOnly:   Boolean                                  = false,
+    createdFrom:        String                                   = "",
+    createdTo:          String                                   = "",
+    results:            Option[Seq[MovementSearchResultPayload]] = None,
+    searchError:        Option[String]                           = None
+  )
+
+  private def parseDateStart(dateStr: String): Option[java.time.OffsetDateTime] =
+    if dateStr.isEmpty then None
+    else
+      scala.util
+        .Try(java.time.LocalDate.parse(dateStr).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime)
+        .toOption
+
+  // Exclusive upper bound (the day after the chosen "To" date) so the whole "To" day is included
+  // via `createdAt < createdTo` on the backend, rather than needing a `<=` against a bare date.
+  private def parseDateEndExclusive(dateStr: String): Option[java.time.OffsetDateTime] =
+    if dateStr.isEmpty then None
+    else
+      scala.util
+        .Try(java.time.LocalDate.parse(dateStr).plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime)
+        .toOption
+
+  // Kept local to this tab (rebuilt fresh whenever the user switches back to it) rather than
+  // folded into the page-level State — none of the other tabs need this data, and it keeps the
+  // shared State from growing ten fields that only ever matter here.
+  private def searchMovementsTab(ffId: String, state: Var[State]): HtmlElement =
+    val searchVar = Var(SearchState())
+    val searchBus = EventBus[Unit]()
+
+    div(
+      searchBus.events.flatMapSwitch { _ =>
+        val s = searchVar.now()
+        val req = MovementSearchRequest(
+          fundFlowId       = ffId,
+          accountId        = Option(s.accountId).filter(_.nonEmpty),
+          amount           = scala.util.Try(BigDecimal(s.amount)).toOption,
+          movementSpecId   = Option(s.movementSpecId).filter(_.nonEmpty),
+          properties       = s.properties.filter(_._2.nonEmpty),
+          fileSourceQuery  = Option(s.fileSourceFilename).filter(_.nonEmpty),
+          unreconciledOnly = s.unreconciledOnly,
+          createdFrom      = parseDateStart(s.createdFrom),
+          createdTo        = parseDateEndExclusive(s.createdTo)
+        )
+        ApiClient.post[Seq[MovementSearchResultPayload], MovementSearchRequest](
+          HttpPath.url(s"${HttpPath.movements}/search"),
+          req,
+          SessionStore.token
+        )
+      } --> {
+        case Right(results) => searchVar.update(_.copy(results = Some(results), searchError = None))
+        case Left(err)      => searchVar.update(_.copy(searchError = Some(err), results = None))
+      },
+      div(
+        cls := s"${Card.cls} p-6 mb-6",
+        h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Search Movements"),
+        div(
+          cls := "grid grid-cols-1 md:grid-cols-3 gap-4",
+          child <-- state.signal.map(_.accounts).map { accounts =>
+            Form.selectField(
+              "searchAccount",
+              "Account Name",
+              ("", "Any") +: accounts.sortBy(_.name).map(a => a.id.getOrElse("") -> a.name),
+              searchVar.now().accountId,
+              v => searchVar.update(_.copy(accountId = v))
+            )
+          },
+          Form.field(
+            "searchAmount",
+            "Amount",
+            searchVar.now().amount,
+            v => searchVar.update(_.copy(amount = v)),
+            inputType = "number"
+          ),
+          child <-- state.signal.map(_.movementSpecs).map { specs =>
+            Form.selectField(
+              "searchMovementSpec",
+              "Movement Spec Name",
+              ("", "Any") +: specs.sortBy(_.name).map(s => s.id.getOrElse("") -> s.name),
+              searchVar.now().movementSpecId,
+              // Clears any previously-entered property filters — they belong to whichever spec
+              // was selected before, and that spec's keys may not even apply to the new one.
+              v => searchVar.update(_.copy(movementSpecId = v, properties = Map.empty))
+            )
+          },
+          // Kept as one unit (its own mini-grid) rather than two separate top-level grid items, so
+          // the pair always renders side by side regardless of how the outer 3-column grid wraps.
+          div(
+            cls := "grid grid-cols-2 gap-3",
+            Form.field(
+              "searchCreatedFrom",
+              "Created From",
+              searchVar.now().createdFrom,
+              v => searchVar.update(_.copy(createdFrom = v)),
+              inputType = "date"
+            ),
+            Form.field(
+              "searchCreatedTo",
+              "Created To",
+              searchVar.now().createdTo,
+              v => searchVar.update(_.copy(createdTo = v)),
+              inputType = "date"
+            )
+          )
+        ),
+        // The file-source Filename field and the Properties keys are both scoped to whichever
+        // Movement Spec is selected (the bucket is effectively constant per spec, so there's no
+        // point asking the user to enter it — see MovementSearchCriteria.fileSourceQuery — and
+        // Properties keys come directly from that spec's own parser config), so both are hidden
+        // until a spec is chosen. Only rebuilt when the selected Movement Spec changes (not on
+        // every keystroke into a value) — same reactive-narrowing reasoning as RuleWidget's
+        // operandField.
+        child <-- searchVar.signal.map(_.movementSpecId).distinct.map { specId =>
+          if specId.isEmpty then div()
+          else
+            val keys = RuleWidget.columnsFor(specId, state.now().movementSpecs)
+            div(
+              cls := "mt-2",
+              div(
+                cls := "grid grid-cols-1 md:grid-cols-3 gap-4",
+                Form.field(
+                  "searchFileSourceFilename",
+                  "Filename",
+                  searchVar.now().fileSourceFilename,
+                  v => searchVar.update(_.copy(fileSourceFilename = v))
+                )
+              ),
+              if keys.isEmpty then div()
+              else
+                div(
+                  cls := "mt-2",
+                  h4(cls := Form.sectionLabelCls + " mb-2", "Properties"),
+                  div(
+                    cls := "grid grid-cols-1 md:grid-cols-3 gap-4",
+                    keys.map { key =>
+                      Form.field(
+                        s"prop_$key",
+                        key,
+                        searchVar.now().properties.getOrElse(key, ""),
+                        v =>
+                          searchVar.update(s =>
+                            s.copy(properties = if v.isEmpty then s.properties - key else s.properties.updated(key, v))
+                          )
+                      )
+                    }
+                  )
+                )
+            )
+        },
+        label(
+          cls := "flex items-center gap-2 text-sm text-md-on-surface dark:text-gray-200 cursor-pointer mt-2",
+          input(
+            typ := "checkbox",
+            checked <-- searchVar.signal.map(_.unreconciledOnly),
+            onClick --> (_ => searchVar.update(s => s.copy(unreconciledOnly = !s.unreconciledOnly)))
+          ),
+          "Unreconciled only"
+        ),
+        div(
+          cls := "mt-4",
+          Buttons.linkButton("Search", Observer[Unit](_ => searchBus.emit(())))
+        )
+      ),
+      child.maybe <-- searchVar.signal.map(
+        _.searchError.map(err => div(cls := "text-sm text-red-600 dark:text-red-400 mb-4", err))
+      ),
+      child <-- searchVar.signal.map(_.results).map {
+        case None => div()
+        case Some(results) =>
+          div(
+            if results.size == 1000 then
+              div(
+                cls := s"${Form.mutedTextCls} text-xs mb-2",
+                "Showing the first 1000 results — narrow your filters to see more precisely."
+              )
+            else div(),
+            Table.create(
+              Seq("Amount", "In Account", "Out Account", "Movement Spec", "Reference", "Reconciled", "Created At"),
+              results.map { r =>
+                Seq(
+                  span(r.amount.toString),
+                  span(r.inAccountName),
+                  span(r.outAccountName),
+                  span(r.movementSpecName),
+                  a(
+                    href := s"/components/movements/${r.id}",
+                    cls  := "text-md-on-surface dark:text-gray-200 hover:underline cursor-pointer",
+                    onClick --> { e =>
+                      e.preventDefault()
+                      Nav.toMovementDetail(r.id)
+                    },
+                    r.referenceId
+                  ),
+                  Pill(
+                    if r.reconciled then "Yes" else "No",
+                    if r.reconciled then Pill.Tone.Good else Pill.Tone.Neutral
+                  ),
+                  span(ViewHelper.formatDateTime(r.createdAt))
+                )
+              },
+              numCols = Set(0)
+            )
+          )
+      }
     )
 
   private def renderDiagram(

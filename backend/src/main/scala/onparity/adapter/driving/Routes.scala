@@ -158,6 +158,33 @@ class App(using
       val payload   = movements.map(Payload.movementfromDomainModel)
       write(payload)
 
+  @cask.route(s"${HttpPath.movements}/search", methods = HttpCmd.POST)
+  def searchMovements(request: cask.Request): String =
+    val req = read[MovementSearchRequest](request.text())
+    transact(transactor):
+      val criteria = MovementSearchCriteria(
+        fundFlowId       = UUID.fromString(req.fundFlowId),
+        accountId        = req.accountId.map(UUID.fromString),
+        amount           = req.amount,
+        movementSpecId   = req.movementSpecId.map(UUID.fromString),
+        properties       = req.properties,
+        fileSourceQuery  = req.fileSourceQuery,
+        unreconciledOnly = req.unreconciledOnly,
+        createdFrom      = req.createdFrom,
+        createdTo        = req.createdTo
+      )
+      val results = movementRepo.search(criteria)
+      // Names resolved via the fund flow's full account/movement-spec lists (both already
+      // fund-flow-scoped, cheap fetches) rather than accountRepo.findAllById/
+      // movementSpecRepo.findAllById on just the ids referenced by results — Magnum's default
+      // findAllById binds a Postgres array parameter via JDBC's createArrayOf, which throws
+      // ("Unable to find server array type for provided name OTHER") for a UUID id column against
+      // this pgjdbc version. Fetching the whole fund flow's accounts/specs sidesteps that
+      // entirely and is simpler than working around the array-binding bug.
+      val accountNames = accountRepo.findByFundFlow(criteria.fundFlowId).map(a => a.id -> a.name).toMap
+      val movSpecNames = movementSpecRepo.findByFundFlowId(criteria.fundFlowId).map(s => s.id -> s.name).toMap
+      write(results.map(m => Payload.movementSearchResultPayloadFromDomain(m, accountNames, movSpecNames)))
+
   @cask.route(s"${HttpPath.account}/:id/unreconciled-movements", methods = HttpCmd.GET)
   def unreconciledMovementsByAccount(id: String): String =
     transact(transactor):

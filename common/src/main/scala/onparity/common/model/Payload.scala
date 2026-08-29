@@ -235,6 +235,33 @@ case class MovementDetailPayload(
   movementSpecName:  String
 ) derives ReadWriter
 
+case class MovementSearchRequest(
+  fundFlowId:       String,
+  accountId:        Option[String]         = None,
+  amount:           Option[Money]          = None,
+  movementSpecId:   Option[String]         = None,
+  properties:       Map[String, String]    = Map.empty,
+  fileSourceQuery:  Option[String]         = None,
+  unreconciledOnly: Boolean                = false,
+  createdFrom:      Option[OffsetDateTime] = None,
+  createdTo:        Option[OffsetDateTime] = None
+) derives ReadWriter
+
+// Richer than MovementPayload (which lacks names/metaData) — mirrors MovementDetailPayload's
+// shape but for a list of results rather than a single movement.
+case class MovementSearchResultPayload(
+  id:               String,
+  referenceId:      String,
+  amount:           Money,
+  inAccountName:    String,
+  outAccountName:   String,
+  movementSpecName: String,
+  properties:       Properties,
+  metaData:         Properties,
+  reconciled:       Boolean,
+  createdAt:        OffsetDateTime
+) derives ReadWriter
+
 case class MovementSpecAndAccounts(
   spec:       MovementSpecPayload,
   inAccount:  AccountPayload,

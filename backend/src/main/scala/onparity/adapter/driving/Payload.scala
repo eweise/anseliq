@@ -1,6 +1,7 @@
 package onparity.adapter.driving
 
 import onparity.common.model.{ReconRelationship as ComRel, *}
+import onparity.common.model.model.ID
 import onparity.domain.model.{Relationship as Rel, *}
 import onparity.domain.service.ParseTestResult
 import upickle.default.read as upickleRead
@@ -184,6 +185,24 @@ object Payload:
       properties       = dmMovement.properties.props,
       reconciliationId = dmMovement.reconciliationId.map(_.toString).orNull,
       createdAt        = dmMovement.createdAt.get
+    )
+
+  def movementSearchResultPayloadFromDomain(
+    m:            Movement,
+    accountNames: Map[ID, String],
+    movSpecNames: Map[ID, String]
+  ): MovementSearchResultPayload =
+    MovementSearchResultPayload(
+      id               = m.id.toString,
+      referenceId      = m.referenceId.toString,
+      amount           = m.amount,
+      inAccountName    = accountNames.getOrElse(m.inAccountId, m.inAccountId.toString),
+      outAccountName   = accountNames.getOrElse(m.outAccountId, m.outAccountId.toString),
+      movementSpecName = movSpecNames.getOrElse(m.movementSpecId, m.movementSpecId.toString),
+      properties       = m.properties.props,
+      metaData         = m.metaData.props,
+      reconciled       = m.reconciliationId.nonEmpty,
+      createdAt        = m.createdAt.get
     )
 
   def parseTestResultPayloadFromDomain(r: ParseTestResult): ParseTestResultPayload =
