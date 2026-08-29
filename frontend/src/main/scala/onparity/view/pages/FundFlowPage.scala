@@ -126,18 +126,27 @@ object FundFlowPage:
             div(
               cls := "flex flex-col gap-6",
               div(
-                cls := s"${Card.cls} p-6 max-w-md",
+                cls := s"${Card.cls} p-6",
                 h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Fund Flow Settings"),
-                Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v))),
-                Form.numberField(
-                  "ffDailyCutoffHours",
-                  "Cutoff Hour (0-23)",
-                  ff.dailyCutoffHours,
-                  0,
-                  23,
-                  v => ffVar.update(_.copy(dailyCutoffHours = v))
-                ),
-                Buttons.linkButton("Save Fund Flow", Observer[Unit](_ => saveFundFlowBus.emit(())))
+                div(
+                  // items-center rather than items-end: Form.field/numberField each carry their
+                  // own mb-5, but the Save button doesn't, so end-aligning would visibly offset
+                  // the button below the inputs instead of lining up with them.
+                  cls := "flex items-center gap-4 flex-wrap",
+                  div(
+                    cls := "flex-1 max-w-sm",
+                    Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v)))
+                  ),
+                  Form.numberField(
+                    "ffDailyCutoffHours",
+                    "Cutoff Hour (0-23)",
+                    ff.dailyCutoffHours,
+                    0,
+                    23,
+                    v => ffVar.update(_.copy(dailyCutoffHours = v))
+                  ),
+                  Buttons.linkButton("Save Fund Flow", Observer[Unit](_ => saveFundFlowBus.emit(())))
+                )
               ),
               div(
                 cls := s"${Card.cls} p-6",
@@ -656,11 +665,14 @@ object FundFlowPage:
         posOf.get(id).foreach { (x, y) =>
           val fill   = if acc.isRecon then "var(--md-primary-container)" else "white"
           val stroke = if acc.isRecon then "var(--md-primary)" else "#d1d5db"
+          // Recon's fill is the purple container color — the fixed dark-gray text this used for
+          // every box was unreadable against it, so text color follows the same isRecon branch.
+          val textFill = if acc.isRecon then "white" else "#374151"
           sb.append(
             s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />"""
           )
           sb.append(
-            s"""<text x="${x + boxW / 2}" y="${y + boxH / 2}" text-anchor="middle" dominant-baseline="middle" fill="#374151" font-size="13" font-family="sans-serif">${xmlEscape(
+            s"""<text x="${x + boxW / 2}" y="${y + boxH / 2}" text-anchor="middle" dominant-baseline="middle" fill="$textFill" font-size="13" font-family="sans-serif">${xmlEscape(
                 acc.name
               )}</text>"""
           )
