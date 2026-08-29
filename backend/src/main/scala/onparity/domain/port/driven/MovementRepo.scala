@@ -1,7 +1,7 @@
 package onparity.domain.port.driven
 
 import onparity.common.model.model.ID
-import onparity.domain.model.{Movement, Relationship}
+import onparity.domain.model.{Movement, MovementSearchCriteria, Relationship}
 import onparity.domain.port.driven.Txn
 
 type MovementInID  = String
@@ -31,6 +31,8 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
     keyValue:       String
   ): Txn[Vector[Movement]]
   def setReconciliationIds(idPairs: Iterable[(ID, ID)]): Txn[Unit]
+
+  def search(criteria: MovementSearchCriteria): Txn[Vector[Movement]]
 
   // Used by Ledger.recordMovements to exclude already-recorded movements (matched by the
   // deterministic, content-derived referenceId) from the batch *before* computing account balance

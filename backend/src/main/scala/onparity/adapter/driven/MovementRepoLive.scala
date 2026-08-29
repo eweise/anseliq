@@ -4,14 +4,15 @@ import com.augustnagro.magnum.*
 import onparity.common.model.model.ID
 import onparity.domain.model
 import onparity.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
-import onparity.domain.model.{Movement, Reconciliation, Relationship}
+import onparity.domain.model.{Account, Movement, MovementSearchCriteria, Reconciliation, Relationship}
 import onparity.domain.port.driven.{MovementInID, MovementOutID, MovementRepo, Txn}
 
 import java.util.UUID
 
 class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
-  val m = Movement.Table
-  val r = Reconciliation.Table
+  val m    = Movement.Table
+  val r    = Reconciliation.Table
+  val acct = Account.Table
 
   override def insertAll(movements: Iterable[Movement])(using DbCon): Unit =
     batchUpdate(movements): movement =>
@@ -149,6 +150,36 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
         FROM $m AS a
         WHERE reference_id IN ($inClause)
       """.query[ID].run().toSet
+
+  // Every optional filter uses the `($param IS NULL OR condition)` idiom in one static,
+  // bind-parameterized query — unlike matchKeyExpr elsewhere in this file (which needs SqlLiteral
+  // because that SQL's *structure* genuinely varies), here only which predicate is *active*
+  // varies, not its shape, so no dynamic SQL string-building is needed. The Properties filter
+  // (an arbitrary-size key/value map) collapses to a single jsonb containment check (`@>`) against
+  // one bind param instead of one fragment per key — Postgres checks every key/value pair in one
+  // comparison. The explicit `::type` casts on each nullable bind param exist because Postgres
+  // can't infer a bind parameter's type from `IS NULL` alone.
+  def search(c: MovementSearchCriteria): Txn[Vector[Movement]] =
+    val propsJson = if c.properties.isEmpty then None else Some(upickle.default.write(c.properties))
+    sql"""
+      SELECT ${m.all}
+      FROM $m AS a
+      WHERE (
+        a.in_account_id IN (SELECT id FROM $acct WHERE fund_flow_id = ${c.fundFlowId})
+        OR a.out_account_id IN (SELECT id FROM $acct WHERE fund_flow_id = ${c.fundFlowId})
+      )
+      AND (${c.accountId}::uuid IS NULL OR a.in_account_id = ${c.accountId} OR a.out_account_id = ${c.accountId})
+      AND (${c.amount}::numeric IS NULL OR a.amount = ${c.amount})
+      AND (${c.movementSpecId}::uuid IS NULL OR a.movement_spec_id = ${c.movementSpecId})
+      AND ($propsJson::jsonb IS NULL OR a.properties -> 'props' @> $propsJson::jsonb)
+      AND (${c.fileSourceQuery}::text IS NULL
+           OR a.meta_data -> 'props' ->> 'file_source_entry' ILIKE '%' || ${c.fileSourceQuery} || '%')
+      AND (${c.unreconciledOnly} = false OR a.reconciliation_id IS NULL)
+      AND (${c.createdFrom}::timestamptz IS NULL OR a.created_at >= ${c.createdFrom})
+      AND (${c.createdTo}::timestamptz IS NULL OR a.created_at < ${c.createdTo})
+      ORDER BY a.created_at DESC
+      LIMIT 1000
+    """.query[Movement].run()
 
   // Bulk-links each movement to its own reconciliation in one statement, touching only the
   // reconciliation_id column — unlike the generic updateAll (which rewrites every column,
