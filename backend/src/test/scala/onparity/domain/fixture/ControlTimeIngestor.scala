@@ -15,6 +15,7 @@ class ControlTimeIngestor(using
   ledger:             Ledger,
   movementRepo:       MovementRepo,
   movementSpecRepo:   MovementSpecRepo,
+  fileFeedRepo:       FileFeedRepo,
   eventStore:         EventStore,
   fileInventoryRepo:  FileInventoryRepo,
   fileSourceFactory:  FileSourceFactory,
@@ -24,7 +25,7 @@ class ControlTimeIngestor(using
   transactor:         Transactor
 ) extends Ingestor:
 
-  override def createFileInventory(movementSpecID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory =
-    val fi      = super.createFileInventory(movementSpecID, source, newFile)
+  override def createFileInventory(fileFeedID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory =
+    val fi      = super.createFileInventory(fileFeedID, source, newFile)
     val updated = fi.copy(lastModifiedAt = clock.now)
     updated

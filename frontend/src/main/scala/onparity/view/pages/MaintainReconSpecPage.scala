@@ -2,7 +2,7 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.{MovementSpecPayload, ReconRelationship, ReconciliationSpecPayload}
+import onparity.common.model.{FileFeedPayload, MovementSpecPayload, ReconRelationship, ReconciliationSpecPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
@@ -52,6 +52,7 @@ object MaintainReconSpecPage:
     initialSpec: Option[ReconciliationSpecPayload]
   ): HtmlElement =
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
+    val fileFeeds     = Var(Seq.empty[FileFeedPayload])
     val spec = Var(
       initialSpec.getOrElse(
         ReconciliationSpecPayload(accountId = Some(accountId))
@@ -66,6 +67,7 @@ object MaintainReconSpecPage:
     val (ruleEl, ruleSignal) = RuleWidget(
       initial           = initialSpec.map(_.rule).getOrElse(onparity.common.model.NoOpRule),
       movementSpecs     = movementSpecs,
+      fileFeeds         = fileFeeds,
       inMovementSpecId  = inSpecIdSignal,
       outMovementSpecId = outSpecIdSignal
     )
@@ -83,6 +85,9 @@ object MaintainReconSpecPage:
             val outSpec = specs.find(_.outAccountId == accountId).flatMap(_.id).getOrElse("")
             spec.update(_.copy(inMovementSpecId = inSpec, outMovementSpecId = outSpec))
         },
+      ApiClient
+        .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+        .apiBind(feeds => fileFeeds.set(feeds)),
       saveBus.events
         .sample(ruleSignal)
         .flatMapSwitch { rule =>

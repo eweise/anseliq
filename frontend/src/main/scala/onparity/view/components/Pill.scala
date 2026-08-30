@@ -13,5 +13,6 @@ object Pill:
       case Tone.Serious  => "bg-md-serious-bg dark:bg-md-serious-bg-dark text-md-serious dark:text-md-serious-dark"
       case Tone.Critical => "bg-md-critical-bg dark:bg-md-critical-bg-dark text-md-critical dark:text-md-critical-dark"
       case Tone.Neutral  => "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-      case Tone.Accent   => "bg-md-primary-container dark:bg-md-primary-container-dark text-md-on-primary-container dark:text-md-on-primary-container-dark"
+      case Tone.Accent =>
+        "bg-md-primary-container dark:bg-md-primary-container-dark text-md-on-primary-container dark:text-md-on-primary-container-dark"
     span(cls := s"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold $toneCls", text)

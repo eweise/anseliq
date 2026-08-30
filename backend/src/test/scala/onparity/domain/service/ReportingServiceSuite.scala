@@ -170,7 +170,13 @@ class ReportingServiceSuite extends munit.FunSuite:
 
         val orphanAccount = Account(name = "orphan-recon", fundFlowId = data.fundFlowConfig.id, isRecon = true)
         data.accountRepo.insert(orphanAccount)
-        val orphanSpec = MovementSpec(inAccountId = orphanAccount.id, outAccountId = data.journalAccount.id)
+        val orphanFeed = FileFeed()
+        data.fileFeedRepo.insert(orphanFeed)
+        val orphanSpec = MovementSpec(
+          inAccountId  = orphanAccount.id,
+          outAccountId = data.journalAccount.id,
+          fileFeedId   = orphanFeed.id
+        )
         data.movementSpecRepo.insert(orphanSpec)
         createMovementAgedDays(
           orphanAccount.id,

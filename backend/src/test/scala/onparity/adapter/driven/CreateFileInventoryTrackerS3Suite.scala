@@ -4,7 +4,14 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
 import onparity.domain.DataSetup
-import onparity.domain.model.{FileInventory, FileInventoryStatus, MoneyMovementsIngested, MovementSpec, S3FileSourceEntry}
+import onparity.domain.model.{
+  FileFeed,
+  FileInventory,
+  FileInventoryStatus,
+  MoneyMovementsIngested,
+  MovementSpec,
+  S3FileSourceEntry
+}
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
 import onparity.testing.rollBackOnly
@@ -32,17 +39,18 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   val localstackEndpoint = URI.create("http://localhost:4566")
   val bucket             = "file-inventory-test"
 
-  given clockService:      ClockService      = ClockServiceLive()
-  given transactor:        Transactor        = Transactor(dataSource)
-  given dataSource:        DataSource        = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given eventRepo:         EventRepo         = EventRepoLive()
-  given eventStore:        EventStore        = EventStore()
-  given movementRepo:      MovementRepo      = MovementRepoLive()
-  given accountRepo:       AccountRepo       = AccountRepoLive()
-  given movementSpecRepo:  MovementSpecRepo  = MovementSpecRepoLive()
-  given ledger:            Ledger            = Ledger()
-  given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
-  given disputeRepo:       DisputeRepo       = DisputeRepoLive()
+  given clockService:       ClockService       = ClockServiceLive()
+  given transactor:         Transactor         = Transactor(dataSource)
+  given dataSource:         DataSource         = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  given eventRepo:          EventRepo          = EventRepoLive()
+  given eventStore:         EventStore         = EventStore()
+  given movementRepo:       MovementRepo       = MovementRepoLive()
+  given accountRepo:        AccountRepo        = AccountRepoLive()
+  given movementSpecRepo:   MovementSpecRepo   = MovementSpecRepoLive()
+  given fileFeedRepo:       FileFeedRepo       = FileFeedRepoLive()
+  given ledger:             Ledger             = Ledger()
+  given fileInventoryRepo:  FileInventoryRepo  = FileInventoryRepoLive()
+  given disputeRepo:        DisputeRepo        = DisputeRepoLive()
   given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
 
   override def beforeAll(): Unit =
@@ -116,8 +124,8 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
         assertEquals(second.size, 1)
         assertEquals(second.head.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key, s"incremental/new.csv")
 
-  private def csvSpec(spec: MovementSpec): MovementSpec =
-    spec.copy(
+  private def csvFeed(): FileFeed =
+    FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
           parserConfig = CSVParserConfig(
@@ -138,9 +146,11 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     put("resume-test/journal.csv", "1,10\n2,20\n3,30\n4,40\n5,50")
 
     val data = transact(transactor)(DataSetup())
+    val feed = csvFeed()
 
     transact(transactor):
-      movementSpecRepo.update(csvSpec(data.journalToRecon))
+      fileFeedRepo.insert(feed)
+      movementSpecRepo.update(data.journalToRecon.copy(fileFeedId = feed.id))
 
     val s3Entry = S3FileSourceEntry(
       bucket         = bucket,
@@ -149,7 +159,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
       lastModifiedAt = clockService.now
     )
     val fileInventory = FileInventory(
-      movementSpecId      = data.journalToRecon.id,
+      fileFeedId          = feed.id,
       sourceSystem        = "S3",
       fileSourceEntryJson = upickle.write(s3Entry),
       fileSizeBytes       = 0L,
@@ -165,8 +175,9 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
 
       val first = ingestor.ingestFileFromInventory(
         fileInventory.id,
-        batchSize       = 2,
-        onBatchComplete = progress => if progress.lastLineInBatch == 4 then BatchDecision.Rollback else BatchDecision.Commit
+        batchSize = 2,
+        onBatchComplete =
+          progress => if progress.lastLineInBatch == 4 then BatchDecision.Rollback else BatchDecision.Commit
       )
       assertEquals(first.completed, false)
       assertEquals(first.recordCount, 4)

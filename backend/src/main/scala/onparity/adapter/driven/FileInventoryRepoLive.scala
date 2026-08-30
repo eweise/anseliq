@@ -19,19 +19,19 @@ class FileInventoryRepoLive extends Repo[FileInventory, FileInventory, UUID] wit
       .run()
       .toSet
 
-  def findAllWithMovementSpecName()(using DbCon): Vector[(FileInventory, String)] =
+  def findAllWithFileFeedName()(using DbCon): Vector[(FileInventory, String)] =
     sql"""
-      SELECT ${fi.alias("fi").all}, ms.name
+      SELECT ${fi.alias("fi").all}, ff.name
       FROM $fi AS fi
-      JOIN movement_spec ms ON fi.movement_spec_id = ms.id
+      JOIN file_feed ff ON fi.file_feed_id = ff.id
       ORDER BY fi.last_modified_at DESC
     """.query[(FileInventory, String)].run()
 
-  def findLatestByMovementSpecId(movementSpecId: ID)(using DbCon): Option[FileInventory] =
+  def findLatestByFileFeedId(fileFeedId: ID)(using DbCon): Option[FileInventory] =
     sql"""
       SELECT ${fi.all}
       FROM $fi
-      WHERE movement_spec_id = $movementSpecId
+      WHERE file_feed_id = $fileFeedId
       ORDER BY last_modified_at DESC
       LIMIT 1
     """.query[FileInventory].run().headOption

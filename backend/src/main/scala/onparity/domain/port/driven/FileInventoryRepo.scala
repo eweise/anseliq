@@ -7,6 +7,6 @@ import onparity.domain.model.FileInventory
 trait FileInventoryRepo extends DomainRepo[FileInventory, FileInventory]:
   def findBySourceSystem(sourceSystem: String)(using DbCon): Set[FileInventory]
 
-  def findAllWithMovementSpecName()(using DbCon): Vector[(FileInventory, String)]
+  def findAllWithFileFeedName()(using DbCon): Vector[(FileInventory, String)]
 
-  def findLatestByMovementSpecId(movementSpecId: ID)(using DbCon): Option[FileInventory]
+  def findLatestByFileFeedId(fileFeedId: ID)(using DbCon): Option[FileInventory]

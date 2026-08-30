@@ -34,6 +34,8 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 
   given movementSpecRepo: MovementSpecRepo = MovementSpecRepoLive()
 
+  given fileFeedRepo: FileFeedRepo = FileFeedRepoLive()
+
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
 
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
@@ -52,8 +54,8 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 
   given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
 
-  private def csvSpec(spec: MovementSpec): MovementSpec =
-    spec.copy(
+  private def csvFeed(): FileFeed =
+    FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
           parserConfig = CSVParserConfig(

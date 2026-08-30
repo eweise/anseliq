@@ -60,6 +60,7 @@ object LeftNav:
     NavGroup(
       "Configure",
       Seq(
+        NavItem("File Feeds", "/components/file-feeds", Icons.settings),
         NavItem("Recon Rules", "/components/coming-soon/recon-rules", Icons.settings)
       )
     ),

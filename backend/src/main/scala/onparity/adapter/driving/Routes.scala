@@ -26,6 +26,7 @@ class App(using
   reconRepo:          ReconciliationRepo,
   fundFlowConfigRepo: FundFlowConfigRepo,
   movementSpecRepo:   MovementSpecRepo,
+  fileFeedRepo:       FileFeedRepo,
   movementRepo:       MovementRepo,
   fundFlowOperations: FundFlowOperations,
   jobManager:         JobManager,
@@ -247,36 +248,64 @@ class App(using
       userService.resetPassword(UUID.fromString(id), payload.newPassword)
     write("ok")
 
+  // FileFeed — owns "where the file comes from and how to parse it"; a MovementSpec routes off
+  // one of these to claim the rows for one account pair. Not scoped to a fund flow (a feed has no
+  // notion of which fund flow it belongs to until a MovementSpec attaches accounts to it), so this
+  // lists every feed rather than joining through accounts the way movement-specs-by-fund-flow does.
+  @cask.route(s"${HttpPath.fileFeeds}", methods = HttpCmd.GET)
+  def listFileFeeds(): String =
+    transact(transactor):
+      write(fileFeedRepo.findAll.map(Payload.fileFeedPayloadFromDomain))
+
+  @cask.route(s"${HttpPath.fileFeed}", methods = HttpCmd.POST)
+  def createFileFeed(request: cask.Request): String =
+    val payload = read[FileFeedPayload](request.text())
+    validateDataSourceConfig(payload)
+    transact(transactor):
+      write(fundFlowOperations.createFileFeed(payload))
+
+  @cask.route(s"${HttpPath.fileFeed}/:id", methods = HttpCmd.PUT)
+  def updateFileFeed(id: String, request: cask.Request): String =
+    val payload = read[FileFeedPayload](request.text())
+    validateDataSourceConfig(payload)
+    transact(transactor):
+      write(fundFlowOperations.updateFileFeed(id, payload))
+
+  // Re-checks the same rules the frontend validates inline (DataSourceConfig.validate, in common)
+  // as a safety net against a bypassed or buggy frontend — not the primary UX for catching mistakes.
+  private def validateDataSourceConfig(payload: FileFeedPayload): Unit =
+    payload.dataSourceConfig.foreach { ds =>
+      val errors = ds.validate
+      if errors.nonEmpty then throw IllegalArgumentError("dataSourceConfig", errors.mkString("; "))
+    }
+
+  @cask.route(s"${HttpPath.fileFeed}/:id/test-parse", methods = HttpCmd.POST)
+  def testParseFileFeed(id: String, request: cask.Request): String =
+    val content = request.text()
+    transact(transactor):
+      val fileFeedId = UUID.fromString(id)
+      val fileFeed   = fileFeedRepo.findById(fileFeedId).ErrIfNotFound("FileFeed", fileFeedId)
+      val result     = ingestor.testParse(fileFeed, content)
+      write(Payload.parseTestResultPayloadFromDomain(result))
+
+  @cask.delete(s"${HttpPath.fileFeed}/:id")
+  def deleteFileFeed(id: String): String =
+    transact(transactor):
+      fundFlowOperations.deleteFileFeed(id)
+    write("deleted")
+
+  // MovementSpec
   @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
-    validateDataSourceConfig(payload)
     transact(transactor):
       write(fundFlowOperations.createMovementSpec(payload))
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
-    validateDataSourceConfig(payload)
     transact(transactor):
       write(fundFlowOperations.updateMovementSpec(id, payload))
-
-  // Re-checks the same rules the frontend validates inline (DataSourceConfig.validate, in common)
-  // as a safety net against a bypassed or buggy frontend — not the primary UX for catching mistakes.
-  private def validateDataSourceConfig(payload: MovementSpecPayload): Unit =
-    payload.dataSourceConfig.foreach { ds =>
-      val errors = ds.validate
-      if errors.nonEmpty then throw IllegalArgumentError("dataSourceConfig", errors.mkString("; "))
-    }
-
-  @cask.route(s"${HttpPath.movementSpec}/:id/test-parse", methods = HttpCmd.POST)
-  def testParseMovementSpec(id: String, request: cask.Request): String =
-    val content = request.text()
-    transact(transactor):
-      val movementSpecId = UUID.fromString(id)
-      val movementSpec   = movementSpecRepo.findById(movementSpecId).ErrIfNotFound("MovementSpec", movementSpecId)
-      val result         = ingestor.testParse(movementSpec, content)
-      write(Payload.parseTestResultPayloadFromDomain(result))
 
   @cask.delete(s"${HttpPath.movementSpec}/:id")
   def deleteMovementSpec(id: String): String =
@@ -416,10 +445,12 @@ class App(using
       case DisputeTarget.Movement       => movementRepo.findById(dispute.referenceId).map(Payload.movementfromDomainModel)
       case DisputeTarget.Reconciliation => None
       case DisputeTarget.MovementSpec   => None
+      case DisputeTarget.FileFeed       => None
     val reconPayload = dispute.targetType match
       case DisputeTarget.Reconciliation => reconRepo.findById(dispute.referenceId).map(Payload.reconFromDomain)
       case DisputeTarget.Movement       => None
       case DisputeTarget.MovementSpec   => None
+      case DisputeTarget.FileFeed       => None
     val comments = disputeCommentRepo.findByDisputeId(dispute.id).map(Payload.disputeCommentPayloadFromDomain)
     DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments)
 
@@ -438,6 +469,12 @@ class App(using
         val spec    = movementSpecRepo.findById(dispute.referenceId).ErrIfNotFound("movement spec", dispute.referenceId)
         val account = accountRepo.findById(spec.inAccountId).ErrIfNotFound("account", spec.inAccountId)
         (account.id.toString, account.name, spec.name)
+      case DisputeTarget.FileFeed =>
+        // A feed can route to several accounts (a multi-account BAI-style feed), so there's no
+        // single account to attribute a FileMissing/UnroutedRecord dispute to — accountId stays
+        // blank rather than picking one arbitrarily.
+        val feed = fileFeedRepo.findById(dispute.referenceId).ErrIfNotFound("file feed", dispute.referenceId)
+        ("", feed.name, feed.name)
 
   // Reports
   @cask.route(s"${HttpPath.reports}/summary", methods = HttpCmd.GET)
@@ -481,8 +518,8 @@ class App(using
   @cask.route(s"${HttpPath.fileInventory}", methods = HttpCmd.GET)
   def getFileInventory(): String =
     transact(transactor):
-      val entries = fileInventoryRepo.findAllWithMovementSpecName()
-      write(entries.map((fi, movementSpecName) => Payload.fileInventoryPayloadFromDomain(fi, movementSpecName)))
+      val entries = fileInventoryRepo.findAllWithFileFeedName()
+      write(entries.map((fi, fileFeedName) => Payload.fileInventoryPayloadFromDomain(fi, fileFeedName)))
 
   // ReconSpec
   @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)

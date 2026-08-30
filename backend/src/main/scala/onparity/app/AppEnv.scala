@@ -42,6 +42,7 @@ class AppEnv(
   given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
   given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
   given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
+  given fileFeedRepo:       FileFeedRepo           = FileFeedRepoLive()
   given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
   given accountRepo:        AccountRepo            = AccountRepoLive()
   given movementRepo:       MovementRepo           = MovementRepoLive()
@@ -202,10 +203,10 @@ class AppEnv(
               transact(Transactor(dataSource = dataSource)):
                 var filesQueued = 0
 
-                movementSpecRepo.findAll.foreach: spec =>
-                  ingestor.checkForMissingFile(spec)
-                  val fileSource = fileSourceFactory.createFileSource(spec.dataSourceConfig().connectionConfig)
-                  val newFiles   = ingestor.detectAndQueue(spec.id, fileSource)
+                fileFeedRepo.findAll.foreach: feed =>
+                  ingestor.checkForMissingFile(feed)
+                  val fileSource = fileSourceFactory.createFileSource(feed.dataSourceConfig().connectionConfig)
+                  val newFiles   = ingestor.detectAndQueue(feed.id, fileSource)
                   logger.info(s"File inventory scan: queued ${newFiles.size} new S3 files")
                   filesQueued += newFiles.size
 

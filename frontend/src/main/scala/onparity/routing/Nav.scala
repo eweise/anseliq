@@ -42,6 +42,11 @@ object Nav:
   def toMaintainMovementSpec(outAccountId: String, inAccountId: String, id: String = "new"): Unit =
     push(s"/components/maintain-movement-spec/$outAccountId/$inAccountId/$id")
 
+  def toFileFeeds(): Unit = push("/components/file-feeds")
+
+  def toMaintainFileFeed(id: String = "new"): Unit =
+    push(s"/components/maintain-file-feed/$id")
+
   def toJobs(): Unit = push("/components/jobs")
 
   def toAllUnreconciledMovements(): Unit = push("/components/unreconciled-movements")
@@ -55,8 +60,8 @@ object Nav:
 
   def toMovementDetail(id: String): Unit = push(s"/components/movements/$id")
 
-  def toTestParser(movementSpecId: String): Unit =
-    push(s"/components/movement-specs/$movementSpecId/test-parse")
+  def toTestParser(fileFeedId: String): Unit =
+    push(s"/components/file-feeds/$fileFeedId/test-parse")
 
   def toUsers(): Unit = push("/components/users")
 

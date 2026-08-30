@@ -28,7 +28,7 @@ class LedgerSuite extends munit.FunSuite:
           Seq(
             MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
             MovementRequest(amount = -30, referenceId = createID(), properties = Map()),
-            MovementRequest(amount = 50, referenceId = createID(), properties = Map())
+            MovementRequest(amount = 50, referenceId  = createID(), properties = Map())
           )
         )
 
@@ -39,7 +39,11 @@ class LedgerSuite extends munit.FunSuite:
         assertEquals(journalAccount.balance, BigDecimal(-120))
 
         assertBalanceInvariant(reconAccount.reconciledBalance, reconAccount.unreconciledBalance, reconAccount.balance)
-        assertBalanceInvariant(journalAccount.reconciledBalance, journalAccount.unreconciledBalance, journalAccount.balance)
+        assertBalanceInvariant(
+          journalAccount.reconciledBalance,
+          journalAccount.unreconciledBalance,
+          journalAccount.balance
+        )
 
   test("markReconciled moves an amount from unreconciled to reconciled without changing balance"):
     transact(transactor):
@@ -88,8 +92,8 @@ class LedgerSuite extends munit.FunSuite:
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
-        val movement        = data.movementRepo.findByAccount(data.reconAccount.id).head
-        val reconciliation  = Reconciliation(specId = data.reconSpec.id)
+        val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
+        val reconciliation = Reconciliation(specId = data.reconSpec.id)
         data.reconRepo.insert(reconciliation)
 
         data.ledger.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
@@ -152,10 +156,18 @@ class LedgerSuite extends munit.FunSuite:
 
         assertEquals(reconAccount.balance, BigDecimal(70), "replayed batch must not double the balance")
         assertEquals(journalAccount.balance, BigDecimal(-70))
-        assertEquals(data.movementRepo.findByAccount(data.reconAccount.id).size, 2, "replayed batch must not duplicate movement rows")
+        assertEquals(
+          data.movementRepo.findByAccount(data.reconAccount.id).size,
+          2,
+          "replayed batch must not duplicate movement rows"
+        )
 
         assertBalanceInvariant(reconAccount.reconciledBalance, reconAccount.unreconciledBalance, reconAccount.balance)
-        assertBalanceInvariant(journalAccount.reconciledBalance, journalAccount.unreconciledBalance, journalAccount.balance)
+        assertBalanceInvariant(
+          journalAccount.reconciledBalance,
+          journalAccount.unreconciledBalance,
+          journalAccount.balance
+        )
 
   test("recordMovements applies only the new requests when a batch partially overlaps an already-recorded one"):
     transact(transactor):
@@ -163,7 +175,7 @@ class LedgerSuite extends munit.FunSuite:
         given data: DataSetup = DataSetup()
         import data.given
         val alreadyRecorded = MovementRequest(amount = 100, referenceId = createID(), properties = Map())
-        val brandNew         = MovementRequest(amount = 25, referenceId = createID(), properties = Map())
+        val brandNew        = MovementRequest(amount = 25, referenceId = createID(), properties = Map())
 
         data.ledger.recordMovements(data.journalToRecon, Seq(alreadyRecorded))
         data.ledger.recordMovements(data.journalToRecon, Seq(alreadyRecorded, brandNew))
@@ -236,4 +248,8 @@ class LedgerSuite extends munit.FunSuite:
         assertEquals(journalAccount.balance, BigDecimal(40))
 
         assertBalanceInvariant(reconAccount.reconciledBalance, reconAccount.unreconciledBalance, reconAccount.balance)
-        assertBalanceInvariant(journalAccount.reconciledBalance, journalAccount.unreconciledBalance, journalAccount.balance)
+        assertBalanceInvariant(
+          journalAccount.reconciledBalance,
+          journalAccount.unreconciledBalance,
+          journalAccount.balance
+        )

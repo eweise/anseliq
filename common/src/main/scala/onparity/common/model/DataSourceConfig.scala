@@ -141,6 +141,11 @@ case class DataSourceConfig(
 ) derives ReadWriter:
   def validate: List[String] = parserConfig.validate
 
+// Scopes a MovementSpec to the subset of its FileFeed's rows whose parsed propertyField equals
+// matchValue (e.g. propertyField = "account_number" for a BAI2 feed covering several bank
+// accounts). A MovementSpec with no RoutingFilter claims every row from its feed.
+case class RoutingFilter(propertyField: String, matchValue: String) derives ReadWriter
+
 sealed trait ConnectionConfig derives ReadWriter
 case class S3ConnectionConfig(
   s3Bucket: String,

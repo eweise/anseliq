@@ -5,7 +5,14 @@ import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.*
 import onparity.domain.DataSetup
 import onparity.domain.model.*
-import onparity.domain.port.driven.{AccountRepo, FundFlowConfigRepo, MovementRepo, MovementSpecRepo, ReconciliationSpecRepo}
+import onparity.domain.port.driven.{
+  AccountRepo,
+  FileFeedRepo,
+  FundFlowConfigRepo,
+  MovementRepo,
+  MovementSpecRepo,
+  ReconciliationSpecRepo
+}
 import onparity.domain.service.FundFlowOperations
 import onparity.testing
 
@@ -18,6 +25,7 @@ class AccountOperationsSuite extends munit.FunSuite:
   given AccountRepo            = AccountRepoLive()
   given MovementRepo           = MovementRepoLive()
   given MovementSpecRepo       = MovementSpecRepoLive()
+  given FileFeedRepo           = FileFeedRepoLive()
   given ReconciliationSpecRepo = ReconciliationSpecRepoLive()
 
   val fundFlowOperations = FundFlowOperations()

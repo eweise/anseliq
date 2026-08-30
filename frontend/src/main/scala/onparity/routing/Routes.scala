@@ -48,7 +48,7 @@ object Routes:
               ),
               path("reconciliations" / segment)(id => ReconciliationDetailPage(id)),
               path("movements" / segment)(id => MovementDetailPage(id)),
-              path("movement-specs" / segment / "test-parse")(id => TestParserPage(id)),
+              path("file-feeds" / segment / "test-parse")(id => TestParserPage(id)),
               path("accounts" / segment / "manual-match" / segment)((accountId, reconSpecId) =>
                 ManualMatchPage(accountId, reconSpecId)
               ),
@@ -57,6 +57,8 @@ object Routes:
               path("maintain-movement-spec" / segment / segment / segment)((outAccountId, inAccountId, id) =>
                 MaintainMovementSpecPage(outAccountId, inAccountId, id)
               ),
+              path("maintain-file-feed" / segment)(id => MaintainFileFeedPage(id)),
+              path("file-feeds")(FileFeedsPage()),
               path("jobs")(JobsPage()),
               path("events")(EventsPage()),
               path("file-inventory")(FileInventoryPage()),

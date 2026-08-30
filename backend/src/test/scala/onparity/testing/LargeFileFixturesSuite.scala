@@ -13,7 +13,7 @@ class LargeFileFixturesSuite extends munit.FunSuite:
 
   test("reportFile produces the same id,amount rows as journalFile for the same row count"):
     val journalLines = Files.readAllLines(LargeFileFixtures.journalFile(rows = 10).toPath)
-    val reportLines  = Files.readAllLines(LargeFileFixtures.reportFile(rows  = 10).toPath)
+    val reportLines  = Files.readAllLines(LargeFileFixtures.reportFile(rows = 10).toPath)
     assertEquals(journalLines, reportLines)
 
   test("a cached file is not regenerated on a second call"):
