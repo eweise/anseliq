@@ -44,9 +44,6 @@ object Nav:
 
   def toJobs(): Unit = push("/components/jobs")
 
-  def toUnreconciledMovements(accountId: String): Unit =
-    push(s"/components/accounts/$accountId/unreconciled-movements")
-
   def toAllUnreconciledMovements(): Unit = push("/components/unreconciled-movements")
 
   def toExceptionDetail(id: String): Unit = push(s"/components/exceptions/$id")

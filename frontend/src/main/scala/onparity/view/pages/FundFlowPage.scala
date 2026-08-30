@@ -183,11 +183,19 @@ object FundFlowPage:
                     val accountId    = account.id.getOrElse("")
                     val status       = s.reconcileStatuses.getOrElse(accountId, ReconcileStatus.Idle)
                     val unreconCount = s.unreconciledCounts.getOrElse(accountId, 0)
+                    // Both cells jump to the Search Movements tab (not the old per-account
+                    // Unreconciled Movements page) with the account and "unreconciled only"
+                    // pre-filled and the search already run — see searchMovementsTab's
+                    // pendingSearchAccountId handling.
+                    val goToUnreconciledSearch = Observer[Unit](_ =>
+                      state.update(_.copy(pendingSearchAccountId = Some(accountId)))
+                      activeTab.set("Search")
+                    )
                     val unreconCell =
                       if account.isRecon then
                         span(
                           cls := "text-right w-full inline-block text-blue-600 hover:underline cursor-pointer",
-                          onClick --> (_ => Nav.toUnreconciledMovements(accountId)),
+                          onClick.mapToUnit --> goToUnreconciledSearch,
                           unreconCount.toString
                         )
                       else span(cls := "text-right w-full inline-block", unreconCount.toString)
@@ -195,7 +203,7 @@ object FundFlowPage:
                       if account.isRecon then
                         span(
                           cls := "text-right w-full inline-block text-blue-600 hover:underline cursor-pointer",
-                          onClick --> (_ => Nav.toUnreconciledMovements(accountId)),
+                          onClick.mapToUnit --> goToUnreconciledSearch,
                           f"$$${account.unreconciledBalance}%.2f"
                         )
                       else span()
@@ -273,13 +281,24 @@ object FundFlowPage:
 
   // Kept local to this tab (rebuilt fresh whenever the user switches back to it) rather than
   // folded into the page-level State — none of the other tabs need this data, and it keeps the
-  // shared State from growing ten fields that only ever matter here.
+  // shared State from growing ten fields that only ever matter here. The one exception is
+  // pendingSearchAccountId: the Accounts tab's "Unreconciled Count"/"Unreconciled Balance" links
+  // switch to this tab and stash the account there so it can be consumed once, right here, to
+  // seed a pre-filled, auto-run search — that hand-off has to go through the shared State since
+  // this tab's own searchVar doesn't exist yet at the moment those links are clicked.
   private def searchMovementsTab(ffId: String, state: Var[State]): HtmlElement =
-    val searchVar = Var(SearchState())
+    val prefillAccountId = state.now().pendingSearchAccountId
+    if prefillAccountId.isDefined then state.update(_.copy(pendingSearchAccountId = None))
+    val searchVar = Var(
+      SearchState(accountId = prefillAccountId.getOrElse(""), unreconciledOnly = prefillAccountId.isDefined)
+    )
     val searchBus = EventBus[Unit]()
 
+    val autoSearchTrigger =
+      if prefillAccountId.isDefined then EventStream.fromValue(()) else EventStream.empty
+
     div(
-      searchBus.events.flatMapSwitch { _ =>
+      EventStream.merge(autoSearchTrigger, searchBus.events).flatMapSwitch { _ =>
         val s = searchVar.now()
         val req = MovementSearchRequest(
           fundFlowId       = ffId,
@@ -721,5 +740,8 @@ object FundFlowPage:
     selectedAccount:      Option[AccountPayload]       = None,
     selectedMovementSpec: Option[MovementSpecPayload]  = None,
     reconcileStatuses:    Map[String, ReconcileStatus] = Map.empty,
-    unreconciledCounts:   Map[String, Int]             = Map.empty
+    unreconciledCounts:   Map[String, Int]             = Map.empty,
+    // Set by the Accounts tab's "Unreconciled Count"/"Unreconciled Balance" links, consumed once
+    // by searchMovementsTab to seed and auto-run a pre-filled search — see that function.
+    pendingSearchAccountId: Option[String] = None
   )
