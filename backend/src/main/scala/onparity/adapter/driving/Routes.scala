@@ -185,13 +185,6 @@ class App(using
       val movSpecNames = movementSpecRepo.findByFundFlowId(criteria.fundFlowId).map(s => s.id -> s.name).toMap
       write(results.map(m => Payload.movementSearchResultPayloadFromDomain(m, accountNames, movSpecNames)))
 
-  @cask.route(s"${HttpPath.account}/:id/unreconciled-movements", methods = HttpCmd.GET)
-  def unreconciledMovementsByAccount(id: String): String =
-    transact(transactor):
-      val movements = movementRepo.findUnReconciledByAccount(UUID.fromString(id))
-      val payload   = movements.map(Payload.movementfromDomainModel)
-      write(payload)
-
   @cask.route(s"${HttpPath.account}/:id/reconciliations", methods = HttpCmd.GET)
   def reconciliationsByAccount(id: String, limit: Int = 100): String =
     transact(transactor):

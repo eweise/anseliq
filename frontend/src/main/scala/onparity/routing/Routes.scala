@@ -52,7 +52,6 @@ object Routes:
               path("accounts" / segment / "manual-match" / segment)((accountId, reconSpecId) =>
                 ManualMatchPage(accountId, reconSpecId)
               ),
-              path("accounts" / segment / "unreconciled-movements")(accountId => UnreconciledMovementsPage(accountId)),
               path("unreconciled-movements")(AllUnreconciledMovementsPage()),
               path("accounts" / segment / "recent-reconciliations")(accountId => AccountReconciliationsPage(accountId)),
               path("maintain-movement-spec" / segment / segment / segment)((outAccountId, inAccountId, id) =>
