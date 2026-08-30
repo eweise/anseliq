@@ -66,7 +66,17 @@ class EndToEndSuite extends munit.FunSuite {
         |2025-03-06,987,50.89
         |""".stripMargin
 
-    val (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec) =
+    val (
+      fundFlowConfig,
+      reconAccount,
+      journalAccount,
+      reportAccount,
+      journalFeed,
+      journalToRecon,
+      reportFeed,
+      reportToRecon,
+      reconSpec
+    ) =
       transact(transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
         fundFlowConfigRepo.insert(fundFlowConfig)
@@ -80,9 +90,7 @@ class EndToEndSuite extends munit.FunSuite {
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id)
         accountRepo.insert(reportAccount)
 
-        val journalToRecon = MovementSpec(
-          inAccountId  = reconAccount.id,
-          outAccountId = journalAccount.id,
+        val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
               parserConfig = CSVParserConfig(
@@ -98,11 +106,15 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
+        fileFeedRepo.insert(journalFeed)
+        val journalToRecon = MovementSpec(
+          inAccountId  = reconAccount.id,
+          outAccountId = journalAccount.id,
+          fileFeedId   = journalFeed.id
+        )
         movementSpecRepo.insert(journalToRecon)
 
-        val reportToRecon = MovementSpec(
-          outAccountId = reconAccount.id,
-          inAccountId  = reportAccount.id,
+        val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
               parserConfig = CSVParserConfig(
@@ -116,6 +128,12 @@ class EndToEndSuite extends munit.FunSuite {
               )
             )
           )
+        )
+        fileFeedRepo.insert(reportFeed)
+        val reportToRecon = MovementSpec(
+          outAccountId = reconAccount.id,
+          inAccountId  = reportAccount.id,
+          fileFeedId   = reportFeed.id
         )
         movementSpecRepo.insert(reportToRecon)
 
@@ -132,19 +150,31 @@ class EndToEndSuite extends munit.FunSuite {
         )
         reconSpecRepo.insert(reconSpec)
 
-        (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec)
+        (
+          fundFlowConfig,
+          reconAccount,
+          journalAccount,
+          reportAccount,
+          journalFeed,
+          journalToRecon,
+          reportFeed,
+          reportToRecon,
+          reconSpec
+        )
 
     try
       // Ingest some files
       ingestor.ingestResumable(
-        reportToRecon,
-        InMemoryFileSourceEntry("report"),
-        ByteArrayInputStream(reportFile1.getBytes(UTF_8))
+        fileFeed        = reportFeed,
+        movementSpecs   = Seq(reportToRecon),
+        fileSourceEntry = InMemoryFileSourceEntry("report"),
+        is              = ByteArrayInputStream(reportFile1.getBytes(UTF_8))
       )
       ingestor.ingestResumable(
-        journalToRecon,
-        InMemoryFileSourceEntry("journal"),
-        ByteArrayInputStream(journalFile1.getBytes(UTF_8))
+        fileFeed        = journalFeed,
+        movementSpecs   = Seq(journalToRecon),
+        fileSourceEntry = InMemoryFileSourceEntry("journal"),
+        is              = ByteArrayInputStream(journalFile1.getBytes(UTF_8))
       )
 
       // Reconcile the data
@@ -180,7 +210,17 @@ class EndToEndSuite extends munit.FunSuite {
         |2025-03-05,123,120.50
         |""".stripMargin
 
-    val (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec) =
+    val (
+      fundFlowConfig,
+      reconAccount,
+      journalAccount,
+      reportAccount,
+      journalFeed,
+      journalToRecon,
+      reportFeed,
+      reportToRecon,
+      reconSpec
+    ) =
       transact(transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
         fundFlowConfigRepo.insert(fundFlowConfig)
@@ -194,9 +234,7 @@ class EndToEndSuite extends munit.FunSuite {
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id)
         accountRepo.insert(reportAccount)
 
-        val journalToRecon = MovementSpec(
-          inAccountId  = reconAccount.id,
-          outAccountId = journalAccount.id,
+        val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
               parserConfig = CSVParserConfig(
@@ -212,11 +250,15 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
+        fileFeedRepo.insert(journalFeed)
+        val journalToRecon = MovementSpec(
+          inAccountId  = reconAccount.id,
+          outAccountId = journalAccount.id,
+          fileFeedId   = journalFeed.id
+        )
         movementSpecRepo.insert(journalToRecon)
 
-        val reportToRecon = MovementSpec(
-          outAccountId = reconAccount.id,
-          inAccountId  = reportAccount.id,
+        val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
               parserConfig = CSVParserConfig(
@@ -230,6 +272,12 @@ class EndToEndSuite extends munit.FunSuite {
               )
             )
           )
+        )
+        fileFeedRepo.insert(reportFeed)
+        val reportToRecon = MovementSpec(
+          outAccountId = reconAccount.id,
+          inAccountId  = reportAccount.id,
+          fileFeedId   = reportFeed.id
         )
         movementSpecRepo.insert(reportToRecon)
 
@@ -255,19 +303,31 @@ class EndToEndSuite extends munit.FunSuite {
         )
         reconSpecRepo.insert(reconSpec)
 
-        (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reportToRecon, reconSpec)
+        (
+          fundFlowConfig,
+          reconAccount,
+          journalAccount,
+          reportAccount,
+          journalFeed,
+          journalToRecon,
+          reportFeed,
+          reportToRecon,
+          reconSpec
+        )
 
     try
       // Ingest some files
       ingestor.ingestResumable(
-        reportToRecon,
-        InMemoryFileSourceEntry("report"),
-        ByteArrayInputStream(reportFile1.getBytes(UTF_8))
+        fileFeed        = reportFeed,
+        movementSpecs   = Seq(reportToRecon),
+        fileSourceEntry = InMemoryFileSourceEntry("report"),
+        is              = ByteArrayInputStream(reportFile1.getBytes(UTF_8))
       )
       ingestor.ingestResumable(
-        journalToRecon,
-        InMemoryFileSourceEntry("journal"),
-        ByteArrayInputStream(journalFile1.getBytes(UTF_8))
+        fileFeed        = journalFeed,
+        movementSpecs   = Seq(journalToRecon),
+        fileSourceEntry = InMemoryFileSourceEntry("journal"),
+        is              = ByteArrayInputStream(journalFile1.getBytes(UTF_8))
       )
 
       // Reconcile the data
@@ -303,7 +363,17 @@ class EndToEndSuite extends munit.FunSuite {
         |2025-03-04,abc,234,49.50
         |""".stripMargin
 
-    val (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reconToReport, reconSpec) =
+    val (
+      fundFlowConfig,
+      reconAccount,
+      journalAccount,
+      reportAccount,
+      journalFeed,
+      journalToRecon,
+      reportFeed,
+      reconToReport,
+      reconSpec
+    ) =
       transact(transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
         fundFlowConfigRepo.insert(fundFlowConfig)
@@ -317,9 +387,7 @@ class EndToEndSuite extends munit.FunSuite {
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id)
         accountRepo.insert(reportAccount)
 
-        val journalToRecon = MovementSpec(
-          inAccountId  = reconAccount.id,
-          outAccountId = journalAccount.id,
+        val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
               parserConfig = CSVParserConfig(
@@ -334,11 +402,15 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
+        fileFeedRepo.insert(journalFeed)
+        val journalToRecon = MovementSpec(
+          inAccountId  = reconAccount.id,
+          outAccountId = journalAccount.id,
+          fileFeedId   = journalFeed.id
+        )
         movementSpecRepo.insert(journalToRecon)
 
-        val reconToReport = MovementSpec(
-          outAccountId = reconAccount.id,
-          inAccountId  = reportAccount.id,
+        val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
               parserConfig = CSVParserConfig(
@@ -353,6 +425,12 @@ class EndToEndSuite extends munit.FunSuite {
               )
             )
           )
+        )
+        fileFeedRepo.insert(reportFeed)
+        val reconToReport = MovementSpec(
+          outAccountId = reconAccount.id,
+          inAccountId  = reportAccount.id,
+          fileFeedId   = reportFeed.id
         )
         movementSpecRepo.insert(reconToReport)
 
@@ -378,19 +456,31 @@ class EndToEndSuite extends munit.FunSuite {
         )
         reconSpecRepo.insert(reconSpec)
 
-        (fundFlowConfig, reconAccount, journalAccount, reportAccount, journalToRecon, reconToReport, reconSpec)
+        (
+          fundFlowConfig,
+          reconAccount,
+          journalAccount,
+          reportAccount,
+          journalFeed,
+          journalToRecon,
+          reportFeed,
+          reconToReport,
+          reconSpec
+        )
 
     try
       // Ingest some files
       ingestor.ingestResumable(
-        reconToReport,
-        InMemoryFileSourceEntry("report"),
-        ByteArrayInputStream(reportFile.getBytes(UTF_8))
+        fileFeed        = reportFeed,
+        movementSpecs   = Seq(reconToReport),
+        fileSourceEntry = InMemoryFileSourceEntry("report"),
+        is              = ByteArrayInputStream(reportFile.getBytes(UTF_8))
       )
       ingestor.ingestResumable(
-        journalToRecon,
-        InMemoryFileSourceEntry("journal"),
-        ByteArrayInputStream(journalFile.getBytes(UTF_8))
+        fileFeed        = journalFeed,
+        movementSpecs   = Seq(journalToRecon),
+        fileSourceEntry = InMemoryFileSourceEntry("journal"),
+        is              = ByteArrayInputStream(journalFile.getBytes(UTF_8))
       )
 
       // Reconcile the data

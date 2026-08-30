@@ -68,6 +68,9 @@ object FundFlowPage:
           SessionStore.token
         )
         .apiBind(specs => state.update(_.copy(movementSpecs = specs))),
+      ApiClient
+        .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+        .apiBind(feeds => state.update(_.copy(fileFeeds = feeds))),
       configureReconBus.events.flatMapSwitch { account =>
         ApiClient
           .get[Seq[ReconciliationSpecPayload]](
@@ -382,7 +385,7 @@ object FundFlowPage:
         child <-- searchVar.signal.map(_.movementSpecId).distinct.map { specId =>
           if specId.isEmpty then div()
           else
-            val keys = RuleWidget.columnsFor(specId, state.now().movementSpecs)
+            val keys = RuleWidget.columnsFor(specId, state.now().movementSpecs, state.now().fileFeeds)
             div(
               cls := "mt-2",
               div(
@@ -638,7 +641,7 @@ object FundFlowPage:
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick --> { _ =>
           state.update(_.copy(selectedMovementSpec = None))
-          Nav.toTestParser(spec.id.getOrElse(""))
+          Nav.toTestParser(spec.fileFeedId)
         },
         "Test Parser"
       ),
@@ -737,6 +740,7 @@ object FundFlowPage:
   case class State(
     accounts:             Seq[AccountPayload]          = Seq.empty,
     movementSpecs:        Seq[MovementSpecPayload]     = Seq.empty,
+    fileFeeds:            Seq[FileFeedPayload]         = Seq.empty,
     selectedAccount:      Option[AccountPayload]       = None,
     selectedMovementSpec: Option[MovementSpecPayload]  = None,
     reconcileStatuses:    Map[String, ReconcileStatus] = Map.empty,

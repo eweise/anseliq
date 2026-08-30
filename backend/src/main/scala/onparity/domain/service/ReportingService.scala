@@ -69,6 +69,12 @@ class ReportingService(using
         yield spec.accountId
       case DisputeTarget.MovementSpec =>
         movementSpecRepo.findById(d.referenceId).map(_.inAccountId)
+      case DisputeTarget.FileFeed =>
+        // A feed can route to several accounts (a multi-account BAI-style feed), so there's no
+        // single owning account — scope by whichever spec happens to be first, same best-effort
+        // fallback as an empty result: a feed with zero specs configured yet just has no account
+        // to scope by, and the dispute is only visible in the unscoped (all fund flows) view.
+        movementSpecRepo.findByFileFeedId(d.referenceId).headOption.map(_.inAccountId)
 
   private def agingBucketFor(ageDays: Long): String =
     if ageDays <= 3 then "0-3"

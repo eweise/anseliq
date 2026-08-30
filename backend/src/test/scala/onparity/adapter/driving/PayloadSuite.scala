@@ -8,17 +8,17 @@ import java.util.UUID
 class PayloadSuite extends munit.FunSuite:
 
   test("eventPayloadFromDomain converts MoneyMovementsIngested"):
-    val specId  = UUID.randomUUID()
-    val event   = MoneyMovementsIngested(
-          movementSpecID = specId,
-          movementSpecName = "test",
-          fileName = "test",
-          recordCount = 0,
-          ingestionTimeSeconds = 0,
-          lastProcessedLine = None
-        )
-    val state   = EventState.newEventState(event)
-    val result  = Payload.eventPayloadFromDomain(state)
+    val specId = UUID.randomUUID()
+    val event = MoneyMovementsIngested(
+      movementSpecID       = specId,
+      movementSpecName     = "test",
+      fileName             = "test",
+      recordCount          = 0,
+      ingestionTimeSeconds = 0,
+      lastProcessedLine    = None
+    )
+    val state  = EventState.newEventState(event)
+    val result = Payload.eventPayloadFromDomain(state)
     assert(result.isInstanceOf[MoneyMovementsIngestedPayload])
     val payload = result.asInstanceOf[MoneyMovementsIngestedPayload]
     assertEquals(payload.id, event.id.toString)

@@ -216,8 +216,9 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(outReconMovement.id.toString, outMovementId)
 
         // Let's see if the AND rule works
-        val sqlStrWithAnd                               = AndRule(List(rule, rule)).sql
-        val resultsWithAnd                              = movementRepo.findEqualityMatches(sqlStrWithAnd, data.reportToRecon.id, data.journalToRecon.id)
+        val sqlStrWithAnd = AndRule(List(rule, rule)).sql
+        val resultsWithAnd =
+          movementRepo.findEqualityMatches(sqlStrWithAnd, data.reportToRecon.id, data.journalToRecon.id)
         val (inMovementIdWithAnd, outMovementIdWithAnd) = resultsWithAnd.head
         assertEquals(inReconMovement.id.toString, inMovementIdWithAnd)
         assertEquals(outReconMovement.id.toString, outMovementIdWithAnd)
@@ -315,17 +316,17 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
         val firstPage = movementRepo.findUnreconciledPage(
           movementSpecId = data.journalToRecon.id,
-          matchKeyExpr    = matchKeyExpr,
-          afterKey        = None,
-          pageSize        = 2
+          matchKeyExpr   = matchKeyExpr,
+          afterKey       = None,
+          pageSize       = 2
         )
         assertEquals(firstPage.map(_.properties.props("id")), Vector("10", "20"))
 
         val secondPage = movementRepo.findUnreconciledPage(
           movementSpecId = data.journalToRecon.id,
-          matchKeyExpr    = matchKeyExpr,
-          afterKey        = Some(firstPage.last.properties.props("id")),
-          pageSize        = 2
+          matchKeyExpr   = matchKeyExpr,
+          afterKey       = Some(firstPage.last.properties.props("id")),
+          pageSize       = 2
         )
         assertEquals(secondPage.map(_.properties.props("id")), Vector("30"))
 
@@ -336,16 +337,25 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         val data = DataSetup()
 
         val m1 = Movement(
-          inAccountId = data.journalAccount.id, outAccountId = data.reconAccount.id,
-          movementSpecId = data.journalToRecon.id, amount = 100, properties = JSONBProps(Map("id" -> "1"))
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 100,
+          properties     = JSONBProps(Map("id" -> "1"))
         )
         val m2 = Movement(
-          inAccountId = data.journalAccount.id, outAccountId = data.reconAccount.id,
-          movementSpecId = data.journalToRecon.id, amount = 200, properties = JSONBProps(Map("id" -> "2"))
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 200,
+          properties     = JSONBProps(Map("id" -> "2"))
         )
         val m3 = Movement(
-          inAccountId = data.journalAccount.id, outAccountId = data.reconAccount.id,
-          movementSpecId = data.journalToRecon.id, amount = 300, properties = JSONBProps(Map("id" -> "3"))
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 300,
+          properties     = JSONBProps(Map("id" -> "3"))
         )
         movementRepo.insert(m1)
         movementRepo.insert(m2)

@@ -28,6 +28,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
   given movementSpecRepo: MovementSpecRepo = MovementSpecRepoLive()
 
+  given fileFeedRepo: FileFeedRepo = FileFeedRepoLive()
+
   given reconSpecRepo: ReconciliationSpecRepo = ReconciliationSpecRepoLive()
 
   given reconRepo: ReconciliationRepo = ReconciliationRepoLive()
@@ -283,8 +285,12 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
   // movements never get scanned by the account's existing OneToOne spec, which expects an "id"
   // property and would throw trying to match on movements that only carry "groupId".
   private def oneToManySpec(data: DataSetup, agingLimit: Int = 0): (MovementSpec, MovementSpec, ReconciliationSpec) =
-    val inSpec  = MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id)
-    val outSpec = MovementSpec(outAccountId = data.reconAccount.id, inAccountId = data.reportAccount.id)
+    val inFeed  = FileFeed()
+    val outFeed = FileFeed()
+    val inSpec =
+      MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id, fileFeedId = inFeed.id)
+    val outSpec =
+      MovementSpec(outAccountId = data.reconAccount.id, inAccountId = data.reportAccount.id, fileFeedId = outFeed.id)
     val rule =
       StringAttributeMatchRule(inKey = StringAttribute(key = "groupId"), outKey = StringAttribute(key = "groupId"))
     val spec = ReconciliationSpec(
@@ -296,6 +302,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       outMovementSpecId = outSpec.id
     )
     transact(transactor):
+      fileFeedRepo.insert(inFeed)
+      fileFeedRepo.insert(outFeed)
       movementSpecRepo.insert(inSpec)
       movementSpecRepo.insert(outSpec)
       data.reconSpecRepo.insert(spec)
@@ -505,8 +513,12 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
   // Own MovementSpecs, same reasoning as oneToManySpec above: keeps this rule's movements out of
   // reach of data.reconSpec's own "id"-keyed OneToOne rule.
   private def constantMatchSpec(data: DataSetup): (MovementSpec, MovementSpec, ReconciliationSpec) =
-    val inSpec  = MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id)
-    val outSpec = MovementSpec(outAccountId = data.reconAccount.id, inAccountId = data.reportAccount.id)
+    val inFeed  = FileFeed()
+    val outFeed = FileFeed()
+    val inSpec =
+      MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id, fileFeedId = inFeed.id)
+    val outSpec =
+      MovementSpec(outAccountId = data.reconAccount.id, inAccountId = data.reportAccount.id, fileFeedId = outFeed.id)
     // outKey is pinned to the literal "12345" rather than looked up from each out-movement's own
     // props — every out-movement trivially satisfies this side of the rule regardless of its own
     // "id", so only in-movements whose real "id" equals "12345" can ever pair with one.
@@ -521,6 +533,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       outMovementSpecId = outSpec.id
     )
     transact(transactor):
+      fileFeedRepo.insert(inFeed)
+      fileFeedRepo.insert(outFeed)
       movementSpecRepo.insert(inSpec)
       movementSpecRepo.insert(outSpec)
       data.reconSpecRepo.insert(spec)

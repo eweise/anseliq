@@ -4,6 +4,7 @@ import com.augustnagro.magnum.{DbTx, Transactor, transact}
 import com.fasterxml.uuid.Generators
 import com.typesafe.scalalogging.Logger
 import net.logstash.logback.argument.StructuredArguments.kv
+import onparity.common.model.RoutingFilter
 import onparity.common.model.model.ID
 import onparity.domain.model.*
 import onparity.domain.model.FileInventoryStatus.COMPLETED
@@ -13,6 +14,7 @@ import ox.flow.Flow
 import java.io.InputStream
 import java.time.Instant.now
 import java.time.OffsetDateTime
+import scala.collection.mutable
 
 case class IngestionResult(
   recordCount:          Int,
@@ -41,6 +43,7 @@ class Ingestor(using
   val ledger:             Ledger,
   val movementRepo:       MovementRepo,
   val movementSpecRepo:   MovementSpecRepo,
+  val fileFeedRepo:       FileFeedRepo,
   val eventStore:         EventStore,
   val fileInventoryRepo:  FileInventoryRepo,
   val fileSourceFactory:  FileSourceFactory,
@@ -55,27 +58,30 @@ class Ingestor(using
     batchSize:       Int                            = 1000,
     onBatchComplete: BatchProgress => BatchDecision = _ => BatchDecision.Commit
   ): IngestionResult =
-    val (fileInventory, movementSpec) = transact(transactor):
+    val (fileInventory, fileFeed, movementSpecs) = transact(transactor):
 
       val fileInventory = fileInventoryRepo
         .findById(fileInventoryID)
         .ErrIfNotFound("FileInventory", fileInventoryID)
 
-      val movementSpec = movementSpecRepo
-        .findById(fileInventory.movementSpecId)
-        .ErrIfNotFound("MovementSpec", fileInventory.movementSpecId)
+      val fileFeed = fileFeedRepo
+        .findById(fileInventory.fileFeedId)
+        .ErrIfNotFound("FileFeed", fileInventory.fileFeedId)
 
-      (fileInventory, movementSpec)
+      val movementSpecs = movementSpecRepo.findByFileFeedId(fileFeed.id)
+
+      (fileInventory, fileFeed, movementSpecs)
     end val
 
-    val connectionConfig = movementSpec.dataSourceConfig().connectionConfig
+    val connectionConfig = fileFeed.dataSourceConfig().connectionConfig
     val fileSource       = fileSourceFactory.createFileSource(connectionConfig)
     val fileSourceEntry  = fileInventory.fileSourceEntry()
     val inputStream      = fileSource.getFile(fileSourceEntry)
     val startingLine     = fileInventory.lastProcessedLine.map(_ + 1).getOrElse(0L)
 
     val result = ingestResumable(
-      movementSpec    = movementSpec,
+      fileFeed        = fileFeed,
+      movementSpecs   = movementSpecs,
       fileSourceEntry = fileSourceEntry,
       is              = inputStream,
       startingLine    = startingLine,
@@ -95,8 +101,18 @@ class Ingestor(using
 
     result
 
+  // Finds which of a feed's MovementSpecs claims a parsed row's properties: any spec with a
+  // RoutingFilter whose propertyField/matchValue matches wins over a catch-all spec (routingFilter
+  // = None, claims everything), so a feed can mix a few explicitly-routed accounts with a
+  // fallback if one is configured. None means the row belongs to no configured spec at all.
+  private def matchSpec(movementSpecs: Seq[MovementSpec], props: Map[String, String]): Option[MovementSpec] =
+    movementSpecs
+      .find(_.routingFilter().exists(f => props.get(f.propertyField).contains(f.matchValue)))
+      .orElse(movementSpecs.find(_.routingFilter().isEmpty))
+
   def ingestResumable(
-    movementSpec:    MovementSpec,
+    fileFeed:        FileFeed,
+    movementSpecs:   Seq[MovementSpec],
     fileSourceEntry: FileSourceEntry,
     is:              InputStream,
     startingLine:    Long                           = 0,
@@ -106,11 +122,13 @@ class Ingestor(using
   ): IngestionResult =
     val logger    = Logger(getClass.getName)
     val beginTime = now()
-    val parser    = Parser(movementSpec.dataSourceConfig().parserConfig)
+    val parser    = Parser(fileFeed.dataSourceConfig().parserConfig)
 
     var recordCount       = 0
     var lastCommittedLine = Option.empty[Long]
     var completed         = true
+    val recordCountBySpec = mutable.Map.empty[ID, Int]
+    val unroutedRows      = mutable.Buffer.empty[Map[String, String]]
 
     try
       Flow
@@ -128,24 +146,28 @@ class Ingestor(using
             "file_source_entry" -> fileSourceEntry.name,
             "file_index"        -> idx.toString
           )
-          (
-            idx,
-            MovementRequest(
-              amount      = amount,
-              referenceId = idempotencyId,
-              properties  = parsedLine.props,
-              metaData    = metaData
-            )
+          val request = MovementRequest(
+            amount      = amount,
+            referenceId = idempotencyId,
+            properties  = parsedLine.props,
+            metaData    = metaData
           )
+          (idx, matchSpec(movementSpecs, parsedLine.props), request)
         }
         .grouped(batchSize)
         .runForeach: batch =>
           logger.debug(s"running batch", kv("batch_size", batch.size))
           val lastLineInBatch = batch.last._1
-          val requests        = batch.map(_._2)
+          // Split the batch by which spec (if any) each row's routing key matched, so a batch
+          // spanning multiple accounts (a multi-account BAI-style feed) posts each group to its
+          // own account pair via a separate ledger.recordMovements call instead of forcing every
+          // row in the batch through one spec.
+          val byMatchedSpec = batch.groupMap(_._2)(_._3)
 
           val decision = transact(transactor):
-            ledger.recordMovements(movementSpec = movementSpec, movementRequests = requests)
+            byMatchedSpec.foreach:
+              case (Some(spec), requests) => ledger.recordMovements(movementSpec = spec, movementRequests = requests)
+              case (None, _)              => () // unrouted rows aren't recorded as movements
 
             fileInventoryID.foreach: id =>
               val fileInventory = fileInventoryRepo.findById(id).ErrIfNotFound("FileInventory", id)
@@ -163,7 +185,12 @@ class Ingestor(using
 
           decision match
             case BatchDecision.Commit =>
-              recordCount += batch.size
+              byMatchedSpec.foreach:
+                case (Some(spec), requests) =>
+                  recordCount += requests.size
+                  recordCountBySpec.updateWith(spec.id)(c => Some(c.getOrElse(0) + requests.size))
+                case (None, requests) =>
+                  unroutedRows ++= requests.map(_.properties)
               lastCommittedLine = Some(lastLineInBatch)
               logger.info("committing batch", kv("record_count", recordCount))
             case BatchDecision.Rollback =>
@@ -175,18 +202,19 @@ class Ingestor(using
 
     if lastCommittedLine.isDefined then
       transact(transactor):
-        val s = fileSourceEntry.name
-        val m = movementSpec.name
-        eventStore.publishEvent(
-          MoneyMovementsIngested(
-            movementSpecID       = movementSpec.id,
-            movementSpecName     = movementSpec.name,
-            fileName             = fileSourceEntry.name,
-            ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond,
-            lastProcessedLine    = lastCommittedLine,
-            recordCount          = recordCount
+        recordCountBySpec.foreach: (specId, count) =>
+          val spec = movementSpecs.find(_.id == specId).get
+          eventStore.publishEvent(
+            MoneyMovementsIngested(
+              movementSpecID       = spec.id,
+              movementSpecName     = spec.name,
+              fileName             = fileSourceEntry.name,
+              ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond,
+              lastProcessedLine    = lastCommittedLine,
+              recordCount          = count
+            )
           )
-        )
+        if unroutedRows.nonEmpty then raiseUnroutedRecordDispute(fileFeed, movementSpecs, unroutedRows.toSeq)
 
     IngestionResult(
       recordCount          = recordCount,
@@ -196,19 +224,18 @@ class Ingestor(using
     )
 
   /**
-   * Lets a user try a movementSpec's parser config against a real sample file before wiring up real
+   * Lets a user try a feed's parser config against a real sample file before wiring up real
    * ingestion, entirely in memory — no FileInventory row, no Movements written, nothing persisted
    * at all. Unlike ingestResumable, a row that throws ParserError doesn't abort the whole run; it's
    * collected alongside the successful rows so the user can see exactly which lines fail and why,
    * in one pass. maxLines caps how many lines of the upload are ever parsed, regardless of the
    * file's real size, so a user can't accidentally hang the request on a huge upload.
    *
-   * Takes an already-resolved MovementSpec (the caller does the lookup), the same division of
-   * responsibility as ingestResumable/ingestFileFromInventory — this method itself touches no DB at
-   * all, purely in-memory parsing, which also makes it trivial to unit test directly.
+   * Takes an already-resolved FileFeed (the caller does the lookup) — this method itself touches no
+   * DB at all, purely in-memory parsing, which also makes it trivial to unit test directly.
    */
-  def testParse(movementSpec: MovementSpec, content: String, maxLines: Int = 1000): ParseTestResult =
-    val parser = Parser(movementSpec.dataSourceConfig().parserConfig)
+  def testParse(fileFeed: FileFeed, content: String, maxLines: Int = 1000): ParseTestResult =
+    val parser = Parser(fileFeed.dataSourceConfig().parserConfig)
 
     val allLines  = content.linesIterator.take(maxLines + 1).toVector
     val truncated = allLines.size > maxLines
@@ -227,7 +254,7 @@ class Ingestor(using
 
     ParseTestResult(rows.toSeq, errors.toSeq, lines.size, truncated)
 
-  def detectAndQueue(movementSpecID: ID, source: FileSource): Txn[Vector[FileInventory]] =
+  def detectAndQueue(fileFeedID: ID, source: FileSource): Txn[Vector[FileInventory]] =
     val inventories = fileInventoryRepo
       .findBySourceSystem(source.sourceSystem)
 
@@ -238,17 +265,17 @@ class Ingestor(using
     val newFiles    = sourceFiles.filterNot(f => existingFileSourceEntries.contains(f))
 
     newFiles.map: newFile =>
-      val fileInventory: FileInventory = createFileInventory(movementSpecID, source, newFile)
+      val fileInventory: FileInventory = createFileInventory(fileFeedID, source, newFile)
       fileInventoryRepo.insert(fileInventory)
       eventStore.publishEvent(NewFileDetected(fileInventoryID = fileInventory.id))
       fileInventory
 
   // separated out method so it could be overridden in tests
-  protected def createFileInventory(movementSpecID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory = {
+  protected def createFileInventory(fileFeedID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory = {
     val fileSourceEntryJson = upickle.write(newFile)
     val now                 = clock.now
     val fileInventory = FileInventory(
-      movementSpecId      = movementSpecID,
+      fileFeedId          = fileFeedID,
       sourceSystem        = source.sourceSystem,
       fileSourceEntryJson = fileSourceEntryJson,
       fileSizeBytes       = newFile.fileSizeBytes,
@@ -261,35 +288,33 @@ class Ingestor(using
   }
 
   /**
-   * Auto-raises (or auto-resolves) a FileMissing dispute against the MovementSpec itself, based on
+   * Auto-raises (or auto-resolves) a FileMissing dispute against the FileFeed itself, based on
    * whether a new file has been detected within its expectedCadenceHours window. Unlike
    * AmountMismatch (which always targets a real Reconciliation row), a missing file has no
-   * FileInventory row to reference — there's nothing to point at except the spec that expected it.
-   * A no-op when expectedCadenceHours isn't configured (not every spec is fed by a scheduled file
+   * FileInventory row to reference — there's nothing to point at except the feed that expected it.
+   * A no-op when expectedCadenceHours isn't configured (not every feed is fed by a scheduled file
    * drop, so there's nothing to compare against). The baseline for "since when" is the most
-   * recently seen file for this spec, or the spec's own createdAt if none has ever arrived.
+   * recently seen file for this feed, or the feed's own createdAt if none has ever arrived.
    */
-  def checkForMissingFile(movementSpec: MovementSpec): Txn[Unit] =
-    movementSpec.expectedCadenceHours.foreach: cadenceHours =>
+  def checkForMissingFile(fileFeed: FileFeed): Txn[Unit] =
+    fileFeed.expectedCadenceHours.foreach: cadenceHours =>
       val lastSeenAt =
         fileInventoryRepo
-          .findLatestByMovementSpecId(movementSpec.id)
+          .findLatestByFileFeedId(fileFeed.id)
           .map(_.lastModifiedAt)
-          .orElse(movementSpec.createdAt)
+          .orElse(fileFeed.createdAt)
       lastSeenAt.foreach: since =>
-        if clock.now.isAfter(since.plusHours(cadenceHours)) then
-          raiseFileMissingDispute(movementSpec, cadenceHours, since)
-        else resolveFileMissingDispute(movementSpec)
+        if clock.now.isAfter(since.plusHours(cadenceHours)) then raiseFileMissingDispute(fileFeed, cadenceHours, since)
+        else resolveFileMissingDispute(fileFeed)
 
-  // insertIfNoOpenDispute keeps repeated scans idempotent: reruns of this spec, or a spec that's
+  // insertIfNoOpenDispute keeps repeated scans idempotent: reruns of this feed, or a feed that's
   // still overdue on a later cycle, must not raise a second dispute for the same gap.
-  private def raiseFileMissingDispute(movementSpec: MovementSpec, cadenceHours: Int, since: OffsetDateTime): Txn[Unit] =
+  private def raiseFileMissingDispute(fileFeed: FileFeed, cadenceHours: Int, since: OffsetDateTime): Txn[Unit] =
     val dispute = Dispute(
-      referenceId = movementSpec.id,
-      targetType  = DisputeTarget.MovementSpec,
-      category    = DisputeCategory.FileMissing,
-      detail =
-        Some(s"No new file detected for '${movementSpec.name}' since $since (expected every $cadenceHours hours)"),
+      referenceId    = fileFeed.id,
+      targetType     = DisputeTarget.FileFeed,
+      category       = DisputeCategory.FileMissing,
+      detail         = Some(s"No new file detected for '${fileFeed.name}' since $since (expected every $cadenceHours hours)"),
       raisedByUserId = None, // system-raised, no human actor
       createdAt      = Some(clock.now),
       updatedAt      = Some(clock.now)
@@ -300,11 +325,11 @@ class Ingestor(using
         eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
 
   // The mirror image of raiseFileMissingDispute: once a file shows up within cadence again, any
-  // open FileMissing dispute for this spec is stale and should close itself, the same way a human
+  // open FileMissing dispute for this feed is stale and should close itself, the same way a human
   // resolving a dispute would (status change + an explanatory comment), not just be forgotten.
-  private def resolveFileMissingDispute(movementSpec: MovementSpec): Txn[Unit] =
+  private def resolveFileMissingDispute(fileFeed: FileFeed): Txn[Unit] =
     disputeRepo
-      .findOpenByReferenceIdAndCategory(movementSpec.id, DisputeCategory.FileMissing)
+      .findOpenByReferenceIdAndCategory(fileFeed.id, DisputeCategory.FileMissing)
       .foreach: dispute =>
         dispute.status    = DisputeStatus.Resolved
         dispute.updatedAt = Some(clock.now)
@@ -316,12 +341,46 @@ class Ingestor(using
         val comment = disputeCommentRepo.insertReturning(
           DisputeComment(
             disputeId = dispute.id,
-            body      = Some(s"Auto-resolved: a new file was detected for '${movementSpec.name}'."),
+            body      = Some(s"Auto-resolved: a new file was detected for '${fileFeed.name}'."),
             newStatus = Some(DisputeStatus.Resolved),
             createdAt = Some(clock.now)
           )
         )
         eventStore.publishEvent(DisputeCommentAdded(disputeID = dispute.id, commentID = comment.id))
+
+  // Raised once per ingest run (not once per row) when one or more parsed rows matched no
+  // configured MovementSpec's routing filter — the actual fix for the silent-money-loss failure
+  // mode a multi-account feed (e.g. BAI2) has if the bank starts including an account nobody's
+  // configured a spec for: those rows now surface as an exception instead of vanishing. Unlike
+  // FileMissing there's no clean signal to auto-resolve on, so this stays open until a human
+  // configures a matching spec and resolves it explicitly.
+  private def raiseUnroutedRecordDispute(
+    fileFeed:      FileFeed,
+    movementSpecs: Seq[MovementSpec],
+    unroutedRows:  Seq[Map[String, String]]
+  ): Txn[Unit] =
+    val routedFields = movementSpecs.flatMap(_.routingFilter().map(_.propertyField)).distinct
+    val sample = routedFields
+      .map(field => field -> unroutedRows.flatMap(_.get(field)).distinct.take(10))
+      .filter(_._2.nonEmpty)
+    val valuesSummary = sample.map((field, values) => s"$field=${values.mkString(",")}").mkString("; ")
+    val detail =
+      s"${unroutedRows.size} row(s) in '${fileFeed.name}' matched no configured MovementSpec." +
+        (if valuesSummary.nonEmpty then s" Unmatched value(s): $valuesSummary" else "")
+
+    val dispute = Dispute(
+      referenceId    = fileFeed.id,
+      targetType     = DisputeTarget.FileFeed,
+      category       = DisputeCategory.UnroutedRecord,
+      detail         = Some(detail),
+      raisedByUserId = None,
+      createdAt      = Some(clock.now),
+      updatedAt      = Some(clock.now)
+    )
+    disputeRepo
+      .insertIfNoOpenDispute(dispute)
+      .foreach: raised =>
+        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
 
   def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
     fileInventoryRepo

@@ -31,7 +31,7 @@ object FileInventoryPage:
         cls := "w-full px-8",
         child <-- state.signal.map { s =>
           val headers = Seq(
-            "Movement Spec",
+            "File Feed",
             "Source System",
             "File Name",
             "File Size (bytes)",
@@ -43,7 +43,7 @@ object FileInventoryPage:
           )
           val rows = s.entries.map { entry =>
             Seq(
-              span(entry.movementSpecName),
+              span(entry.fileFeedName),
               span(entry.sourceSystem),
               span(entry.fileName),
               span(entry.fileSizeBytes.toString),

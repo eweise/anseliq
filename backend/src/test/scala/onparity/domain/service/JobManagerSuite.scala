@@ -52,7 +52,9 @@ class JobManagerSuite extends munit.FunSuite:
         val foundErrorJob = jobRepo.findById(jobId).get
         assertEquals(foundErrorJob.errorMessage.get, "boom")
 
-  test("submitJob is idempotent: a second submission while a job is still Submitted returns the existing job, not a duplicate"):
+  test(
+    "submitJob is idempotent: a second submission while a job is still Submitted returns the existing job, not a duplicate"
+  ):
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
@@ -62,7 +64,9 @@ class JobManagerSuite extends munit.FunSuite:
         assertEquals(secondJobId, firstJobId)
         assertEquals(jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).size, 1)
 
-  test("submitJob is idempotent: a second submission while a job is InProgress returns the existing job, not a duplicate"):
+  test(
+    "submitJob is idempotent: a second submission while a job is InProgress returns the existing job, not a duplicate"
+  ):
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
@@ -82,12 +86,20 @@ class JobManagerSuite extends munit.FunSuite:
         jobManager.getNextAvailableJob(Reconciliation)
         jobManager.completeJob(
           firstJobId,
-          ReconciliationInfo(accountId = referenceID.toString, accountName = "test", reconciliationsCreatedCount = 1, processingTimeSeconds = 1)
+          ReconciliationInfo(
+            accountId                   = referenceID.toString,
+            accountName                 = "test",
+            reconciliationsCreatedCount = 1,
+            processingTimeSeconds       = 1
+          )
         )
 
         val secondJobId = jobManager.submitJob(Reconciliation, referenceID)
 
-        assert(secondJobId != firstJobId, "a fresh submission after Complete should not be deduped against the finished job")
+        assert(
+          secondJobId != firstJobId,
+          "a fresh submission after Complete should not be deduped against the finished job"
+        )
         assertEquals(jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).size, 2)
 
   test("submitJob creates a new job once the previous one for the same referenceId has errored"):
@@ -188,9 +200,9 @@ class JobManagerSuite extends munit.FunSuite:
     // transact() call as close to simultaneously as possible, maximizing the chance both threads'
     // findActiveJob sees "nothing" before either commits its insert.
     val referenceID = UUID.randomUUID()
-    val barrier      = CyclicBarrier(2)
-    val results      = ConcurrentLinkedQueue[UUID]()
-    val errors       = ConcurrentLinkedQueue[Throwable]()
+    val barrier     = CyclicBarrier(2)
+    val results     = ConcurrentLinkedQueue[UUID]()
+    val errors      = ConcurrentLinkedQueue[Throwable]()
 
     def race(): Unit =
       try
@@ -207,7 +219,10 @@ class JobManagerSuite extends munit.FunSuite:
     t2.join()
 
     try
-      assert(errors.isEmpty, s"submitJob must recover from the race internally, not surface it as an error: ${errors.asScala.toList}")
+      assert(
+        errors.isEmpty,
+        s"submitJob must recover from the race internally, not surface it as an error: ${errors.asScala.toList}"
+      )
       assertEquals(results.size, 2)
       assertEquals(results.asScala.toSet.size, 1, "both racing submitters must agree on a single job id")
 

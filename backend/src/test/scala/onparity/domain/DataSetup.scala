@@ -17,7 +17,7 @@ class DataSetup(using dbTx: DbTx) {
   val journalAccountName = "journal"
   val reportAccountName  = "report"
   val bankReportName     = "bank_report"
-  val postJournalName = "post_journal"
+  val postJournalName    = "post_journal"
   val fundFlowConfig = FundFlowConfig(
     name = UUID.randomUUID().toString
   )
@@ -37,9 +37,7 @@ class DataSetup(using dbTx: DbTx) {
     fundFlowId = fundFlowConfig.id,
     properties = JSONBProps(props)
   )
-  val journalToRecon = MovementSpec(
-    inAccountId  = reconAccount.id,
-    outAccountId = journalAccount.id,
+  val journalToReconFeed = FileFeed(
     dataSourceJson = upickle.write(
       DataSourceConfig(
         parserConfig = CSVParserConfig(
@@ -50,9 +48,16 @@ class DataSetup(using dbTx: DbTx) {
       )
     )
   )
+  val reportToReconFeed = FileFeed()
+  val journalToRecon = MovementSpec(
+    inAccountId  = reconAccount.id,
+    outAccountId = journalAccount.id,
+    fileFeedId   = journalToReconFeed.id
+  )
   val reportToRecon = MovementSpec(
     outAccountId = reconAccount.id,
-    inAccountId  = reportAccount.id
+    inAccountId  = reportAccount.id,
+    fileFeedId   = reportToReconFeed.id
   )
   val rule = StringAttributeMatchRule(
     inKey  = StringAttribute(key = "id"),
@@ -69,29 +74,33 @@ class DataSetup(using dbTx: DbTx) {
   )
   accountRepo.insert(reconAccount)
 
-  given movementRepo:       MovementRepo           = MovementRepoLive()
+  given movementRepo: MovementRepo = MovementRepoLive()
   accountRepo.insert(journalAccount)
 
-  given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
+  given movementSpecRepo: MovementSpecRepo = MovementSpecRepoLive()
   accountRepo.insert(reportAccount)
 
-  given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+  given fileFeedRepo: FileFeedRepo = FileFeedRepoLive()
+  fileFeedRepo.insert(journalToReconFeed)
+  fileFeedRepo.insert(reportToReconFeed)
+
+  given reconSpecRepo: ReconciliationSpecRepo = ReconciliationSpecRepoLive()
   movementSpecRepo.insert(journalToRecon)
 
-  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
+  given reconRepo: ReconciliationRepo = ReconciliationRepoLive()
 
-  given disputeRepo:        DisputeRepo            = DisputeRepoLive()
+  given disputeRepo: DisputeRepo = DisputeRepoLive()
 
-  given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
+  given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
   movementSpecRepo.insert(reportToRecon)
 
-  given accountRepo:        AccountRepo            = AccountRepoLive()
+  given accountRepo: AccountRepo = AccountRepoLive()
 
-  given ledger:             Ledger                 = Ledger()
+  given ledger: Ledger = Ledger()
 
-  given fundFlowCache:      FundFlowCache          = FundFlowCache(fundFlowConfigRepo)
+  given fundFlowCache: FundFlowCache = FundFlowCache(fundFlowConfigRepo)
 
-  given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
+  given fundFlowConfigRepo: FundFlowConfigRepo = FundFlowConfigRepoLive()
   reconSpecRepo.insert(reconSpec)
 
 }

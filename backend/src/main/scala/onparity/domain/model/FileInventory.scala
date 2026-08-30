@@ -12,7 +12,7 @@ enum FileInventoryStatus derives DbCodec:
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class FileInventory(
   @Id id:              ID           = createID(),
-  movementSpecId:      ID,
+  fileFeedId:          ID,
   sourceSystem:        String,
   fileSourceEntryJson: String,
   fileSizeBytes:       Long,
