@@ -5,7 +5,11 @@ import org.postgresql.ds.PGSimpleDataSource
 
 import javax.sql.DataSource
 
-//todo use pooled datasource
+// todo use pooled datasource — note that MovementRepoLive.withUnreconciledCursor deliberately
+// holds a raw connection open for the life of a whole reconciliation pass (one per side being
+// merge-joined), separate from the short-lived borrow/return every transact(...)/connect(...) call
+// elsewhere does. If this becomes a real pool, that usage needs to explicitly bypass it — or the
+// pool needs enough headroom for those long-held connections — rather than borrowing from it.
 object DbDataSource {
   def create(config: Config): DataSource =
     val source = PGSimpleDataSource()

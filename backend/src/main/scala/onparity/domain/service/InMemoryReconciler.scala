@@ -14,6 +14,7 @@ import onparity.util.{LogContext, PerfLogger}
 import java.time.{Instant, OffsetDateTime}
 import java.time.temporal.ChronoUnit
 import java.util.UUID
+import javax.sql.DataSource
 import scala.collection.mutable.ListBuffer
 import scala.util.boundary
 import scala.util.boundary.break
@@ -45,7 +46,8 @@ class InMemoryReconciler(using
   val clock:              ClockService,
   val transactor:         Transactor,
   val jobRepo:            JobRepo,
-  val disputeRepo:        DisputeRepo
+  val disputeRepo:        DisputeRepo,
+  val dataSource:         DataSource
 ):
 
   private val pageSize = 10000
@@ -234,37 +236,20 @@ class InMemoryReconciler(using
     }
       .mkString(compositeKeyDelimiter)
 
-  private def fetchPage(
-    movementSpecId: ID,
-    matchKeyExpr:   String,
-    afterKey:       Option[String]
-  ): Vector[Movement] =
-    transact(transactor):
-      PerfLogger.time("fetchPage"):
-        val unreconciled = movementRepo.findUnreconciledPage(movementSpecId, matchKeyExpr, afterKey, pageSize)
-        Logger(getClass.getName)
-          .debug(
-            "fetch_page",
-            kv("unreconciled_count", unreconciled.size),
-            kv("match_key_expr", matchKeyExpr),
-            kv("after_key", afterKey)
-          )
-        unreconciled
-
   /**
    * A keyset-paginated cursor over one side (in or out) of a match, fetching `pageSize` rows at a
-   * time via `fetchPage` and transparently refetching the next page once the current one is
-   * exhausted. `lastKey` tracks the most recently consumed row's match key, which becomes the
-   * checkpoint for resuming this side on a later call.
+   * time from an already-open UnreconciledCursor (a WITH HOLD DB cursor sorted once by keyExpr, not
+   * re-sorted per page — see MovementRepoLive.withUnreconciledCursor) and transparently refetching
+   * the next page once the current one is exhausted. `lastKey` tracks the most recently consumed
+   * row's match key, which becomes the checkpoint for resuming this side on a later call.
    */
   private class MergeCursor(
-    movementSpecId: ID,
-    rule:           Rule,
-    direction:      Direction,
-    keyExpr:        String,
-    startKey:       Option[String]
+    rule:      Rule,
+    direction: Direction,
+    cursor:    UnreconciledCursor,
+    startKey:  Option[String]
   ):
-    private var page = fetchPage(movementSpecId, keyExpr, startKey)
+    private var page = cursor.fetchPage()
     private var idx  = 0
     var lastKey: Option[String] = startKey
 
@@ -275,7 +260,7 @@ class InMemoryReconciler(using
       if idx < page.size then true
       else if page.size < pageSize then false
       else
-        page = fetchPage(movementSpecId, keyExpr, lastKey)
+        page = cursor.fetchPage()
         idx  = 0
         page.nonEmpty
 
@@ -348,106 +333,127 @@ class InMemoryReconciler(using
     val logger = Logger(getClass.getName)
     val rule   = reconSpec.rule()
 
-    val inCursor =
-      MergeCursor(reconSpec.inMovementSpecId, rule, IN, matchKeyExpr(rule, IN, "a"), startCheckpoint.lastInMatchKey)
-    val outCursor =
-      MergeCursor(reconSpec.outMovementSpecId, rule, OUT, matchKeyExpr(rule, OUT, "a"), startCheckpoint.lastOutMatchKey)
+    // Both sides' WITH HOLD cursors (each sorted once by its keyExpr — see
+    // MovementRepoLive.withUnreconciledCursor) have to stay open for this whole merge-join, so both
+    // are nested here rather than opened as simple fields: Magnum only ever hands out the DbCon a
+    // cursor needs through a callback like this one, not as a standalone handle.
+    movementRepo.withUnreconciledCursor(
+      dataSource,
+      reconSpec.inMovementSpecId,
+      matchKeyExpr(rule, IN, "a"),
+      startCheckpoint.lastInMatchKey,
+      pageSize
+    ): inRawCursor =>
+      movementRepo.withUnreconciledCursor(
+        dataSource,
+        reconSpec.outMovementSpecId,
+        matchKeyExpr(rule, OUT, "a"),
+        startCheckpoint.lastOutMatchKey,
+        pageSize
+      ): outRawCursor =>
+        val inCursor  = MergeCursor(rule, IN, inRawCursor, startCheckpoint.lastInMatchKey)
+        val outCursor = MergeCursor(rule, OUT, outRawCursor, startCheckpoint.lastOutMatchKey)
 
-    var totalGroups   = 0
-    val pendingGroups = ListBuffer[(Vector[Movement], Vector[Movement])]()
+        var totalGroups   = 0
+        val pendingGroups = ListBuffer[(Vector[Movement], Vector[Movement])]()
 
-    def commitBatch(): Unit =
-      val groups = pendingGroups.toVector
-      pendingGroups.clear()
+        def commitBatch(): Unit =
+          val groups = pendingGroups.toVector
+          pendingGroups.clear()
 
-      val checkpoint = ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey)
-      logger.info("committing batch", kv("checkpoint", checkpoint))
+          val checkpoint =
+            ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey)
+          logger.info("committing batch", kv("checkpoint", checkpoint))
 
-      val decision = transact(transactor):
-        val now             = clock.now
-        val reconciliations = groups.map { case (inGroup, outGroup) => toReconciliation(inGroup, outGroup, now) }
-        reconRepo.insertAll(reconciliations)
+          val decision = transact(transactor):
+            val now             = clock.now
+            val reconciliations = groups.map { case (inGroup, outGroup) => toReconciliation(inGroup, outGroup, now) }
+            reconRepo.insertAll(reconciliations)
 
-        var batchDelta: Money = Zero
-        val idPairs = ListBuffer[(ID, ID)]()
-        groups.zip(reconciliations).foreach { case ((inGroup, outGroup), recon) =>
-          for mov <- inGroup ++ outGroup do idPairs += (mov.id -> recon.id)
-          batchDelta = batchDelta + (inGroup ++ outGroup).map(_.signedAmountFor(accountId)).sum
-        }
-        movementRepo.setReconciliationIds(idPairs)
+            var batchDelta: Money = Zero
+            val idPairs = ListBuffer[(ID, ID)]()
+            groups.zip(reconciliations).foreach { case ((inGroup, outGroup), recon) =>
+              for mov <- inGroup ++ outGroup do idPairs += (mov.id -> recon.id)
+              batchDelta = batchDelta + (inGroup ++ outGroup).map(_.signedAmountFor(accountId)).sum
+            }
+            movementRepo.setReconciliationIds(idPairs)
 
-        // One markReconciled call for the whole batch's net delta, rather than one per group —
-        // ledger.reconcile (unchanged, still used by reconcileAccount) does the equivalent sum
-        // internally per reconciliation; here the sum spans every reconciliation in the batch.
-        ledger.markReconciled(accountId, batchDelta)
+            // One markReconciled call for the whole batch's net delta, rather than one per group —
+            // ledger.reconcile (unchanged, still used by reconcileAccount) does the equivalent sum
+            // internally per reconciliation; here the sum spans every reconciliation in the batch.
+            ledger.markReconciled(accountId, batchDelta)
 
-        // See raiseDisputeOnMismatch's doc above streamMergeJoin: only meaningful where a group's
-        // first formation is itself proof that nothing more is expected to arrive for it.
-        if raiseDisputeOnMismatch then
-          reconciliations
-            .filter(_.status == ReconciliationStatus.InProgress)
-            .foreach: recon =>
-              disputeRepo
-                .insertIfNoOpenDispute(
-                  Dispute(
-                    referenceId    = recon.id,
-                    targetType     = DisputeTarget.Reconciliation,
-                    category       = DisputeCategory.AmountMismatch,
-                    detail         = Some(s"Balance mismatch of ${recon.balance}"),
-                    raisedByUserId = None, // system-raised, no human actor
-                    createdAt      = Some(now),
-                    updatedAt      = Some(now)
-                  )
-                )
-                .foreach(dispute => eventStore.publishEvent(DisputeRaised(disputeID = dispute.id)))
+            // See raiseDisputeOnMismatch's doc above streamMergeJoin: only meaningful where a
+            // group's first formation is itself proof that nothing more is expected to arrive for it.
+            if raiseDisputeOnMismatch then
+              reconciliations
+                .filter(_.status == ReconciliationStatus.InProgress)
+                .foreach: recon =>
+                  disputeRepo
+                    .insertIfNoOpenDispute(
+                      Dispute(
+                        referenceId    = recon.id,
+                        targetType     = DisputeTarget.Reconciliation,
+                        category       = DisputeCategory.AmountMismatch,
+                        detail         = Some(s"Balance mismatch of ${recon.balance}"),
+                        raisedByUserId = None, // system-raised, no human actor
+                        createdAt      = Some(now),
+                        updatedAt      = Some(now)
+                      )
+                    )
+                    .foreach(dispute => eventStore.publishEvent(DisputeRaised(disputeID = dispute.id)))
 
-        jobId.foreach: id =>
-          val job                = jobRepo.findById(id).ErrIfNotFound("Job", id)
-          val updatedCheckpoints = allCheckpoints + (reconSpec.id -> checkpoint)
-          jobRepo.update(job.copy(progressJson = Some(upickle.write(updatedCheckpoints))))
+            jobId.foreach: id =>
+              val job                = jobRepo.findById(id).ErrIfNotFound("Job", id)
+              val updatedCheckpoints = allCheckpoints + (reconSpec.id -> checkpoint)
+              jobRepo.update(job.copy(progressJson = Some(upickle.write(updatedCheckpoints))))
 
-        val progress      = SpecBatchProgress(reconSpec.id, groups.size, checkpoint)
-        val batchDecision = onBatchComplete(progress)
-        if batchDecision == BatchDecision.Rollback then summon[DbTx].connection.rollback()
-        batchDecision
-      end decision
+            val progress      = SpecBatchProgress(reconSpec.id, groups.size, checkpoint)
+            val batchDecision = onBatchComplete(progress)
+            if batchDecision == BatchDecision.Rollback then summon[DbTx].connection.rollback()
+            batchDecision
+          end decision
 
-      decision match
-        case BatchDecision.Commit =>
-          totalGroups += groups.size
-        case BatchDecision.Rollback =>
-          throw ReconciliationStopped
-    end commitBatch
+          decision match
+            case BatchDecision.Commit =>
+              totalGroups += groups.size
+            case BatchDecision.Rollback =>
+              throw ReconciliationStopped
+        end commitBatch
 
-    var stopped = false
-    try
-      LogContext.withContext(
-        "recon_spec_id" -> reconSpec.id,
-        "account_id"    -> accountId
-      ):
-        PerfLogger.time("create pending batches"):
-          while inCursor.ensure() && outCursor.ensure() do
-            val comparison = inCursor.key.compareTo(outCursor.key)
-            logger.debug("done comparison", kv("comparison_outcome", comparison))
-            if comparison == 0 then
-              formGroup(inCursor, outCursor).foreach: group =>
-                pendingGroups += group
-                logger.debug("batch_full", kv("pending_groups_size", pendingGroups.size), kv("batchSize", batchSize))
-                if pendingGroups.size >= batchSize then commitBatch()
-            else if comparison < 0 then inCursor.advance()
-            else outCursor.advance()
-          end while
+        var stopped = false
+        try
+          LogContext.withContext(
+            "recon_spec_id" -> reconSpec.id,
+            "account_id"    -> accountId
+          ):
+            PerfLogger.time("create pending batches"):
+              while inCursor.ensure() && outCursor.ensure() do
+                val comparison = inCursor.key.compareTo(outCursor.key)
+                logger.debug("done comparison", kv("comparison_outcome", comparison))
+                if comparison == 0 then
+                  formGroup(inCursor, outCursor).foreach: group =>
+                    pendingGroups += group
+                    logger.debug(
+                      "batch_full",
+                      kv("pending_groups_size", pendingGroups.size),
+                      kv("batchSize", batchSize)
+                    )
+                    if pendingGroups.size >= batchSize then commitBatch()
+                else if comparison < 0 then inCursor.advance()
+                else outCursor.advance()
+              end while
 
-        if pendingGroups.nonEmpty then commitBatch()
-      // end PerfLogger
-    // end LogContext
-    catch case ReconciliationStopped => stopped = true
+            if pendingGroups.nonEmpty then commitBatch()
+          // end PerfLogger
+        // end LogContext
+        catch case ReconciliationStopped => stopped = true
 
-    (
-      totalGroups,
-      ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey),
-      stopped
-    )
+        (
+          totalGroups,
+          ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey),
+          stopped
+        )
   end streamMergeJoin
 
   /**
