@@ -3,7 +3,13 @@ package onparity.domain.service
 import com.typesafe.scalalogging.StrictLogging
 import onparity.adapter.driving.Payload
 import onparity.common.model.model.{ID, Money, Properties}
-import onparity.common.model.{AccountPayload, FundFlowPayload, MovementSpecPayload, ReconciliationSpecPayload}
+import onparity.common.model.{
+  AccountPayload,
+  FileFeedPayload,
+  FundFlowPayload,
+  MovementSpecPayload,
+  ReconciliationSpecPayload
+}
 import onparity.domain.model.*
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.port.driven.*
@@ -16,6 +22,7 @@ class FundFlowOperations(using
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,
   val movementSpecRepo:   MovementSpecRepo,
+  val fileFeedRepo:       FileFeedRepo,
   val reconSpecRepo:      ReconciliationSpecRepo
 ) extends StrictLogging:
 
@@ -88,13 +95,36 @@ class FundFlowOperations(using
     accountRepo.update(existingAccount)
     Payload.accountPayloadFromDomain(existingAccount)
 
-  def createMovementSpec(payload: MovementSpecPayload): Txn[MovementSpecPayload] =
-    val spec = MovementSpec(
+  def createFileFeed(payload: FileFeedPayload): Txn[FileFeedPayload] =
+    val feed = FileFeed(
       name                 = payload.name,
-      inAccountId          = UUID.fromString(payload.inAccountId),
-      outAccountId         = UUID.fromString(payload.outAccountId),
       dataSourceJson       = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse(""),
       expectedCadenceHours = payload.expectedCadenceHours
+    )
+    fileFeedRepo.insert(feed)
+    Payload.fileFeedPayloadFromDomain(feed)
+
+  def updateFileFeed(idStr: String, payload: FileFeedPayload): Txn[FileFeedPayload] =
+    val id       = UUID.fromString(idStr)
+    var existing = fileFeedRepo.findById(id).ErrIfNotFound("file feed", id)
+    existing = existing.copy(
+      name                 = payload.name,
+      dataSourceJson       = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse(""),
+      expectedCadenceHours = payload.expectedCadenceHours
+    )
+    fileFeedRepo.update(existing)
+    Payload.fileFeedPayloadFromDomain(existing)
+
+  def deleteFileFeed(idStr: String): Txn[Unit] =
+    fileFeedRepo.deleteById(UUID.fromString(idStr))
+
+  def createMovementSpec(payload: MovementSpecPayload): Txn[MovementSpecPayload] =
+    val spec = MovementSpec(
+      name              = payload.name,
+      inAccountId       = UUID.fromString(payload.inAccountId),
+      outAccountId      = UUID.fromString(payload.outAccountId),
+      fileFeedId        = UUID.fromString(payload.fileFeedId),
+      routingFilterJson = payload.routingFilter.map(upickleWrite(_))
     )
     movementSpecRepo.insert(spec)
 
@@ -116,11 +146,11 @@ class FundFlowOperations(using
     val id       = UUID.fromString(idStr)
     var existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
     existing = existing.copy(
-      name                 = payload.name,
-      inAccountId          = UUID.fromString(payload.inAccountId),
-      outAccountId         = UUID.fromString(payload.outAccountId),
-      dataSourceJson       = payload.dataSourceConfig.map(upickleWrite(_)).getOrElse(""),
-      expectedCadenceHours = payload.expectedCadenceHours
+      name              = payload.name,
+      inAccountId       = UUID.fromString(payload.inAccountId),
+      outAccountId      = UUID.fromString(payload.outAccountId),
+      fileFeedId        = UUID.fromString(payload.fileFeedId),
+      routingFilterJson = payload.routingFilter.map(upickleWrite(_))
     )
     movementSpecRepo.update(existing)
 

@@ -181,13 +181,20 @@ case class AccountPayload(
     if name.length < 3 then errors += ("name" -> "name must be at least 3 characters long")
     errors
 
-case class MovementSpecPayload(
+case class FileFeedPayload(
   id:                   Option[String]           = None,
   name:                 String                   = "",
-  inAccountId:          String                   = "",
-  outAccountId:         String                   = "",
   dataSourceConfig:     Option[DataSourceConfig] = None,
   expectedCadenceHours: Option[Int]              = None
+) derives ReadWriter
+
+case class MovementSpecPayload(
+  id:            Option[String]        = None,
+  name:          String                = "",
+  inAccountId:   String                = "",
+  outAccountId:  String                = "",
+  fileFeedId:    String                = "",
+  routingFilter: Option[RoutingFilter] = None
 ) derives ReadWriter
 
 case class MovementPayload(
@@ -269,10 +276,11 @@ case class MovementSpecAndAccounts(
 ) derives ReadWriter
 
 enum DisputeTargetPayload derives ReadWriter:
-  case Movement, Reconciliation, MovementSpec
+  case Movement, Reconciliation, MovementSpec, FileFeed
 
 enum DisputeCategoryPayload derives ReadWriter:
-  case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing
+  case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing,
+    UnroutedRecord
 
 enum DisputeStatusPayload derives ReadWriter:
   case New, Investigating, Escalated, Resolved
@@ -373,8 +381,8 @@ case class TrendReportPayload(
 
 case class FileInventoryPayload(
   id:                String,
-  movementSpecId:    String,
-  movementSpecName:  String,
+  fileFeedId:        String,
+  fileFeedName:      String,
   sourceSystem:      String,
   fileName:          String,
   fileSizeBytes:     Long,

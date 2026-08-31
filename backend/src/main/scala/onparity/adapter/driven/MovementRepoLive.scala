@@ -5,9 +5,10 @@ import onparity.common.model.model.ID
 import onparity.domain.model
 import onparity.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
 import onparity.domain.model.{Account, Movement, MovementSearchCriteria, Reconciliation, Relationship}
-import onparity.domain.port.driven.{MovementInID, MovementOutID, MovementRepo, Txn}
+import onparity.domain.port.driven.{MovementInID, MovementOutID, MovementRepo, Txn, UnreconciledCursor}
 
 import java.util.UUID
+import javax.sql.DataSource
 
 class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
   val m    = Movement.Table
@@ -138,6 +139,63 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       AND movement_spec_id = $movementSpecId
       AND $keyExpr = $keyValue
     """.query[Movement].run()
+
+  // Deliberately not a Txn: transact(transactor) manages one connection for the duration of a
+  // single callback, but Magnum only ever hands out a DbCon through such a callback (DbCon's
+  // constructor is private[magnum] — there's no public way to wrap a connection we hold ourselves).
+  // So the cursor's whole lifetime — DECLARE, every fetchPage, CLOSE — has to live inside one
+  // connect(dataSource) callback, which is why this takes `use` as a continuation instead of
+  // returning a standalone closeable handle. DECLARE ... CURSOR WITH HOLD, committed immediately
+  // below, is what makes the pagination itself cheap: Postgres materializes the full sorted result
+  // into a temp file/tuplestore at that commit, so the expensive sort happens exactly once, not
+  // once per fetchPage, and no long-running transaction/snapshot is held beyond the moment it takes
+  // to run and materialize that query.
+  def withUnreconciledCursor[T](
+    dataSource:     DataSource,
+    movementSpecId: ID,
+    matchKeyExpr:   String,
+    afterKey:       Option[String],
+    pageSize:       Int
+  )(use: UnreconciledCursor => T): T =
+    val keyExpr = SqlLiteral(matchKeyExpr)
+    // Cursor names can't be bind parameters, so this is spliced as a literal like matchKeyExpr
+    // above; safe because it's generated here, not user input.
+    val cursorName = SqlLiteral(s"movement_cur_${UUID.randomUUID.toString.replace("-", "")}")
+    // FETCH's row count is a utility-statement argument, not a query parameter position Postgres
+    // accepts a bind for, so pageSize is spliced as a literal too (safe: caller-controlled Int).
+    val fetchCount = SqlLiteral(pageSize.toString)
+    val after      = afterKey.getOrElse("")
+
+    connect(dataSource):
+      // connect()'s callback is a context function (DbCon ?=> T, same shape as this codebase's
+      // own Txn = DbTx ?=> T) — summon[DbCon] is the established idiom here for reaching the given
+      // connection directly, already used the same way in InMemoryReconciler's commitBatch.
+      val dbCon = summon[DbCon]
+      // connect() doesn't manage a transaction the way transact() does, so autocommit starts at
+      // the driver default (true) — DECLARE CURSOR requires an open transaction, hence this.
+      dbCon.connection.setAutoCommit(false)
+
+      sql"""
+        DECLARE $cursorName CURSOR WITH HOLD FOR
+        SELECT ${m.all}
+        FROM $m AS a
+        WHERE reconciliation_id IS NULL
+        AND movement_spec_id = $movementSpecId
+        AND $keyExpr > $after
+        ORDER BY $keyExpr
+      """.update.run()
+      dbCon.connection.commit()
+
+      val cursor = new UnreconciledCursor:
+        def fetchPage(): Vector[Movement] =
+          val page = sql"FETCH FORWARD $fetchCount FROM $cursorName".query[Movement].run()
+          dbCon.connection.commit()
+          page
+
+      try use(cursor)
+      finally
+        sql"CLOSE $cursorName".update.run()
+        dbCon.connection.commit()
 
   // Same "embed UUIDs as literal SQL text" reasoning as setReconciliationIds below: safe because
   // ID is always a UUID, whose toString can't contain quotes or SQL metacharacters.

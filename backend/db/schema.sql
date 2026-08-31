@@ -36,16 +36,33 @@ CREATE INDEX account_props_index
     ON recon.account
         USING GIN (properties jsonb_path_ops);
 
-create table recon.movement_spec
+-- Owns "where a file comes from and how to parse it" — the part of ingestion that's shared across
+-- every account a file touches. One row per physical file source (e.g. one BAI2 drop location);
+-- multiple movement_spec rows can route off the same feed, one per account the file covers.
+create table recon.file_feed
 (
     id                     uuid primary key,
     name                   text,
-    in_account_id          uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    out_account_id         uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
     data_source_json       text                                  not null,
+    expected_cadence_hours int,
     created_at             timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at             timestamptz default CURRENT_TIMESTAMP not null,
-    expected_cadence_hours int
+    updated_at             timestamptz default CURRENT_TIMESTAMP not null
+);
+
+create table recon.movement_spec
+(
+    id             uuid primary key,
+    name           text,
+    in_account_id  uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_id uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    file_feed_id   uuid                                  not null REFERENCES recon.file_feed (id) ON DELETE CASCADE,
+    -- Encoded RoutingFilter (propertyField + matchValue) JSON, NULL means this spec claims every
+    -- row from its feed — the default for a feed with only one account (today's only case, e.g.
+    -- CSV). A non-null filter is how a multi-account feed (e.g. BAI2) splits rows across accounts
+    -- by a parsed field like account_number.
+    routing_filter_json text,
+    created_at     timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at     timestamptz default CURRENT_TIMESTAMP not null
 );
 
 create table recon.reconciliation_spec
@@ -125,7 +142,7 @@ create table recon.movement
 CREATE TABLE recon.file_inventory
 (
     id                     UUID PRIMARY KEY,
-    movement_spec_id       UUID                     NOT NULL,
+    file_feed_id           UUID                     NOT NULL,
     source_system          VARCHAR(50)              NOT NULL,
     file_source_entry_json TEXT                     NOT NULL,
     file_size_bytes        BIGINT                   NOT NULL,
@@ -206,6 +223,13 @@ CREATE TRIGGER update_account
     BEFORE INSERT OR UPDATE
     ON
         recon.account
+    FOR EACH ROW
+EXECUTE PROCEDURE update_audit_fields_task();
+
+CREATE TRIGGER update_file_feed
+    BEFORE INSERT OR UPDATE
+    ON
+        recon.file_feed
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
 

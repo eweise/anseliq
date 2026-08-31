@@ -20,12 +20,12 @@ class EventStateStoreSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val event = MoneyMovementsIngested(
-          movementSpecID = UUID.randomUUID(),
-          movementSpecName = "test",
-          fileName = "test",
-          recordCount = 0,
+          movementSpecID       = UUID.randomUUID(),
+          movementSpecName     = "test",
+          fileName             = "test",
+          recordCount          = 0,
           ingestionTimeSeconds = 0,
-          lastProcessedLine = None
+          lastProcessedLine    = None
         )
         eventStore.publishEvent(event)
         val found = eventRepo.findById(event.id)
@@ -37,12 +37,12 @@ class EventStateStoreSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val event = MoneyMovementsIngested(
-          movementSpecID = UUID.randomUUID(),
-          movementSpecName = "test",
-          fileName = "test",
-          recordCount = 0,
+          movementSpecID       = UUID.randomUUID(),
+          movementSpecName     = "test",
+          fileName             = "test",
+          recordCount          = 0,
           ingestionTimeSeconds = 0,
-          lastProcessedLine = None
+          lastProcessedLine    = None
         )
         eventStore.publishEvent(event)
 
@@ -64,12 +64,12 @@ class EventStateStoreSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val event = MoneyMovementsIngested(
-          movementSpecID = UUID.randomUUID(),
-          movementSpecName = "test",
-          fileName = "test",
-          recordCount = 0,
+          movementSpecID       = UUID.randomUUID(),
+          movementSpecName     = "test",
+          fileName             = "test",
+          recordCount          = 0,
           ingestionTimeSeconds = 0,
-          lastProcessedLine = None
+          lastProcessedLine    = None
         )
         eventStore.publishEvent(event)
 
@@ -101,12 +101,12 @@ class EventStateStoreSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val event = MoneyMovementsIngested(
-          movementSpecID = UUID.randomUUID(),
-          movementSpecName = "test",
-          fileName = "test",
-          recordCount = 0,
+          movementSpecID       = UUID.randomUUID(),
+          movementSpecName     = "test",
+          fileName             = "test",
+          recordCount          = 0,
           ingestionTimeSeconds = 0,
-          lastProcessedLine = None
+          lastProcessedLine    = None
         )
         eventStore.publishEvent(event)
 

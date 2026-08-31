@@ -7,10 +7,9 @@ import onparity.common.http.HttpPath
 import onparity.common.model.{
   BAIParserConfig,
   CSVParserConfig,
+  FileFeedPayload,
   FixedWidthParserConfig,
-  FundFlowPayload,
   JSONParserConfig,
-  MovementSpecPayload,
   ParseTestResultPayload,
   ParsedRowPayload,
   ParserConfig
@@ -18,7 +17,7 @@ import onparity.common.model.{
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
-import onparity.state.{AppState, SessionStore}
+import onparity.state.SessionStore
 import onparity.view.components.{Buttons, Card, PageHeader, Table}
 
 object TestParserPage:
@@ -30,29 +29,23 @@ object TestParserPage:
     case Failed(msg: String)
 
   case class State(
-    movementSpec: Option[MovementSpecPayload]    = None,
-    result:       Option[ParseTestResultPayload] = None,
-    status:       UploadStatus                   = UploadStatus.Idle
+    fileFeed: Option[FileFeedPayload]        = None,
+    result:   Option[ParseTestResultPayload] = None,
+    status:   UploadStatus                   = UploadStatus.Idle
   )
 
-  def apply(movementSpecId: String): HtmlElement =
-    AppState.activeFundFlow.now() match
-      case None     => div(onMountCallback(_ => Nav.toFundFlows()))
-      case Some(ff) => renderPage(movementSpecId, ff)
-
-  private def renderPage(movementSpecId: String, ff: FundFlowPayload): HtmlElement =
-    val ffId        = ff.id.getOrElse("")
+  def apply(fileFeedId: String): HtmlElement =
     val state       = Var(State())
     val fileReadBus = EventBus[String]()
 
     PageHeader.page(
       ApiClient
-        .get[Seq[MovementSpecPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"), SessionStore.token)
-        .apiBind(specs => state.update(_.copy(movementSpec = specs.find(_.id.contains(movementSpecId))))),
+        .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+        .apiBind(feeds => state.update(_.copy(fileFeed = feeds.find(_.id.contains(fileFeedId))))),
       fileReadBus.events.flatMapSwitch { content =>
         state.update(_.copy(status = UploadStatus.Uploading))
         ApiClient.postRawExpectJson[ParseTestResultPayload](
-          HttpPath.url(s"${HttpPath.movementSpec}/$movementSpecId/test-parse"),
+          HttpPath.url(s"${HttpPath.fileFeed}/$fileFeedId/test-parse"),
           content,
           SessionStore.token
         )
@@ -65,34 +58,29 @@ object TestParserPage:
         div(
           cls := "flex justify-between items-start",
           PageHeader.title(
-            child.text <-- state.signal.map(s =>
-              s"Test Parser — ${s.movementSpec.map(_.name).getOrElse(movementSpecId)}"
-            )
+            child.text <-- state.signal.map(s => s"Test Parser — ${s.fileFeed.map(_.name).getOrElse(fileFeedId)}")
           ),
-          child.maybe <-- state.signal.map(_.movementSpec.map(editParserButton))
+          child.maybe <-- state.signal.map(_.fileFeed.map(editParserButton))
         )
       ),
       div(
         cls := "w-full px-8",
-        child <-- state.signal.map(s => s.movementSpec.map(specConfigSection).getOrElse(div())),
+        child <-- state.signal.map(s => s.fileFeed.map(specConfigSection).getOrElse(div())),
         uploadSection(state, fileReadBus),
         child <-- state.signal.map(resultSection)
       )
     )
 
-  private def editParserButton(spec: MovementSpecPayload): HtmlElement =
-    Buttons.linkButton(
-      "Edit Parser",
-      Observer[Unit](_ => Nav.toMaintainMovementSpec(spec.outAccountId, spec.inAccountId, spec.id.getOrElse("new")))
-    )
+  private def editParserButton(feed: FileFeedPayload): HtmlElement =
+    Buttons.linkButton("Edit Parser", Observer[Unit](_ => Nav.toMaintainFileFeed(feed.id.getOrElse("new"))))
 
-  // Shows what the movement spec's parser actually expects, so the user knows what kind of file
-  // to upload (which columns/fields, in what format) instead of guessing from the spec's name alone.
-  private def specConfigSection(spec: MovementSpecPayload): HtmlElement =
+  // Shows what the feed's parser actually expects, so the user knows what kind of file to upload
+  // (which columns/fields, in what format) instead of guessing from the feed's name alone.
+  private def specConfigSection(feed: FileFeedPayload): HtmlElement =
     div(
       cls := s"${Card.cls} p-4 mb-4 max-w-lg",
       h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Parser Configuration"),
-      spec.dataSourceConfig match
+      feed.dataSourceConfig match
         case None           => div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400", "No parser configured")
         case Some(dsConfig) => parserConfigDetails(dsConfig.parserConfig)
     )
@@ -157,7 +145,7 @@ object TestParserPage:
       h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Upload a sample file"),
       div(
         cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mb-3",
-        s"Parses the file against this movement spec's configured parser without saving anything — " +
+        s"Parses the file against this feed's configured parser without saving anything — " +
           s"no file inventory entry, no movements written. Only the first $maxLines lines are parsed."
       ),
       input(
@@ -219,9 +207,9 @@ object TestParserPage:
             )
         )
 
-  // props is a Map whose keys depend entirely on the movement spec's parser config (different
-  // fields per CSV/BAI/JSON config, even per movement spec) — the column set can't be known ahead
-  // of time, so it's derived from the union of every row's actual keys instead of hardcoded.
+  // props is a Map whose keys depend entirely on the feed's parser config (different fields per
+  // CSV/BAI/JSON config, even per feed) — the column set can't be known ahead of time, so it's
+  // derived from the union of every row's actual keys instead of hardcoded.
   private def parsedRowsTable(rows: Seq[ParsedRowPayload]): HtmlElement =
     val propKeys = rows.flatMap(_.props.keys).distinct.sorted
     val headers  = Seq("Line") ++ propKeys ++ Seq("Amount")

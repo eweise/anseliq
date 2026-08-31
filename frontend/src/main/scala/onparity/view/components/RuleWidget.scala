@@ -79,21 +79,28 @@ object RuleWidget:
         })
       case _ => NoOpRule
 
-  def columnsFor(specId: String, specs: Seq[MovementSpecPayload]): Seq[String] =
+  // Also used directly by MaintainMovementSpecPage's routing-filter field picker, which enumerates
+  // one specific (just-selected) feed's fields rather than resolving a feed via a movement spec.
+  def fieldsFor(feed: FileFeedPayload): Seq[String] =
+    feed.dataSourceConfig.collect {
+      case DataSourceConfig(CSVParserConfig(_, cols, _), _)        => cols.values.toSeq
+      case DataSourceConfig(BAIParserConfig(fieldMappings), _)     => fieldMappings.values.toSeq
+      case DataSourceConfig(JSONParserConfig(fieldMappings, _), _) => fieldMappings.values.toSeq
+      case DataSourceConfig(FixedWidthParserConfig(_, fields), _)  => fields.map(_.name)
+    }
+      .getOrElse(Seq.empty)
+
+  def columnsFor(specId: String, specs: Seq[MovementSpecPayload], fileFeeds: Seq[FileFeedPayload]): Seq[String] =
     specs
       .find(_.id.contains(specId))
-      .flatMap(_.dataSourceConfig)
-      .collect {
-        case DataSourceConfig(CSVParserConfig(_, cols, _), _)        => cols.values.toSeq
-        case DataSourceConfig(BAIParserConfig(fieldMappings), _)     => fieldMappings.values.toSeq
-        case DataSourceConfig(JSONParserConfig(fieldMappings, _), _) => fieldMappings.values.toSeq
-        case DataSourceConfig(FixedWidthParserConfig(_, fields), _)  => fields.map(_.name)
-      }
+      .flatMap(spec => fileFeeds.find(_.id.contains(spec.fileFeedId)))
+      .map(fieldsFor)
       .getOrElse(Seq.empty)
 
   def apply(
     initial:           Rule,
     movementSpecs:     Var[Seq[MovementSpecPayload]],
+    fileFeeds:         Var[Seq[FileFeedPayload]],
     inMovementSpecId:  Signal[String],
     outMovementSpecId: Signal[String]
   ): (HtmlElement, Signal[Rule]) =
@@ -102,8 +109,14 @@ object RuleWidget:
     val ruleTypeOptions =
       Seq("NoOp" -> "No Rule", "StringMatch" -> "String Match", "DateMatch" -> "Date Match", "And" -> "And")
 
-    val inCols  = inMovementSpecId.combineWith(movementSpecs.signal).map((id, specs) => columnsFor(id, specs))
-    val outCols = outMovementSpecId.combineWith(movementSpecs.signal).map((id, specs) => columnsFor(id, specs))
+    val inCols = inMovementSpecId
+      .combineWith(movementSpecs.signal)
+      .combineWith(fileFeeds.signal)
+      .map { case (id, specs, feeds) => columnsFor(id, specs, feeds) }
+    val outCols = outMovementSpecId
+      .combineWith(movementSpecs.signal)
+      .combineWith(fileFeeds.signal)
+      .map { case (id, specs, feeds) => columnsFor(id, specs, feeds) }
 
     val el = div(
       cls := "border-t border-md-outline pt-5 mt-2",

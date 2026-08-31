@@ -14,6 +14,8 @@ object HttpPath:
   val account         = s"$prefix/account"
   val movementSpecs   = s"$prefix/movement-specs"
   val movementSpec    = s"$prefix/movement-spec"
+  val fileFeeds       = s"$prefix/file-feeds"
+  val fileFeed        = s"$prefix/file-feed"
   val movements       = s"$prefix/movements"
   val movement        = s"$prefix/movement"
   val reconSpecs      = s"$prefix/recon-specs"

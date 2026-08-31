@@ -72,12 +72,20 @@ object Payload:
 
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
     MovementSpecPayload(
-      id                   = Some(spec.id.toString),
-      name                 = spec.name,
-      inAccountId          = spec.inAccountId.toString,
-      outAccountId         = spec.outAccountId.toString,
-      dataSourceConfig     = Option(spec.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s)),
-      expectedCadenceHours = spec.expectedCadenceHours
+      id            = Some(spec.id.toString),
+      name          = spec.name,
+      inAccountId   = spec.inAccountId.toString,
+      outAccountId  = spec.outAccountId.toString,
+      fileFeedId    = spec.fileFeedId.toString,
+      routingFilter = spec.routingFilter()
+    )
+
+  def fileFeedPayloadFromDomain(feed: FileFeed): FileFeedPayload =
+    FileFeedPayload(
+      id                   = Some(feed.id.toString),
+      name                 = feed.name,
+      dataSourceConfig     = Option(feed.dataSourceJson).filter(_.nonEmpty).map(s => upickleRead[DataSourceConfig](s)),
+      expectedCadenceHours = feed.expectedCadenceHours
     )
 
   def reconRelationshipToDomain(comRel: ComRel): Rel =
@@ -236,6 +244,7 @@ object Payload:
     case DisputeTargetPayload.Movement       => DisputeTarget.Movement
     case DisputeTargetPayload.Reconciliation => DisputeTarget.Reconciliation
     case DisputeTargetPayload.MovementSpec   => DisputeTarget.MovementSpec
+    case DisputeTargetPayload.FileFeed       => DisputeTarget.FileFeed
 
   def disputeCategoryToDomain(p: DisputeCategoryPayload): DisputeCategory = p match
     case DisputeCategoryPayload.AmountMismatch     => DisputeCategory.AmountMismatch
@@ -244,6 +253,7 @@ object Payload:
     case DisputeCategoryPayload.TimingDifference   => DisputeCategory.TimingDifference
     case DisputeCategoryPayload.DataQuality        => DisputeCategory.DataQuality
     case DisputeCategoryPayload.FileMissing        => DisputeCategory.FileMissing
+    case DisputeCategoryPayload.UnroutedRecord     => DisputeCategory.UnroutedRecord
 
   def disputeStatusToDomain(p: DisputeStatusPayload): DisputeStatus = p match
     case DisputeStatusPayload.New           => DisputeStatus.New
@@ -287,6 +297,7 @@ object Payload:
     case DisputeTarget.Movement       => DisputeTargetPayload.Movement
     case DisputeTarget.Reconciliation => DisputeTargetPayload.Reconciliation
     case DisputeTarget.MovementSpec   => DisputeTargetPayload.MovementSpec
+    case DisputeTarget.FileFeed       => DisputeTargetPayload.FileFeed
 
   def disputeCategoryFromDomain(d: DisputeCategory): DisputeCategoryPayload = d match
     case DisputeCategory.AmountMismatch     => DisputeCategoryPayload.AmountMismatch
@@ -295,6 +306,7 @@ object Payload:
     case DisputeCategory.TimingDifference   => DisputeCategoryPayload.TimingDifference
     case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
     case DisputeCategory.FileMissing        => DisputeCategoryPayload.FileMissing
+    case DisputeCategory.UnroutedRecord     => DisputeCategoryPayload.UnroutedRecord
 
   def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
     case DisputeStatus.New           => DisputeStatusPayload.New
@@ -337,11 +349,11 @@ object Payload:
       createdAt   = m.createdAt
     )
 
-  def fileInventoryPayloadFromDomain(fi: FileInventory, movementSpecName: String): FileInventoryPayload =
+  def fileInventoryPayloadFromDomain(fi: FileInventory, fileFeedName: String): FileInventoryPayload =
     FileInventoryPayload(
       id                = fi.id.toString,
-      movementSpecId    = fi.movementSpecId.toString,
-      movementSpecName  = movementSpecName,
+      fileFeedId        = fi.fileFeedId.toString,
+      fileFeedName      = fileFeedName,
       sourceSystem      = fi.sourceSystem,
       fileName          = fi.fileSourceEntry().name,
       fileSizeBytes     = fi.fileSizeBytes,

@@ -10,6 +10,7 @@ class DisputeService(using
   movementRepo:     MovementRepo,
   reconRepo:        ReconciliationRepo,
   movementSpecRepo: MovementSpecRepo,
+  fileFeedRepo:     FileFeedRepo,
   eventStore:       EventStore,
   clock:            ClockService
 ):
@@ -32,6 +33,8 @@ class DisputeService(using
       case DisputeTarget.Reconciliation => reconRepo.findById(referenceId).ErrIfNotFound("reconciliation", referenceId)
       case DisputeTarget.MovementSpec =>
         movementSpecRepo.findById(referenceId).ErrIfNotFound("movement spec", referenceId)
+      case DisputeTarget.FileFeed =>
+        fileFeedRepo.findById(referenceId).ErrIfNotFound("file feed", referenceId)
 
     val now = clock.now
     // insert, not insertReturning: Magnum's insertReturning reads the row back via JDBC's

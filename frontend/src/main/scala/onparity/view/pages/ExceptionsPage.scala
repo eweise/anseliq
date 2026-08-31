@@ -46,6 +46,7 @@ object ExceptionsPage:
     case DisputeTargetPayload.Movement       => "Movement"
     case DisputeTargetPayload.Reconciliation => "Reconciliation"
     case DisputeTargetPayload.MovementSpec   => "Movement Spec"
+    case DisputeTargetPayload.FileFeed       => "File Feed"
 
   private def renderRow(d: DisputePayload): Seq[HtmlElement] =
     Seq(

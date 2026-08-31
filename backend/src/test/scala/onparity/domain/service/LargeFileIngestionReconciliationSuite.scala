@@ -11,9 +11,14 @@ import onparity.domain.port.driven.*
 import java.util.UUID
 import javax.sql.DataSource
 
-// Excluded from the normal `sbt test` cycle in build.sbt — ingests and reconciles
-// two 5,000,000-row files, which takes on the order of hours given Reconciler's
-// current per-row (non-batched) matching loop. Run explicitly with:
+// Excluded from the normal `sbt test` cycle in build.sbt — ingests and reconciles two
+// 5,000,000-row files. Historically took on the order of hours, dominated by
+// findUnreconciledPage re-sorting the full remaining unreconciled set on every page
+// (O(n^2 / pageSize) — see MovementRepoLive.findUnreconciledPage). InMemoryReconciler's
+// MergeCursor now streams both sides via MovementRepoLive.withUnreconciledCursor, which
+// sorts each side exactly once per run instead of once per page, so this should run far
+// faster — not re-measured at this scale here, since the ingestion calls below are
+// currently commented out. Run explicitly with:
 //   sbt "backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"
 class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
   given transactor: Transactor =
@@ -34,6 +39,8 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 
   given movementSpecRepo: MovementSpecRepo = MovementSpecRepoLive()
 
+  given fileFeedRepo: FileFeedRepo = FileFeedRepoLive()
+
   given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
 
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
@@ -52,8 +59,8 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 
   given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
 
-  private def csvSpec(spec: MovementSpec): MovementSpec =
-    spec.copy(
+  private def csvFeed(): FileFeed =
+    FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
           parserConfig = CSVParserConfig(
