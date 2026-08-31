@@ -567,3 +567,44 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
         data.reconSpecRepo.deleteById(spec.id)
       teardown(data)
+
+  // withUnreconciledCursor opens its own connection (separate from transact(transactor)), which is
+  // exactly the property under test here — the inserted movements must be genuinely committed
+  // (not left pending under an outer transaction) to be visible to it at all, which this test's
+  // "insert via its own transact(...), then read via withUnreconciledCursor" shape verifies as a
+  // side effect of just being able to see any rows back.
+  test("withUnreconciledCursor pages through unreconciled movements in match-key order, once sorted"):
+    val data = transact(transactor)(DataSetup())
+    try
+      transact(transactor):
+        for id <- Seq("3", "1", "2")
+        do insertMovement(data, data.journalToRecon, id)
+
+      val matchKeyExpr = "(a.properties['props'] ->> 'id')::text"
+
+      val pages = movementRepo.withUnreconciledCursor(
+        dataSource,
+        data.journalToRecon.id,
+        matchKeyExpr,
+        afterKey = None,
+        pageSize = 2
+      ): cursor =>
+        Iterator.continually(cursor.fetchPage()).takeWhile(_.nonEmpty).toVector
+
+      assertEquals(pages.size, 2, "3 rows at pageSize 2 should take a full page plus a partial page")
+      assertEquals(pages.map(_.size), Vector(2, 1))
+      assertEquals(pages.flatten.map(_.props.get("id")), Vector(Some("1"), Some("2"), Some("3")))
+
+      // Resuming from a checkpoint (afterKey) should skip everything at or before it, same
+      // semantics as findUnreconciledPage's afterKey.
+      val resumed = movementRepo.withUnreconciledCursor(
+        dataSource,
+        data.journalToRecon.id,
+        matchKeyExpr,
+        afterKey = Some("1"),
+        pageSize = 10
+      ): cursor =>
+        cursor.fetchPage()
+
+      assertEquals(resumed.map(_.props.get("id")), Vector(Some("2"), Some("3")))
+    finally teardown(data)
