@@ -112,7 +112,16 @@ object ReportsPage:
 
   private def exceptionCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
     val categoryLabels =
-      Seq("AmountMismatch", "MissingCounterpart", "Duplicate", "TimingDifference", "DataQuality", "FileMissing")
+      Seq(
+        "AmountMismatch",
+        "MissingCounterpart",
+        "Duplicate",
+        "TimingDifference",
+        "DataQuality",
+        "FileMissing",
+        "UnroutedRecord",
+        "ExcessiveParseErrors"
+      )
     val categoryValues = categoryLabels.map(c => summary.exceptions.byCategory.getOrElse(c, 0).toDouble)
     val statusLabels   = Seq("New", "Investigating", "Escalated")
 
