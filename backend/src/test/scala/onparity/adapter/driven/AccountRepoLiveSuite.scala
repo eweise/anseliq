@@ -23,29 +23,16 @@ class AccountRepoLiveSuite extends munit.FunSuite:
         val result = data.accountRepo.findByIdForUpdate(data.reconAccount.id)
         assert(result.isDefined)
 
-  test("isReconAccount returns true when account appears on both sides of a movement spec"):
-    transact(transactor):
-      rollBackOnly:
-        val data   = DataSetup()
-        val result = data.accountRepo.isReconAccount(data.reconAccount.id)
-        assert(result)
-
-  test("isReconAccount returns false when account only appears on one side of a movement spec"):
-    transact(transactor):
-      rollBackOnly:
-        val data   = DataSetup()
-        val result = data.accountRepo.isReconAccount(data.journalAccount.id)
-        assert(!result)
-
-  test("isReconAccount returns false when account has no movement specs"):
+  test("accountType round-trips through the database"):
     transact(transactor):
       rollBackOnly:
         val data = DataSetup()
         val account = onparity.domain.model.Account(
-          name       = "standalone",
-          fundFlowId = data.fundFlowConfig.id,
-          properties = data.reconAccount.properties
+          name        = "standalone",
+          fundFlowId  = data.fundFlowConfig.id,
+          accountType = onparity.domain.model.AccountType.Primary,
+          properties  = data.reconAccount.properties
         )
         data.accountRepo.insert(account)
-        val result = data.accountRepo.isReconAccount(account.id)
-        assert(!result)
+        val found = data.accountRepo.findById(account.id)
+        assertEquals(found.map(_.accountType), Some(onparity.domain.model.AccountType.Primary))

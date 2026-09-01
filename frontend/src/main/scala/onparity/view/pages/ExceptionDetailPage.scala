@@ -125,8 +125,8 @@ object ExceptionDetailPage:
       cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
       div(s"Reference ID: ${m.referenceId}"),
       div(s"Amount: ${m.amount}"),
-      div(s"In Account: ${m.inAccountId}"),
-      div(s"Out Account: ${m.outAccountId}")
+      div(s"Primary Account: ${m.inAccountId}"),
+      div(s"Secondary Account: ${m.outAccountId}")
     )
 
   private def reconciliationDetails(r: ReconciliationPayload): HtmlElement =

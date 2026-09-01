@@ -7,6 +7,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
+import onparity.view.ViewHelper
 import onparity.view.components.{Buttons, Form, RuleWidget}
 import upickle.default.*
 
@@ -57,25 +58,57 @@ object MaintainMovementSpecPage:
     val accounts  = Var(Seq.empty[AccountPayload])
     val fileFeeds = Var(Seq.empty[FileFeedPayload])
     val saveBus   = EventBus[Unit]()
+    val saveError = Var[Option[String]](None)
+
+    // The "Account" and "Recon Account" fields are tracked independently of spec.inAccountId/
+    // outAccountId, because which raw field each one belongs to depends on the Account's own type
+    // (see ViewHelper.accountLinkFields) — a Primary account is outAccountId, a Secondary is
+    // inAccountId, and Recon is whichever field the other one isn't. Seeded from `initial` here and
+    // corrected once account types are known (below), since a spec loaded for editing might have
+    // its Recon side stored in either field depending on whether it's Primary- or Secondary-paired.
+    val accountId      = Var(initial.inAccountId)
+    val reconAccountId = Var(initial.outAccountId)
 
     div(
       ApiClient
         .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
-        .apiBind(accs => accounts.set(accs)),
+        .apiBind { accs =>
+          val initialInIsRecon = accs.find(_.id.contains(initial.inAccountId)).exists(_.accountType == "Recon")
+          if initialInIsRecon then
+            accountId.set(initial.outAccountId)
+            reconAccountId.set(initial.inAccountId)
+          // Set last: the accounts-dependent render below reads accountId/reconAccountId via
+          // .now(), so they must already hold the corrected values by the time this triggers it.
+          accounts.set(accs)
+        },
       ApiClient
         .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
         .apiBind(feeds => fileFeeds.set(feeds)),
       saveBus.events.flatMapSwitch { _ =>
-        val s     = spec.now()
-        val token = SessionStore.token
-        if s.id.isDefined
-        then
-          ApiClient.put[MovementSpecPayload, MovementSpecPayload](
-            HttpPath.url(s"${HttpPath.movementSpec}/${s.id.get}"),
-            s,
-            token
-          )
-        else ApiClient.post[MovementSpecPayload, MovementSpecPayload](HttpPath.url(HttpPath.movementSpec), s, token)
+        val s = spec.now()
+        val chosenAccount = accounts.now().find(_.id.contains(accountId.now()))
+        val reconAccount  = accounts.now().find(_.id.contains(reconAccountId.now()))
+        (chosenAccount, reconAccount) match
+          case _ if s.fileFeedId.isEmpty =>
+            saveError.set(Some("Please select a File Feed"))
+            EventStream.empty
+          case (Some(acc), Some(recon)) =>
+            saveError.set(None)
+            val (outId, inId) = ViewHelper.accountLinkFields(acc, recon)
+            val finalSpec      = s.copy(outAccountId = outId, inAccountId = inId)
+            val token          = SessionStore.token
+            if finalSpec.id.isDefined
+            then
+              ApiClient.put[MovementSpecPayload, MovementSpecPayload](
+                HttpPath.url(s"${HttpPath.movementSpec}/${finalSpec.id.get}"),
+                finalSpec,
+                token
+              )
+            else
+              ApiClient.post[MovementSpecPayload, MovementSpecPayload](HttpPath.url(HttpPath.movementSpec), finalSpec, token)
+          case _ =>
+            saveError.set(Some("Please select an Account and a Recon Account"))
+            EventStream.empty
       }
         .apiBind(_ => Nav.back()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
@@ -83,25 +116,30 @@ object MaintainMovementSpecPage:
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
         h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Movement Spec"),
         Form.field("name", "Name", initial.name, v => spec.update(_.copy(name = v))),
+        // A movement spec always links exactly one Recon account with one Primary-or-Secondary
+        // account. Filtering each dropdown to type-compatible accounts (rather than listing every
+        // account in the fund flow) means an invalid combination can't even be selected here — the
+        // backend still enforces the same rule (FundFlowOperations.validateAccountLink) since this
+        // form isn't the only way a spec gets created/updated. Which raw field (in/out) each side
+        // ends up in is computed at save time from the chosen Account's type — see
+        // ViewHelper.accountLinkFields — not fixed to either dropdown.
         child <-- accounts.signal.map { accs =>
-          val selectableAccs =
-            if initial.id.isEmpty && initial.inAccountId.nonEmpty && initial.outAccountId.nonEmpty then
-              accs.filter(a => a.id.contains(initial.inAccountId) || a.id.contains(initial.outAccountId))
-            else accs
+          val accountOptions = accs.filter(_.accountType != "Recon")
+          val reconOptions   = accs.filter(_.accountType == "Recon")
           div(
             accountSelect(
-              "inAccountId",
-              "In Account",
-              initial.inAccountId,
-              selectableAccs,
-              v => spec.update(_.copy(inAccountId = v))
+              "account",
+              "Account",
+              accountId.now(),
+              accountOptions,
+              v => accountId.set(v)
             ),
             accountSelect(
-              "outAccountId",
-              "Out Account",
-              initial.outAccountId,
-              selectableAccs,
-              v => spec.update(_.copy(outAccountId = v))
+              "reconAccount",
+              "Recon Account",
+              reconAccountId.now(),
+              reconOptions,
+              v => reconAccountId.set(v)
             )
           )
         },
@@ -162,6 +200,9 @@ object MaintainMovementSpecPage:
                 }
               )
           },
+        child.maybe <-- saveError.signal.map(
+          _.map(err => div(cls := "text-sm text-red-600 dark:text-red-400 mt-4", err))
+        ),
         div(
           cls := "flex justify-end gap-2 mt-6",
           Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),

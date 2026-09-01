@@ -51,7 +51,7 @@ object Payload:
       fundFlowId          = account.fundFlowId.toString,
       id                  = Some(account.id.toString),
       name                = account.name,
-      isRecon             = account.isRecon,
+      accountType         = account.accountType.toString,
       balance             = account.balance,
       reconciledBalance   = account.reconciledBalance,
       unreconciledBalance = account.unreconciledBalance,

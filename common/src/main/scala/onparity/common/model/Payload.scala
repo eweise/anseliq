@@ -188,7 +188,8 @@ case class AccountPayload(
   name:                String         = "",
   fundFlowId:          String         = "",
   properties:          Properties     = Map(),
-  isRecon:             Boolean        = false,
+  // "Primary" | "Secondary" | "Recon" — see backend's AccountType.
+  accountType:         String         = "",
   balance:             Money          = 0,
   reconciledBalance:   Money          = 0,
   unreconciledBalance: Money          = 0
@@ -197,6 +198,8 @@ case class AccountPayload(
   override def validate(): ValidationErrors =
     var errors = Map[String, String]()
     if name.length < 3 then errors += ("name" -> "name must be at least 3 characters long")
+    if !Set("Primary", "Secondary", "Recon").contains(accountType) then
+      errors += ("accountType" -> "accountType must be Primary, Secondary, or Recon")
     errors
 
 case class FileFeedPayload(

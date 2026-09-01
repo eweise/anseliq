@@ -97,14 +97,10 @@ class App(using
     transact(transactor):
       val fundFlowId    = UUID.fromString(id)
       val fundFlow      = fundFlowConfigRepo.findById(fundFlowId).ErrIfNotFound("fund flow", fundFlowId)
-      val accounts      = accountRepo.findByFundFlow(fundFlowId)
-      val movementSpecs = movementSpecRepo.findByFundFlowId(fundFlowId)
+      val accounts = accountRepo.findByFundFlow(fundFlowId)
 
       val accountSummaryViews = accounts.map(account =>
-        val hasInSpec  = movementSpecs.exists(spec => spec.inAccountId == account.id)
-        val hasOutSpec = movementSpecs.exists(spec => spec.outAccountId == account.id)
-
-        val isReconAccount    = hasInSpec && hasOutSpec
+        val isReconAccount    = account.accountType == AccountType.Recon
         val unreconciledCount = if isReconAccount then movementRepo.countUnreconciledByAccount(account.id) else 0
 
         AccountSummaryViewPayload(

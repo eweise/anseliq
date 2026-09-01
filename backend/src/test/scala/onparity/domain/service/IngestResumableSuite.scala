@@ -174,8 +174,8 @@ class IngestResumableSuite extends munit.FunSuite:
     "a multi-account feed routes each row to its matching spec's account pair, and unmatched rows raise one UnroutedRecord dispute"
   ):
     val data     = transact(transactor)(DataSetup())
-    val accountA = Account(name = "sub-account-a", fundFlowId = data.fundFlowConfig.id)
-    val accountB = Account(name = "sub-account-b", fundFlowId = data.fundFlowConfig.id)
+    val accountA = Account(name = "sub-account-a", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
+    val accountB = Account(name = "sub-account-b", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
     val feed = FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(

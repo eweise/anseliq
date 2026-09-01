@@ -26,7 +26,7 @@ class ReportingService(using
     val accounts = fundFlowId match
       case Some(id) => accountRepo.findByFundFlow(id)
       case None     => accountRepo.findAll()
-    val reconAccounts = accounts.filter(_.isRecon)
+    val reconAccounts = accounts.filter(_.accountType == AccountType.Recon)
 
     ReportsSummaryReport(
       matchRates = matchRates(reconAccounts),
@@ -99,7 +99,7 @@ class ReportingService(using
     AgingBucketsReport(agingBucketOrder.map(b => b -> counts(b)), overdue)
 
   // Drill-through row list backing the aging chart on the Dashboard/Reports pages — same account
-  // scoping (isRecon accounts, optionally narrowed to one fund flow) and the same per-account
+  // scoping (Recon-typed accounts, optionally narrowed to one fund flow) and the same per-account
   // iteration as agingBuckets above, so a bucket's count here always matches the chart.
   def unreconciledMovements(fundFlowId: Option[ID]): Txn[Seq[UnreconciledMovementDetail]] =
     fundFlowId.foreach(id => fundFlowConfigRepo.findById(id).ErrIfNotFound("fund flow", id))
@@ -107,7 +107,7 @@ class ReportingService(using
     val accounts = fundFlowId match
       case Some(id) => accountRepo.findByFundFlow(id)
       case None     => accountRepo.findAll()
-    val reconAccounts = accounts.filter(_.isRecon)
+    val reconAccounts = accounts.filter(_.accountType == AccountType.Recon)
 
     reconAccounts.flatMap { account =>
       movementRepo.findUnReconciledByAccount(account.id).map { m =>

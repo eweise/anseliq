@@ -172,10 +172,10 @@ class AppEnv(
             .ErrIfNotFound("movementSpec", event.movementSpecID)
 
           transact(Transactor(dataSource = dataSource)):
-            if (accountRepo.isReconAccount(movementSpec.inAccountId)) then
+            if (accountRepo.findById(movementSpec.inAccountId).exists(_.accountType == AccountType.Recon)) then
               jobManager.submitJob(JobType.Reconciliation, movementSpec.inAccountId)
 
-            if (accountRepo.isReconAccount(movementSpec.outAccountId)) then
+            if (accountRepo.findById(movementSpec.outAccountId).exists(_.accountType == AccountType.Recon)) then
               jobManager.submitJob(JobType.Reconciliation, movementSpec.outAccountId)
         }
 

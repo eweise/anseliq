@@ -26,7 +26,7 @@ create table recon.account
     balance              numeric(15, 2) not null default 0,
     reconciled_balance   numeric(15, 2) not null default 0,
     unreconciled_balance numeric(15, 2) not null default 0,
-    is_recon             bool           not null,
+    account_type         text           not null,
     properties           jsonb,
     created_at           timestamptz             default CURRENT_TIMESTAMP not null,
     updated_at           timestamptz             default CURRENT_TIMESTAMP not null

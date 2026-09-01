@@ -14,11 +14,32 @@
     :root {
         --md-primary: #6d28d9;
         --md-primary-container: #f1ecfd;
+        /* Matches tailwind.config.js's md-on-primary-container: readable text against
+           --md-primary-container, which is a pale fill in light mode and a dark fill in dark
+           mode — a fixed "white" text color (the fund flow diagram's previous approach) reads
+           fine in dark mode but is nearly invisible against the light-mode fill. */
+        --md-on-primary-container: #4c1d95;
+        /* Fund flow diagram: colors an account box by its Primary/Secondary account type.
+           Deliberately distinct from --md-primary (which marks the Recon hub itself) so a
+           Primary-typed account can't be mistaken for Recon at a glance. */
+        --acct-role-primary: #2563eb;
+        --acct-role-primary-container: #eff6ff;
+        --acct-role-primary-on-container: #1e3a8a;
+        --acct-role-secondary: #0d9488;
+        --acct-role-secondary-container: #f0fdfa;
+        --acct-role-secondary-on-container: #115e59;
     }
 
     .dark {
         --md-primary: #a78bfa;
         --md-primary-container: #362a5c;
+        --md-on-primary-container: #ede9fe;
+        --acct-role-primary: #60a5fa;
+        --acct-role-primary-container: #1e3a5f;
+        --acct-role-primary-on-container: #dbeafe;
+        --acct-role-secondary: #2dd4bf;
+        --acct-role-secondary-container: #134e4a;
+        --acct-role-secondary-on-container: #ccfbf1;
     }
 }
 

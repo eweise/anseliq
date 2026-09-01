@@ -42,12 +42,18 @@ class DataSetupScenario1 extends munit.FunSuite:
       )
 
       val journalAccount =
-        operations.createAccount(AccountPayload(name = "Journal", fundFlowId = fundFlowConfig.id.get))
+        operations.createAccount(
+          AccountPayload(name = "Journal", fundFlowId = fundFlowConfig.id.get, accountType = "Secondary")
+        )
 
       val reconAccount =
-        operations.createAccount(AccountPayload(name = "Recon", fundFlowId = fundFlowConfig.id.get))
+        operations.createAccount(
+          AccountPayload(name = "Recon", fundFlowId = fundFlowConfig.id.get, accountType = "Recon")
+        )
 
-      val bankAccount = operations.createAccount(AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get))
+      val bankAccount = operations.createAccount(
+        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = "Primary")
+      )
 
       // tmp_journal.csv: record_date, transaction_id, amount, description (header row present)
       val journalFeed = operations.createFileFeed(
@@ -130,12 +136,18 @@ class DataSetupScenario1 extends munit.FunSuite:
       )
 
       val visa =
-        operations.createAccount(AccountPayload(name = "Visa", fundFlowId = fundFlowConfig.id.get))
+        operations.createAccount(
+          AccountPayload(name = "Visa", fundFlowId = fundFlowConfig.id.get, accountType = "Secondary")
+        )
 
       val reconAccount =
-        operations.createAccount(AccountPayload(name = "BAI Recon", fundFlowId = fundFlowConfig.id.get))
+        operations.createAccount(
+          AccountPayload(name = "BAI Recon", fundFlowId = fundFlowConfig.id.get, accountType = "Recon")
+        )
 
-      val bankAccount = operations.createAccount(AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get))
+      val bankAccount = operations.createAccount(
+        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = "Primary")
+      )
 
       // A single BAI2 feed covers visa's account activity; reconToBank stays on its own CSV feed.
       val baiFeed = operations.createFileFeed(

@@ -47,8 +47,8 @@ object MovementDetailPage:
         div(s"Type: ${d.movementType.getOrElse("Unclassified")}"),
         div(s"Amount: ${d.amount}"),
         div(s"Movement Spec: ${d.movementSpecName}"),
-        div(s"Out Account: ${d.outAccountName} (Balance: ${d.outAccountBalance})"),
-        div(s"In Account: ${d.inAccountName} (Balance: ${d.inAccountBalance})")
+        div(s"Secondary Account: ${d.outAccountName} (Balance: ${d.outAccountBalance})"),
+        div(s"Primary Account: ${d.inAccountName} (Balance: ${d.inAccountBalance})")
       )
     )
 

@@ -27,19 +27,22 @@ class DataSetup(using dbTx: DbTx, clockService: ClockService = ClockServiceLive(
   )
   val props = Map("key1" -> "value1", "key2" -> "value2")
   val reconAccount = Account(
-    name       = reconAccountName,
-    fundFlowId = fundFlowConfig.id,
-    properties = JSONBProps(props)
+    name        = reconAccountName,
+    fundFlowId  = fundFlowConfig.id,
+    accountType = AccountType.Recon,
+    properties  = JSONBProps(props)
   )
   val journalAccount = Account(
-    name       = journalAccountName,
-    fundFlowId = fundFlowConfig.id,
-    properties = JSONBProps(props)
+    name        = journalAccountName,
+    fundFlowId  = fundFlowConfig.id,
+    accountType = AccountType.Secondary,
+    properties  = JSONBProps(props)
   )
   val reportAccount = Account(
-    name       = reportAccountName,
-    fundFlowId = fundFlowConfig.id,
-    properties = JSONBProps(props)
+    name        = reportAccountName,
+    fundFlowId  = fundFlowConfig.id,
+    accountType = AccountType.Primary,
+    properties  = JSONBProps(props)
   )
   val journalToReconFeed = FileFeed(
     dataSourceJson = upickle.write(

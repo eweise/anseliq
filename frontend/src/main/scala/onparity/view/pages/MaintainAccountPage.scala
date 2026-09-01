@@ -12,14 +12,21 @@ import upickle.default.*
 
 object MaintainAccountPage:
 
+  private val accountTypeOptions = Seq("Primary" -> "Primary", "Secondary" -> "Secondary", "Recon" -> "Recon")
+
   def apply(accountId: String): HtmlElement =
-    val fundFlow   = AppState.activeFundFlow.now()
-    val ffId       = fundFlow.flatMap(_.id).getOrElse("")
-    val initial    = AccountPayload(id = if accountId == "new" then None else Some(accountId), fundFlowId = ffId)
-    val account    = Var(initial)
-    val setNameBus = EventBus[String]()
-    val loadBus    = EventBus[Unit]()
-    val saveBus    = EventBus[Unit]()
+    val fundFlow = AppState.activeFundFlow.now()
+    val ffId     = fundFlow.flatMap(_.id).getOrElse("")
+    val initial = AccountPayload(
+      id          = if accountId == "new" then None else Some(accountId),
+      fundFlowId  = ffId,
+      accountType = "Primary"
+    )
+    val account        = Var(initial)
+    val setNameBus     = EventBus[String]()
+    val setAccountType = EventBus[String]()
+    val loadBus        = EventBus[Unit]()
+    val saveBus        = EventBus[Unit]()
 
     div(
       onMountCallback { _ =>
@@ -30,6 +37,7 @@ object MaintainAccountPage:
       }.apiBind { a =>
         account.set(a)
         setNameBus.emit(a.name)
+        setAccountType.emit(a.accountType)
       },
       saveBus.events.flatMapSwitch { _ =>
         val a     = account.now()
@@ -43,6 +51,14 @@ object MaintainAccountPage:
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
         h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Account"),
         Form.field("name", "Name", initial.name, v => account.update(_.copy(name = v)), updates = setNameBus.events),
+        Form.selectField(
+          "accountType",
+          "Account Type",
+          accountTypeOptions,
+          initial.accountType,
+          v => account.update(_.copy(accountType = v)),
+          updates = setAccountType.events
+        ),
         div(
           cls := "flex justify-end gap-2 mt-6",
           Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),

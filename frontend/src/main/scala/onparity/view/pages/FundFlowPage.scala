@@ -194,8 +194,9 @@ object FundFlowPage:
                       state.update(_.copy(pendingSearchAccountId = Some(accountId)))
                       activeTab.set("Search")
                     )
+                    val isRecon = account.accountType == "Recon"
                     val unreconCell =
-                      if account.isRecon then
+                      if isRecon then
                         span(
                           cls := "text-right w-full inline-block text-blue-600 hover:underline cursor-pointer",
                           onClick.mapToUnit --> goToUnreconciledSearch,
@@ -203,7 +204,7 @@ object FundFlowPage:
                         )
                       else span(cls := "text-right w-full inline-block", unreconCount.toString)
                     val unreconBalanceCell =
-                      if account.isRecon then
+                      if isRecon then
                         span(
                           cls := "text-right w-full inline-block text-blue-600 hover:underline cursor-pointer",
                           onClick.mapToUnit --> goToUnreconciledSearch,
@@ -211,7 +212,7 @@ object FundFlowPage:
                         )
                       else span()
                     val reconciliationsCell =
-                      if account.isRecon then
+                      if isRecon then
                         a(
                           href := s"/components/accounts/$accountId/recent-reconciliations",
                           cls  := "text-md-primary hover:underline cursor-pointer",
@@ -222,9 +223,14 @@ object FundFlowPage:
                           "Reconciliations"
                         )
                       else span()
+                    val typePill = account.accountType match
+                      case "Recon"     => Pill("Recon", Pill.Tone.Accent)
+                      case "Primary"   => Pill("Primary", Pill.Tone.Good)
+                      case "Secondary" => Pill("Secondary", Pill.Tone.Neutral)
+                      case other       => Pill(other, Pill.Tone.Neutral)
                     Seq(
                       span(cls := "inline-block w-40", account.name),
-                      if account.isRecon then Pill("Recon", Pill.Tone.Accent) else Pill("Source", Pill.Tone.Neutral),
+                      typePill,
                       span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
                       unreconBalanceCell,
                       unreconCell,
@@ -458,8 +464,8 @@ object FundFlowPage:
             Table.create(
               Seq(
                 "Amount",
-                "In Account",
-                "Out Account",
+                "Primary Account",
+                "Secondary Account",
                 "Movement Spec",
                 "Reference",
                 "Type",
@@ -565,7 +571,10 @@ object FundFlowPage:
       }
     )
     val allChildren = Seq(svgEl, backdrop) ++ accountOverlays ++ arrowOverlays :+ accountMenu :+ movementSpecMenu
-    div(styleAttr := "position:relative;display:inline-block").amend(allChildren*)
+    div(
+      div(styleAttr := "position:relative;display:inline-block").amend(allChildren*),
+      diagramLegend
+    )
 
   private def renderAccountMenu(
     s:                 State,
@@ -587,7 +596,7 @@ object FundFlowPage:
     )
 
     val reconBtn =
-      if selected.isRecon then
+      if selected.accountType == "Recon" then
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
@@ -605,14 +614,24 @@ object FundFlowPage:
       else None
     }.toSet
 
+    // A link is only ever valid between one Recon account and one Primary-or-Secondary account —
+    // same rule the backend enforces (FundFlowOperations.validateAccountLink) — so an incompatible
+    // target never even shows up as an option here.
     val linkButtons = s.accounts
-      .filter(a => a.id != selected.id && !a.id.exists(linkedIds.contains))
+      .filter(a =>
+        a.id != selected.id
+          && !a.id.exists(linkedIds.contains)
+          && (a.accountType == "Recon") != (selected.accountType == "Recon")
+      )
       .map { target =>
+        val nonRecon             = if selected.accountType == "Recon" then target else selected
+        val recon                = if selected.accountType == "Recon" then selected else target
+        val (outAccId, inAccId) = ViewHelper.accountLinkFields(nonRecon, recon)
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
             state.update(_.copy(selectedAccount = None))
-            Nav.toMaintainMovementSpec(selected.id.getOrElse(""), target.id.getOrElse(""))
+            Nav.toMaintainMovementSpec(outAccId, inAccId)
           },
           s"Link to ${target.name}"
         )
@@ -674,6 +693,27 @@ object FundFlowPage:
       )
     )
 
+  // Connects the two facing edges of two boxes, regardless of which one is left/right of the
+  // other — needed because arrows no longer follow a fixed in/out column ordering (see
+  // pointTowardRecon below), so the "from" box can be on either side of the "to" box.
+  private def edgePoints(from: (Int, Int), to: (Int, Int)): (Int, Int, Int, Int) =
+    val (xA, yA) = from
+    val (xB, yB) = to
+    if xA <= xB then (xA + boxW, yA + boxH / 2, xB, yB + boxH / 2)
+    else (xA, yA + boxH / 2, xB + boxW, yB + boxH / 2)
+
+  // The underlying movement direction (out -> in) doesn't match how customers think about a fund
+  // flow: they think of every other account as feeding into (or out of) the Recon account, not in
+  // terms of which side happens to be labeled "in". So arrows are drawn to always point *at*
+  // whichever end is Recon, regardless of whether Recon is that spec's in or out account. Falls
+  // back to the original out -> in direction if neither (or both) side is Recon.
+  private def pointTowardRecon(accounts: Seq[AccountPayload], ms: MovementSpecPayload): (String, String) =
+    val reconIds = accounts.filter(_.accountType == "Recon").flatMap(_.id).toSet
+    if reconIds.contains(ms.outAccountId) && !reconIds.contains(ms.inAccountId) then (ms.inAccountId, ms.outAccountId)
+    else if reconIds.contains(ms.inAccountId) && !reconIds.contains(ms.outAccountId) then
+      (ms.outAccountId, ms.inAccountId)
+    else (ms.outAccountId, ms.inAccountId)
+
   private def buildSvg(
     accounts:      Seq[AccountPayload],
     movementSpecs: Seq[MovementSpecPayload],
@@ -687,11 +727,13 @@ object FundFlowPage:
       """<defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#6b7280" /></marker></defs>"""
     )
     movementSpecs.foreach { ms =>
-      for { (x1, y1) <- posOf.get(ms.outAccountId); (x2, y2) <- posOf.get(ms.inAccountId) } {
-        val midX = (x1 + boxW + x2) / 2
-        val midY = (y1 + boxH / 2 + y2 + boxH / 2) / 2
+      val (fromId, toId) = pointTowardRecon(accounts, ms)
+      for { fromPos <- posOf.get(fromId); toPos <- posOf.get(toId) } {
+        val (x1, y1, x2, y2) = edgePoints(fromPos, toPos)
+        val midX             = (x1 + x2) / 2
+        val midY             = (y1 + y2) / 2
         sb.append(
-          s"""<line x1="${x1 + boxW}" y1="${y1 + boxH / 2}" x2="$x2" y2="${y2 + boxH / 2}" stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)" />"""
+          s"""<line x1="$x1" y1="$y1" x2="$x2" y2="$y2" stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)" />"""
         )
         if ms.name.nonEmpty then
           sb.append(
@@ -704,11 +746,22 @@ object FundFlowPage:
     accounts.foreach { acc =>
       acc.id.foreach { id =>
         posOf.get(id).foreach { (x, y) =>
-          val fill   = if acc.isRecon then "var(--md-primary-container)" else "white"
-          val stroke = if acc.isRecon then "var(--md-primary)" else "#d1d5db"
-          // Recon's fill is the purple container color — the fixed dark-gray text this used for
-          // every box was unreadable against it, so text color follows the same isRecon branch.
-          val textFill = if acc.isRecon then "white" else "#374151"
+          val (fill, stroke, textFill) =
+            acc.accountType match
+              case "Recon" => ("var(--md-primary-container)", "var(--md-primary)", "var(--md-on-primary-container)")
+              case "Primary" =>
+                (
+                  "var(--acct-role-primary-container)",
+                  "var(--acct-role-primary)",
+                  "var(--acct-role-primary-on-container)"
+                )
+              case "Secondary" =>
+                (
+                  "var(--acct-role-secondary-container)",
+                  "var(--acct-role-secondary)",
+                  "var(--acct-role-secondary-on-container)"
+                )
+              case _ => ("white", "#d1d5db", "#374151")
           sb.append(
             s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />"""
           )
@@ -725,6 +778,20 @@ object FundFlowPage:
 
   private def xmlEscape(s: String): String =
     s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+  private def diagramLegend: HtmlElement =
+    def swatch(colorVar: String, label: String): HtmlElement =
+      div(
+        cls := "flex items-center gap-1.5",
+        div(styleAttr := s"width:12px;height:12px;border-radius:3px;background:var($colorVar)"),
+        span(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", label)
+      )
+    div(
+      cls := "flex items-center gap-4 mt-3",
+      swatch("--md-primary", "Recon Account"),
+      swatch("--acct-role-primary", "Primary Account"),
+      swatch("--acct-role-secondary", "Secondary Account")
+    )
 
   private def computePositions(
     accounts:      Seq[AccountPayload],

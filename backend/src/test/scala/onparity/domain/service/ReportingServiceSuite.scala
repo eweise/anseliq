@@ -49,8 +49,12 @@ class ReportingServiceSuite extends munit.FunSuite:
         given clock: ClockService = ClockServiceLive()
         val service = ReportingService()
 
-        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 300, reconciledBalance = 100))
-        val zeroBalance = Account(name = "zero-balance-recon", fundFlowId = data.fundFlowConfig.id, isRecon = true)
+        data.accountRepo.update(data.reconAccount.copy(balance = 300, reconciledBalance = 100))
+        val zeroBalance = Account(
+          name        = "zero-balance-recon",
+          fundFlowId  = data.fundFlowConfig.id,
+          accountType = AccountType.Recon
+        )
         data.accountRepo.insert(zeroBalance)
 
         val result = service.summary(None)
@@ -61,7 +65,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         val zero = result.matchRates.find(_.accountId == zeroBalance.id).get
         assertEquals(zero.matchRatePercent, None)
 
-  test("matchRates: only includes accounts where isRecon == true"):
+  test("matchRates: only includes Recon-typed accounts"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -69,11 +73,11 @@ class ReportingServiceSuite extends munit.FunSuite:
         given clock: ClockService = ClockServiceLive()
         val service = ReportingService()
 
-        // data.reconAccount is isRecon = false by default; data.journalAccount too
         val result = service.summary(None)
 
-        assert(!result.matchRates.exists(_.accountId == data.reconAccount.id))
+        assert(result.matchRates.exists(_.accountId == data.reconAccount.id))
         assert(!result.matchRates.exists(_.accountId == data.journalAccount.id))
+        assert(!result.matchRates.exists(_.accountId == data.reportAccount.id))
 
   test("exceptions: groups open disputes by category and status, excludes Resolved"):
     transact(transactor):
@@ -134,7 +138,6 @@ class ReportingServiceSuite extends munit.FunSuite:
         given clock: ClockService = ClockServiceLive()
         val service = ReportingService()
 
-        data.accountRepo.update(data.reconAccount.copy(isRecon = true))
         val spec = data.journalToRecon
 
         createMovementAgedDays(spec.inAccountId, spec.outAccountId, spec.id, 3)  // 0-3
@@ -161,14 +164,14 @@ class ReportingServiceSuite extends munit.FunSuite:
         given clock: ClockService = ClockServiceLive()
         val service = ReportingService()
 
-        data.accountRepo.update(data.reconAccount.copy(isRecon = true))
         data.reconSpecRepo.update(data.reconSpec.copy(agingLimit = 5))
         val spec = data.journalToRecon
 
         createMovementAgedDays(spec.inAccountId, spec.outAccountId, spec.id, 3)  // within limit
         createMovementAgedDays(spec.inAccountId, spec.outAccountId, spec.id, 10) // overdue
 
-        val orphanAccount = Account(name = "orphan-recon", fundFlowId = data.fundFlowConfig.id, isRecon = true)
+        val orphanAccount =
+          Account(name = "orphan-recon", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Recon)
         data.accountRepo.insert(orphanAccount)
         val orphanFeed = FileFeed()
         data.fileFeedRepo.insert(orphanFeed)
@@ -198,14 +201,14 @@ class ReportingServiceSuite extends munit.FunSuite:
         given clock: ClockService = ClockServiceLive()
         val service = ReportingService()
 
-        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 50))
+        data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
         val otherFundFlow = FundFlowConfig(name = "other-ff")
         data.fundFlowConfigRepo.insert(otherFundFlow)
         val otherAccount = Account(
           name              = "other-recon",
           fundFlowId        = otherFundFlow.id,
-          isRecon           = true,
+          accountType       = AccountType.Recon,
           balance           = 200,
           reconciledBalance = 200
         )
@@ -316,7 +319,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         given clock: ClockService = ClockServiceLive()
         val service = ReportingService()
 
-        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 300, reconciledBalance = 150))
+        data.accountRepo.update(data.reconAccount.copy(balance = 300, reconciledBalance = 150))
 
         service.computeAndStoreDailySnapshots()
         service.computeAndStoreDailySnapshots() // second run same day must overwrite, not duplicate
@@ -339,14 +342,14 @@ class ReportingServiceSuite extends munit.FunSuite:
         val service = ReportingService()
 
         data.accountRepo.update(
-          data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 25)
+          data.reconAccount.copy(balance = 100, reconciledBalance = 25)
         ) // day 1: 25%
         service.computeAndStoreDailySnapshots()
         val day1 = clock.now.toLocalDate
 
         clock.addHours(24)
         data.accountRepo.update(
-          data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 75)
+          data.reconAccount.copy(balance = 100, reconciledBalance = 75)
         ) // day 2: 75%
         service.computeAndStoreDailySnapshots()
         val day2 = clock.now.toLocalDate
@@ -371,7 +374,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         clock.addHours(24 - clock.now.getHour)
 
         data.fundFlowConfigRepo.update(data.fundFlowConfig.copy(dailyCutoffHours = 3))
-        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 50))
+        data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
         // Not assertEquals(..., 0/1) on the raw return value: computeAndStoreDailySnapshots counts
         // every due fund flow in the whole database, not just this test's own — fragile against
@@ -400,7 +403,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         given clock: ClockService = ClockServiceLive()
         val service = ReportingService()
 
-        data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 50))
+        data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
         // Same reasoning as the cutoff-hours test above: the raw return count isn't scoped to this
         // test's own fund flow, so it's compared here via the actual persisted snapshot row instead

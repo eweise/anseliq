@@ -77,20 +77,22 @@ class FundFlowOperations(using
 
   def createAccount(payload: AccountPayload): Txn[AccountPayload] =
     val newAccount = Account(
-      name       = payload.name,
-      fundFlowId = UUID.fromString(payload.fundFlowId),
-      properties = JSONBProps(payload.properties)
+      name        = payload.name,
+      fundFlowId  = UUID.fromString(payload.fundFlowId),
+      accountType = AccountType.valueOf(payload.accountType),
+      properties  = JSONBProps(payload.properties)
     )
     accountRepo.insert(newAccount)
     Payload.accountPayloadFromDomain(newAccount)
 
   def updateAccount(idStr: String, payload: AccountPayload): Txn[AccountPayload] =
-    if idStr.trim == "" then IllegalArgumentException("Account ID is required")
+    if idStr.trim == "" then throw IllegalArgumentException("Account ID is required")
     val accountID       = UUID.fromString(idStr)
     var existingAccount = accountRepo.findById(accountID).ErrIfNotFound("account", accountID)
     existingAccount = existingAccount.copy(
-      name       = payload.name,
-      properties = JSONBProps(payload.properties)
+      name        = payload.name,
+      accountType = AccountType.valueOf(payload.accountType),
+      properties  = JSONBProps(payload.properties)
     )
     accountRepo.update(existingAccount)
     Payload.accountPayloadFromDomain(existingAccount)
@@ -119,50 +121,51 @@ class FundFlowOperations(using
     fileFeedRepo.deleteById(UUID.fromString(idStr))
 
   def createMovementSpec(payload: MovementSpecPayload): Txn[MovementSpecPayload] =
+    val inAccountId  = UUID.fromString(payload.inAccountId)
+    val outAccountId = UUID.fromString(payload.outAccountId)
+    validateAccountLink(inAccountId, outAccountId)
     val spec = MovementSpec(
       name              = payload.name,
-      inAccountId       = UUID.fromString(payload.inAccountId),
-      outAccountId      = UUID.fromString(payload.outAccountId),
+      inAccountId       = inAccountId,
+      outAccountId      = outAccountId,
       fileFeedId        = UUID.fromString(payload.fileFeedId),
       routingFilterJson = payload.routingFilter.map(upickleWrite(_))
     )
     movementSpecRepo.insert(spec)
-
-    updateAccountIsRecon(spec)
-
     Payload.movementSpecPayloadFromDomain(spec)
 
-  private def updateAccountIsRecon(existing: MovementSpec): Txn[Unit] = {
-    var inAccount = accountRepo.findById(existing.inAccountId).ErrIfNotFound("account", existing.inAccountId)
-    inAccount = inAccount.copy(isRecon = accountRepo.isReconAccount(inAccount.id))
-    accountRepo.update(inAccount)
-
-    var outAccount = accountRepo.findById(existing.outAccountId).ErrIfNotFound("account", existing.outAccountId)
-    outAccount = outAccount.copy(isRecon = accountRepo.isReconAccount(outAccount.id))
-    accountRepo.update(outAccount)
-  }
+  // A link is only ever valid between one Recon account and one Primary-or-Secondary account —
+  // never Recon-to-Recon, and never Primary-to-Secondary. Which side (in/out) the Recon account
+  // occupies doesn't matter here, only that exactly one side is Recon.
+  private def validateAccountLink(inAccountId: ID, outAccountId: ID): Txn[Unit] =
+    val inAccount  = accountRepo.findById(inAccountId).ErrIfNotFound("account", inAccountId)
+    val outAccount = accountRepo.findById(outAccountId).ErrIfNotFound("account", outAccountId)
+    val reconSides = Seq(inAccount, outAccount).count(_.accountType == AccountType.Recon)
+    if reconSides != 1 then
+      throw IllegalArgumentException(
+        "A movement spec must link exactly one Recon account with one Primary or Secondary account"
+      )
 
   def updateMovementSpec(idStr: String, payload: MovementSpecPayload): Txn[MovementSpecPayload] =
-    val id       = UUID.fromString(idStr)
+    val id           = UUID.fromString(idStr)
+    val inAccountId  = UUID.fromString(payload.inAccountId)
+    val outAccountId = UUID.fromString(payload.outAccountId)
+    validateAccountLink(inAccountId, outAccountId)
     var existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
     existing = existing.copy(
       name              = payload.name,
-      inAccountId       = UUID.fromString(payload.inAccountId),
-      outAccountId      = UUID.fromString(payload.outAccountId),
+      inAccountId       = inAccountId,
+      outAccountId      = outAccountId,
       fileFeedId        = UUID.fromString(payload.fileFeedId),
       routingFilterJson = payload.routingFilter.map(upickleWrite(_))
     )
     movementSpecRepo.update(existing)
-
-    updateAccountIsRecon(existing)
-
     Payload.movementSpecPayloadFromDomain(existing)
 
   def deleteMovementSpec(idStr: String): Txn[Unit] =
-    val id       = UUID.fromString(idStr)
-    val existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
+    val id = UUID.fromString(idStr)
+    movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
     movementSpecRepo.deleteById(id)
-    updateAccountIsRecon(existing)
 
   def createReconSpec(payload: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
     val accountId =
