@@ -29,8 +29,12 @@ class JobRepoLiveSuite extends munit.FunSuite:
         jobRepo.insert(job)
         val foundJob = jobRepo.findByJobTypeAndReferenceId(Ingestion, referenceId)
         assert(foundJob.nonEmpty)
+        // findByJobType is a global, unscoped query (used in production to list every job of a
+        // given type), so on this shared dev database it also returns real Ingestion jobs left
+        // behind by the background job scheduler on every past `backend/run`. Assert membership,
+        // not an absolute count.
         val foundJobsByType = jobRepo.findByJobType(Ingestion)
-        assertEquals(foundJobsByType.size, 1)
+        assert(foundJobsByType.exists(_.id == job.id))
 
   test("progressJson round-trips through the database"):
     val jobRepo = JobRepoLive()

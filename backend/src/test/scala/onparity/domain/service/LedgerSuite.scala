@@ -45,6 +45,13 @@ class LedgerSuite extends munit.FunSuite:
           journalAccount.balance
         )
 
+        val recorded = data.movementRepo.findByAccount(data.reconAccount.id)
+        assert(recorded.nonEmpty)
+        assert(
+          recorded.forall(_.movementType.contains(MovementType.Ingestion)),
+          "every movement recordMovements creates should be tagged Ingestion"
+        )
+
   test("markReconciled moves an amount from unreconciled to reconciled without changing balance"):
     transact(transactor):
       rollBackOnly:

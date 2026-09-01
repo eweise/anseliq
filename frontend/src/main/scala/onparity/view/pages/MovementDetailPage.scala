@@ -44,6 +44,7 @@ object MovementDetailPage:
         cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
         div(s"ID: ${d.id}"),
         div(s"Reference ID: ${d.referenceId}"),
+        div(s"Type: ${d.movementType.getOrElse("Unclassified")}"),
         div(s"Amount: ${d.amount}"),
         div(s"Movement Spec: ${d.movementSpecName}"),
         div(s"Out Account: ${d.outAccountName} (Balance: ${d.outAccountBalance})"),

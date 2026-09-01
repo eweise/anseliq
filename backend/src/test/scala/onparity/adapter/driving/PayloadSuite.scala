@@ -44,8 +44,8 @@ class PayloadSuite extends munit.FunSuite:
     val fileInventoryId = UUID.randomUUID()
     val event = NewFileDetected(
       fileInventoryID = fileInventoryId,
-      filePath        = ???,
-      source          = ???
+      filePath        = "a",
+      source          = "b"
     )
     val state  = EventState.newEventState(event)
     val result = Payload.eventPayloadFromDomain(state)

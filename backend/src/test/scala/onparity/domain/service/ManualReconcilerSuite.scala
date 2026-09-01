@@ -16,6 +16,7 @@ import onparity.domain.model.{
   IllegalStateError,
   Movement,
   MovementSpec,
+  MovementType,
   ReconciliationStatus,
   ReconciliationVoided,
   createID
@@ -448,6 +449,8 @@ class ManualReconcilerSuite extends munit.FunSuite:
       assertEquals(reversal.amount, original.amount)
       assertEquals(reversal.inAccountId, original.outAccountId, "reversal swaps the accounts")
       assertEquals(reversal.outAccountId, original.inAccountId)
+      assertEquals(original.movementType, Some(MovementType.Ingestion))
+      assertEquals(reversal.movementType, Some(MovementType.Reversal))
 
       // Retrying is safe: the already-reversed original is idempotently skipped (via
       // Ledger.reverseMovement's findExistingReferenceIds check), and the reversal row itself is

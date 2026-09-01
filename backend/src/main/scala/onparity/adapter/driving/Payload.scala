@@ -227,7 +227,8 @@ object Payload:
       properties       = m.properties.props,
       metaData         = m.metaData.props,
       reconciled       = m.reconciliationId.nonEmpty,
-      createdAt        = m.createdAt.get
+      createdAt        = m.createdAt.get,
+      movementType     = m.movementType.map(_.toString)
     )
 
   def parseTestResultPayloadFromDomain(r: ParseTestResult): ParseTestResultPayload =
@@ -254,7 +255,8 @@ object Payload:
       amount            = m.amount,
       properties        = m.properties.props,
       metaData          = m.metaData.props,
-      movementSpecName  = movementSpecName
+      movementSpecName  = movementSpecName,
+      movementType      = m.movementType.map(_.toString)
     )
 
   def disputeTargetToDomain(p: DisputeTargetPayload): DisputeTarget = p match

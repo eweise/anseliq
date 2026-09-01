@@ -35,10 +35,11 @@ class MovementSearchSuite extends munit.FunSuite:
       data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
 
   private def insertMovement(
-    spec:     MovementSpec,
-    amount:   BigDecimal,
-    props:    Map[String, String] = Map.empty,
-    metaData: Map[String, String] = Map.empty
+    spec:         MovementSpec,
+    amount:       BigDecimal,
+    props:        Map[String, String]  = Map.empty,
+    metaData:     Map[String, String]  = Map.empty,
+    movementType: Option[MovementType] = None
   ): Movement =
     transact(transactor):
       val movement = Movement(
@@ -47,27 +48,30 @@ class MovementSearchSuite extends munit.FunSuite:
         movementSpecId = spec.id,
         amount         = amount,
         properties     = JSONBProps(props),
-        metaData       = JSONBProps(metaData)
+        metaData       = JSONBProps(metaData),
+        movementType   = movementType
       )
       movementRepo.insert(movement)
       movement
 
   test(
-    "search filters by account, amount, movement spec, properties, metadata prefix, date range, and unreconciled flag"
+    "search filters by account, amount, movement spec, properties, metadata prefix, movement type, date range, and unreconciled flag"
   ):
     val data = transact(transactor)(DataSetup())
     try
       val m1 = insertMovement(
         data.journalToRecon,
         100,
-        props    = Map("id" -> "1", "category" -> "fee"),
-        metaData = Map("file_source_entry" -> "bucketA|fileA")
+        props        = Map("id" -> "1", "category" -> "fee"),
+        metaData     = Map("file_source_entry" -> "bucketA|fileA"),
+        movementType = Some(MovementType.Ingestion)
       )
       val m2 = insertMovement(
         data.journalToRecon,
         200,
-        props    = Map("id" -> "2", "category" -> "payment"),
-        metaData = Map("file_source_entry" -> "bucketA|fileB")
+        props        = Map("id" -> "2", "category" -> "payment"),
+        metaData     = Map("file_source_entry" -> "bucketA|fileB"),
+        movementType = Some(MovementType.ManualAdjustment)
       )
       val m3 = insertMovement(
         data.reportToRecon,
@@ -120,6 +124,21 @@ class MovementSearchSuite extends munit.FunSuite:
       assertEquals(
         searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, fileSourceQuery = Some("|filec"))),
         Set(m3.id)
+      )
+
+      // Movement type: m3 was inserted with no movementType (None), so it's excluded from both
+      // specific-type searches, not swept in by a null-matches-anything comparison.
+      assertEquals(
+        searchFor(
+          MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, movementType = Some(MovementType.Ingestion))
+        ),
+        Set(m1.id)
+      )
+      assertEquals(
+        searchFor(
+          MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, movementType = Some(MovementType.ManualAdjustment))
+        ),
+        Set(m2.id)
       )
 
       // Date range: created_at defaults to now() at insert time (no test-controllable clock for

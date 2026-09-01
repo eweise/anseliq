@@ -257,7 +257,9 @@ case class MovementDetailPayload(
   amount:            Money,
   properties:        Properties,
   metaData:          Properties,
-  movementSpecName:  String
+  movementSpecName:  String,
+  // None only for a row that predates this field — see backend's MovementType.
+  movementType:      Option[String] = None
 ) derives ReadWriter
 
 case class MovementSearchRequest(
@@ -269,7 +271,9 @@ case class MovementSearchRequest(
   fileSourceQuery:  Option[String]         = None,
   unreconciledOnly: Boolean                = false,
   createdFrom:      Option[OffsetDateTime] = None,
-  createdTo:        Option[OffsetDateTime] = None
+  createdTo:        Option[OffsetDateTime] = None,
+  // "Ingestion" | "ManualAdjustment" | "Reversal" — see backend's MovementType.
+  movementType:     Option[String]         = None
 ) derives ReadWriter
 
 // Richer than MovementPayload (which lacks names/metaData) — mirrors MovementDetailPayload's
@@ -284,7 +288,9 @@ case class MovementSearchResultPayload(
   properties:       Properties,
   metaData:         Properties,
   reconciled:       Boolean,
-  createdAt:        OffsetDateTime
+  createdAt:        OffsetDateTime,
+  // None only for a row that predates this field — see backend's MovementType.
+  movementType:     Option[String] = None
 ) derives ReadWriter
 
 case class MovementSpecAndAccounts(

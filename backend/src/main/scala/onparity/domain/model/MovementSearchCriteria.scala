@@ -18,5 +18,6 @@ case class MovementSearchCriteria(
   fileSourceQuery:  Option[String]         = None,
   unreconciledOnly: Boolean                = false,
   createdFrom:      Option[OffsetDateTime] = None,
-  createdTo:        Option[OffsetDateTime] = None
+  createdTo:        Option[OffsetDateTime] = None,
+  movementType:     Option[MovementType]   = None
 )

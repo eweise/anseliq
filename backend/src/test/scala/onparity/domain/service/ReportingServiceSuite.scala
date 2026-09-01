@@ -373,13 +373,24 @@ class ReportingServiceSuite extends munit.FunSuite:
         data.fundFlowConfigRepo.update(data.fundFlowConfig.copy(dailyCutoffHours = 3))
         data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 50))
 
+        // Not assertEquals(..., 0/1) on the raw return value: computeAndStoreDailySnapshots counts
+        // every due fund flow in the whole database, not just this test's own — fragile against
+        // any other fund flow that happens to exist (e.g. DataSetupScenario1's permanent demo
+        // data, deliberately never cleaned up since it's meant for manual UI testing). Checking
+        // existsForDate for this test's own fundFlowConfig.id is the properly-scoped equivalent.
         clock.addHours(1) // ~01:xx — before the 3am cutoff
-        assertEquals(service.computeAndStoreDailySnapshots(), 0, "not due yet: before this fund flow's cutoff hour")
-        assert(!dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate))
+        service.computeAndStoreDailySnapshots()
+        assert(
+          !dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
+          "not due yet: before this fund flow's cutoff hour"
+        )
 
         clock.addHours(3) // ~04:xx — past the 3am cutoff
-        assertEquals(service.computeAndStoreDailySnapshots(), 1, "due now: past this fund flow's cutoff hour")
-        assert(dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate))
+        service.computeAndStoreDailySnapshots()
+        assert(
+          dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
+          "due now: past this fund flow's cutoff hour"
+        )
 
   test("computeAndStoreDailySnapshots: a fund flow already snapshotted today is skipped on a later poll"):
     transact(transactor):
@@ -391,9 +402,18 @@ class ReportingServiceSuite extends munit.FunSuite:
 
         data.accountRepo.update(data.reconAccount.copy(isRecon = true, balance = 100, reconciledBalance = 50))
 
-        assertEquals(service.computeAndStoreDailySnapshots(), 1, "first poll today: due")
+        // Same reasoning as the cutoff-hours test above: the raw return count isn't scoped to this
+        // test's own fund flow, so it's compared here via the actual persisted snapshot row instead
+        // of an exact 1/0 count — robust to any other fund flow in the database also being due.
+        service.computeAndStoreDailySnapshots()
+        val today = clock.now.toLocalDate
+        assert(dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, today), "first poll today: due")
+        val afterFirstPoll = dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
+
+        service.computeAndStoreDailySnapshots() // a later poll the same day
+        val afterSecondPoll = dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
         assertEquals(
-          service.computeAndStoreDailySnapshots(),
-          0,
+          afterSecondPoll,
+          afterFirstPoll,
           "already snapshotted today: nothing left to do until tomorrow, even though a 1-minute poll keeps calling this"
         )

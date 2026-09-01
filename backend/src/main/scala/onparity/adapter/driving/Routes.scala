@@ -172,7 +172,8 @@ class App(using
         fileSourceQuery  = req.fileSourceQuery,
         unreconciledOnly = req.unreconciledOnly,
         createdFrom      = req.createdFrom,
-        createdTo        = req.createdTo
+        createdTo        = req.createdTo,
+        movementType     = req.movementType.map(MovementType.valueOf)
       )
       val results = movementRepo.search(criteria)
       // Names resolved via the fund flow's full account/movement-spec lists (both already

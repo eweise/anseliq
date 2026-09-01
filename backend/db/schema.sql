@@ -139,6 +139,10 @@ create table recon.movement
     meta_data           jsonb,
     amount              numeric(15, 2)                        not null,
     reconciliation_id   uuid REFERENCES recon.reconciliation (id) ON DELETE CASCADE,
+    -- Nullable, no backfill for existing rows (no migration tooling yet — see
+    -- feedback_no_backfill_until_migration_strategy). Every new write sets it; a null here just
+    -- means "predates this column", not "unknown type" in any meaningful sense.
+    movement_type       text,
     created_at          timestamptz default CURRENT_TIMESTAMP not null,
     updated_at          timestamptz default CURRENT_TIMESTAMP not null
 );

@@ -247,6 +247,7 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       AND (${c.unreconciledOnly} = false OR a.reconciliation_id IS NULL)
       AND (${c.createdFrom}::timestamptz IS NULL OR a.created_at >= ${c.createdFrom})
       AND (${c.createdTo}::timestamptz IS NULL OR a.created_at < ${c.createdTo})
+      AND (${c.movementType}::text IS NULL OR a.movement_type = ${c.movementType})
       ORDER BY a.created_at DESC
       LIMIT 1000
     """.query[Movement].run()

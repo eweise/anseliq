@@ -262,6 +262,7 @@ object FundFlowPage:
     unreconciledOnly:   Boolean                                  = false,
     createdFrom:        String                                   = "",
     createdTo:          String                                   = "",
+    movementType:       String                                   = "",
     results:            Option[Seq[MovementSearchResultPayload]] = None,
     searchError:        Option[String]                           = None
   )
@@ -312,7 +313,8 @@ object FundFlowPage:
           fileSourceQuery  = Option(s.fileSourceFilename).filter(_.nonEmpty),
           unreconciledOnly = s.unreconciledOnly,
           createdFrom      = parseDateStart(s.createdFrom),
-          createdTo        = parseDateEndExclusive(s.createdTo)
+          createdTo        = parseDateEndExclusive(s.createdTo),
+          movementType     = Option(s.movementType).filter(_.nonEmpty)
         )
         ApiClient.post[Seq[MovementSearchResultPayload], MovementSearchRequest](
           HttpPath.url(s"${HttpPath.movements}/search"),
@@ -355,6 +357,13 @@ object FundFlowPage:
               v => searchVar.update(_.copy(movementSpecId = v, properties = Map.empty))
             )
           },
+          Form.selectField(
+            "searchMovementType",
+            "Type",
+            Seq("" -> "Any", "Ingestion" -> "Ingestion", "ManualAdjustment" -> "Manual Adjustment", "Reversal" -> "Reversal"),
+            searchVar.now().movementType,
+            v => searchVar.update(_.copy(movementType = v))
+          ),
           // Kept as one unit (its own mini-grid) rather than two separate top-level grid items, so
           // the pair always renders side by side regardless of how the outer 3-column grid wraps.
           div(
@@ -447,7 +456,16 @@ object FundFlowPage:
               )
             else div(),
             Table.create(
-              Seq("Amount", "In Account", "Out Account", "Movement Spec", "Reference", "Reconciled", "Created At"),
+              Seq(
+                "Amount",
+                "In Account",
+                "Out Account",
+                "Movement Spec",
+                "Reference",
+                "Type",
+                "Reconciled",
+                "Created At"
+              ),
               results.map { r =>
                 Seq(
                   span(r.amount.toString),
@@ -463,6 +481,7 @@ object FundFlowPage:
                     },
                     r.referenceId
                   ),
+                  span(r.movementType.getOrElse("—")),
                   Pill(
                     if r.reconciled then "Yes" else "No",
                     if r.reconciled then Pill.Tone.Good else Pill.Tone.Neutral

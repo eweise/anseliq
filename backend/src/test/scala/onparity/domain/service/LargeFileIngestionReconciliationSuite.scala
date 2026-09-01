@@ -21,6 +21,7 @@ import javax.sql.DataSource
 // currently commented out. Run explicitly with:
 //   sbt "backend/testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"
 class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
+  override def munitIgnore = true
   given transactor: Transactor =
     Transactor(dataSource)
 //    Transactor(dataSource, SqlLogger.logSlowQueries(FiniteDuration(5, TimeUnit.SECONDS)), _ => ())

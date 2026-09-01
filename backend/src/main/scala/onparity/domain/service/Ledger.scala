@@ -8,6 +8,7 @@ import onparity.domain.model.{
   IllegalStateError,
   Movement,
   MovementSpec,
+  MovementType,
   Reconciliation,
   ReconciliationStatus
 }
@@ -76,7 +77,8 @@ class Ledger(using
           amount            = req.amount.abs,
           properties        = JSONBProps(req.properties),
           metaData          = JSONBProps(req.metaData),
-          movementSpecId    = movementSpec.id
+          movementSpecId    = movementSpec.id,
+          movementType      = Some(MovementType.Ingestion)
         )
       movementRepo.insertAll(movements)
       accountRepo.update(inAccount)
@@ -179,7 +181,8 @@ class Ledger(using
         amount            = movement.amount,
         properties        = movement.properties,
         metaData          = JSONBProps(movement.metaData.props + (reversalOfKey -> movement.id.toString)),
-        movementSpecId    = movement.movementSpecId
+        movementSpecId    = movement.movementSpecId,
+        movementType      = Some(MovementType.Reversal)
       )
       movementRepo.insert(reversal)
 
