@@ -197,6 +197,18 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
         sql"CLOSE $cursorName".update.run()
         dbCon.connection.commit()
 
+  // Containment (@>), not ->'props'->>'file_source_entry' = ..., so movement_meta_data_index (a
+  // GIN index, same as movement_props_index) actually backs this — a plain equality comparison on
+  // the extracted text value wouldn't be index-backed the way containment is.
+  def findByFileSourceEntry(fileSourceEntry: String): Txn[Vector[Movement]] =
+    val containment = upickle.default.write(Map("props" -> Map("file_source_entry" -> fileSourceEntry)))
+    sql"""
+      SELECT ${m.all}
+      FROM $m AS a
+      WHERE a.meta_data @> $containment::jsonb
+      ORDER BY a.created_at
+    """.query[Movement].run()
+
   // Same "embed UUIDs as literal SQL text" reasoning as setReconciliationIds below: safe because
   // ID is always a UUID, whose toString can't contain quotes or SQL metacharacters.
   def findExistingReferenceIds(referenceIds: Iterable[ID]): Txn[Set[ID]] =

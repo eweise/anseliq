@@ -67,3 +67,5 @@ object Nav:
 
   def toMaintainUser(userId: String = "new"): Unit =
     push(s"/components/maintain-user/$userId")
+
+  def toFixBadFile(): Unit = push("/components/fix-bad-file")

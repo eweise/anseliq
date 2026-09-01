@@ -177,6 +177,14 @@ CREATE INDEX movement_props_index
         USING GIN (properties jsonb_path_ops)
     WITH (fastupdate = false);
 
+-- Backs MovementRepoLive.findByFileSourceEntry (bulk-unreconcile-by-file): without this, an exact
+-- lookup on meta_data->'props'->>'file_source_entry' is a full table scan, since meta_data carries
+-- no index of its own. Same fastupdate=false reasoning as movement_props_index above.
+CREATE INDEX movement_meta_data_index
+    ON recon.movement
+        USING GIN (meta_data jsonb_path_ops)
+    WITH (fastupdate = false);
+
 
 create table recon.job
 (

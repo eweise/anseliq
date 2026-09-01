@@ -380,6 +380,21 @@ class App(using
       manualReconciler.writeOff(UUID.fromString(id), payload.reason)
     write("written-off")
 
+  @cask.route(s"${HttpPath.movements}/bad-file-preview", methods = HttpCmd.POST)
+  def previewBadFile(request: cask.Request): String =
+    val payload = read[BadFilePreviewRequest](request.text())
+    transact(transactor):
+      write(Payload.badFilePreviewPayloadFromDomain(manualReconciler.previewBadFile(payload.fileSourceEntry)))
+
+  // Not wrapped in transact(...): fixBadFile manages its own batched transactions internally (same
+  // reason reoncileAccount above calls reconciler.reconcileAccountResumable bare) — a very dirty
+  // file shouldn't need one unbounded transaction to fix.
+  @cask.route(s"${HttpPath.movements}/bad-file-fix", methods = HttpCmd.POST)
+  def fixBadFile(request: cask.Request): String =
+    val payload = read[FixBadFileRequest](request.text())
+    val result  = manualReconciler.fixBadFile(payload.fileSourceEntry)
+    write(Payload.fixBadFileResultPayloadFromDomain(result))
+
   // Disputes
   @cask.route(HttpPath.dispute, methods = HttpCmd.POST)
   def raiseDispute(request: cask.Request)(currentUser: JwtHelper.UserClaim): String =

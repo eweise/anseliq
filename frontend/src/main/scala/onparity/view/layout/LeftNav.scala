@@ -72,7 +72,12 @@ object LeftNav:
     ),
     NavGroup(
       "Admin",
-      (if isAdmin then Seq(NavItem("Users & Roles", "/components/users", Icons.user)) else Seq.empty)
+      (if isAdmin then
+         Seq(
+           NavItem("Users & Roles", "/components/users", Icons.user),
+           NavItem("Fix Bad File Ingest", "/components/fix-bad-file", Icons.document)
+         )
+       else Seq.empty)
         :+ NavItem("Settings", "/components/coming-soon/settings", Icons.settings)
     )
   )

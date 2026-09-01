@@ -68,6 +68,7 @@ object Routes:
               path("reports")(ReportsPage()),
               path("users")(UsersPage()),
               path("maintain-user" / segment)(id => MaintainUserPage(id)),
+              path("fix-bad-file")(FixBadFilePage()),
               path("coming-soon" / "settings")(ComingSoonPage("Settings"))
             )
           },

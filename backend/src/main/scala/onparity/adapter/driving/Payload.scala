@@ -3,7 +3,7 @@ package onparity.adapter.driving
 import onparity.common.model.{ReconRelationship as ComRel, *}
 import onparity.common.model.model.ID
 import onparity.domain.model.{Relationship as Rel, *}
-import onparity.domain.service.ParseTestResult
+import onparity.domain.service.{BadFilePreview, FixBadFileResult, ParseTestResult}
 import upickle.default.read as upickleRead
 
 import java.util.UUID
@@ -140,6 +140,20 @@ object Payload:
       adjustmentReason = recon.adjustmentReason,
       createdAt        = recon.createdAt.get,
       updatedAt        = recon.updatedAt.get
+    )
+
+  def badFilePreviewPayloadFromDomain(preview: BadFilePreview): BadFilePreviewPayload =
+    BadFilePreviewPayload(
+      movementsFound           = preview.movementsFound,
+      alreadyReversedCount     = preview.alreadyReversedCount,
+      reconciledCount          = preview.reconciledCount,
+      eligibleForReversalCount = preview.eligibleForReversalCount
+    )
+
+  def fixBadFileResultPayloadFromDomain(result: FixBadFileResult): FixBadFileResultPayload =
+    FixBadFileResultPayload(
+      reconciliationsVoided = result.unreconcile.reconciliationsVoided,
+      movementsReversed     = result.reversal.movementsReversed
     )
 
   def eventPayloadFromDomain(state: EventState): EventPayload =

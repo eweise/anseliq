@@ -1,8 +1,9 @@
 package onparity.domain.service
 
+import com.fasterxml.uuid.Generators
 import onparity.common.model.model.{ID, Money, Properties, Zero}
 import onparity.domain.model.helper.JSONBProps
-import onparity.domain.model.{ErrIfNotFound, Movement, MovementSpec}
+import onparity.domain.model.{ErrIfNotFound, IllegalStateError, Movement, MovementSpec}
 import onparity.domain.port.driven.{AccountRepo, MovementRepo, Txn}
 
 case class MovementRequest(
@@ -102,3 +103,60 @@ class Ledger(using movementRepo: MovementRepo, accountRepo: AccountRepo):
 
   def markUnreconciled(accountId: ID, delta: Money): Txn[Unit] =
     markReconciled(accountId, -delta)
+
+  private val reversalOfKey = "reversal_of_movement_id"
+
+  def isReversal(movement: Movement): Boolean = movement.metaData.props.contains(reversalOfKey)
+
+  /** If movement is a reversal, the id of the movement it reverses — lets a caller (e.g. a preview
+    * that already has a whole file's movements in hand) figure out which originals have already
+    * been reversed without a per-movement findExistingReferenceIds round-trip. */
+  def reversalTargetId(movement: Movement): Option[ID] =
+    movement.metaData.props.get(reversalOfKey).map(java.util.UUID.fromString)
+
+  /**
+   * Posts a reversing movement that exactly undoes movement's balance effect (accounts swapped,
+   * same amount) rather than deleting or editing movement — accounting audit trail requires the
+   * original wrong entry to stay in place permanently, with its reversal as a separate, linked
+   * entry. Refuses a movement that's still reconciled (its reconciliation must be voided first —
+   * see ManualReconciler.unmatch/bulkUnreconcileByFile — since reversing a still-matched movement's
+   * balance without also undoing the match would leave a Reconciliation referencing a movement
+   * whose ledger effect no longer matches its counterpart) or one that's itself already a reversal
+   * (reversing a reversal isn't a meaningful operation here).
+   *
+   * Idempotent: the reversal's referenceId is deterministic (derived from movement.id) and checked
+   * via findExistingReferenceIds *before* touching balances — the same guard recordMovements itself
+   * uses — so calling this again for an already-reversed movement is a safe no-op (None) instead of
+   * double-reversing.
+   */
+  def reverseMovement(movement: Movement): Txn[Option[Movement]] =
+    if movement.reconciliationId.isDefined then
+      throw IllegalStateError(s"movement ${movement.id} is still reconciled; unreconcile it before reversing")
+    if isReversal(movement) then throw IllegalStateError(s"movement ${movement.id} is itself a reversal")
+
+    val reversalReferenceId = Generators.nameBasedGenerator().generate(s"reversal of ${movement.id}")
+    if movementRepo.findExistingReferenceIds(Seq(reversalReferenceId)).nonEmpty then None
+    else
+      val originalIn  = accountRepo.findByIdForUpdate(movement.inAccountId).ErrIfNotFound("Account", movement.inAccountId)
+      val originalOut = accountRepo.findByIdForUpdate(movement.outAccountId).ErrIfNotFound("Account", movement.outAccountId)
+
+      originalIn.balance -= movement.amount
+      originalIn.unreconciledBalance -= movement.amount
+      originalOut.balance += movement.amount
+      originalOut.unreconciledBalance += movement.amount
+      accountRepo.update(originalIn)
+      accountRepo.update(originalOut)
+
+      val reversal = Movement(
+        inAccountId       = movement.outAccountId,
+        outAccountId      = movement.inAccountId,
+        referenceId       = reversalReferenceId,
+        outAccountBalance = originalIn.balance,
+        inAccountBalance  = originalOut.balance,
+        amount            = movement.amount,
+        properties        = movement.properties,
+        metaData          = JSONBProps(movement.metaData.props + (reversalOfKey -> movement.id.toString)),
+        movementSpecId    = movement.movementSpecId
+      )
+      movementRepo.insert(reversal)
+      Some(reversal)

@@ -154,6 +154,22 @@ case class ManualMatchRequest(
 
 case class WriteOffRequest(reason: String) derives ReadWriter
 
+case class BadFilePreviewRequest(fileSourceEntry: String) derives ReadWriter
+
+case class BadFilePreviewPayload(
+  movementsFound:           Int,
+  alreadyReversedCount:     Int,
+  reconciledCount:          Int,
+  eligibleForReversalCount: Int
+) derives ReadWriter
+
+case class FixBadFileRequest(fileSourceEntry: String) derives ReadWriter
+
+case class FixBadFileResultPayload(
+  reconciliationsVoided: Int,
+  movementsReversed:     Int
+) derives ReadWriter
+
 case class FundFlowSummaryViewPayload(
   fundFlow: FundFlowPayload,
   accounts: Seq[AccountSummaryViewPayload]
