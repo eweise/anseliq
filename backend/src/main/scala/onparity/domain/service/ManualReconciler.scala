@@ -61,7 +61,7 @@ class ManualReconciler(using
 
     val now = clock.now
     val reconciliation = Reconciliation(
-      specId       = reconSpecId,
+      specId       = Some(reconSpecId),
       appliedRules = "manual",
       description  = description,
       status       = status,
@@ -81,9 +81,15 @@ class ManualReconciler(using
     val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
     if reconciliation.status == ReconciliationStatus.Voided then
       throw IllegalStateError(s"reconciliation $reconciliationId is already voided")
+    // A Reversed reconciliation permanently links a movement to its Ledger.reverseMovement
+    // contra-entry (see ReconciliationStatus.Reversed) specifically so both stay excluded from
+    // every "unreconciled movement" query forever. Unmatching it would undo that on purpose,
+    // putting both back in the matching pool — exactly the bug this status exists to prevent.
+    if reconciliation.status == ReconciliationStatus.Reversed then
+      throw IllegalStateError(s"reconciliation $reconciliationId is a system reversal and cannot be unmatched")
 
-    val reconSpec =
-      reconSpecRepo.findById(reconciliation.specId).ErrIfNotFound("reconciliation spec", reconciliation.specId)
+    val specId    = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
+    val reconSpec = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
     val movements = movementRepo.findByReconciliationID(reconciliationId)
 
     ledger.unreconcile(movements, reconSpec.accountId)
@@ -184,8 +190,15 @@ class ManualReconciler(using
    */
   def reverseMovementsByFile(fileSourceEntry: String, batchSize: Int = 1000): BulkReversalResult =
     val (candidates, stillReconciledCount) = transact(transactor):
-      val reversible = movementRepo.findByFileSourceEntry(fileSourceEntry).filterNot(ledger.isReversal)
-      (reversible.filter(_.reconciliationId.isEmpty), reversible.count(_.reconciliationId.isDefined))
+      val movements = movementRepo.findByFileSourceEntry(fileSourceEntry)
+      val (reversals, originals) = movements.partition(ledger.isReversal)
+      // Same reasoning as ManualReconciler.previewBadFile: an original that already has a reversal
+      // now legitimately carries a reconciliationId (pointing at that reversal's own Reversed
+      // reconciliation — see Ledger.reverseMovement), so without excluding it here, a retry after
+      // a successful run would miscount it as "still reconciled" (blocked) instead of "already done".
+      val alreadyReversedIds = reversals.flatMap(ledger.reversalTargetId).toSet
+      val pending             = originals.filterNot(m => alreadyReversedIds.contains(m.id))
+      (pending.filter(_.reconciliationId.isEmpty), pending.count(_.reconciliationId.isDefined))
 
     var reversedCount = 0
     candidates

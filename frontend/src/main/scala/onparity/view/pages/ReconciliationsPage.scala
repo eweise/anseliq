@@ -25,6 +25,7 @@ object ReconciliationsPage:
       case "Final" if r.adjustmentReason.exists(_.nonEmpty) => "Written Off" -> Pill.Tone.Serious
       case "Final"                                          => "Final"       -> Pill.Tone.Good
       case "Voided"                                         => "Voided"      -> Pill.Tone.Neutral
+      case "Reversed"                                       => "Reversed"    -> Pill.Tone.Neutral
       case other                                            => other         -> Pill.Tone.Neutral
     Pill(label, tone)
 

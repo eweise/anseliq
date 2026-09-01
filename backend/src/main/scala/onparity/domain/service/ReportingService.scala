@@ -64,8 +64,9 @@ class ReportingService(using
         movementRepo.findById(d.referenceId).map(_.inAccountId)
       case DisputeTarget.Reconciliation =>
         for
-          recon <- reconRepo.findById(d.referenceId)
-          spec  <- reconSpecRepo.findById(recon.specId)
+          recon  <- reconRepo.findById(d.referenceId)
+          specId <- recon.specId
+          spec   <- reconSpecRepo.findById(specId)
         yield spec.accountId
       case DisputeTarget.MovementSpec =>
         movementSpecRepo.findById(d.referenceId).map(_.inAccountId)

@@ -7,7 +7,7 @@ import onparity.domain.DataSetup
 import onparity.domain.model.*
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.port.driven.*
-import onparity.domain.service.{FundFlowCache, FundFlowOperations, Ledger}
+import onparity.domain.service.{ClockService, ClockServiceLive, FundFlowCache, FundFlowOperations, Ledger}
 
 import java.time.OffsetDateTime
 import javax.sql.DataSource
@@ -25,6 +25,7 @@ class MovementSearchSuite extends munit.FunSuite:
   given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
   given disputeRepo:        DisputeRepo            = DisputeRepoLive()
   given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
+  given clockService:       ClockService           = ClockServiceLive()
   given ledger:             Ledger                 = Ledger()
   given fundFlowCache:      FundFlowCache          = FundFlowCache(fundFlowConfigRepo)
 
@@ -148,7 +149,7 @@ class MovementSearchSuite extends munit.FunSuite:
       )
 
       // Unreconciled-only: link m1 to a real reconciliation, then confirm it's excluded
-      val recon = Reconciliation(specId = data.reconSpec.id)
+      val recon = Reconciliation(specId = Some(data.reconSpec.id))
       transact(transactor):
         reconRepo.insert(recon)
         movementRepo.setReconciliationIds(Seq(m1.id -> recon.id))

@@ -2,7 +2,7 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.ReconciliationDetailPayload
+import onparity.common.model.{ReconciliationDetailPayload, ReconciliationSpecSummaryPayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
@@ -31,7 +31,7 @@ object ReconciliationDetailPage:
           div(
             PageHeader.title(s"Reconciliation — ${d.reconciliation.description}"),
             reconciliationSection(d),
-            reconSpecSection(d),
+            d.spec.map(reconSpecSection).getOrElse(div()),
             movementsSection(d)
           )
       }
@@ -55,8 +55,7 @@ object ReconciliationDetailPage:
       )
     )
 
-  private def reconSpecSection(d: ReconciliationDetailPayload): HtmlElement =
-    val s = d.spec
+  private def reconSpecSection(s: ReconciliationSpecSummaryPayload): HtmlElement =
     div(
       cls := s"${Card.cls} p-4 mb-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Reconciliation Spec"),

@@ -82,7 +82,10 @@ create table recon.reconciliation_spec
 create table recon.reconciliation
 (
     id                uuid primary key,
-    spec_id           uuid                                  not null REFERENCES recon.reconciliation_spec (id),
+    -- Nullable: null only for a system-generated Reversed reconciliation (see
+    -- ReconciliationStatus.Reversed), which links a movement to its Ledger.reverseMovement
+    -- contra-entry rather than governing a real matching rule.
+    spec_id           uuid REFERENCES recon.reconciliation_spec (id),
     description       text,
     applied_rules     text,
     balance           numeric(15, 2)                        not null default 0,

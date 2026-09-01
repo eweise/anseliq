@@ -350,12 +350,14 @@ class App(using
   @cask.route(s"${HttpPath.reconciliation}/:id", methods = HttpCmd.GET)
   def getReconciliationDetail(id: String): String =
     transact(transactor):
-      val reconId   = UUID.fromString(id)
-      val recon     = reconRepo.findById(reconId).ErrIfNotFound("reconciliation", reconId)
-      val spec      = reconSpecRepo.findById(recon.specId).ErrIfNotFound("reconciliation spec", recon.specId)
-      val account   = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
+      val reconId = UUID.fromString(id)
+      val recon   = reconRepo.findById(reconId).ErrIfNotFound("reconciliation", reconId)
+      val spec = recon.specId.map: specId =>
+        val spec    = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
+        val account = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
+        (spec, account.name)
       val movements = movementRepo.findByReconciliationID(reconId)
-      write(Payload.reconciliationDetailPayloadFromDomain(recon, spec, account.name, movements))
+      write(Payload.reconciliationDetailPayloadFromDomain(recon, spec, movements))
 
   @cask.route(s"${HttpPath.movement}/:id", methods = HttpCmd.GET)
   def getMovementDetail(id: String): String =
@@ -476,8 +478,13 @@ class App(using
         val account  = accountRepo.findById(movement.inAccountId).ErrIfNotFound("account", movement.inAccountId)
         (account.id.toString, account.name, movement.referenceId.toString)
       case DisputeTarget.Reconciliation =>
+        // recon.specId is only ever None for a system-generated Reversed reconciliation, and
+        // nothing ever raises a dispute against one (dispute-raising only happens on an InProgress
+        // mismatch from matchMovements/streamMergeJoin, neither of which Ledger.reverseMovement
+        // goes through) — so this ErrIfNotFound is a correctness assertion, not an expected path.
         val recon     = reconRepo.findById(dispute.referenceId).ErrIfNotFound("reconciliation", dispute.referenceId)
-        val reconSpec = reconSpecRepo.findById(recon.specId).ErrIfNotFound("reconciliation spec", recon.specId)
+        val specId    = recon.specId.ErrIfNotFound("reconciliation spec id", recon.id)
+        val reconSpec = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
         val account   = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
         (account.id.toString, account.name, recon.description)
       case DisputeTarget.MovementSpec =>

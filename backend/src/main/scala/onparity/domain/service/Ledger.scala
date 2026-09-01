@@ -3,8 +3,15 @@ package onparity.domain.service
 import com.fasterxml.uuid.Generators
 import onparity.common.model.model.{ID, Money, Properties, Zero}
 import onparity.domain.model.helper.JSONBProps
-import onparity.domain.model.{ErrIfNotFound, IllegalStateError, Movement, MovementSpec}
-import onparity.domain.port.driven.{AccountRepo, MovementRepo, Txn}
+import onparity.domain.model.{
+  ErrIfNotFound,
+  IllegalStateError,
+  Movement,
+  MovementSpec,
+  Reconciliation,
+  ReconciliationStatus
+}
+import onparity.domain.port.driven.{AccountRepo, MovementRepo, ReconciliationRepo, Txn}
 
 case class MovementRequest(
   amount:      Money,
@@ -13,7 +20,12 @@ case class MovementRequest(
   metaData:    Properties = Map()
 )
 
-class Ledger(using movementRepo: MovementRepo, accountRepo: AccountRepo):
+class Ledger(using
+  movementRepo: MovementRepo,
+  accountRepo:  AccountRepo,
+  reconRepo:    ReconciliationRepo,
+  clock:        ClockService
+):
 
   // Record many movements for the same in and out accounts in order to handle batch inserts.
   // Filters out requests whose referenceId already exists *before* computing balance deltas: the
@@ -124,6 +136,17 @@ class Ledger(using movementRepo: MovementRepo, accountRepo: AccountRepo):
    * whose ledger effect no longer matches its counterpart) or one that's itself already a reversal
    * (reversing a reversal isn't a meaningful operation here).
    *
+   * Links movement and its reversal via a real, spec-less ReconciliationStatus.Reversed
+   * Reconciliation (through the ordinary reconcile(), reused as-is — its balance delta is always
+   * exactly zero here since a movement and its reversal net to nothing on any account, so this
+   * costs nothing beyond setting reconciliationId on both). This is *why* the reversal actually
+   * works, not incidental bookkeeping: every "find unreconciled movements" query already filters on
+   * reconciliation_id IS NULL, so this permanently and automatically excludes both movement and its
+   * reversal from ever being matched again — without it, the reversal (which necessarily carries
+   * the same match-key properties as movement, see below) would be just as eligible for automatic
+   * matching as any real movement, and could get erroneously matched against movement's original
+   * counterpart.
+   *
    * Idempotent: the reversal's referenceId is deterministic (derived from movement.id) and checked
    * via findExistingReferenceIds *before* touching balances — the same guard recordMovements itself
    * uses — so calling this again for an already-reversed movement is a safe no-op (None) instead of
@@ -159,4 +182,18 @@ class Ledger(using movementRepo: MovementRepo, accountRepo: AccountRepo):
         movementSpecId    = movement.movementSpecId
       )
       movementRepo.insert(reversal)
+
+      val now = clock.now
+      val reconciliation = Reconciliation(
+        specId       = None,
+        appliedRules = "system: Ledger.reverseMovement",
+        description  = s"Reversal of movement ${movement.id}",
+        status       = ReconciliationStatus.Reversed,
+        balance      = Zero,
+        createdAt    = Some(now),
+        updatedAt    = Some(now)
+      )
+      reconRepo.insert(reconciliation)
+      reconcile(Seq(movement, reversal), reconciliation.id, movement.inAccountId)
+
       Some(reversal)

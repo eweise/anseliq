@@ -48,6 +48,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   given accountRepo:        AccountRepo        = AccountRepoLive()
   given movementSpecRepo:   MovementSpecRepo   = MovementSpecRepoLive()
   given fileFeedRepo:       FileFeedRepo       = FileFeedRepoLive()
+  given reconRepo:          ReconciliationRepo = ReconciliationRepoLive()
   given ledger:             Ledger             = Ledger()
   given fileInventoryRepo:  FileInventoryRepo  = FileInventoryRepoLive()
   given disputeRepo:        DisputeRepo        = DisputeRepoLive()

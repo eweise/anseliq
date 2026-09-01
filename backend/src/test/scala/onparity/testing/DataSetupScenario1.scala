@@ -27,6 +27,7 @@ class DataSetupScenario1 extends munit.FunSuite:
   given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
   given fileFeedRepo:       FileFeedRepo           = FileFeedRepoLive()
   given fileSourceFactory:  FileSourceFactory      = S3FileSourceFactory()
+  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
   given ledger:             Ledger                 = Ledger()
   given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
   given operations:         FundFlowOperations     = FundFlowOperations()

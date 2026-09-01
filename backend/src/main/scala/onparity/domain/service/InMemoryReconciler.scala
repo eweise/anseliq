@@ -497,7 +497,7 @@ class InMemoryReconciler(using
         val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
         val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
         Reconciliation(
-          specId       = reconSpec.id,
+          specId       = Some(reconSpec.id),
           appliedRules = rule.sql,
           status       = status,
           balance      = balance,
@@ -597,7 +597,7 @@ class InMemoryReconciler(using
         val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
         val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
         Reconciliation(
-          specId       = reconSpec.id,
+          specId       = Some(reconSpec.id),
           appliedRules = rule.sql,
           status       = status,
           balance      = balance,

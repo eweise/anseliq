@@ -39,6 +39,8 @@ class IngestResumableSuite extends munit.FunSuite:
 
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
 
+  given reconRepo: ReconciliationRepo = ReconciliationRepoLive()
+
   given ledger: Ledger = Ledger()
 
   private def csvFeed(): FileFeed =

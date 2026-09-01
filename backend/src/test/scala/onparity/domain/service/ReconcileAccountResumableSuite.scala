@@ -457,10 +457,10 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
   test(
     "raiseStaleMismatchDisputes: a OneToMany reconciliation past agingLimit gets an AmountMismatch dispute, but not before"
   ):
+    given clock: ClockService       = ClockServiceLive()
     val data                    = transact(transactor)(DataSetup())
     val (inSpec, outSpec, spec) = oneToManySpec(data, agingLimit = 2)
     given ops:   FundFlowOperations = FundFlowOperations()
-    given clock: ClockService       = ClockServiceLive()
     try
       transact(transactor):
         ops.postAmount(inSpec, 60, referenceID   = createID(), Map("groupId" -> "g3"))
@@ -608,3 +608,30 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       assertEquals(resumed.map(_.props.get("id")), Vector(Some("2"), Some("3")))
     finally teardown(data)
+
+  // The actual point of Ledger.reverseMovement linking a movement to its reversal via a real
+  // ReconciliationStatus.Reversed reconciliation (see its doc): the reversal necessarily carries
+  // the same match-key properties as the movement it reverses, so without that link permanently
+  // excluding both from every "unreconciled movement" query, a real reconciliation run could match
+  // a counterpart against the reversal instead of (or as well as) a genuine movement.
+  test("a reversed movement's contra-entry is never picked up as a match candidate by the reconciler"):
+    val data                        = transact(transactor)(DataSetup())
+    var reversal: Option[Movement]  = None
+    try
+      val counterpart = transact(transactor):
+        val original = insertMovement(data, data.journalToRecon, "reversal-test-key")
+        reversal = data.ledger.reverseMovement(original)
+        insertMovement(data, data.reportToRecon, "reversal-test-key") // the real match, once corrected
+
+      InMemoryReconciler().reconcileAccountResumable(data.reconAccount.id)
+
+      val reloadedCounterpart = transact(transactor)(data.movementRepo.findById(counterpart.id).get)
+      assertEquals(
+        reloadedCounterpart.reconciliationId,
+        None,
+        "the counterpart must not have been matched against the reversal, which carries the same match key"
+      )
+    finally
+      transact(transactor):
+        reversal.flatMap(_.reconciliationId).foreach(id => data.reconRepo.deleteById(id))
+      teardown(data)

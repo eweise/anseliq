@@ -93,7 +93,7 @@ class LedgerSuite extends munit.FunSuite:
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
         val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
-        val reconciliation = Reconciliation(specId = data.reconSpec.id)
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id))
         data.reconRepo.insert(reconciliation)
 
         data.ledger.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
@@ -118,7 +118,7 @@ class LedgerSuite extends munit.FunSuite:
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
         val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
-        val reconciliation = Reconciliation(specId = data.reconSpec.id)
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id))
         data.reconRepo.insert(reconciliation)
         data.ledger.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
 

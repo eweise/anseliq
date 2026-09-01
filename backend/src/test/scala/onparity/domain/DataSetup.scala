@@ -6,11 +6,15 @@ import onparity.common.model.*
 import onparity.domain.model.*
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.port.driven.*
-import onparity.domain.service.{FundFlowCache, FundFlowOperations, Ledger}
+import onparity.domain.service.{ClockService, ClockServiceLive, FundFlowCache, FundFlowOperations, Ledger}
 
 import java.util.UUID
 
-class DataSetup(using dbTx: DbTx) {
+// clockService: given-resolution is tried first (so a caller's own ClockService given, if any, is
+// what's actually used), falling back to the default only when the caller has none — a plain
+// class-body `given` here would instead re-export via `import data.given`, competing with (and
+// sometimes losing an ambiguity error to) a caller's own ClockService given of the same type.
+class DataSetup(using dbTx: DbTx, clockService: ClockService = ClockServiceLive()) {
   dbTx.connection.getMetaData
   val reconAccountName   = "recon"
   val unreconAccountName = "unrecon"

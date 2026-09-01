@@ -113,26 +113,27 @@ object Payload:
 
   def reconciliationDetailPayloadFromDomain(
     recon:       Reconciliation,
-    spec:        ReconciliationSpec,
-    accountName: String,
+    spec:        Option[(ReconciliationSpec, String)], // (spec, its account's name)
     movements:   Seq[Movement]
   ): ReconciliationDetailPayload =
     ReconciliationDetailPayload(
       reconciliation = reconFromDomain(recon),
-      spec = ReconciliationSpecSummaryPayload(
-        id           = spec.id.toString,
-        agingLimit   = spec.agingLimit,
-        relationship = reconRelationshipFromDomain(spec.relationship),
-        ruleJson     = spec.ruleJson,
-        accountName  = accountName
-      ),
+      spec = spec.map { (s, accountName) =>
+        ReconciliationSpecSummaryPayload(
+          id           = s.id.toString,
+          agingLimit   = s.agingLimit,
+          relationship = reconRelationshipFromDomain(s.relationship),
+          ruleJson     = s.ruleJson,
+          accountName  = accountName
+        )
+      },
       movements = movements.map(m => ReconciliationMovementPayload(id = m.id.toString, amount = m.amount))
     )
 
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
     ReconciliationPayload(
       id               = recon.id.toString,
-      reconSpecId      = recon.specId.toString,
+      reconSpecId      = recon.specId.map(_.toString),
       appliedRules     = recon.appliedRules,
       description      = recon.description,
       status           = recon.status.toString,

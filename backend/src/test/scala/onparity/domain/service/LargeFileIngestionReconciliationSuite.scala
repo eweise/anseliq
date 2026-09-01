@@ -45,11 +45,11 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 
   given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
 
-  given ledger: Ledger = Ledger()
-
   given reconSpecRepo: ReconciliationSpecRepo = ReconciliationSpecRepoLive()
 
   given reconRepo: ReconciliationRepo = ReconciliationRepoLive()
+
+  given ledger: Ledger = Ledger()
 
   given fundFlowConfigRepo: FundFlowConfigRepo = FundFlowConfigRepoLive()
 

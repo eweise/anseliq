@@ -114,7 +114,8 @@ case class ReconciliationSpecPayload(
 
 case class ReconciliationPayload(
   id:               String,
-  reconSpecId:      String,
+  // None only for a system-generated Reversed reconciliation (see backend's ReconciliationStatus).
+  reconSpecId:      Option[String],
   appliedRules:     String,
   description:      String,
   status:           String,
@@ -142,7 +143,8 @@ case class ReconciliationSpecSummaryPayload(
 
 case class ReconciliationDetailPayload(
   reconciliation: ReconciliationPayload,
-  spec:           ReconciliationSpecSummaryPayload,
+  // None only for a system-generated Reversed reconciliation, which isn't governed by a real spec.
+  spec:           Option[ReconciliationSpecSummaryPayload],
   movements:      Seq[ReconciliationMovementPayload]
 ) derives ReadWriter
 
