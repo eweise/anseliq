@@ -42,9 +42,13 @@ class PayloadSuite extends munit.FunSuite:
 
   test("eventPayloadFromDomain converts NewFileDetected"):
     val fileInventoryId = UUID.randomUUID()
-    val event           = NewFileDetected(fileInventoryID = fileInventoryId)
-    val state           = EventState.newEventState(event)
-    val result          = Payload.eventPayloadFromDomain(state)
+    val event = NewFileDetected(
+      fileInventoryID = fileInventoryId,
+      filePath        = ???,
+      source          = ???
+    )
+    val state  = EventState.newEventState(event)
+    val result = Payload.eventPayloadFromDomain(state)
     assert(result.isInstanceOf[NewFileDetectedPayload])
     val payload = result.asInstanceOf[NewFileDetectedPayload]
     assertEquals(payload.id, event.id.toString)

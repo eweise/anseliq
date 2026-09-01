@@ -4,7 +4,6 @@ import com.augustnagro.magnum.{DbTx, Transactor, transact}
 import com.fasterxml.uuid.Generators
 import com.typesafe.scalalogging.Logger
 import net.logstash.logback.argument.StructuredArguments.kv
-import onparity.common.model.RoutingFilter
 import onparity.common.model.model.ID
 import onparity.domain.model.*
 import onparity.domain.model.FileInventoryStatus.COMPLETED
@@ -100,15 +99,6 @@ class Ingestor(using
         )
 
     result
-
-  // Finds which of a feed's MovementSpecs claims a parsed row's properties: any spec with a
-  // RoutingFilter whose propertyField/matchValue matches wins over a catch-all spec (routingFilter
-  // = None, claims everything), so a feed can mix a few explicitly-routed accounts with a
-  // fallback if one is configured. None means the row belongs to no configured spec at all.
-  private def matchSpec(movementSpecs: Seq[MovementSpec], props: Map[String, String]): Option[MovementSpec] =
-    movementSpecs
-      .find(_.routingFilter().exists(f => props.get(f.propertyField).contains(f.matchValue)))
-      .orElse(movementSpecs.find(_.routingFilter().isEmpty))
 
   def ingestResumable(
     fileFeed:        FileFeed,
@@ -246,6 +236,81 @@ class Ingestor(using
       completed            = completed
     )
 
+  // Finds which of a feed's MovementSpecs claims a parsed row's properties: any spec with a
+  // RoutingFilter whose propertyField/matchValue matches wins over a catch-all spec (routingFilter
+  // = None, claims everything), so a feed can mix a few explicitly-routed accounts with a
+  // fallback if one is configured. None means the row belongs to no configured spec at all.
+  private def matchSpec(movementSpecs: Seq[MovementSpec], props: Map[String, String]): Option[MovementSpec] =
+    movementSpecs
+      .find(_.routingFilter().exists(f => props.get(f.propertyField).contains(f.matchValue)))
+      .orElse(movementSpecs.find(_.routingFilter().isEmpty))
+
+  // Raised once per ingest run (not once per row) when one or more parsed rows matched no
+  // configured MovementSpec's routing filter — the actual fix for the silent-money-loss failure
+  // mode a multi-account feed (e.g. BAI2) has if the bank starts including an account nobody's
+  // configured a spec for: those rows now surface as an exception instead of vanishing. Unlike
+  // FileMissing there's no clean signal to auto-resolve on, so this stays open until a human
+  // configures a matching spec and resolves it explicitly.
+  private def raiseUnroutedRecordDispute(
+    fileFeed:      FileFeed,
+    movementSpecs: Seq[MovementSpec],
+    unroutedRows:  Seq[Map[String, String]]
+  ): Txn[Unit] =
+    val routedFields = movementSpecs.flatMap(_.routingFilter().map(_.propertyField)).distinct
+    val sample = routedFields
+      .map(field => field -> unroutedRows.flatMap(_.get(field)).distinct.take(10))
+      .filter(_._2.nonEmpty)
+    val valuesSummary = sample.map((field, values) => s"$field=${values.mkString(",")}").mkString("; ")
+    val detail =
+      s"${unroutedRows.size} row(s) in '${fileFeed.name}' matched no configured MovementSpec." +
+        (if valuesSummary.nonEmpty then s" Unmatched value(s): $valuesSummary" else "")
+
+    val dispute = Dispute(
+      referenceId    = fileFeed.id,
+      targetType     = DisputeTarget.FileFeed,
+      category       = DisputeCategory.UnroutedRecord,
+      detail         = Some(detail),
+      raisedByUserId = None,
+      createdAt      = Some(clock.now),
+      updatedAt      = Some(clock.now)
+    )
+    disputeRepo
+      .insertIfNoOpenDispute(dispute)
+      .foreach: raised =>
+        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
+
+  // Raised once ingestion stops because a file's parse-error count crossed fileFeed.maxParseErrors
+  // (see the .map step in ingestResumable above) — a signal the file has a general parsing problem
+  // (wrong delimiter, bad column mapping, wrong feed pointed at wrong parser config), not just a
+  // few bad rows. Stop-in-place, not all-or-nothing: rows from batches already committed before the
+  // cutoff was crossed stay ledgered — only rows from the point the cutoff was crossed onward are
+  // never parsed/ledgered. Targets the FileFeed for the same reason FileMissing/UnroutedRecord do:
+  // there's no clean single row to blame for "this file is too dirty."
+  private def raiseExcessiveParseErrorsDispute(
+    fileFeed:   FileFeed,
+    errorCount: Int,
+    samples:    Seq[ParseErrorResult]
+  ): Txn[Unit] =
+    val sampleSummary = samples.map(s => s"line ${s.lineNumber}: ${s.message}").mkString("; ")
+    val detail =
+      s"Ingestion of '${fileFeed.name}' stopped after $errorCount parse error(s) exceeded the " +
+        s"configured cutoff (${fileFeed.maxParseErrors.get})." +
+        (if sampleSummary.nonEmpty then s" Sample error(s): $sampleSummary" else "")
+
+    val dispute = Dispute(
+      referenceId    = fileFeed.id,
+      targetType     = DisputeTarget.FileFeed,
+      category       = DisputeCategory.ExcessiveParseErrors,
+      detail         = Some(detail),
+      raisedByUserId = None, // system-raised, no human actor
+      createdAt      = Some(clock.now),
+      updatedAt      = Some(clock.now)
+    )
+    disputeRepo
+      .insertIfNoOpenDispute(dispute)
+      .foreach: raised =>
+        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
+
   /**
    * Lets a user try a feed's parser config against a real sample file before wiring up real
    * ingestion, entirely in memory — no FileInventory row, no Movements written, nothing persisted
@@ -290,7 +355,13 @@ class Ingestor(using
     newFiles.map: newFile =>
       val fileInventory: FileInventory = createFileInventory(fileFeedID, source, newFile)
       fileInventoryRepo.insert(fileInventory)
-      eventStore.publishEvent(NewFileDetected(fileInventoryID = fileInventory.id))
+      eventStore.publishEvent(
+        NewFileDetected(
+          fileInventoryID = fileInventory.id,
+          filePath        = newFile.name,
+          source          = newFile.getClass.getSimpleName
+        )
+      )
       fileInventory
 
   // separated out method so it could be overridden in tests
@@ -370,72 +441,6 @@ class Ingestor(using
           )
         )
         eventStore.publishEvent(DisputeCommentAdded(disputeID = dispute.id, commentID = comment.id))
-
-  // Raised once per ingest run (not once per row) when one or more parsed rows matched no
-  // configured MovementSpec's routing filter — the actual fix for the silent-money-loss failure
-  // mode a multi-account feed (e.g. BAI2) has if the bank starts including an account nobody's
-  // configured a spec for: those rows now surface as an exception instead of vanishing. Unlike
-  // FileMissing there's no clean signal to auto-resolve on, so this stays open until a human
-  // configures a matching spec and resolves it explicitly.
-  private def raiseUnroutedRecordDispute(
-    fileFeed:      FileFeed,
-    movementSpecs: Seq[MovementSpec],
-    unroutedRows:  Seq[Map[String, String]]
-  ): Txn[Unit] =
-    val routedFields = movementSpecs.flatMap(_.routingFilter().map(_.propertyField)).distinct
-    val sample = routedFields
-      .map(field => field -> unroutedRows.flatMap(_.get(field)).distinct.take(10))
-      .filter(_._2.nonEmpty)
-    val valuesSummary = sample.map((field, values) => s"$field=${values.mkString(",")}").mkString("; ")
-    val detail =
-      s"${unroutedRows.size} row(s) in '${fileFeed.name}' matched no configured MovementSpec." +
-        (if valuesSummary.nonEmpty then s" Unmatched value(s): $valuesSummary" else "")
-
-    val dispute = Dispute(
-      referenceId    = fileFeed.id,
-      targetType     = DisputeTarget.FileFeed,
-      category       = DisputeCategory.UnroutedRecord,
-      detail         = Some(detail),
-      raisedByUserId = None,
-      createdAt      = Some(clock.now),
-      updatedAt      = Some(clock.now)
-    )
-    disputeRepo
-      .insertIfNoOpenDispute(dispute)
-      .foreach: raised =>
-        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
-
-  // Raised once ingestion stops because a file's parse-error count crossed fileFeed.maxParseErrors
-  // (see the .map step in ingestResumable above) — a signal the file has a general parsing problem
-  // (wrong delimiter, bad column mapping, wrong feed pointed at wrong parser config), not just a
-  // few bad rows. Stop-in-place, not all-or-nothing: rows from batches already committed before the
-  // cutoff was crossed stay ledgered — only rows from the point the cutoff was crossed onward are
-  // never parsed/ledgered. Targets the FileFeed for the same reason FileMissing/UnroutedRecord do:
-  // there's no clean single row to blame for "this file is too dirty."
-  private def raiseExcessiveParseErrorsDispute(
-    fileFeed:    FileFeed,
-    errorCount:  Int,
-    samples:     Seq[ParseErrorResult]
-  ): Txn[Unit] =
-    val sampleSummary = samples.map(s => s"line ${s.lineNumber}: ${s.message}").mkString("; ")
-    val detail =
-      s"Ingestion of '${fileFeed.name}' stopped after $errorCount parse error(s) exceeded the " +
-        s"configured cutoff (${fileFeed.maxParseErrors.get})." +
-        (if sampleSummary.nonEmpty then s" Sample error(s): $sampleSummary" else "")
-
-    val dispute = Dispute(
-      referenceId    = fileFeed.id,
-      targetType     = DisputeTarget.FileFeed,
-      category       = DisputeCategory.ExcessiveParseErrors,
-      detail         = Some(detail),
-      raisedByUserId = None, // system-raised, no human actor
-      createdAt      = Some(clock.now),
-      updatedAt      = Some(clock.now)
-    )
-    disputeRepo
-      .insertIfNoOpenDispute(dispute)
-      .foreach: raised =>
-        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
 
   def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
     fileInventoryRepo

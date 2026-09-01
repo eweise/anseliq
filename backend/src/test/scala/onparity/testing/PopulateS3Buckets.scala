@@ -37,7 +37,7 @@ class PopulateS3Buckets extends munit.FunSuite:
       for (x <- 1 until 5) {
         val transactionID = UUID.randomUUID()
         bankContents += s"""$transactionID,${x * 10}\n"""
-        internalContents += s"""123,${x * 10 + (if x == 3 then 1 else 0)},${OffsetDateTime.now()}\n"""
+        internalContents += s"""$transactionID,${x * 10 + (if x == 3 then 1 else 0)},${OffsetDateTime.now()}\n"""
       }
       s3Client.putObject(
         PutObjectRequest

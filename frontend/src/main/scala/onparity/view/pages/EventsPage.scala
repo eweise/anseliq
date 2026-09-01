@@ -5,7 +5,7 @@ import onparity.common.http.HttpPath
 import onparity.common.model.*
 import onparity.http.ApiClient
 import onparity.state.AppState.apiBind
-import onparity.state.{AppState, SessionStore}
+import onparity.state.SessionStore
 import onparity.view.ViewHelper
 import onparity.view.components.{Form, PageHeader, Table}
 import upickle.default.*
@@ -69,8 +69,13 @@ object EventsPage:
                 "Movement Spec ID"
               )
             case "AccountReconciled" => Seq("Account ID")
-            case "NewFileDetected"   => Seq("File Inventory ID")
-            case _                   => Seq("ID")
+            case "NewFileDetected" =>
+              Seq(
+                "File Inventory ID",
+                "Path",
+                "Source"
+              )
+            case _ => Seq("ID")
           val headers = Seq("Status", "Retries", "Error", "Created At") ++ extraHeaders
           val rows = s.events.map { event =>
             Seq(
@@ -96,7 +101,12 @@ object EventsPage:
         span(e.movementSpecID)
       )
     case e: AccountReconciledPayload => Seq(span(e.accountID))
-    case e: NewFileDetectedPayload   => Seq(span(e.fileInventoryID))
+    case e: NewFileDetectedPayload =>
+      Seq(
+        span(e.fileInventoryID),
+        span(e.filePath),
+        span(e.fileSource)
+      )
 
   case class State(
     selectedEventType: String            = "MoneyMovementsIngested",

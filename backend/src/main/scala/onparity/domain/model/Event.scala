@@ -3,7 +3,6 @@ package onparity.domain.model
 import onparity.common.model.model.ID
 import upickle.ReadWriter
 
-import java.time.Instant.now
 import java.util.UUID
 
 sealed trait Event derives ReadWriter {
@@ -23,7 +22,12 @@ case class MoneyMovementsIngested(
 
 case class AccountReconciled(id: ID = UUID.randomUUID(), accountID: ID) extends Event
 
-case class NewFileDetected(id: ID = UUID.randomUUID(), fileInventoryID: ID) extends Event
+case class NewFileDetected(
+  id:              ID = UUID.randomUUID(),
+  fileInventoryID: ID,
+  filePath:        String,
+  source:          String
+) extends Event
 
 case class ReconciliationManuallyMatched(id: ID = UUID.randomUUID(), reconciliationID: ID) extends Event
 

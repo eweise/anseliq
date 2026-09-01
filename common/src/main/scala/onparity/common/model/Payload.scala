@@ -113,7 +113,7 @@ case class ReconciliationSpecPayload(
 ) derives ReadWriter
 
 case class ReconciliationPayload(
-  id:               String,
+  id: String,
   // None only for a system-generated Reversed reconciliation (see backend's ReconciliationStatus).
   reconSpecId:      Option[String],
   appliedRules:     String,
@@ -144,8 +144,8 @@ case class ReconciliationSpecSummaryPayload(
 case class ReconciliationDetailPayload(
   reconciliation: ReconciliationPayload,
   // None only for a system-generated Reversed reconciliation, which isn't governed by a real spec.
-  spec:           Option[ReconciliationSpecSummaryPayload],
-  movements:      Seq[ReconciliationMovementPayload]
+  spec:      Option[ReconciliationSpecSummaryPayload],
+  movements: Seq[ReconciliationMovementPayload]
 ) derives ReadWriter
 
 case class ManualMatchRequest(
@@ -485,6 +485,8 @@ case class NewFileDetectedPayload(
   id:              String,
   eventType:       String,
   fileInventoryID: String,
+  filePath:        String,
+  fileSource:      String,
   status:          String,
   retryCount:      Int,
   errorMessage:    Option[String],

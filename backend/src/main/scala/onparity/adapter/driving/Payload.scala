@@ -112,9 +112,9 @@ object Payload:
       case Rel.ManyToMany => ComRel.ManyToMany
 
   def reconciliationDetailPayloadFromDomain(
-    recon:       Reconciliation,
-    spec:        Option[(ReconciliationSpec, String)], // (spec, its account's name)
-    movements:   Seq[Movement]
+    recon:     Reconciliation,
+    spec:      Option[(ReconciliationSpec, String)], // (spec, its account's name)
+    movements: Seq[Movement]
   ): ReconciliationDetailPayload =
     ReconciliationDetailPayload(
       reconciliation = reconFromDomain(recon),
@@ -191,6 +191,8 @@ object Payload:
           id              = state.id.toString,
           eventType       = state.eventType,
           fileInventoryID = e.fileInventoryID.toString,
+          filePath        = e.filePath,
+          fileSource      = e.source,
           status          = state.status.toString,
           retryCount      = state.retryCount,
           errorMessage    = state.errorMessage,
@@ -262,13 +264,13 @@ object Payload:
     case DisputeTargetPayload.FileFeed       => DisputeTarget.FileFeed
 
   def disputeCategoryToDomain(p: DisputeCategoryPayload): DisputeCategory = p match
-    case DisputeCategoryPayload.AmountMismatch     => DisputeCategory.AmountMismatch
-    case DisputeCategoryPayload.MissingCounterpart => DisputeCategory.MissingCounterpart
-    case DisputeCategoryPayload.Duplicate          => DisputeCategory.Duplicate
-    case DisputeCategoryPayload.TimingDifference   => DisputeCategory.TimingDifference
-    case DisputeCategoryPayload.DataQuality        => DisputeCategory.DataQuality
-    case DisputeCategoryPayload.FileMissing        => DisputeCategory.FileMissing
-    case DisputeCategoryPayload.UnroutedRecord     => DisputeCategory.UnroutedRecord
+    case DisputeCategoryPayload.AmountMismatch       => DisputeCategory.AmountMismatch
+    case DisputeCategoryPayload.MissingCounterpart   => DisputeCategory.MissingCounterpart
+    case DisputeCategoryPayload.Duplicate            => DisputeCategory.Duplicate
+    case DisputeCategoryPayload.TimingDifference     => DisputeCategory.TimingDifference
+    case DisputeCategoryPayload.DataQuality          => DisputeCategory.DataQuality
+    case DisputeCategoryPayload.FileMissing          => DisputeCategory.FileMissing
+    case DisputeCategoryPayload.UnroutedRecord       => DisputeCategory.UnroutedRecord
     case DisputeCategoryPayload.ExcessiveParseErrors => DisputeCategory.ExcessiveParseErrors
 
   def disputeStatusToDomain(p: DisputeStatusPayload): DisputeStatus = p match
@@ -316,13 +318,13 @@ object Payload:
     case DisputeTarget.FileFeed       => DisputeTargetPayload.FileFeed
 
   def disputeCategoryFromDomain(d: DisputeCategory): DisputeCategoryPayload = d match
-    case DisputeCategory.AmountMismatch     => DisputeCategoryPayload.AmountMismatch
-    case DisputeCategory.MissingCounterpart => DisputeCategoryPayload.MissingCounterpart
-    case DisputeCategory.Duplicate          => DisputeCategoryPayload.Duplicate
-    case DisputeCategory.TimingDifference   => DisputeCategoryPayload.TimingDifference
-    case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
-    case DisputeCategory.FileMissing        => DisputeCategoryPayload.FileMissing
-    case DisputeCategory.UnroutedRecord     => DisputeCategoryPayload.UnroutedRecord
+    case DisputeCategory.AmountMismatch       => DisputeCategoryPayload.AmountMismatch
+    case DisputeCategory.MissingCounterpart   => DisputeCategoryPayload.MissingCounterpart
+    case DisputeCategory.Duplicate            => DisputeCategoryPayload.Duplicate
+    case DisputeCategory.TimingDifference     => DisputeCategoryPayload.TimingDifference
+    case DisputeCategory.DataQuality          => DisputeCategoryPayload.DataQuality
+    case DisputeCategory.FileMissing          => DisputeCategoryPayload.FileMissing
+    case DisputeCategory.UnroutedRecord       => DisputeCategoryPayload.UnroutedRecord
     case DisputeCategory.ExcessiveParseErrors => DisputeCategoryPayload.ExcessiveParseErrors
 
   def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
