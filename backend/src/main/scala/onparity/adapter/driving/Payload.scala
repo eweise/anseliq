@@ -254,6 +254,7 @@ object Payload:
     case DisputeCategoryPayload.DataQuality        => DisputeCategory.DataQuality
     case DisputeCategoryPayload.FileMissing        => DisputeCategory.FileMissing
     case DisputeCategoryPayload.UnroutedRecord     => DisputeCategory.UnroutedRecord
+    case DisputeCategoryPayload.ExcessiveParseErrors => DisputeCategory.ExcessiveParseErrors
 
   def disputeStatusToDomain(p: DisputeStatusPayload): DisputeStatus = p match
     case DisputeStatusPayload.New           => DisputeStatus.New
@@ -307,6 +308,7 @@ object Payload:
     case DisputeCategory.DataQuality        => DisputeCategoryPayload.DataQuality
     case DisputeCategory.FileMissing        => DisputeCategoryPayload.FileMissing
     case DisputeCategory.UnroutedRecord     => DisputeCategoryPayload.UnroutedRecord
+    case DisputeCategory.ExcessiveParseErrors => DisputeCategoryPayload.ExcessiveParseErrors
 
   def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
     case DisputeStatus.New           => DisputeStatusPayload.New

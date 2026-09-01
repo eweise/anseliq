@@ -98,6 +98,43 @@ class IngestResumableSuite extends munit.FunSuite:
       assertEquals(committedMovements.map(_.amount).sum, BigDecimal(10 + 20 + 30 + 40))
     finally teardown(data)
 
+  test("exceeding maxParseErrors stops ingestion and raises a dispute, without discarding earlier batches"):
+    val data = transact(transactor)(DataSetup())
+    val feed = csvFeed().copy(maxParseErrors = Some(2))
+    try
+      val ingestor = Ingestor()
+      // Valid rows (10, 20, 30) alternate with malformed amounts. batchSize = 1 so each valid row
+      // commits as its own batch immediately, making it possible to tell exactly which rows made it
+      // in before the 3rd parse error (count > cutoff of 2) stops the run. Row 7 is never reached.
+      val content = "1,10\n2,bad\n3,20\n4,bad\n5,30\n6,bad\n7,40"
+      val is      = ByteArrayInputStream(content.getBytes(UTF_8))
+
+      val result = ingestor.ingestResumable(
+        fileFeed        = feed,
+        movementSpecs   = Seq(data.journalToRecon),
+        fileSourceEntry = InMemoryFileSourceEntry("parse-error-cutoff-test"),
+        is              = is,
+        batchSize       = 1
+      )
+
+      assertEquals(result.completed, false)
+      assertEquals(result.recordCount, 3, "the three valid rows committed before the cutoff was crossed")
+
+      val committedMovements = transact(transactor)(data.movementRepo.findByAccount(data.reconAccount.id))
+      assertEquals(committedMovements.map(_.amount).sum, BigDecimal(10 + 20 + 30))
+
+      val dispute = transact(transactor):
+        disputeRepo.findAll.filter(d => d.referenceId == feed.id && d.category == DisputeCategory.ExcessiveParseErrors)
+      assertEquals(dispute.size, 1)
+      assertEquals(dispute.head.targetType, DisputeTarget.FileFeed)
+      assert(dispute.head.detail.exists(_.contains("3")), "detail should surface the error count that crossed the cutoff")
+    finally
+      transact(transactor):
+        disputeRepo.findAll
+          .filter(d => d.referenceId == feed.id && d.category == DisputeCategory.ExcessiveParseErrors)
+          .foreach(d => disputeRepo.deleteById(d.id))
+      teardown(data)
+
   test("resuming from lastProcessedLine processes remaining rows exactly once"):
     val data = transact(transactor)(DataSetup())
     try

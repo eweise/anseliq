@@ -45,6 +45,7 @@ create table recon.file_feed
     name                   text,
     data_source_json       text                                  not null,
     expected_cadence_hours int,
+    max_parse_errors       int,
     created_at             timestamptz default CURRENT_TIMESTAMP not null,
     updated_at             timestamptz default CURRENT_TIMESTAMP not null
 );

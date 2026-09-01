@@ -16,6 +16,9 @@ case class FileFeed(
   name:                 String                 = "",
   dataSourceJson:       String                 = "",
   expectedCadenceHours: Option[Int]            = None,
+  // None means no cutoff is enforced, same "unset = feature disabled" convention as
+  // expectedCadenceHours. See Ingestor.ingestResumable for where this stops ingestion.
+  maxParseErrors:       Option[Int]            = None,
   var createdAt:        Option[OffsetDateTime] = None,
   var updatedAt:        Option[OffsetDateTime] = None
 ) derives DbCodec:

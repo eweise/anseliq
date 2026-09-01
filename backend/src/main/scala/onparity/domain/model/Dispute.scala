@@ -12,7 +12,7 @@ enum DisputeTarget derives DbCodec:
 
 enum DisputeCategory derives DbCodec:
   case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing,
-    UnroutedRecord
+    UnroutedRecord, ExcessiveParseErrors
 
 /**
  * Which DisputeTarget(s) a category is meaningful against — e.g. FileMissing has no FileInventory
@@ -32,6 +32,7 @@ extension (category: DisputeCategory)
     case DisputeCategory.DataQuality        => Set(DisputeTarget.Movement)
     case DisputeCategory.FileMissing        => Set(DisputeTarget.FileFeed)
     case DisputeCategory.UnroutedRecord     => Set(DisputeTarget.FileFeed)
+    case DisputeCategory.ExcessiveParseErrors => Set(DisputeTarget.FileFeed)
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum DisputeStatus derives DbCodec:

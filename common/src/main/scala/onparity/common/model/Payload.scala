@@ -280,7 +280,7 @@ enum DisputeTargetPayload derives ReadWriter:
 
 enum DisputeCategoryPayload derives ReadWriter:
   case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing,
-    UnroutedRecord
+    UnroutedRecord, ExcessiveParseErrors
 
 enum DisputeStatusPayload derives ReadWriter:
   case New, Investigating, Escalated, Resolved

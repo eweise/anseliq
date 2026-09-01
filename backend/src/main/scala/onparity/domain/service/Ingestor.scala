@@ -129,6 +129,8 @@ class Ingestor(using
     var completed         = true
     val recordCountBySpec = mutable.Map.empty[ID, Int]
     val unroutedRows      = mutable.Buffer.empty[Map[String, String]]
+    var parseErrorCount   = 0
+    val parseErrorSamples = mutable.Buffer.empty[ParseErrorResult]
 
     try
       Flow
@@ -136,7 +138,21 @@ class Ingestor(using
         .linesUtf8
         .zipWithIndex
         .drop(startingLine.toInt)
-        .map((line, idx) => (idx, parser.parse(line, idx)))
+        .map { (line, idx) =>
+          try (idx, parser.parse(line, idx))
+          catch
+            case e: ParserError =>
+              parseErrorCount += 1
+              if parseErrorSamples.size < 10 then parseErrorSamples += ParseErrorResult(idx, e.getMessage)
+              // Stop-in-place, not all-or-nothing: batches already committed before this point stay
+              // ledgered (see raiseExcessiveParseErrorsDispute's doc). A genuinely systemic parsing
+              // problem (wrong delimiter, bad column mapping) surfaces its errors from line 1, so in
+              // the common case this behaves like rejecting the whole file anyway.
+              if fileFeed.maxParseErrors.exists(cutoff => parseErrorCount > cutoff) then
+                completed = false
+                throw IngestionStopped
+              (idx, None)
+        }
         .collect { case (idx, Some(parsedLine)) =>
           val amount = parsedLine.maybeAmount.getOrElse(BigDecimal(0))
           val idempotencyId = Generators
@@ -215,6 +231,13 @@ class Ingestor(using
             )
           )
         if unroutedRows.nonEmpty then raiseUnroutedRecordDispute(fileFeed, movementSpecs, unroutedRows.toSeq)
+
+    // Not gated on lastCommittedLine.isDefined like the block above: the cutoff can be crossed
+    // before a single batch ever commits (a bad file fails from line 1), and the dispute still
+    // needs to be raised in that case.
+    if fileFeed.maxParseErrors.exists(cutoff => parseErrorCount > cutoff) then
+      transact(transactor):
+        raiseExcessiveParseErrorsDispute(fileFeed, parseErrorCount, parseErrorSamples.toSeq)
 
     IngestionResult(
       recordCount          = recordCount,
@@ -374,6 +397,38 @@ class Ingestor(using
       category       = DisputeCategory.UnroutedRecord,
       detail         = Some(detail),
       raisedByUserId = None,
+      createdAt      = Some(clock.now),
+      updatedAt      = Some(clock.now)
+    )
+    disputeRepo
+      .insertIfNoOpenDispute(dispute)
+      .foreach: raised =>
+        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
+
+  // Raised once ingestion stops because a file's parse-error count crossed fileFeed.maxParseErrors
+  // (see the .map step in ingestResumable above) — a signal the file has a general parsing problem
+  // (wrong delimiter, bad column mapping, wrong feed pointed at wrong parser config), not just a
+  // few bad rows. Stop-in-place, not all-or-nothing: rows from batches already committed before the
+  // cutoff was crossed stay ledgered — only rows from the point the cutoff was crossed onward are
+  // never parsed/ledgered. Targets the FileFeed for the same reason FileMissing/UnroutedRecord do:
+  // there's no clean single row to blame for "this file is too dirty."
+  private def raiseExcessiveParseErrorsDispute(
+    fileFeed:    FileFeed,
+    errorCount:  Int,
+    samples:     Seq[ParseErrorResult]
+  ): Txn[Unit] =
+    val sampleSummary = samples.map(s => s"line ${s.lineNumber}: ${s.message}").mkString("; ")
+    val detail =
+      s"Ingestion of '${fileFeed.name}' stopped after $errorCount parse error(s) exceeded the " +
+        s"configured cutoff (${fileFeed.maxParseErrors.get})." +
+        (if sampleSummary.nonEmpty then s" Sample error(s): $sampleSummary" else "")
+
+    val dispute = Dispute(
+      referenceId    = fileFeed.id,
+      targetType     = DisputeTarget.FileFeed,
+      category       = DisputeCategory.ExcessiveParseErrors,
+      detail         = Some(detail),
+      raisedByUserId = None, // system-raised, no human actor
       createdAt      = Some(clock.now),
       updatedAt      = Some(clock.now)
     )
