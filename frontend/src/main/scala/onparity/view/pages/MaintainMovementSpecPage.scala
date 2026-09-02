@@ -17,16 +17,25 @@ object MaintainMovementSpecPage:
     case Loading
     case Ready(spec: MovementSpecPayload)
 
-  def apply(outAccountId: String, inAccountId: String, id: String): HtmlElement =
+  // Rendered inside Modal by FundFlowPage (its only caller) — onClose defaults to Nav.back() so
+  // this still works if ever reached directly via its route
+  // (/components/maintain-movement-spec/:outAccountId/:inAccountId/:id).
+  def apply(
+    outAccountId: String,
+    inAccountId:  String,
+    id:           String,
+    onClose:      () => Unit = () => Nav.back()
+  ): HtmlElement =
     AppState.activeFundFlow.now() match
       case None     => div(onMountCallback(_ => Nav.toFundFlows()))
-      case Some(ff) => renderPage(outAccountId, inAccountId, id, ff)
+      case Some(ff) => renderPage(outAccountId, inAccountId, id, ff, onClose)
 
   private def renderPage(
     outAccountId: String,
     inAccountId:  String,
     id:           String,
-    ff:           onparity.common.model.FundFlowPayload
+    ff:           onparity.common.model.FundFlowPayload,
+    onClose:      () => Unit
   ): HtmlElement =
     val ffId      = ff.id.getOrElse("")
     val blank     = MovementSpecPayload(outAccountId = outAccountId, inAccountId = inAccountId)
@@ -44,16 +53,12 @@ object MaintainMovementSpecPage:
         .apiBind(specs => loadState.set(LoadState.Ready(specs.find(_.id.contains(id)).getOrElse(blank)))),
       onMountCallback(_ => if id != "new" then loadBus.emit(())),
       child <-- loadState.signal.map {
-        case LoadState.Loading =>
-          div(
-            cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-center justify-center pt-20 px-4",
-            span(cls := "text-md-on-surface-variant", "Loading...")
-          )
-        case LoadState.Ready(initial) => renderForm(ffId, initial)
+        case LoadState.Loading      => div(cls := "text-md-on-surface-variant", "Loading...")
+        case LoadState.Ready(initial) => renderForm(ffId, initial, onClose)
       }
     )
 
-  private def renderForm(ffId: String, initial: MovementSpecPayload): HtmlElement =
+  private def renderForm(ffId: String, initial: MovementSpecPayload, onClose: () => Unit): HtmlElement =
     val spec      = Var(initial)
     val accounts  = Var(Seq.empty[AccountPayload])
     val fileFeeds = Var(Seq.empty[FileFeedPayload])
@@ -110,12 +115,9 @@ object MaintainMovementSpecPage:
             saveError.set(Some("Please select an Account and a Recon Account"))
             EventStream.empty
       }
-        .apiBind(_ => Nav.back()),
-      cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
-      div(
-        cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Movement Spec"),
-        Form.field("name", "Name", initial.name, v => spec.update(_.copy(name = v))),
+        .apiBind(_ => onClose()),
+      h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Movement Spec"),
+      Form.field("name", "Name", initial.name, v => spec.update(_.copy(name = v))),
         // A movement spec always links exactly one Recon account with one Primary-or-Secondary
         // account. Filtering each dropdown to type-compatible accounts (rather than listing every
         // account in the fund flow) means an invalid combination can't even be selected here — the
@@ -200,14 +202,13 @@ object MaintainMovementSpecPage:
                 }
               )
           },
-        child.maybe <-- saveError.signal.map(
-          _.map(err => div(cls := "text-sm text-red-600 dark:text-red-400 mt-4", err))
-        ),
-        div(
-          cls := "flex justify-end gap-2 mt-6",
-          Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),
-          Buttons.linkButton("Save", Observer[Unit](_ => saveBus.emit(())))
-        )
+      child.maybe <-- saveError.signal.map(
+        _.map(err => div(cls := "text-sm text-red-600 dark:text-red-400 mt-4", err))
+      ),
+      div(
+        cls := "flex justify-end gap-2 mt-6",
+        Buttons.textButton("Cancel", Observer[Unit](_ => onClose())),
+        Buttons.linkButton("Save", Observer[Unit](_ => saveBus.emit(())))
       )
     )
 

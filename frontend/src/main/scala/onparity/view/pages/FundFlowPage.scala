@@ -8,7 +8,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, Card, Form, PageHeader, Pill, RuleWidget, Table}
+import onparity.view.components.{Buttons, Card, Form, Modal, PageHeader, Pill, RuleWidget, Table}
 import upickle.default.*
 
 import scala.collection.mutable
@@ -38,6 +38,13 @@ object FundFlowPage:
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
     val reconcileBus      = EventBus[String]()
     val saveFundFlowBus   = EventBus[Unit]()
+    // Fired when the account/movement-spec modal closes, to pick up whatever it just created or
+    // edited — re-fetches both lists since either could have changed either way.
+    val refreshBus = EventBus[Unit]()
+    val closeModal = () => {
+      state.update(_.copy(editingAccountId = None, editingMovementSpec = None))
+      refreshBus.emit(())
+    }
 
     PageHeader.page(
       saveFundFlowBus.events.flatMapSwitch { _ =>
@@ -71,6 +78,22 @@ object FundFlowPage:
       ApiClient
         .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
         .apiBind(feeds => state.update(_.copy(fileFeeds = feeds))),
+      refreshBus.events.flatMapSwitch { _ =>
+        ApiClient.get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+      }.apiBind(accounts => state.update(_.copy(accounts = accounts))),
+      refreshBus.events.flatMapSwitch { _ =>
+        ApiClient.get[Seq[MovementSpecPayload]](
+          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          SessionStore.token
+        )
+      }.apiBind(specs => state.update(_.copy(movementSpecs = specs))),
+      child.maybe <-- state.signal.map { s =>
+        s.editingAccountId
+          .map(id => Modal(closeModal, MaintainAccountPage(id, closeModal)))
+          .orElse(s.editingMovementSpec.map { case (out, in, id) =>
+            Modal(closeModal, MaintainMovementSpecPage(out, in, id, closeModal))
+          })
+      },
       configureReconBus.events.flatMapSwitch { account =>
         ApiClient
           .get[Seq[ReconciliationSpecPayload]](
@@ -159,8 +182,9 @@ object FundFlowPage:
                   Buttons.linkButton(
                     "New Account",
                     Observer[Unit](_ =>
-                      state.update(_.copy(selectedAccount = None, selectedMovementSpec = None))
-                      Nav.toMaintainAccount(None)
+                      state.update(
+                        _.copy(selectedAccount = None, selectedMovementSpec = None, editingAccountId = Some("new"))
+                      )
                     )
                   )
                 ),
@@ -589,8 +613,7 @@ object FundFlowPage:
     val editBtn = button(
       cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
       onClick --> { _ =>
-        state.update(_.copy(selectedAccount = None))
-        Nav.toMaintainAccount(selected.id)
+        state.update(_.copy(selectedAccount = None, editingAccountId = Some(selected.id.getOrElse("new"))))
       },
       "Edit"
     )
@@ -630,8 +653,7 @@ object FundFlowPage:
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
-            state.update(_.copy(selectedAccount = None))
-            Nav.toMaintainMovementSpec(outAccId, inAccId)
+            state.update(_.copy(selectedAccount = None, editingMovementSpec = Some((outAccId, inAccId, "new"))))
           },
           s"Link to ${target.name}"
         )
@@ -670,8 +692,12 @@ object FundFlowPage:
       button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick --> { _ =>
-          state.update(_.copy(selectedMovementSpec = None))
-          Nav.toMaintainMovementSpec(spec.outAccountId, spec.inAccountId, spec.id.getOrElse("new"))
+          state.update(
+            _.copy(
+              selectedMovementSpec = None,
+              editingMovementSpec  = Some((spec.outAccountId, spec.inAccountId, spec.id.getOrElse("new")))
+            )
+          )
         },
         "Edit Relationship"
       ),
@@ -833,5 +859,10 @@ object FundFlowPage:
     unreconciledCounts:   Map[String, Int]             = Map.empty,
     // Set by the Accounts tab's "Unreconciled Count"/"Unreconciled Balance" links, consumed once
     // by searchMovementsTab to seed and auto-run a pre-filled search — see that function.
-    pendingSearchAccountId: Option[String] = None
+    pendingSearchAccountId: Option[String] = None,
+    // Drive the account/movement-spec edit forms as an in-page Modal instead of a route navigation
+    // (Nav.toMaintainAccount/toMaintainMovementSpec), so the diagram stays mounted underneath
+    // rather than disappearing while the form is open. None = no modal open.
+    editingAccountId:     Option[String]               = None,
+    editingMovementSpec:  Option[(String, String, String)] = None // (outAccountId, inAccountId, id)
   )
