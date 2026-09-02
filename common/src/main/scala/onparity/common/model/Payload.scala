@@ -338,10 +338,11 @@ case class DisputePayload(
 ) derives ReadWriter
 
 case class DisputeCommentPayload(
-  id:        String,
-  body:      Option[String],
-  newStatus: Option[DisputeStatusPayload],
-  createdAt: OffsetDateTime
+  id:                String,
+  body:              Option[String],
+  newStatus:         Option[DisputeStatusPayload],
+  newAssignedToName: Option[String],
+  createdAt:         OffsetDateTime
 ) derives ReadWriter
 
 case class DisputeDetailPayload(
@@ -352,8 +353,9 @@ case class DisputeDetailPayload(
 ) derives ReadWriter
 
 case class AddDisputeCommentRequest(
-  body:      Option[String]               = None,
-  newStatus: Option[DisputeStatusPayload] = None
+  body:                Option[String]               = None,
+  newStatus:           Option[DisputeStatusPayload] = None,
+  newAssignedToUserId: Option[String]                = None
 ) derives ReadWriter
 
 case class MatchRatePayload(

@@ -61,11 +61,12 @@ object Dispute:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class DisputeComment(
-  @Id id:        ID                     = createID(),
-  disputeId:     ID,
-  body:          Option[String]         = None,
-  newStatus:     Option[DisputeStatus]  = None,
-  var createdAt: Option[OffsetDateTime] = None
+  @Id id:                  ID                     = createID(),
+  disputeId:               ID,
+  body:                    Option[String]         = None,
+  newStatus:               Option[DisputeStatus]  = None,
+  newAssignedToUserId:     Option[ID]             = None,
+  var createdAt:           Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object DisputeComment:

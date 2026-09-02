@@ -8,7 +8,8 @@ import onparity.common.model.{
   DisputeDetailPayload,
   DisputeStatusPayload,
   MovementPayload,
-  ReconciliationPayload
+  ReconciliationPayload,
+  UserPayload
 }
 import onparity.http.ApiClient
 import onparity.routing.Nav
@@ -20,7 +21,7 @@ import upickle.default.*
 
 object ExceptionDetailPage:
 
-  case class State(detail: Option[DisputeDetailPayload] = None)
+  case class State(detail: Option[DisputeDetailPayload] = None, assignableUsers: Seq[UserPayload] = Seq.empty)
 
   private val statusOptions: Seq[(String, String)] =
     ("", "No change") +: Seq(
@@ -37,19 +38,21 @@ object ExceptionDetailPage:
     case DisputeStatusPayload.Resolved      => Pill.Tone.Good
 
   // Mirrors the DisputeService.addComment rule server-side: a body is required for a plain comment
-  // (no status change) and for a Resolved transition, so we can reject a bad submission before it
-  // ever reaches the backend rather than surfacing a raw 500/stack trace to the user.
-  private def bodyRequired(newStatus: Option[DisputeStatusPayload]): Boolean = newStatus match
-    case None                                => true
-    case Some(DisputeStatusPayload.Resolved) => true
-    case Some(_)                             => false
+  // (no status change, no reassignment) and for a Resolved transition, so we can reject a bad
+  // submission before it ever reaches the backend rather than surfacing a raw 500/stack trace.
+  private def bodyRequired(newStatus: Option[DisputeStatusPayload], newAssignee: Option[String]): Boolean =
+    (newStatus, newAssignee) match
+      case (None, None)                        => true
+      case (Some(DisputeStatusPayload.Resolved), _) => true
+      case _                                    => false
 
   def apply(id: String): HtmlElement =
     val state           = Var(State())
     val loadBus         = EventBus[Unit]()
-    val submitBus       = EventBus[(Option[DisputeStatusPayload], Option[String])]()
+    val submitBus       = EventBus[(Option[DisputeStatusPayload], Option[String], Option[String])]()
     val assignBus       = EventBus[Unit]()
     val statusVar       = Var("")
+    val assigneeVar     = Var("")
     val bodyVar         = Var("")
     val validationError = Var(Option.empty[String])
 
@@ -58,15 +61,19 @@ object ExceptionDetailPage:
 
     PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
-      submitBus.events.flatMapSwitch { (newStatus, body) =>
+      ApiClient
+        .get[Seq[UserPayload]](HttpPath.url(HttpPath.assignableUsers), SessionStore.token)
+        .apiBind(users => state.update(_.copy(assignableUsers = users))),
+      submitBus.events.flatMapSwitch { (newStatus, newAssignee, body) =>
         ApiClient.post[DisputeDetailPayload, AddDisputeCommentRequest](
           HttpPath.url(s"${HttpPath.dispute}/$id/comments"),
-          AddDisputeCommentRequest(body, newStatus),
+          AddDisputeCommentRequest(body, newStatus, newAssignee),
           SessionStore.token
         )
       }.apiBind { d =>
         state.update(_.copy(detail = Some(d)))
         statusVar.set("")
+        assigneeVar.set("")
         bodyVar.set("")
         validationError.set(None)
       },
@@ -78,8 +85,8 @@ object ExceptionDetailPage:
       onMountCallback(_ => loadBus.emit(())),
       PageHeader.backLink(Observer[Unit](_ => Nav.push("/components/exceptions"))),
       child <-- state.signal.map {
-        case State(None) => div()
-        case State(Some(d)) =>
+        case State(None, _) => div()
+        case State(Some(d), assignableUsers) =>
           div(
             PageHeader.title(s"Dispute — ${d.dispute.category.toString}"),
             div(
@@ -91,7 +98,7 @@ object ExceptionDetailPage:
             targetDetails(d),
             h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
             div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
-            commentForm(statusVar, bodyVar, validationError, submitBus)
+            commentForm(statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
           )
       }
     )
@@ -144,16 +151,23 @@ object ExceptionDetailPage:
     div(
       cls := "border-l-2 border-md-outline pl-3",
       c.newStatus.map(s => Pill(s"→ ${s.toString}", statusTone(s))).getOrElse(div()),
+      c.newAssignedToName
+        .map(name => Pill(s"→ Assigned to $name", Pill.Tone.Accent))
+        .getOrElse(div()),
       c.body.map(b => div(cls := "text-sm mt-1 text-md-on-surface dark:text-gray-200", b)).getOrElse(div()),
       div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mt-1", ViewHelper.formatDateTime(c.createdAt))
     )
 
   private def commentForm(
     statusVar:       Var[String],
+    assigneeVar:     Var[String],
     bodyVar:         Var[String],
     validationError: Var[Option[String]],
-    submitBus:       EventBus[(Option[DisputeStatusPayload], Option[String])]
+    assignableUsers: Seq[UserPayload],
+    submitBus:       EventBus[(Option[DisputeStatusPayload], Option[String], Option[String])]
   ): HtmlElement =
+    val assigneeOptions =
+      ("", "No change") +: assignableUsers.map(u => u.id.getOrElse("") -> s"${u.firstName} ${u.lastName}")
     div(
       cls := "border-t border-md-outline pt-4",
       Form.selectField(
@@ -163,6 +177,15 @@ object ExceptionDetailPage:
         "",
         v =>
           statusVar.set(v)
+          validationError.set(None)
+      ),
+      Form.selectField(
+        "newAssignee",
+        "Assign to",
+        assigneeOptions,
+        "",
+        v =>
+          assigneeVar.set(v)
           validationError.set(None)
       ),
       div(
@@ -183,11 +206,12 @@ object ExceptionDetailPage:
       Buttons.linkButton(
         "Post",
         Observer[Unit](_ =>
-          val newStatus = DisputeStatusPayload.values.find(_.toString == statusVar.now())
-          val body      = Some(bodyVar.now()).filter(_.nonEmpty)
-          if bodyRequired(newStatus) && body.isEmpty then
+          val newStatus   = DisputeStatusPayload.values.find(_.toString == statusVar.now())
+          val newAssignee = Some(assigneeVar.now()).filter(_.nonEmpty)
+          val body        = Some(bodyVar.now()).filter(_.nonEmpty)
+          if bodyRequired(newStatus, newAssignee) && body.isEmpty then
             validationError.set(Some("A comment is required for this change."))
-          else submitBus.emit((newStatus, body))
+          else submitBus.emit((newStatus, newAssignee, body))
         )
       )
     )

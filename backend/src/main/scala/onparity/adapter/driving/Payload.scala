@@ -335,12 +335,13 @@ object Payload:
     case DisputeStatus.Escalated     => DisputeStatusPayload.Escalated
     case DisputeStatus.Resolved      => DisputeStatusPayload.Resolved
 
-  def disputeCommentPayloadFromDomain(c: DisputeComment): DisputeCommentPayload =
+  def disputeCommentPayloadFromDomain(c: DisputeComment, newAssignedToName: Option[String]): DisputeCommentPayload =
     DisputeCommentPayload(
-      id        = c.id.toString,
-      body      = c.body,
-      newStatus = c.newStatus.map(disputeStatusFromDomain),
-      createdAt = c.createdAt.get
+      id                = c.id.toString,
+      body              = c.body,
+      newStatus         = c.newStatus.map(disputeStatusFromDomain),
+      newAssignedToName = newAssignedToName,
+      createdAt         = c.createdAt.get
     )
 
   def reportsSummaryPayloadFromDomain(r: ReportsSummaryReport): ReportsSummaryPayload =

@@ -31,13 +31,13 @@ class DisputeServiceSuite extends munit.FunSuite:
   given jobRepo:    JobRepo    = JobRepoLive()
   given userRepo:   UserRepo   = UserRepoLive()
 
-  private def testUser()(using UserRepo, com.augustnagro.magnum.DbCon): User =
+  private def testUser(role: UserRole = UserRole.Analyst)(using UserRepo, com.augustnagro.magnum.DbCon): User =
     val user = User(
       email        = s"${UUID.randomUUID()}@example.com",
       passwordHash = "hash",
       firstName    = "Test",
       lastName     = "Analyst",
-      role         = UserRole.Analyst
+      role         = role
     )
     userRepo.insert(user)
     user
@@ -289,7 +289,7 @@ class DisputeServiceSuite extends munit.FunSuite:
 
         assertEquals(dispute.raisedByUserId, None)
 
-  test("assign sets assignedToUserId and bumps updatedAt"):
+  test("addComment with newAssignedToUserId sets assignedToUserId, bumps updatedAt, and logs it on the thread"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -302,15 +302,54 @@ class DisputeServiceSuite extends munit.FunSuite:
         val originalUpdatedAt = dispute.updatedAt
 
         clockSvc.addHours(1)
-        val assigned = disputeService.assign(dispute.id, user.id)
+        val comment =
+          disputeService.addComment(dispute.id, body = None, newStatus = None, newAssignedToUserId = Some(user.id))
 
-        assertEquals(assigned.assignedToUserId, Some(user.id))
-        assert(assigned.updatedAt.exists(ua => originalUpdatedAt.exists(oua => ua.isAfter(oua))))
+        assertEquals(comment.newAssignedToUserId, Some(user.id))
 
         val persisted = data.disputeRepo.findById(dispute.id).get
         assertEquals(persisted.assignedToUserId, Some(user.id))
+        assert(persisted.updatedAt.exists(ua => originalUpdatedAt.exists(oua => ua.isAfter(oua))))
 
-  test("assign on a non-existent dispute throws NotFoundError"):
+  test("addComment can assign with a message in the same entry"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val user     = testUser()
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+
+        val comment = disputeService.addComment(
+          dispute.id,
+          body                = Some("please take a look"),
+          newStatus           = None,
+          newAssignedToUserId = Some(user.id)
+        )
+
+        assertEquals(comment.newAssignedToUserId, Some(user.id))
+        assertEquals(comment.body, Some("please take a look"))
+
+  test("addComment rejects assigning a dispute to a Viewer"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val viewer   = testUser(role = UserRole.Viewer)
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+
+        intercept[IllegalArgumentError]:
+          disputeService.addComment(dispute.id, body = None, newStatus = None, newAssignedToUserId = Some(viewer.id))
+
+        val persisted = data.disputeRepo.findById(dispute.id).get
+        assertEquals(persisted.assignedToUserId, None)
+
+  test("addComment with newAssignedToUserId on a non-existent dispute throws NotFoundError"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -319,4 +358,4 @@ class DisputeServiceSuite extends munit.FunSuite:
 
         val user = testUser()
         intercept[NotFoundError]:
-          disputeService.assign(UUID.randomUUID(), user.id)
+          disputeService.addComment(UUID.randomUUID(), body = None, newStatus = None, newAssignedToUserId = Some(user.id))

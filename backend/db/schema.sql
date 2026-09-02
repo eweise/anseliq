@@ -116,11 +116,12 @@ ALTER TABLE recon.dispute
 
 create table recon.dispute_comment
 (
-    id         uuid primary key,
-    dispute_id uuid                                  not null REFERENCES recon.dispute (id) ON DELETE CASCADE,
-    body       text,
-    new_status text,
-    created_at timestamptz default CURRENT_TIMESTAMP not null
+    id                     uuid primary key,
+    dispute_id             uuid                                  not null REFERENCES recon.dispute (id) ON DELETE CASCADE,
+    body                   text,
+    new_status             text,
+    new_assigned_to_user_id uuid REFERENCES recon.app_user (id),
+    created_at             timestamptz default CURRENT_TIMESTAMP not null
 );
 
 CREATE INDEX dispute_comment_dispute_id ON recon.dispute_comment (dispute_id, created_at);

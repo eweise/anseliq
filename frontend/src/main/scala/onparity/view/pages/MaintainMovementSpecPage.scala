@@ -40,10 +40,13 @@ object MaintainMovementSpecPage:
     val ffId      = ff.id.getOrElse("")
     val blank     = MovementSpecPayload(outAccountId = outAccountId, inAccountId = inAccountId)
     val loadState = Var[LoadState](if id == "new" then LoadState.Ready(blank) else LoadState.Loading)
-    val loadBus   = EventBus[Unit]()
 
     div(
-      loadBus.events
+      // Fires directly within the fetch pipeline rather than via onMountCallback + EventBus.emit —
+      // EventBus has no replay buffer, so an emit before flatMapSwitch has actually subscribed is
+      // silently dropped. See MaintainAccountPage's identical fix for the full explanation; this
+      // page has the same shape and the same latent bug once rendered inside a Modal.
+      (if id != "new" then EventStream.fromValue(()) else EventStream.empty)
         .flatMapSwitch(_ =>
           ApiClient.get[Seq[MovementSpecPayload]](
             HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
@@ -51,7 +54,6 @@ object MaintainMovementSpecPage:
           )
         )
         .apiBind(specs => loadState.set(LoadState.Ready(specs.find(_.id.contains(id)).getOrElse(blank)))),
-      onMountCallback(_ => if id != "new" then loadBus.emit(())),
       child <-- loadState.signal.map {
         case LoadState.Loading      => div(cls := "text-md-on-surface-variant", "Loading...")
         case LoadState.Ready(initial) => renderForm(ffId, initial, onClose)

@@ -8,7 +8,6 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, Form}
-import upickle.default.*
 
 object MaintainAccountPage:
 
@@ -27,14 +26,16 @@ object MaintainAccountPage:
     val account        = Var(initial)
     val setNameBus     = EventBus[String]()
     val setAccountType = EventBus[String]()
-    val loadBus        = EventBus[Unit]()
     val saveBus        = EventBus[Unit]()
 
     div(
-      onMountCallback { _ =>
-        if accountId != "new" then loadBus.emit(())
-      },
-      loadBus.events.flatMapSwitch { _ =>
+      // Fires the initial load directly within the same pipeline that consumes it, rather than via
+      // a separate onMountCallback + EventBus.emit: EventBus has no replay buffer, so an emit that
+      // happens before the flatMapSwitch below has actually subscribed is silently dropped. That
+      // race wasn't observable while this rendered as a plain routed page (mount ordering happened
+      // to work out), but became real once it started being constructed inside FundFlowPage's
+      // reactive Modal block. Matches the same pattern searchMovementsTab uses.
+      (if accountId != "new" then EventStream.fromValue(()) else EventStream.empty).flatMapSwitch { _ =>
         ApiClient.get[AccountPayload](HttpPath.url(s"${HttpPath.account}/$accountId"), SessionStore.token)
       }.apiBind { a =>
         account.set(a)

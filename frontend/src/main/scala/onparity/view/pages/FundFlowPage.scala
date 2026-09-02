@@ -8,7 +8,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, Card, Form, Modal, PageHeader, Pill, RuleWidget, Table}
+import onparity.view.components.*
 import upickle.default.*
 
 import scala.collection.mutable
@@ -153,7 +153,7 @@ object FundFlowPage:
               cls := "flex flex-col gap-6",
               div(
                 cls := s"${Card.cls} p-6",
-                h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Fund Flow Settings"),
+                h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Ledger Settings"),
                 div(
                   // items-center rather than items-end: Form.field/numberField each carry their
                   // own mb-5, but the Save button doesn't, so end-aligning would visibly offset
@@ -171,7 +171,7 @@ object FundFlowPage:
                     23,
                     v => ffVar.update(_.copy(dailyCutoffHours = v))
                   ),
-                  Buttons.linkButton("Save Fund Flow", Observer[Unit](_ => saveFundFlowBus.emit(())))
+                  Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveFundFlowBus.emit(())))
                 )
               ),
               div(
@@ -283,36 +283,6 @@ object FundFlowPage:
       label
     )
 
-  case class SearchState(
-    accountId:          String                                   = "",
-    amount:             String                                   = "",
-    movementSpecId:     String                                   = "",
-    properties:         Map[String, String]                      = Map.empty,
-    fileSourceFilename: String                                   = "",
-    unreconciledOnly:   Boolean                                  = false,
-    createdFrom:        String                                   = "",
-    createdTo:          String                                   = "",
-    movementType:       String                                   = "",
-    results:            Option[Seq[MovementSearchResultPayload]] = None,
-    searchError:        Option[String]                           = None
-  )
-
-  private def parseDateStart(dateStr: String): Option[java.time.OffsetDateTime] =
-    if dateStr.isEmpty then None
-    else
-      scala.util
-        .Try(java.time.LocalDate.parse(dateStr).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime)
-        .toOption
-
-  // Exclusive upper bound (the day after the chosen "To" date) so the whole "To" day is included
-  // via `createdAt < createdTo` on the backend, rather than needing a `<=` against a bare date.
-  private def parseDateEndExclusive(dateStr: String): Option[java.time.OffsetDateTime] =
-    if dateStr.isEmpty then None
-    else
-      scala.util
-        .Try(java.time.LocalDate.parse(dateStr).plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime)
-        .toOption
-
   // Kept local to this tab (rebuilt fresh whenever the user switches back to it) rather than
   // folded into the page-level State — none of the other tabs need this data, and it keeps the
   // shared State from growing ten fields that only ever matter here. The one exception is
@@ -390,7 +360,12 @@ object FundFlowPage:
           Form.selectField(
             "searchMovementType",
             "Type",
-            Seq("" -> "Any", "Ingestion" -> "Ingestion", "ManualAdjustment" -> "Manual Adjustment", "Reversal" -> "Reversal"),
+            Seq(
+              ""                 -> "Any",
+              "Ingestion"        -> "Ingestion",
+              "ManualAdjustment" -> "Manual Adjustment",
+              "Reversal"         -> "Reversal"
+            ),
             searchVar.now().movementType,
             v => searchVar.update(_.copy(movementType = v))
           ),
@@ -525,6 +500,22 @@ object FundFlowPage:
       }
     )
 
+  private def parseDateStart(dateStr: String): Option[java.time.OffsetDateTime] =
+    if dateStr.isEmpty then None
+    else
+      scala.util
+        .Try(java.time.LocalDate.parse(dateStr).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime)
+        .toOption
+
+  // Exclusive upper bound (the day after the chosen "To" date) so the whole "To" day is included
+  // via `createdAt < createdTo` on the backend, rather than needing a `<=` against a bare date.
+  private def parseDateEndExclusive(dateStr: String): Option[java.time.OffsetDateTime] =
+    if dateStr.isEmpty then None
+    else
+      scala.util
+        .Try(java.time.LocalDate.parse(dateStr).plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime)
+        .toOption
+
   private def renderDiagram(
     s:                 State,
     ff:                FundFlowPayload,
@@ -647,8 +638,8 @@ object FundFlowPage:
           && (a.accountType == "Recon") != (selected.accountType == "Recon")
       )
       .map { target =>
-        val nonRecon             = if selected.accountType == "Recon" then target else selected
-        val recon                = if selected.accountType == "Recon" then selected else target
+        val nonRecon            = if selected.accountType == "Recon" then target else selected
+        val recon               = if selected.accountType == "Recon" then selected else target
         val (outAccId, inAccId) = ViewHelper.accountLinkFields(nonRecon, recon)
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
@@ -719,27 +710,6 @@ object FundFlowPage:
       )
     )
 
-  // Connects the two facing edges of two boxes, regardless of which one is left/right of the
-  // other — needed because arrows no longer follow a fixed in/out column ordering (see
-  // pointTowardRecon below), so the "from" box can be on either side of the "to" box.
-  private def edgePoints(from: (Int, Int), to: (Int, Int)): (Int, Int, Int, Int) =
-    val (xA, yA) = from
-    val (xB, yB) = to
-    if xA <= xB then (xA + boxW, yA + boxH / 2, xB, yB + boxH / 2)
-    else (xA, yA + boxH / 2, xB + boxW, yB + boxH / 2)
-
-  // The underlying movement direction (out -> in) doesn't match how customers think about a fund
-  // flow: they think of every other account as feeding into (or out of) the Recon account, not in
-  // terms of which side happens to be labeled "in". So arrows are drawn to always point *at*
-  // whichever end is Recon, regardless of whether Recon is that spec's in or out account. Falls
-  // back to the original out -> in direction if neither (or both) side is Recon.
-  private def pointTowardRecon(accounts: Seq[AccountPayload], ms: MovementSpecPayload): (String, String) =
-    val reconIds = accounts.filter(_.accountType == "Recon").flatMap(_.id).toSet
-    if reconIds.contains(ms.outAccountId) && !reconIds.contains(ms.inAccountId) then (ms.inAccountId, ms.outAccountId)
-    else if reconIds.contains(ms.inAccountId) && !reconIds.contains(ms.outAccountId) then
-      (ms.outAccountId, ms.inAccountId)
-    else (ms.outAccountId, ms.inAccountId)
-
   private def buildSvg(
     accounts:      Seq[AccountPayload],
     movementSpecs: Seq[MovementSpecPayload],
@@ -802,6 +772,27 @@ object FundFlowPage:
     sb.append("</svg>")
     sb.toString
 
+  // Connects the two facing edges of two boxes, regardless of which one is left/right of the
+  // other — needed because arrows no longer follow a fixed in/out column ordering (see
+  // pointTowardRecon below), so the "from" box can be on either side of the "to" box.
+  private def edgePoints(from: (Int, Int), to: (Int, Int)): (Int, Int, Int, Int) =
+    val (xA, yA) = from
+    val (xB, yB) = to
+    if xA <= xB then (xA + boxW, yA + boxH / 2, xB, yB + boxH / 2)
+    else (xA, yA + boxH / 2, xB + boxW, yB + boxH / 2)
+
+  // The underlying movement direction (out -> in) doesn't match how customers think about a fund
+  // flow: they think of every other account as feeding into (or out of) the Recon account, not in
+  // terms of which side happens to be labeled "in". So arrows are drawn to always point *at*
+  // whichever end is Recon, regardless of whether Recon is that spec's in or out account. Falls
+  // back to the original out -> in direction if neither (or both) side is Recon.
+  private def pointTowardRecon(accounts: Seq[AccountPayload], ms: MovementSpecPayload): (String, String) =
+    val reconIds = accounts.filter(_.accountType == "Recon").flatMap(_.id).toSet
+    if reconIds.contains(ms.outAccountId) && !reconIds.contains(ms.inAccountId) then (ms.inAccountId, ms.outAccountId)
+    else if reconIds.contains(ms.inAccountId) && !reconIds.contains(ms.outAccountId) then
+      (ms.outAccountId, ms.inAccountId)
+    else (ms.outAccountId, ms.inAccountId)
+
   private def xmlEscape(s: String): String =
     s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -810,7 +801,7 @@ object FundFlowPage:
       div(
         cls := "flex items-center gap-1.5",
         div(styleAttr := s"width:12px;height:12px;border-radius:3px;background:var($colorVar)"),
-        span(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", label)
+        span(cls      := "text-xs text-md-on-surface-variant dark:text-gray-400", label)
       )
     div(
       cls := "flex items-center gap-4 mt-3",
@@ -845,6 +836,20 @@ object FundFlowPage:
     }
     posOf.toMap
 
+  case class SearchState(
+    accountId:          String                                   = "",
+    amount:             String                                   = "",
+    movementSpecId:     String                                   = "",
+    properties:         Map[String, String]                      = Map.empty,
+    fileSourceFilename: String                                   = "",
+    unreconciledOnly:   Boolean                                  = false,
+    createdFrom:        String                                   = "",
+    createdTo:          String                                   = "",
+    movementType:       String                                   = "",
+    results:            Option[Seq[MovementSearchResultPayload]] = None,
+    searchError:        Option[String]                           = None
+  )
+
   enum ReconcileStatus:
     case Idle, InProgress, Success
     case Failed(msg: String)
@@ -863,6 +868,6 @@ object FundFlowPage:
     // Drive the account/movement-spec edit forms as an in-page Modal instead of a route navigation
     // (Nav.toMaintainAccount/toMaintainMovementSpec), so the diagram stays mounted underneath
     // rather than disappearing while the form is open. None = no modal open.
-    editingAccountId:     Option[String]               = None,
-    editingMovementSpec:  Option[(String, String, String)] = None // (outAccountId, inAccountId, id)
+    editingAccountId:    Option[String]                   = None,
+    editingMovementSpec: Option[(String, String, String)] = None // (outAccountId, inAccountId, id)
   )

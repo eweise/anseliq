@@ -11,6 +11,7 @@ class DisputeService(using
   reconRepo:        ReconciliationRepo,
   movementSpecRepo: MovementSpecRepo,
   fileFeedRepo:     FileFeedRepo,
+  userRepo:         UserRepo,
   eventStore:       EventStore,
   clock:            ClockService
 ):
@@ -56,24 +57,28 @@ class DisputeService(using
     eventStore.publishEvent(DisputeRaised(disputeID = dispute.id))
     dispute
 
-  // Self-assign only for now — no reassignment-to-someone-else action exists yet, and any
-  // authenticated user may assign a dispute to themselves (no role check here; that would be the
-  // route's job if this ever needs one, matching how this service never self-authorizes elsewhere).
-  def assign(disputeId: ID, userId: ID): Txn[Dispute] =
-    val dispute = disputeRepo.findById(disputeId).ErrIfNotFound("dispute", disputeId)
-    dispute.assignedToUserId = Some(userId)
-    dispute.updatedAt        = Some(clock.now)
-    disputeRepo.update(dispute)
-    dispute
-
-  def addComment(disputeId: ID, body: Option[String], newStatus: Option[DisputeStatus]): Txn[DisputeComment] =
+  def addComment(
+    disputeId:           ID,
+    body:                Option[String],
+    newStatus:           Option[DisputeStatus],
+    newAssignedToUserId: Option[ID] = None
+  ): Txn[DisputeComment] =
     val dispute = disputeRepo.findById(disputeId).ErrIfNotFound("dispute", disputeId)
 
-    val bodyRequired = newStatus match
-      case None                         => true
-      case Some(DisputeStatus.Resolved) => true
-      case Some(_)                      => false
+    val bodyRequired = (newStatus, newAssignedToUserId) match
+      case (None, None)                    => true // plain comment, must say something
+      case (Some(DisputeStatus.Resolved), _) => true
+      case _                                => false
     if bodyRequired && body.forall(_.isBlank) then throw IllegalArgumentError("body", "required for this entry")
+
+    newAssignedToUserId.foreach { userId =>
+      val assignee = userRepo.findById(userId).ErrIfNotFound("user", userId)
+      if assignee.role == UserRole.Viewer then
+        throw IllegalArgumentError("newAssignedToUserId", "cannot assign a dispute to a Viewer")
+      dispute.assignedToUserId = Some(userId)
+      dispute.updatedAt        = Some(clock.now)
+      disputeRepo.update(dispute)
+    }
 
     newStatus.foreach { s =>
       dispute.status    = s
@@ -82,8 +87,17 @@ class DisputeService(using
       eventStore.publishEvent(DisputeStatusChanged(disputeID = dispute.id, newStatus = s.toString))
     }
 
-    val comment = commentRepo.insertReturning(
-      DisputeComment(disputeId = disputeId, body = body, newStatus = newStatus, createdAt = Some(clock.now))
+    // insert, not insertReturning: same pgjdbc nullable-uuid readback quirk documented on
+    // DisputeService.raise above — newAssignedToUserId is a second nullable-UUID field on this
+    // row. Every field is already fully populated by application code, so returning it directly
+    // is exactly equivalent to a successful readback.
+    val comment = DisputeComment(
+      disputeId           = disputeId,
+      body                = body,
+      newStatus           = newStatus,
+      newAssignedToUserId = newAssignedToUserId,
+      createdAt           = Some(clock.now)
     )
+    commentRepo.insert(comment)
     eventStore.publishEvent(DisputeCommentAdded(disputeID = disputeId, commentID = comment.id))
     comment

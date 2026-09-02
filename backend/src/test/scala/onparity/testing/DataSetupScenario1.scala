@@ -4,7 +4,7 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.*
 import onparity.common.model.*
-import onparity.common.model.ReconRelationship.OneToMany
+import onparity.common.model.ReconRelationship.{OneToMany, OneToOne}
 import onparity.domain.port.driven.*
 import onparity.domain.service.*
 
@@ -118,7 +118,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           accountId         = reconAccount.id,
           inMovementSpecId  = journalToRecon.id.get,
           outMovementSpecId = reconToBank.id.get,
-          relationship      = OneToMany,
+          relationship      = OneToOne,
           rule = StringAttributeMatchRule(
             inKey  = StringAttribute(key = "transaction_id"),
             outKey = StringAttribute(key = "txn_id")

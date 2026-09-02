@@ -55,10 +55,10 @@ class AppEnv(
   given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
   given reconciler:         InMemoryReconciler     = InMemoryReconciler()
   given manualReconciler:   ManualReconciler       = ManualReconciler()
+  given userRepo:           UserRepo               = UserRepoLive()
   given disputeService:     DisputeService         = DisputeService()
   given dailySnapshotRepo:  DailySnapshotRepo      = DailySnapshotRepoLive()
   given reportingService:   ReportingService       = ReportingService()
-  given userRepo:           UserRepo               = UserRepoLive()
   given userService:        UserService            = UserService()
   given jwtSecret:          JwtSecret              = JwtSecret(config.getString("jwt.secret"))
   given authService:        AuthService            = AuthService()
@@ -91,7 +91,7 @@ class AppEnv(
        */
       fork:
         try
-          jobManager.pollForJob(JobType.Reconciliation, 5) { job =>
+          jobManager.pollForJob(JobType.Reconciliation, 1) { job =>
             LogContext.withContext("job" -> "reconciliation", "job_id" -> job.id):
               try
                 val account = transact(Transactor(dataSource = dataSource)):
@@ -125,7 +125,7 @@ class AppEnv(
        */
       fork:
         try
-          eventStore.consumeEvent(classOf[NewFileDetected], 5, 10): event =>
+          eventStore.consumeEvent(classOf[NewFileDetected], 1, 10): event =>
             logger.info(s"found NewFileDetected event: $event")
             val fileInventory = fileInventoryRepo
               .findById(event.fileInventoryID)
@@ -141,7 +141,7 @@ class AppEnv(
        */
       fork:
         try
-          jobManager.pollForJob(JobType.Ingestion, 5): job =>
+          jobManager.pollForJob(JobType.Ingestion, 1): job =>
             try
               val results = ingestor.ingestFileFromInventory(job.referenceId)
               transact(Transactor(dataSource = dataSource)):
@@ -165,7 +165,7 @@ class AppEnv(
        * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs
        */
       fork:
-        eventStore.consumeEvent(classOf[MoneyMovementsIngested], 5, 10) { event =>
+        eventStore.consumeEvent(classOf[MoneyMovementsIngested], 1, 10) { event =>
           logger.info(s"found ingestion job $event")
           val movementSpec = movementSpecRepo
             .findById(event.movementSpecID)

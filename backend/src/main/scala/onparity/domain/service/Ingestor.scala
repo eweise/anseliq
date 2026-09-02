@@ -432,14 +432,17 @@ class Ingestor(using
           DisputeStatusChanged(disputeID = dispute.id, newStatus = DisputeStatus.Resolved.toString)
         )
 
-        val comment = disputeCommentRepo.insertReturning(
-          DisputeComment(
-            disputeId = dispute.id,
-            body      = Some(s"Auto-resolved: a new file was detected for '${fileFeed.name}'."),
-            newStatus = Some(DisputeStatus.Resolved),
-            createdAt = Some(clock.now)
-          )
+        // insert, not insertReturning: a pgjdbc quirk misreads a nullable uuid column on readback
+        // (see DisputeService.raise's own comment) — DisputeComment now has one
+        // (newAssignedToUserId). Every field here is already fully populated, so returning it
+        // directly is exactly equivalent to a successful readback.
+        val comment = DisputeComment(
+          disputeId = dispute.id,
+          body      = Some(s"Auto-resolved: a new file was detected for '${fileFeed.name}'."),
+          newStatus = Some(DisputeStatus.Resolved),
+          createdAt = Some(clock.now)
         )
+        disputeCommentRepo.insert(comment)
         eventStore.publishEvent(DisputeCommentAdded(disputeID = dispute.id, commentID = comment.id))
 
   def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(

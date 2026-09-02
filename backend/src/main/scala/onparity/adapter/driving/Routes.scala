@@ -48,13 +48,12 @@ class App(using
 ) extends cask.MainRoutes,
       StrictLogging:
 
-  override def port: Int = sys.env.get("CASK_PORT").map(_.toInt).getOrElse(8080)
-
-  val prefixPath = "/api/v1"
-
+  val prefixPath                 = "/api/v1"
   val pingPath                   = s"$prefixPath / scala"
   val subscribeServerMessagePath = s"$prefixPath / subscribe"
   val transactor                 = Transactor(dataSource)
+
+  override def port: Int = sys.env.get("CASK_PORT").map(_.toInt).getOrElse(8080)
 
   // authDecorator must come after corsDecorator: a CORS preflight (OPTIONS) request is
   // short-circuited by corsDecorator before it ever reaches authDecorator, so preflight requests
@@ -95,9 +94,9 @@ class App(using
   @cask.route(s"${HttpPath.fundFlow}/:id/summary", methods = HttpCmd.GET)
   def getFundFlowMainView(id: String) =
     transact(transactor):
-      val fundFlowId    = UUID.fromString(id)
-      val fundFlow      = fundFlowConfigRepo.findById(fundFlowId).ErrIfNotFound("fund flow", fundFlowId)
-      val accounts = accountRepo.findByFundFlow(fundFlowId)
+      val fundFlowId = UUID.fromString(id)
+      val fundFlow   = fundFlowConfigRepo.findById(fundFlowId).ErrIfNotFound("fund flow", fundFlowId)
+      val accounts   = accountRepo.findByFundFlow(fundFlowId)
 
       val accountSummaryViews = accounts.map(account =>
         val isReconAccount    = account.accountType == AccountType.Recon
@@ -126,6 +125,14 @@ class App(using
     val payload = read[FundFlowPayload](request.text())
     transact(transactor):
       write(fundFlowOperations.updateFundFlow(payload))
+
+  // methods = Seq("get"), not HttpCmd.GET: updateAccount (PUT, below) shares this same path and
+  // already registers "options" there via HttpCmd.PUT — cask allows only one "options" registration
+  // per path, same reasoning as listUsers/createUser further down.
+  @cask.route(s"${HttpPath.account}/:id", methods = Seq("get"))
+  def getAccount(id: String, request: cask.Request): String =
+    transact(transactor):
+      write(accountRepo.findById(UUID.fromString(id)).map(Payload.accountPayloadFromDomain))
 
   @cask.route(s"${HttpPath.account}", methods = HttpCmd.POST)
   def createAccount(request: cask.Request): String =
@@ -197,14 +204,21 @@ class App(using
         case Right(token) => write(LoginSuccess(accessToken = token, refreshToken = ""))
         case Left(msg)    => throw UnauthorizedError(msg)
 
-  private def requireAdmin(currentUser: JwtHelper.UserClaim): Unit =
-    if currentUser.role != UserRole.Admin.toString then throw ForbiddenError("Admin role required")
-
   @cask.route(HttpPath.users, methods = HttpCmd.GET)
   def listUsers()(currentUser: JwtHelper.UserClaim): String =
     requireAdmin(currentUser)
     transact(transactor):
       write(userService.listUsers().map(Payload.userPayloadFromDomain))
+
+  // Unlike listUsers above, any authenticated user can call this — it backs the dispute assignment
+  // picker on the Exceptions page, not user administration. Viewers are excluded: they're read-only
+  // by design, so a dispute can never be handed to one.
+  @cask.route(HttpPath.assignableUsers, methods = HttpCmd.GET)
+  def listAssignableUsers()(currentUser: JwtHelper.UserClaim): String =
+    transact(transactor):
+      write(
+        userService.listUsers().filter(u => u.active && u.role != UserRole.Viewer).map(Payload.userPayloadFromDomain)
+      )
 
   // methods = Seq("post"), not HttpCmd.POST: listUsers (above) already registers "options" at this
   // exact path (HttpCmd.GET includes it too, for CORS preflight) — cask errors on two endpoints
@@ -244,6 +258,9 @@ class App(using
     transact(transactor):
       userService.resetPassword(UUID.fromString(id), payload.newPassword)
     write("ok")
+
+  private def requireAdmin(currentUser: JwtHelper.UserClaim): Unit =
+    if currentUser.role != UserRole.Admin.toString then throw ForbiddenError("Admin role required")
 
   // FileFeed — owns "where the file comes from and how to parse it"; a MovementSpec routes off
   // one of these to claim the rows for one account pair. Not scoped to a fund flow (a feed has no
@@ -426,32 +443,11 @@ class App(using
       disputeService.addComment(
         UUID.fromString(id),
         payload.body,
-        payload.newStatus.map(Payload.disputeStatusToDomain)
+        payload.newStatus.map(Payload.disputeStatusToDomain),
+        payload.newAssignedToUserId.map(UUID.fromString)
       )
       val dispute = disputeRepo.findById(UUID.fromString(id)).ErrIfNotFound("dispute", UUID.fromString(id))
       write(disputeDetail(dispute))
-
-  // Self-assign only — see DisputeService.assign's own doc. No admin gate: any authenticated user
-  // may assign a dispute to themselves.
-  @cask.route(s"${HttpPath.dispute}/:id/assign", methods = HttpCmd.POST)
-  def assignDisputeToMe(id: String)(currentUser: JwtHelper.UserClaim): String =
-    transact(transactor):
-      val dispute = disputeService.assign(UUID.fromString(id), UUID.fromString(currentUser.userId))
-      write(disputeDetail(dispute))
-
-  private def userDisplay(userId: Option[UUID]): Txn[Option[String]] =
-    userId.flatMap(id => userRepo.findById(id)).map(u => s"${u.firstName} ${u.lastName}")
-
-  private def disputePayloadWithNames(dispute: Dispute): Txn[DisputePayload] =
-    val (accountId, accountName, referenceLabel) = disputeContext(dispute)
-    Payload.disputePayloadFromDomain(
-      dispute,
-      accountId,
-      accountName,
-      referenceLabel,
-      raisedByName   = userDisplay(dispute.raisedByUserId),
-      assignedToName = userDisplay(dispute.assignedToUserId)
-    )
 
   private def disputeDetail(dispute: Dispute): Txn[DisputeDetailPayload] =
     val disputePayload = disputePayloadWithNames(dispute)
@@ -465,8 +461,21 @@ class App(using
       case DisputeTarget.Movement       => None
       case DisputeTarget.MovementSpec   => None
       case DisputeTarget.FileFeed       => None
-    val comments = disputeCommentRepo.findByDisputeId(dispute.id).map(Payload.disputeCommentPayloadFromDomain)
+    val comments = disputeCommentRepo
+      .findByDisputeId(dispute.id)
+      .map(c => Payload.disputeCommentPayloadFromDomain(c, userDisplay(c.newAssignedToUserId)))
     DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments)
+
+  private def disputePayloadWithNames(dispute: Dispute): Txn[DisputePayload] =
+    val (accountId, accountName, referenceLabel) = disputeContext(dispute)
+    Payload.disputePayloadFromDomain(
+      dispute,
+      accountId,
+      accountName,
+      referenceLabel,
+      raisedByName   = userDisplay(dispute.raisedByUserId),
+      assignedToName = userDisplay(dispute.assignedToUserId)
+    )
 
   private def disputeContext(dispute: Dispute): Txn[(String, String, String)] =
     dispute.targetType match
@@ -494,6 +503,24 @@ class App(using
         // blank rather than picking one arbitrarily.
         val feed = fileFeedRepo.findById(dispute.referenceId).ErrIfNotFound("file feed", dispute.referenceId)
         ("", feed.name, feed.name)
+
+  private def userDisplay(userId: Option[UUID]): Txn[Option[String]] =
+    userId.flatMap(id => userRepo.findById(id)).map(u => s"${u.firstName} ${u.lastName}")
+
+  // Quick "assign to me" shortcut — goes through the same addComment path as any other assignment
+  // (so it's still recorded on the thread and still subject to the Viewer role check), just with no
+  // message and the current user as the target.
+  @cask.route(s"${HttpPath.dispute}/:id/assign", methods = HttpCmd.POST)
+  def assignDisputeToMe(id: String)(currentUser: JwtHelper.UserClaim): String =
+    transact(transactor):
+      disputeService.addComment(
+        UUID.fromString(id),
+        body                = None,
+        newStatus           = None,
+        newAssignedToUserId = Some(UUID.fromString(currentUser.userId))
+      )
+      val dispute = disputeRepo.findById(UUID.fromString(id)).ErrIfNotFound("dispute", UUID.fromString(id))
+      write(disputeDetail(dispute))
 
   // Reports
   @cask.route(s"${HttpPath.reports}/summary", methods = HttpCmd.GET)
@@ -566,22 +593,6 @@ class App(using
     transact(transactor):
       fundFlowOperations.deleteReconSpec(id)
     write("deleted")
-
-  @cask.get("/account/:id")
-  def account(fundFlowName: String, accountIdStr: String): String =
-    transact(transactor):
-      val accountID = Try {
-        UUID.fromString(accountIdStr)
-      }.getOrElse(
-        throw new Exception("bad uuid")
-      )
-
-      val account = accountRepo
-        .findById(accountID)
-        .getOrElse:
-          throw Exception("not found") // todo need proper http errors
-
-      write(Payload.accountPayloadFromDomain(account))
 
   @cask.get("/account/:id/movements")
   def movements(fundFlowName: String, accountIdStr: String): String =

@@ -8,6 +8,7 @@ object HttpPath:
   val prefix          = "/api/v1"
   val login           = s"$prefix/login"
   val users           = s"$prefix/users"
+  val assignableUsers = s"$prefix/users/assignable"
   val fundFlows       = s"$prefix/fund-flows"
   val fundFlow        = s"$prefix/fund-flow"
   val accounts        = s"$prefix/accounts"
