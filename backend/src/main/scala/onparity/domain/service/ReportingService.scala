@@ -34,17 +34,41 @@ class ReportingService(using
       aging      = agingBuckets(reconAccounts)
     )
 
-  private def matchRates(reconAccounts: Vector[Account]): Seq[MatchRateReport] =
+  private def matchRates(reconAccounts: Vector[Account]): Txn[Seq[MatchRateReport]] =
     reconAccounts.map { a =>
-      MatchRateReport(a.id, a.name, a.balance, a.reconciledBalance, matchRatePercent(a.balance, a.reconciledBalance))
+      val total        = movementRepo.countByAccount(a.id)
+      val unreconciled = movementRepo.countUnreconciledByAccount(a.id)
+      val reconciled   = total - unreconciled
+      MatchRateReport(
+        accountId               = a.id,
+        accountName             = a.name,
+        balance                 = a.balance,
+        reconciledBalance       = a.reconciledBalance,
+        balanceCoveragePercent  = balanceCoveragePercent(a.balance, a.reconciledBalance),
+        reconciledMovementCount = reconciled,
+        totalMovementCount      = total,
+        matchRatePercent        = movementMatchRatePercent(reconciled, total)
+      )
     }
 
-  private def matchRatePercent(balance: Money, reconciledBalance: Money): Option[BigDecimal] =
+  // reconciledBalance/balance*100 — a $ coverage ratio, not a rate of anything. balance is a
+  // running net position that shrinks toward zero as things settle while reconciledBalance only
+  // ever grows, so this can legitimately exceed 100%.
+  private def balanceCoveragePercent(balance: Money, reconciledBalance: Money): Option[BigDecimal] =
     if balance.signum == 0 then None
     else
       val ratio = BigDecimal(
         reconciledBalance.bigDecimal.divide(balance.bigDecimal, 10, java.math.RoundingMode.HALF_UP)
       )
+      Some((ratio * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
+
+  // The real match rate: how many of an account's movements have actually been reconciled, as a
+  // true 0-100% ratio — "reconciled" = reconciliation_id IS NOT NULL, same definition used
+  // everywhere else in the codebase (e.g. movement search's `reconciled` flag).
+  private def movementMatchRatePercent(reconciled: Int, total: Int): Option[BigDecimal] =
+    if total == 0 then None
+    else
+      val ratio = BigDecimal(reconciled) / BigDecimal(total)
       Some((ratio * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
 
   private def exceptionBreakdown(fundFlowId: Option[ID], accountIdsInScope: Set[ID]): Txn[ExceptionBreakdownReport] =
@@ -129,11 +153,14 @@ class ReportingService(using
   // since ID/UUID has no upickle ReadWriter in this codebase) but stays in the domain layer rather
   // than reaching into adapter/driving's Payload conversions.
   private case class MatchRateSnapshot(
-    accountId:         String,
-    accountName:       String,
-    balance:           Money,
-    reconciledBalance: Money,
-    matchRatePercent:  Option[BigDecimal]
+    accountId:               String,
+    accountName:             String,
+    balance:                 Money,
+    reconciledBalance:       Money,
+    balanceCoveragePercent:  Option[BigDecimal],
+    reconciledMovementCount: Int,
+    totalMovementCount:      Int,
+    matchRatePercent:        Option[BigDecimal]
   ) derives upickle.default.ReadWriter
 
   /**
@@ -158,10 +185,18 @@ class ReportingService(using
 
     for ff <- dueFundFlows do
       val report = summary(Some(ff.id))
-      val rated  = report.matchRates.flatMap(m => m.matchRatePercent.map(pct => pct -> m))
-      val avgMatchRate =
+      val rated  = report.matchRates.flatMap(m => m.balanceCoveragePercent.map(pct => pct -> m))
+      val avgBalanceCoverage =
         if rated.isEmpty then None
         else Some((rated.map(_._1).sum / rated.size).setScale(2, BigDecimal.RoundingMode.HALF_UP))
+      // Ratio of sums, not an average of per-account percentages — the correct way to combine
+      // counts across accounts (an account with 1000 movements shouldn't count the same as one
+      // with 2 when computing the fund flow's overall match rate).
+      val totalReconciled = report.matchRates.map(_.reconciledMovementCount).sum
+      val totalMovements  = report.matchRates.map(_.totalMovementCount).sum
+      val avgMatchRate =
+        if totalMovements == 0 then None
+        else Some((BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
       val agingByBucket = report.aging.buckets.toMap
 
       dailySnapshotRepo.upsert(
@@ -170,19 +205,31 @@ class ReportingService(using
           snapshotDate = today,
           matchRatesJson = upickle.write(
             report.matchRates.map(m =>
-              MatchRateSnapshot(m.accountId.toString, m.accountName, m.balance, m.reconciledBalance, m.matchRatePercent)
+              MatchRateSnapshot(
+                m.accountId.toString,
+                m.accountName,
+                m.balance,
+                m.reconciledBalance,
+                m.balanceCoveragePercent,
+                m.reconciledMovementCount,
+                m.totalMovementCount,
+                m.matchRatePercent
+              )
             )
           ),
-          avgMatchRatePercent      = avgMatchRate,
-          ratedAccountCount        = rated.size,
-          exceptionsByCategoryJson = upickle.write(report.exceptions.byCategory),
-          exceptionsByStatusJson   = upickle.write(report.exceptions.byStatus),
-          openExceptionCount       = report.exceptions.byStatus.values.sum,
-          agingZeroToThree         = agingByBucket.getOrElse("0-3", 0),
-          agingFourToSeven         = agingByBucket.getOrElse("4-7", 0),
-          agingEightToFourteen     = agingByBucket.getOrElse("8-14", 0),
-          agingFifteenPlus         = agingByBucket.getOrElse("15+", 0),
-          overdueCount             = report.aging.overdueCount
+          avgBalanceCoveragePercent = avgBalanceCoverage,
+          avgMatchRatePercent       = avgMatchRate,
+          ratedAccountCount         = rated.size,
+          reconciledMovementCount   = totalReconciled,
+          totalMovementCount        = totalMovements,
+          exceptionsByCategoryJson  = upickle.write(report.exceptions.byCategory),
+          exceptionsByStatusJson    = upickle.write(report.exceptions.byStatus),
+          openExceptionCount        = report.exceptions.byStatus.values.sum,
+          agingZeroToThree          = agingByBucket.getOrElse("0-3", 0),
+          agingFourToSeven          = agingByBucket.getOrElse("4-7", 0),
+          agingEightToFourteen      = agingByBucket.getOrElse("8-14", 0),
+          agingFifteenPlus          = agingByBucket.getOrElse("15+", 0),
+          overdueCount              = report.aging.overdueCount
         )
       )
 
@@ -190,9 +237,10 @@ class ReportingService(using
 
   /**
    * Reads back the last `days` days of stored snapshots. When fundFlowId is None, aggregates across
-   * every fund flow's snapshot for each date: counts sum, and avgMatchRatePercent is a weighted
+   * every fund flow's snapshot for each date: counts sum, avgBalanceCoveragePercent is a weighted
    * average (weighted by each fund flow's ratedAccountCount that day) — equivalent to averaging
-   * matchRatePercent over every rated account across all fund flows.
+   * balanceCoveragePercent over every rated account across all fund flows — and avgMatchRatePercent
+   * is a ratio of summed reconciled/total movement counts across all fund flows.
    */
   def trend(fundFlowId: Option[ID], days: Int = 30): Txn[TrendReport] =
     val today = clock.now.toLocalDate
@@ -209,18 +257,20 @@ class ReportingService(using
 object ReportingService:
 
   // Pure, DB-free so it's cheap to unit test the weighted-average math directly. Groups arbitrary
-  // (possibly multi-fund-flow) snapshot rows by date, summing the count fields and weighted-averaging
-  // avgMatchRatePercent by ratedAccountCount — equivalent to averaging matchRatePercent over every
-  // rated account across all snapshotted fund flows for that date.
+  // (possibly multi-fund-flow) snapshot rows by date, summing the count fields, weighted-averaging
+  // avgBalanceCoveragePercent by ratedAccountCount (equivalent to averaging balanceCoveragePercent
+  // over every rated account across all snapshotted fund flows for that date), and deriving
+  // avgMatchRatePercent as a ratio of summed reconciledMovementCount/totalMovementCount (not a
+  // weighted average of percentages — the correct way to combine counts).
   private[service] def aggregateSnapshotsByDate(rows: Seq[DailySnapshot]): Seq[TrendPoint] =
     rows
       .groupBy(_.snapshotDate)
       .toSeq
       .sortBy(_._1)
       .map { case (date, dayRows) =>
-        val weightedRated   = dayRows.flatMap(r => r.avgMatchRatePercent.map(pct => pct -> r.ratedAccountCount))
+        val weightedRated   = dayRows.flatMap(r => r.avgBalanceCoveragePercent.map(pct => pct -> r.ratedAccountCount))
         val totalRatedCount = weightedRated.map(_._2).sum
-        val avgMatchRate =
+        val avgBalanceCoverage =
           if totalRatedCount == 0 then None
           else
             Some(
@@ -228,15 +278,22 @@ object ReportingService:
                 .setScale(2, BigDecimal.RoundingMode.HALF_UP)
             )
 
+        val totalReconciled = dayRows.map(_.reconciledMovementCount).sum
+        val totalMovements  = dayRows.map(_.totalMovementCount).sum
+        val avgMatchRate =
+          if totalMovements == 0 then None
+          else Some((BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
+
         val byCategory = dayRows
           .flatMap(r => upickle.read[Map[String, Int]](r.exceptionsByCategoryJson))
           .groupMapReduce(_._1)(_._2)(_ + _)
 
         TrendPoint(
-          date                     = date,
-          avgMatchRatePercent      = avgMatchRate,
-          openExceptionCount       = dayRows.map(_.openExceptionCount).sum,
-          openExceptionsByCategory = byCategory,
+          date                      = date,
+          avgBalanceCoveragePercent = avgBalanceCoverage,
+          avgMatchRatePercent       = avgMatchRate,
+          openExceptionCount        = dayRows.map(_.openExceptionCount).sum,
+          openExceptionsByCategory  = byCategory,
           unreconciledBacklogCount =
             dayRows.map(r => r.agingZeroToThree + r.agingFourToSeven + r.agingEightToFourteen + r.agingFifteenPlus).sum,
           overdueCount = dayRows.map(_.overdueCount).sum

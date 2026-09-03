@@ -17,7 +17,7 @@ class DailySnapshotRepoLive extends Repo[DailySnapshot, DailySnapshot, UUID] wit
       VALUES ($snapshot)
       ON CONFLICT (fund_flow_id, snapshot_date) DO UPDATE SET
         match_rates_json               = EXCLUDED.match_rates_json,
-        avg_match_rate_percent         = EXCLUDED.avg_match_rate_percent,
+        avg_balance_coverage_percent   = EXCLUDED.avg_balance_coverage_percent,
         rated_account_count            = EXCLUDED.rated_account_count,
         exceptions_by_category_json    = EXCLUDED.exceptions_by_category_json,
         exceptions_by_status_json      = EXCLUDED.exceptions_by_status_json,
@@ -27,6 +27,9 @@ class DailySnapshotRepoLive extends Repo[DailySnapshot, DailySnapshot, UUID] wit
         aging_eight_to_fourteen        = EXCLUDED.aging_eight_to_fourteen,
         aging_fifteen_plus             = EXCLUDED.aging_fifteen_plus,
         overdue_count                  = EXCLUDED.overdue_count,
+        avg_match_rate_percent         = EXCLUDED.avg_match_rate_percent,
+        reconciled_movement_count      = EXCLUDED.reconciled_movement_count,
+        total_movement_count           = EXCLUDED.total_movement_count,
         updated_at                     = now()
     """.update.run()
 

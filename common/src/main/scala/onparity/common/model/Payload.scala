@@ -359,11 +359,16 @@ case class AddDisputeCommentRequest(
 ) derives ReadWriter
 
 case class MatchRatePayload(
-  accountId:         String,
-  accountName:       String,
-  balance:           Money,
-  reconciledBalance: Money,
-  matchRatePercent:  Option[BigDecimal]
+  accountId:               String,
+  accountName:             String,
+  balance:                 Money,
+  reconciledBalance:       Money,
+  // reconciledBalance/balance*100 — a $ coverage ratio, not a rate; can exceed 100%.
+  balanceCoveragePercent:  Option[BigDecimal],
+  reconciledMovementCount: Int,
+  totalMovementCount:      Int,
+  // The real match rate: reconciledMovementCount/totalMovementCount*100, a true 0-100% ratio.
+  matchRatePercent:        Option[BigDecimal]
 ) derives ReadWriter
 
 case class ExceptionBreakdownPayload(
@@ -396,12 +401,13 @@ case class UnreconciledMovementPayload(
 ) derives ReadWriter
 
 case class TrendPointPayload(
-  date:                     String, // ISO-8601 (yyyy-MM-dd)
-  avgMatchRatePercent:      Option[BigDecimal],
-  openExceptionCount:       Int,
-  openExceptionsByCategory: Map[String, Int],
-  unreconciledBacklogCount: Int,
-  overdueCount:             Int
+  date:                      String, // ISO-8601 (yyyy-MM-dd)
+  avgBalanceCoveragePercent: Option[BigDecimal],
+  avgMatchRatePercent:       Option[BigDecimal],
+  openExceptionCount:        Int,
+  openExceptionsByCategory:  Map[String, Int],
+  unreconciledBacklogCount:  Int,
+  overdueCount:              Int
 ) derives ReadWriter
 
 case class TrendReportPayload(

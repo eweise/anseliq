@@ -72,24 +72,29 @@ object ReportsPage:
     div(
       cls := "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
       matchRateCard(summary, trend),
+      balanceCoverageCard(summary, trend),
       exceptionCard(summary, trend),
       agingCard(summary, trend)
     )
 
+  // The real match rate: reconciledMovementCount/totalMovementCount*100 per account, a true 0-100%
+  // ratio. Accounts with no movements at all are excluded from both the average and the chart —
+  // there's nothing to rate yet, not a 0%.
   private def matchRateCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
     val rated    = summary.matchRates.filter(_.matchRatePercent.isDefined)
     val excluded = summary.matchRates.filterNot(_.matchRatePercent.isDefined)
-    val avg      = if rated.isEmpty then None else Some(rated.flatMap(_.matchRatePercent).sum / rated.size)
+    val totalReconciled = rated.map(_.reconciledMovementCount).sum
+    val totalMovements  = rated.map(_.totalMovementCount).sum
 
     div(
       cls := s"${Card.cls} p-4",
       h3(cls := "font-medium mb-1 text-md-on-surface dark:text-white", "Match rate"),
       div(
         cls := "text-sm text-md-on-surface-variant dark:text-gray-400 mb-3",
-        avg match
-          case Some(a) =>
-            s"${a.setScale(1, BigDecimal.RoundingMode.HALF_UP)}% reconciled across ${rated.size} account(s)"
-          case None => "No reconciling accounts with a balance to measure"
+        if rated.isEmpty then "No accounts with movements to measure"
+        else
+          val pct = BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100
+          s"${pct.setScale(1, BigDecimal.RoundingMode.HALF_UP)}% matched ($totalReconciled of $totalMovements movements)"
       ),
       ChartCanvas(
         "bar",
@@ -99,13 +104,52 @@ object ReportsPage:
       if excluded.nonEmpty then
         div(
           cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mt-2",
-          s"Excluded (zero balance): ${excluded.map(_.accountName).mkString(", ")}"
+          s"Excluded (no movements): ${excluded.map(_.accountName).mkString(", ")}"
         )
       else div(),
       trendChart(
         "Match rate over time",
         trend.map(t =>
           t.points.filter(_.avgMatchRatePercent.isDefined).map(p => p.date -> p.avgMatchRatePercent.get.toDouble)
+        )
+      )
+    )
+
+  // reconciledBalance/balance*100 — a $ coverage ratio, not a rate of anything (can exceed 100%
+  // since balance is a running net position that shrinks as things settle, while reconciledBalance
+  // only ever grows). Kept as a separate metric from the real match rate above.
+  private def balanceCoverageCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
+    val rated    = summary.matchRates.filter(_.balanceCoveragePercent.isDefined)
+    val excluded = summary.matchRates.filterNot(_.balanceCoveragePercent.isDefined)
+    val avg      = if rated.isEmpty then None else Some(rated.flatMap(_.balanceCoveragePercent).sum / rated.size)
+
+    div(
+      cls := s"${Card.cls} p-4",
+      h3(cls := "font-medium mb-1 text-md-on-surface dark:text-white", "Balance coverage"),
+      div(
+        cls := "text-sm text-md-on-surface-variant dark:text-gray-400 mb-3",
+        avg match
+          case Some(a) =>
+            s"${a.setScale(1, BigDecimal.RoundingMode.HALF_UP)}% reconciled across ${rated.size} account(s)"
+          case None => "No reconciling accounts with a balance to measure"
+      ),
+      ChartCanvas(
+        "bar",
+        Val(Series(rated.map(_.accountName), rated.flatMap(_.balanceCoveragePercent).map(_.toDouble))),
+        horizontal = true
+      ),
+      if excluded.nonEmpty then
+        div(
+          cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mt-2",
+          s"Excluded (zero balance): ${excluded.map(_.accountName).mkString(", ")}"
+        )
+      else div(),
+      trendChart(
+        "Balance coverage over time",
+        trend.map(t =>
+          t.points
+            .filter(_.avgBalanceCoveragePercent.isDefined)
+            .map(p => p.date -> p.avgBalanceCoveragePercent.get.toDouble)
         )
       )
     )

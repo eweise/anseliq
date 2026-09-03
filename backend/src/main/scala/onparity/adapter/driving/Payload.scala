@@ -348,11 +348,14 @@ object Payload:
     ReportsSummaryPayload(
       matchRates = r.matchRates.map { m =>
         MatchRatePayload(
-          accountId         = m.accountId.toString,
-          accountName       = m.accountName,
-          balance           = m.balance,
-          reconciledBalance = m.reconciledBalance,
-          matchRatePercent  = m.matchRatePercent
+          accountId               = m.accountId.toString,
+          accountName             = m.accountName,
+          balance                 = m.balance,
+          reconciledBalance       = m.reconciledBalance,
+          balanceCoveragePercent  = m.balanceCoveragePercent,
+          reconciledMovementCount = m.reconciledMovementCount,
+          totalMovementCount      = m.totalMovementCount,
+          matchRatePercent        = m.matchRatePercent
         )
       },
       exceptions = ExceptionBreakdownPayload(byCategory = r.exceptions.byCategory, byStatus = r.exceptions.byStatus),
@@ -390,12 +393,13 @@ object Payload:
     TrendReportPayload(
       points = r.points.map { p =>
         TrendPointPayload(
-          date                     = p.date.toString,
-          avgMatchRatePercent      = p.avgMatchRatePercent,
-          openExceptionCount       = p.openExceptionCount,
-          openExceptionsByCategory = p.openExceptionsByCategory,
-          unreconciledBacklogCount = p.unreconciledBacklogCount,
-          overdueCount             = p.overdueCount
+          date                      = p.date.toString,
+          avgBalanceCoveragePercent = p.avgBalanceCoveragePercent,
+          avgMatchRatePercent       = p.avgMatchRatePercent,
+          openExceptionCount        = p.openExceptionCount,
+          openExceptionsByCategory  = p.openExceptionsByCategory,
+          unreconciledBacklogCount  = p.unreconciledBacklogCount,
+          overdueCount              = p.overdueCount
         )
       }
     )

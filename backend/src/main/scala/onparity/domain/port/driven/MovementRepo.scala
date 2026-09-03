@@ -22,6 +22,7 @@ trait UnreconciledCursor:
 trait MovementRepo extends DomainRepo[Movement, Movement]:
   def findUnReconciledByAccount(accountID:           ID): Txn[Vector[Movement]]
   def countUnreconciledByAccount(accountID:          ID): Txn[Int]
+  def countByAccount(accountID:                      ID): Txn[Int]
   def findUnReconciledByMovementSpec(movementSpecID: ID): Txn[Vector[Movement]]
   def findByAccount(accountID:                       ID): Txn[Vector[Movement]]
   def findByReconciliationID(reconciliationID:       ID): Txn[Vector[Movement]]

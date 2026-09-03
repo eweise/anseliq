@@ -60,10 +60,36 @@ class ReportingServiceSuite extends munit.FunSuite:
         val result = service.summary(None)
 
         val recon = result.matchRates.find(_.accountId == data.reconAccount.id).get
-        assertEquals(recon.matchRatePercent, Some(BigDecimal("33.33")))
+        assertEquals(recon.balanceCoveragePercent, Some(BigDecimal("33.33")))
 
         val zero = result.matchRates.find(_.accountId == zeroBalance.id).get
-        assertEquals(zero.matchRatePercent, None)
+        assertEquals(zero.balanceCoveragePercent, None)
+
+  test("matchRates: computes reconciledMovementCount/totalMovementCount*100 (the real match rate)"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        given clock: ClockService = ClockServiceLive()
+        val service = ReportingService()
+
+        val spec = data.journalToRecon
+        val m1   = createMovement(spec.inAccountId, spec.outAccountId, spec.id, 100)
+        val m2   = createMovement(spec.inAccountId, spec.outAccountId, spec.id, 100)
+        createMovement(spec.inAccountId, spec.outAccountId, spec.id, 100)
+        createMovement(spec.inAccountId, spec.outAccountId, spec.id, 100)
+
+        // Reconcile 2 of the 4 movements on data.reconAccount together.
+        val recon = Reconciliation(specId = Some(data.reconSpec.id))
+        data.reconRepo.insert(recon)
+        data.movementRepo.setReconciliationIds(Seq(m1.id -> recon.id, m2.id -> recon.id))
+
+        val result  = service.summary(None)
+        val account = result.matchRates.find(_.accountId == data.reconAccount.id).get
+
+        assertEquals(account.totalMovementCount, 4)
+        assertEquals(account.reconciledMovementCount, 2)
+        assertEquals(account.matchRatePercent, Some(BigDecimal("50.00")))
 
   test("matchRates: only includes Recon-typed accounts"):
     transact(transactor):
@@ -232,31 +258,37 @@ class ReportingServiceSuite extends munit.FunSuite:
           service.summary(Some(java.util.UUID.randomUUID()))
 
   test(
-    "aggregateSnapshotsByDate: weighted-averages avgMatchRatePercent across fund flows by ratedAccountCount, sums the count fields"
+    "aggregateSnapshotsByDate: weighted-averages avgBalanceCoveragePercent by ratedAccountCount, and derives avgMatchRatePercent as a ratio of summed movement counts"
   ):
     // Pure function, no DB — two fund flows' snapshots sharing a date: one rated on 3 accounts
     // averaging 90%, the other on 1 account at 50%. Weighted average = (90*3 + 50*1) / 4 = 80.
+    // Movement counts: fund flow A has 8 reconciled of 10 total, fund flow B has 1 of 2 — ratio of
+    // sums = (8+1)/(10+2) = 75.00%.
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        fundFlowId          = createID(),
-        snapshotDate        = date,
-        avgMatchRatePercent = Some(BigDecimal(90)),
-        ratedAccountCount   = 3,
-        openExceptionCount  = 2,
-        agingZeroToThree    = 1,
-        agingFourToSeven    = 1,
-        overdueCount        = 1
+        fundFlowId                = createID(),
+        snapshotDate              = date,
+        avgBalanceCoveragePercent = Some(BigDecimal(90)),
+        ratedAccountCount         = 3,
+        openExceptionCount        = 2,
+        agingZeroToThree          = 1,
+        agingFourToSeven          = 1,
+        overdueCount              = 1,
+        reconciledMovementCount   = 8,
+        totalMovementCount        = 10
       ),
       DailySnapshot(
-        fundFlowId           = createID(),
-        snapshotDate         = date,
-        avgMatchRatePercent  = Some(BigDecimal(50)),
-        ratedAccountCount    = 1,
-        openExceptionCount   = 5,
-        agingEightToFourteen = 2,
-        agingFifteenPlus     = 1,
-        overdueCount         = 3
+        fundFlowId                = createID(),
+        snapshotDate              = date,
+        avgBalanceCoveragePercent = Some(BigDecimal(50)),
+        ratedAccountCount         = 1,
+        openExceptionCount        = 5,
+        agingEightToFourteen      = 2,
+        agingFifteenPlus          = 1,
+        overdueCount              = 3,
+        reconciledMovementCount   = 1,
+        totalMovementCount        = 2
       )
     )
 
@@ -265,7 +297,8 @@ class ReportingServiceSuite extends munit.FunSuite:
     assertEquals(points.size, 1)
     val p = points.head
     assertEquals(p.date, date)
-    assertEquals(p.avgMatchRatePercent, Some(BigDecimal("80.00")))
+    assertEquals(p.avgBalanceCoveragePercent, Some(BigDecimal("80.00")))
+    assertEquals(p.avgMatchRatePercent, Some(BigDecimal("75.00")))
     assertEquals(p.openExceptionCount, 7)
     assertEquals(p.unreconciledBacklogCount, 5) // 1+1+2+1
     assertEquals(p.overdueCount, 4)
@@ -299,17 +332,22 @@ class ReportingServiceSuite extends munit.FunSuite:
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        fundFlowId          = createID(),
-        snapshotDate        = date,
-        avgMatchRatePercent = Some(BigDecimal(80)),
-        ratedAccountCount   = 2
+        fundFlowId                = createID(),
+        snapshotDate              = date,
+        avgBalanceCoveragePercent = Some(BigDecimal(80)),
+        ratedAccountCount         = 2
       ),
-      DailySnapshot(fundFlowId = createID(), snapshotDate = date, avgMatchRatePercent = None, ratedAccountCount = 0)
+      DailySnapshot(
+        fundFlowId                = createID(),
+        snapshotDate              = date,
+        avgBalanceCoveragePercent = None,
+        ratedAccountCount         = 0
+      )
     )
 
     val points = ReportingService.aggregateSnapshotsByDate(rows)
 
-    assertEquals(points.head.avgMatchRatePercent, Some(BigDecimal("80.00")))
+    assertEquals(points.head.avgBalanceCoveragePercent, Some(BigDecimal("80.00")))
 
   test("computeAndStoreDailySnapshots: is idempotent within the same day and matches summary()'s own numbers"):
     transact(transactor):
@@ -329,6 +367,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(rows.size, 1, "idempotent upsert: exactly one row for this fund flow today")
 
         val expected = service.summary(Some(data.fundFlowConfig.id))
+        assertEquals(rows.head.avgBalanceCoveragePercent, expected.matchRates.head.balanceCoveragePercent)
         assertEquals(rows.head.avgMatchRatePercent, expected.matchRates.head.matchRatePercent)
         assertEquals(rows.head.ratedAccountCount, 1)
         assertEquals(rows.head.overdueCount, expected.aging.overdueCount)
@@ -357,8 +396,8 @@ class ReportingServiceSuite extends munit.FunSuite:
         val trend  = service.trend(Some(data.fundFlowConfig.id), days = 30)
         val byDate = trend.points.map(p => p.date -> p).toMap
 
-        assertEquals(byDate(day1).avgMatchRatePercent, Some(BigDecimal("25.00")))
-        assertEquals(byDate(day2).avgMatchRatePercent, Some(BigDecimal("75.00")))
+        assertEquals(byDate(day1).avgBalanceCoveragePercent, Some(BigDecimal("25.00")))
+        assertEquals(byDate(day2).avgBalanceCoveragePercent, Some(BigDecimal("75.00")))
 
   test("computeAndStoreDailySnapshots: a fund flow isn't due until its dailyCutoffHours, then becomes due"):
     transact(transactor):

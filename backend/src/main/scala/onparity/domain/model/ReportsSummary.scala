@@ -5,11 +5,17 @@ import onparity.common.model.model.{ID, Money}
 import java.time.{LocalDate, OffsetDateTime}
 
 case class MatchRateReport(
-  accountId:         ID,
-  accountName:       String,
-  balance:           Money,
-  reconciledBalance: Money,
-  matchRatePercent:  Option[BigDecimal] // None when balance == 0
+  accountId:               ID,
+  accountName:             String,
+  balance:                 Money,
+  reconciledBalance:       Money,
+  balanceCoveragePercent:  Option[BigDecimal], // reconciledBalance/balance*100 — None when balance == 0.
+  // balance is a running net position that shrinks as things settle while reconciledBalance only
+  // ever grows, so this can legitimately exceed 100% — it's not a rate of anything, just a $
+  // coverage ratio. matchRatePercent below is the real, count-based match rate.
+  reconciledMovementCount: Int,
+  totalMovementCount:      Int,
+  matchRatePercent:        Option[BigDecimal] // reconciledMovementCount/totalMovementCount*100 — None when totalMovementCount == 0
 )
 
 case class ExceptionBreakdownReport(
@@ -44,12 +50,13 @@ case class UnreconciledMovementDetail(
 )
 
 case class TrendPoint(
-  date:                     LocalDate,
-  avgMatchRatePercent:      Option[BigDecimal],
-  openExceptionCount:       Int,
-  openExceptionsByCategory: Map[String, Int], // DisputeCategory.toString -> count, summed across fund flows in scope
-  unreconciledBacklogCount: Int,              // sum of the four aging buckets
-  overdueCount:             Int
+  date:                      LocalDate,
+  avgBalanceCoveragePercent: Option[BigDecimal],
+  avgMatchRatePercent:       Option[BigDecimal],
+  openExceptionCount:        Int,
+  openExceptionsByCategory:  Map[String, Int], // DisputeCategory.toString -> count, summed across fund flows in scope
+  unreconciledBacklogCount:  Int,              // sum of the four aging buckets
+  overdueCount:              Int
 )
 
 case class TrendReport(points: Seq[TrendPoint])

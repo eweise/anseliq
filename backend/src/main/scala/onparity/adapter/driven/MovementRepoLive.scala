@@ -80,6 +80,13 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       AND reconciliation_id IS NULL
     """.query[Int].run().head
 
+  def countByAccount(accountID: ID): Txn[Int] =
+    sql"""
+      SELECT count(*)
+      FROM $m AS a
+      WHERE (in_account_id = $accountID OR out_account_id = $accountID)
+    """.query[Int].run().head
+
   def findEqualityMatches(
     sqlCriteria:       String,
     inMovementSpecId:  ID,
