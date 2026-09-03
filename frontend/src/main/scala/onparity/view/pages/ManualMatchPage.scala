@@ -56,6 +56,7 @@ object ManualMatchPage:
       },
       movementsBus.events.flatMapSwitch(loadMovements) --> {
         case (Right(ins), Right(outs)) =>
+          AppState.globalError.set(None)
           state.update(_.copy(inMovements = ins, outMovements = outs, selectedIn = Set.empty, selectedOut = Set.empty))
         case (Left(e), _) => AppState.globalError.set(Some(e))
         case (_, Left(e)) => AppState.globalError.set(Some(e))

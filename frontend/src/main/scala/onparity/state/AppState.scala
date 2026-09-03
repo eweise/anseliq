@@ -26,6 +26,11 @@ object AppState:
   extension [A](stream: EventStream[Either[String, A]])
     def apiBind(onSuccess: A => Unit) =
       stream --> Observer[Either[String, A]] {
-        case Right(a) => onSuccess(a)
-        case Left(e)  => globalError.set(Some(e))
+        // Clearing on Right, not just setting on Left, matters for retries: without this, fixing
+        // whatever caused the error and retrying the same action left the old banner stuck on
+        // screen even though the retry just succeeded.
+        case Right(a) =>
+          globalError.set(None)
+          onSuccess(a)
+        case Left(e) => globalError.set(Some(e))
       }

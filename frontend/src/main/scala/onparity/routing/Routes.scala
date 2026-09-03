@@ -2,7 +2,7 @@ package onparity.routing
 
 import com.raquo.laminar.api.L.*
 import frontroute.*
-import onparity.state.SessionStore
+import onparity.state.{AppState, SessionStore}
 import onparity.view.pages.*
 
 object Routes:
@@ -10,7 +10,12 @@ object Routes:
   def apply(): HtmlElement =
     div(
       styleAttr := "display: contents",
-      initRouting
+      initRouting,
+      // .changes (not the signal itself) so this only fires on a real navigation after mount, not
+      // immediately on subscribe — mount-time the banner is already empty, nothing to clear. Global
+      // rather than per-page since globalError itself is app-global: whichever page raised it, the
+      // banner should go away once the user has moved on to look at something else.
+      LocationProvider.windowLocationProvider.current.changes --> Observer[Any](_ => AppState.globalError.set(None))
     ).amend(
       // Unconditional redirect, no session check needed here: /components/dashboard already has
       // its own whenFalse guard below, which bounces to /login if there's no session — reusing it

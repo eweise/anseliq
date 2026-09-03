@@ -311,7 +311,9 @@ create table recon.daily_snapshot
     fund_flow_id                uuid not null REFERENCES recon.fund_flow_config (id) ON DELETE CASCADE,
     snapshot_date               date not null,
     match_rates_json            text not null default '[]',
-    avg_match_rate_percent      numeric(5, 2),
+    -- reconciledBalance/balance*100 — a $ coverage ratio, not a rate; can legitimately exceed 100%
+    -- since balance is a running net position while reconciledBalance only ever grows.
+    avg_balance_coverage_percent numeric(7, 2),
     rated_account_count         int  not null default 0,
     exceptions_by_category_json text not null default '{}',
     exceptions_by_status_json   text not null default '{}',
@@ -327,6 +329,14 @@ create table recon.daily_snapshot
 );
 
 CREATE INDEX daily_snapshot_fund_flow_date_idx ON recon.daily_snapshot (fund_flow_id, snapshot_date);
+
+ALTER TABLE recon.daily_snapshot
+    -- The real match rate: reconciledMovementCount/totalMovementCount*100, a true 0-100% ratio —
+    -- unlike avg_balance_coverage_percent above, which despite its old name ("match rate") was
+    -- never actually a rate of anything.
+    ADD COLUMN avg_match_rate_percent   numeric(5, 2),
+    ADD COLUMN reconciled_movement_count int not null default 0,
+    ADD COLUMN total_movement_count      int not null default 0;
 
 CREATE TRIGGER update_daily_snapshot
     BEFORE INSERT OR UPDATE
