@@ -6,6 +6,54 @@ create database recon_db;
 
 create schema if not exists recon;
 
+CREATE FUNCTION update_audit_fields_task()
+    RETURNS TRIGGER AS
+$$
+BEGIN
+    IF NEW.created_at IS NULL THEN
+        NEW.created_at = now();
+    END IF;
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+
+
+-- Named app_user, not user: "user" is a reserved word in Postgres (collides with the CURRENT_USER
+-- function), which would force every raw-SQL reference to be quoted. role is a fixed, global enum
+-- (UserRole: Admin/Analyst/Viewer) persisted as plain text, matching this schema's existing
+-- convention for every other Scala enum column (event_state.status, dispute.status, job.job_type) —
+-- no Postgres CREATE TYPE, no custom codec. Stored lowercase ('admin', not 'Admin'): the @Table(...,
+-- SqlNameMapper.CamelToSnakeCase) on UserRole downcases enum case names too, not just column/table
+-- names, so the literal text a DbCodec writes/expects is lowercase, confirmed by direct testing
+-- (this is the exact same lowercase-vs-capitalized mismatch already present, and noted as harmless
+-- since always overridden by application code, on dispute.status's 'new' default).
+create table recon.app_user
+(
+    id            uuid primary key,
+    email         text                                  not null unique,
+    password_hash text                                  not null,
+    first_name    text                                  not null,
+    last_name     text                                  not null,
+    role          text        default 'viewer'          not null,
+    active        bool        default true              not null,
+    created_at    timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at    timestamptz default CURRENT_TIMESTAMP not null
+);
+
+CREATE TRIGGER update_app_user
+    BEFORE INSERT OR UPDATE
+    ON recon.app_user
+    FOR EACH ROW
+EXECUTE PROCEDURE update_audit_fields_task();
+
+-- Seed one default Admin so the app is usable right after `make create-db`. Password is
+-- "changeme123" (bcrypt, cost 12) — rotate it immediately via the Users & Roles admin page.
+insert into recon.app_user (id, email, password_hash, first_name, last_name, role)
+values ('00000000-0000-0000-0000-000000000001', 'admin@onparity.local',
+        '$2y$12$/w6Sva4dYXUtPOrWuveq3O/lTdh6uVXa3IYDpklb4NK.6JGkPOiPm', 'Admin', 'User', 'admin');
+
 create table recon.fund_flow_config
 (
     id                 uuid primary key,
@@ -52,18 +100,18 @@ create table recon.file_feed
 
 create table recon.movement_spec
 (
-    id             uuid primary key,
-    name           text,
-    in_account_id  uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    out_account_id uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
-    file_feed_id   uuid                                  not null REFERENCES recon.file_feed (id) ON DELETE CASCADE,
+    id                  uuid primary key,
+    name                text,
+    in_account_id       uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    out_account_id      uuid                                  not null REFERENCES recon.account (id) ON DELETE CASCADE,
+    file_feed_id        uuid                                  not null REFERENCES recon.file_feed (id) ON DELETE CASCADE,
     -- Encoded RoutingFilter (propertyField + matchValue) JSON, NULL means this spec claims every
     -- row from its feed — the default for a feed with only one account (today's only case, e.g.
     -- CSV). A non-null filter is how a multi-account feed (e.g. BAI2) splits rows across accounts
     -- by a parsed field like account_number.
     routing_filter_json text,
-    created_at     timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at     timestamptz default CURRENT_TIMESTAMP not null
+    created_at          timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at          timestamptz default CURRENT_TIMESTAMP not null
 );
 
 create table recon.reconciliation_spec
@@ -116,16 +164,13 @@ ALTER TABLE recon.dispute
 
 create table recon.dispute_comment
 (
-    id                     uuid primary key,
-    dispute_id             uuid                                  not null REFERENCES recon.dispute (id) ON DELETE CASCADE,
-    body                   text,
-    new_status             text,
+    id                      uuid primary key,
+    dispute_id              uuid                                  not null REFERENCES recon.dispute (id) ON DELETE CASCADE,
+    body                    text,
+    new_status              text,
     new_assigned_to_user_id uuid REFERENCES recon.app_user (id),
-    created_at             timestamptz default CURRENT_TIMESTAMP not null
+    created_at              timestamptz default CURRENT_TIMESTAMP not null
 );
-
-CREATE INDEX dispute_comment_dispute_id ON recon.dispute_comment (dispute_id, created_at);
-
 
 create table recon.movement
 (
@@ -217,18 +262,6 @@ CREATE UNIQUE INDEX job_active_unique ON recon.job (job_type, reference_id)
 
 CREATE INDEX job_job_status_create_at_fk ON recon.job (job_status, created_at);
 
-CREATE FUNCTION update_audit_fields_task()
-    RETURNS TRIGGER AS
-$$
-BEGIN
-    IF NEW.created_at IS NULL THEN
-        NEW.created_at = now();
-    END IF;
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
 CREATE TRIGGER update_fund_flow_config
     BEFORE INSERT OR UPDATE
     ON
@@ -307,24 +340,24 @@ EXECUTE PROCEDURE update_audit_fields_task();
 
 create table recon.daily_snapshot
 (
-    id                          uuid primary key,
-    fund_flow_id                uuid not null REFERENCES recon.fund_flow_config (id) ON DELETE CASCADE,
-    snapshot_date               date not null,
-    match_rates_json            text not null default '[]',
+    id                           uuid primary key,
+    fund_flow_id                 uuid not null REFERENCES recon.fund_flow_config (id) ON DELETE CASCADE,
+    snapshot_date                date not null,
+    match_rates_json             text not null default '[]',
     -- reconciledBalance/balance*100 — a $ coverage ratio, not a rate; can legitimately exceed 100%
     -- since balance is a running net position while reconciledBalance only ever grows.
     avg_balance_coverage_percent numeric(7, 2),
-    rated_account_count         int  not null default 0,
-    exceptions_by_category_json text not null default '{}',
-    exceptions_by_status_json   text not null default '{}',
-    open_exception_count        int  not null default 0,
-    aging_zero_to_three         int  not null default 0,
-    aging_four_to_seven         int  not null default 0,
-    aging_eight_to_fourteen     int  not null default 0,
-    aging_fifteen_plus          int  not null default 0,
-    overdue_count               int  not null default 0,
-    created_at                  timestamptz   default CURRENT_TIMESTAMP not null,
-    updated_at                  timestamptz   default CURRENT_TIMESTAMP not null,
+    rated_account_count          int  not null default 0,
+    exceptions_by_category_json  text not null default '{}',
+    exceptions_by_status_json    text not null default '{}',
+    open_exception_count         int  not null default 0,
+    aging_zero_to_three          int  not null default 0,
+    aging_four_to_seven          int  not null default 0,
+    aging_eight_to_fourteen      int  not null default 0,
+    aging_fifteen_plus           int  not null default 0,
+    overdue_count                int  not null default 0,
+    created_at                   timestamptz   default CURRENT_TIMESTAMP not null,
+    updated_at                   timestamptz   default CURRENT_TIMESTAMP not null,
     UNIQUE (fund_flow_id, snapshot_date)
 );
 
@@ -334,7 +367,7 @@ ALTER TABLE recon.daily_snapshot
     -- The real match rate: reconciledMovementCount/totalMovementCount*100, a true 0-100% ratio —
     -- unlike avg_balance_coverage_percent above, which despite its old name ("match rate") was
     -- never actually a rate of anything.
-    ADD COLUMN avg_match_rate_percent   numeric(5, 2),
+    ADD COLUMN avg_match_rate_percent    numeric(5, 2),
     ADD COLUMN reconciled_movement_count int not null default 0,
     ADD COLUMN total_movement_count      int not null default 0;
 
@@ -353,39 +386,6 @@ CREATE UNIQUE INDEX dispute_reference_id_category_open_unique
     ON recon.dispute (reference_id, category)
     WHERE status <> 'resolved';
 
--- Named app_user, not user: "user" is a reserved word in Postgres (collides with the CURRENT_USER
--- function), which would force every raw-SQL reference to be quoted. role is a fixed, global enum
--- (UserRole: Admin/Analyst/Viewer) persisted as plain text, matching this schema's existing
--- convention for every other Scala enum column (event_state.status, dispute.status, job.job_type) —
--- no Postgres CREATE TYPE, no custom codec. Stored lowercase ('admin', not 'Admin'): the @Table(...,
--- SqlNameMapper.CamelToSnakeCase) on UserRole downcases enum case names too, not just column/table
--- names, so the literal text a DbCodec writes/expects is lowercase, confirmed by direct testing
--- (this is the exact same lowercase-vs-capitalized mismatch already present, and noted as harmless
--- since always overridden by application code, on dispute.status's 'new' default).
-create table recon.app_user
-(
-    id            uuid primary key,
-    email         text                                  not null unique,
-    password_hash text                                  not null,
-    first_name    text                                  not null,
-    last_name     text                                  not null,
-    role          text        default 'viewer'          not null,
-    active        bool        default true               not null,
-    created_at    timestamptz default CURRENT_TIMESTAMP not null,
-    updated_at    timestamptz default CURRENT_TIMESTAMP not null
-);
-
-CREATE TRIGGER update_app_user
-    BEFORE INSERT OR UPDATE
-    ON recon.app_user
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
--- Seed one default Admin so the app is usable right after `make create-db`. Password is
--- "changeme123" (bcrypt, cost 12) — rotate it immediately via the Users & Roles admin page.
-insert into recon.app_user (id, email, password_hash, first_name, last_name, role)
-values ('00000000-0000-0000-0000-000000000001', 'admin@onparity.local',
-        '$2y$12$/w6Sva4dYXUtPOrWuveq3O/lTdh6uVXa3IYDpklb4NK.6JGkPOiPm', 'Admin', 'User', 'admin');
 
 -- Added here (not inline in recon.dispute's own create table above) because recon.app_user must
 -- already exist for these FK references to resolve on a fresh `make create-db` run — app_user is

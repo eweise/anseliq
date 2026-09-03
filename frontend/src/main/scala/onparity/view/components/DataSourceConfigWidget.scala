@@ -35,7 +35,6 @@ object DataSourceConfigWidget:
   case class FixedWidthFieldRow(name: String = "", startPosition: String = "", endPosition: String = "")
 
   case class State(
-    enabled:    Boolean    = false,
     parserType: ParserType = ParserType.CSV,
     hasHeader:  Boolean    = true,
     // csvAmountIndex is a position into csvFields (which row is the amount), not a CSV column
@@ -62,7 +61,6 @@ object DataSourceConfigWidget:
       case Some(DataSourceConfig(CSVParserConfig(hasHeader, colDefs, amountField), S3ConnectionConfig(bucket, path))) =>
         val rows = colDefs.toList.sortBy(_._1).map((idx, name) => CsvFieldRow(idx.toString, name))
         State(
-          enabled        = true,
           parserType     = ParserType.CSV,
           hasHeader      = hasHeader,
           csvFields      = rows,
@@ -72,7 +70,6 @@ object DataSourceConfigWidget:
         )
       case Some(DataSourceConfig(BAIParserConfig(fieldMappings), S3ConnectionConfig(bucket, path))) =>
         State(
-          enabled           = true,
           parserType        = ParserType.BAI,
           baiFieldNames     = BAIParserConfig.defaultFieldMappings ++ fieldMappings,
           baiFieldsIncluded = fieldMappings.keySet,
@@ -82,7 +79,6 @@ object DataSourceConfigWidget:
       case Some(DataSourceConfig(JSONParserConfig(fieldMappings, amountPath), S3ConnectionConfig(bucket, path))) =>
         val rows = fieldMappings.toList.map((p, n) => JsonFieldRow(p, n))
         State(
-          enabled         = true,
           parserType      = ParserType.JSON,
           jsonFields      = rows,
           jsonAmountIndex = amountPath.map(ap => rows.indexWhere(_.path == ap)).filter(_ >= 0),
@@ -92,7 +88,6 @@ object DataSourceConfigWidget:
       case Some(DataSourceConfig(FixedWidthParserConfig(hasHeader, fields), S3ConnectionConfig(bucket, path))) =>
         val rows = fields.toList.map(f => FixedWidthFieldRow(f.name, f.startPosition.toString, f.endPosition.toString))
         State(
-          enabled               = true,
           parserType            = ParserType.FixedWidth,
           hasHeader             = hasHeader,
           fixedWidthFields      = rows,
@@ -102,40 +97,38 @@ object DataSourceConfigWidget:
         )
 
     def toConfig(s: State): Option[DataSourceConfig] =
-      if !s.enabled then None
-      else
-        val parserConfig = s.parserType match
-          case ParserType.CSV =>
-            CSVParserConfig(
-              hasHeader = s.hasHeader,
-              columnDefinitions = s.csvFields
-                .flatMap(r => r.columnIndex.trim.toIntOption.map(idx => idx -> r.name))
-                .toMap,
-              amountField = s.csvAmountIndex.flatMap(s.csvFields.lift).flatMap(_.columnIndex.trim.toIntOption)
-            )
-          case ParserType.BAI =>
-            BAIParserConfig(fieldMappings = s.baiFieldNames.filter((field, _) => s.baiFieldsIncluded.contains(field)))
-          case ParserType.JSON =>
-            JSONParserConfig(
-              fieldMappings = s.jsonFields.filter(_.path.nonEmpty).map(r => r.path -> r.name).toMap,
-              amountPath    = s.jsonAmountIndex.flatMap(s.jsonFields.lift).map(_.path).filter(_.nonEmpty)
-            )
-          case ParserType.FixedWidth =>
-            FixedWidthParserConfig(
-              hasHeader = s.hasHeader,
-              fields = s.fixedWidthFields.zipWithIndex.flatMap { (r, idx) =>
-                for
-                  start <- r.startPosition.trim.toIntOption
-                  end   <- r.endPosition.trim.toIntOption
-                yield FixedWidthField(r.name, start, end, isAmount = s.fixedWidthAmountIndex.contains(idx))
-              }
-            )
-        Some(
-          DataSourceConfig(
-            parserConfig     = parserConfig,
-            connectionConfig = S3ConnectionConfig(s3Bucket = s.s3Bucket, filePath = s.s3FilePath)
+      val parserConfig = s.parserType match
+        case ParserType.CSV =>
+          CSVParserConfig(
+            hasHeader = s.hasHeader,
+            columnDefinitions = s.csvFields
+              .flatMap(r => r.columnIndex.trim.toIntOption.map(idx => idx -> r.name))
+              .toMap,
+            amountField = s.csvAmountIndex.flatMap(s.csvFields.lift).flatMap(_.columnIndex.trim.toIntOption)
           )
+        case ParserType.BAI =>
+          BAIParserConfig(fieldMappings = s.baiFieldNames.filter((field, _) => s.baiFieldsIncluded.contains(field)))
+        case ParserType.JSON =>
+          JSONParserConfig(
+            fieldMappings = s.jsonFields.filter(_.path.nonEmpty).map(r => r.path -> r.name).toMap,
+            amountPath    = s.jsonAmountIndex.flatMap(s.jsonFields.lift).map(_.path).filter(_.nonEmpty)
+          )
+        case ParserType.FixedWidth =>
+          FixedWidthParserConfig(
+            hasHeader = s.hasHeader,
+            fields = s.fixedWidthFields.zipWithIndex.flatMap { (r, idx) =>
+              for
+                start <- r.startPosition.trim.toIntOption
+                end   <- r.endPosition.trim.toIntOption
+              yield FixedWidthField(r.name, start, end, isAmount = s.fixedWidthAmountIndex.contains(idx))
+            }
+          )
+      Some(
+        DataSourceConfig(
+          parserConfig     = parserConfig,
+          connectionConfig = S3ConnectionConfig(s3Bucket = s.s3Bucket, filePath = s.s3FilePath)
         )
+      )
 
   // Third element lets the caller gate its Save button on the same validation rules
   // (DataSourceConfig.validate, in common) that also run again on the backend as a safety net.
@@ -148,30 +141,10 @@ object DataSourceConfigWidget:
     val el = div(
       hr(cls := "my-4 border-md-outline-variant"),
       div(
-        cls := "flex items-center justify-between mb-3",
-        span(cls := Form.sectionLabelCls, "Data Source"),
-        div(
-          cls := "flex items-center gap-2 cursor-pointer",
-          onClick --> (_ => state.update(s => s.copy(enabled = !s.enabled))),
-          div(
-            cls <-- state.signal.map(s =>
-              s"w-9 h-5 rounded-full relative transition-colors ${if s.enabled then "bg-md-primary" else "bg-gray-300"}"
-            ),
-            div(
-              cls <-- state.signal.map(s => s"w-4 h-4 bg-white rounded-full absolute top-0.5 shadow-sm transition-all ${if s.enabled then "right-0.5" else "left-0.5"}")
-            )
-          ),
-          span(
-            cls <-- state.signal.map(s =>
-              s"text-xs font-medium ${if s.enabled then "text-md-primary" else "text-gray-400"}"
-            ),
-            child.text <-- state.signal.map(s => if s.enabled then "On" else "Off")
-          )
-        )
+        cls := "mb-3",
+        span(cls := Form.sectionLabelCls, "Data Source")
       ),
-      // Use CSS show/hide so inputs are never destroyed when state changes
       div(
-        cls <-- state.signal.map(s => if !s.enabled then "hidden" else ""),
         Form.selectField(
           "parserType",
           "File Format",
@@ -187,7 +160,7 @@ object DataSourceConfigWidget:
         // CSV-specific configuration: BAI2's field layout is a fixed standard, so none of this
         // (header row, column-to-field mapping) applies once BAI2 is selected.
         div(
-          cls <-- state.signal.map(s => if !s.enabled || s.parserType != ParserType.CSV then "hidden" else ""),
+          cls <-- state.signal.map(s => if s.parserType != ParserType.CSV then "hidden" else ""),
           div(
             cls := "flex items-center gap-2 mb-4 cursor-pointer",
             onClick --> (_ => state.update(s => s.copy(hasHeader = !s.hasHeader))),
@@ -304,7 +277,7 @@ object DataSourceConfigWidget:
         // has no row here — its position on every transaction record is always known, so it's
         // captured automatically rather than being something the user identifies.
         div(
-          cls <-- state.signal.map(s => if !s.enabled || s.parserType != ParserType.BAI then "hidden" else ""),
+          cls <-- state.signal.map(s => if s.parserType != ParserType.BAI then "hidden" else ""),
           div(
             cls := s"mb-2 text-xs ${Form.mutedTextCls}",
             "Amount is captured automatically from the BAI2 transaction record."
@@ -369,7 +342,7 @@ object DataSourceConfigWidget:
         // arbitrary and user-defined (like CSV columns, unlike BAI2's fixed set), identified by a
         // JSONPath expression rather than a column index — same growable-list shape as CSV's table.
         div(
-          cls <-- state.signal.map(s => if !s.enabled || s.parserType != ParserType.JSON then "hidden" else ""),
+          cls <-- state.signal.map(s => if s.parserType != ParserType.JSON then "hidden" else ""),
           div(
             cls <-- state.signal.map(s =>
               if s.jsonFields.isEmpty then "hidden"
@@ -471,7 +444,7 @@ object DataSourceConfigWidget:
         // character positions. Positions are shown/entered 1-based and inclusive, the convention
         // real-world fixed-width/mainframe file specs use, not CSV's 0-indexed columns.
         div(
-          cls <-- state.signal.map(s => if !s.enabled || s.parserType != ParserType.FixedWidth then "hidden" else ""),
+          cls <-- state.signal.map(s => if s.parserType != ParserType.FixedWidth then "hidden" else ""),
           div(
             cls := "flex items-center gap-2 mb-4 cursor-pointer",
             onClick --> (_ => state.update(s => s.copy(hasHeader = !s.hasHeader))),

@@ -13,10 +13,6 @@ import upickle.default.*
 
 object MaintainMovementSpecPage:
 
-  private enum LoadState:
-    case Loading
-    case Ready(spec: MovementSpecPayload)
-
   // Rendered inside Modal by FundFlowPage (its only caller) — onClose defaults to Nav.back() so
   // this still works if ever reached directly via its route
   // (/components/maintain-movement-spec/:outAccountId/:inAccountId/:id).
@@ -55,7 +51,7 @@ object MaintainMovementSpecPage:
         )
         .apiBind(specs => loadState.set(LoadState.Ready(specs.find(_.id.contains(id)).getOrElse(blank)))),
       child <-- loadState.signal.map {
-        case LoadState.Loading      => div(cls := "text-md-on-surface-variant", "Loading...")
+        case LoadState.Loading        => div(cls := "text-md-on-surface-variant", "Loading...")
         case LoadState.Ready(initial) => renderForm(ffId, initial, onClose)
       }
     )
@@ -92,7 +88,7 @@ object MaintainMovementSpecPage:
         .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
         .apiBind(feeds => fileFeeds.set(feeds)),
       saveBus.events.flatMapSwitch { _ =>
-        val s = spec.now()
+        val s             = spec.now()
         val chosenAccount = accounts.now().find(_.id.contains(accountId.now()))
         val reconAccount  = accounts.now().find(_.id.contains(reconAccountId.now()))
         (chosenAccount, reconAccount) match
@@ -102,8 +98,8 @@ object MaintainMovementSpecPage:
           case (Some(acc), Some(recon)) =>
             saveError.set(None)
             val (outId, inId) = ViewHelper.accountLinkFields(acc, recon)
-            val finalSpec      = s.copy(outAccountId = outId, inAccountId = inId)
-            val token          = SessionStore.token
+            val finalSpec     = s.copy(outAccountId = outId, inAccountId = inId)
+            val token         = SessionStore.token
             if finalSpec.id.isDefined
             then
               ApiClient.put[MovementSpecPayload, MovementSpecPayload](
@@ -112,7 +108,8 @@ object MaintainMovementSpecPage:
                 token
               )
             else
-              ApiClient.post[MovementSpecPayload, MovementSpecPayload](HttpPath.url(HttpPath.movementSpec), finalSpec, token)
+              ApiClient
+                .post[MovementSpecPayload, MovementSpecPayload](HttpPath.url(HttpPath.movementSpec), finalSpec, token)
           case _ =>
             saveError.set(Some("Please select an Account and a Recon Account"))
             EventStream.empty
@@ -120,90 +117,90 @@ object MaintainMovementSpecPage:
         .apiBind(_ => onClose()),
       h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Movement Spec"),
       Form.field("name", "Name", initial.name, v => spec.update(_.copy(name = v))),
-        // A movement spec always links exactly one Recon account with one Primary-or-Secondary
-        // account. Filtering each dropdown to type-compatible accounts (rather than listing every
-        // account in the fund flow) means an invalid combination can't even be selected here — the
-        // backend still enforces the same rule (FundFlowOperations.validateAccountLink) since this
-        // form isn't the only way a spec gets created/updated. Which raw field (in/out) each side
-        // ends up in is computed at save time from the chosen Account's type — see
-        // ViewHelper.accountLinkFields — not fixed to either dropdown.
-        child <-- accounts.signal.map { accs =>
-          val accountOptions = accs.filter(_.accountType != "Recon")
-          val reconOptions   = accs.filter(_.accountType == "Recon")
-          div(
-            accountSelect(
-              "account",
-              "Account",
-              accountId.now(),
-              accountOptions,
-              v => accountId.set(v)
-            ),
-            accountSelect(
-              "reconAccount",
-              "Recon Account",
-              reconAccountId.now(),
-              reconOptions,
-              v => reconAccountId.set(v)
-            )
-          )
-        },
+      // A movement spec always links exactly one Recon account with one Primary-or-Secondary
+      // account. Filtering each dropdown to type-compatible accounts (rather than listing every
+      // account in the fund flow) means an invalid combination can't even be selected here — the
+      // backend still enforces the same rule (FundFlowOperations.validateAccountLink) since this
+      // form isn't the only way a spec gets created/updated. Which raw field (in/out) each side
+      // ends up in is computed at save time from the chosen Account's type — see
+      // ViewHelper.accountLinkFields — not fixed to either dropdown.
+      child <-- accounts.signal.map { accs =>
+        val accountOptions = accs.filter(_.accountType != "Recon")
+        val reconOptions   = accs.filter(_.accountType == "Recon")
         div(
-          cls := "mt-4",
-          div(
-            cls := "flex items-center justify-between mb-2",
-            span(cls := Form.sectionLabelCls, "File Feed"),
-            Buttons.textButton("+ New Feed", Observer[Unit](_ => Nav.toMaintainFileFeed()))
+          accountSelect(
+            "account",
+            "Account",
+            accountId.now(),
+            accountOptions,
+            v => accountId.set(v)
           ),
-          child <-- fileFeeds.signal.map { feeds =>
-            fileFeedSelect(initial.fileFeedId, feeds, v => spec.update(_.copy(fileFeedId = v)))
-          }
+          accountSelect(
+            "reconAccount",
+            "Recon Account",
+            reconAccountId.now(),
+            reconOptions,
+            v => reconAccountId.set(v)
+          )
+        )
+      },
+      div(
+        cls := "mt-4",
+        div(
+          cls := "flex items-center justify-between mb-2",
+          span(cls := Form.sectionLabelCls, "File Feed")
+//            Buttons.textButton("+ New Feed", Observer[Unit](_ => Nav.toMaintainFileFeed()))
         ),
-        // Routing filter: only meaningful once a feed is chosen — enumerates the same feed-parsed
-        // fields RuleWidget already offers for matching rules, since a routing filter picks one of
-        // them too. Narrowed to fileFeedId (outer) and routingFilter's field name (inner) via
-        // .distinct so typing the match value doesn't rebuild either block and drop input focus —
-        // same reactive-narrowing pattern as RuleWidget.operandField.
-        child <-- spec.signal
-          .map(_.fileFeedId)
-          .distinct
-          .combineWith(fileFeeds.signal)
-          .map { (feedId, feeds) =>
-            val fields = feeds.find(_.id.contains(feedId)).map(RuleWidget.fieldsFor).getOrElse(Seq.empty)
-            if feedId.isEmpty || fields.isEmpty then div()
-            else
+        child <-- fileFeeds.signal.map { feeds =>
+          fileFeedSelect(initial.fileFeedId, feeds, v => spec.update(_.copy(fileFeedId = v)))
+        }
+      ),
+      // Routing filter: only meaningful once a feed is chosen — enumerates the same feed-parsed
+      // fields RuleWidget already offers for matching rules, since a routing filter picks one of
+      // them too. Narrowed to fileFeedId (outer) and routingFilter's field name (inner) via
+      // .distinct so typing the match value doesn't rebuild either block and drop input focus —
+      // same reactive-narrowing pattern as RuleWidget.operandField.
+      child <-- spec.signal
+        .map(_.fileFeedId)
+        .distinct
+        .combineWith(fileFeeds.signal)
+        .map { (feedId, feeds) =>
+          val fields = feeds.find(_.id.contains(feedId)).map(RuleWidget.fieldsFor).getOrElse(Seq.empty)
+          if feedId.isEmpty || fields.isEmpty then div()
+          else
+            div(
+              cls := "mt-4",
+              span(cls := Form.sectionLabelCls, "Routing Filter"),
               div(
-                cls := "mt-4",
-                span(cls := Form.sectionLabelCls, "Routing Filter"),
-                div(
-                  cls := s"mt-1 mb-2 text-xs ${Form.mutedTextCls}",
-                  "Only rows matching this field/value are recorded against this account pair — leave " +
-                    "unset if this feed only covers one account."
-                ),
-                Form.selectField(
-                  "routingField",
-                  "Field",
-                  ("" -> "(none — claims every row from this feed)") +: fields.map(f => f -> f),
-                  spec.now().routingFilter.map(_.propertyField).getOrElse(""),
-                  v =>
-                    spec.update(s =>
-                      s.copy(routingFilter =
-                        if v.isEmpty then None
-                        else Some(s.routingFilter.map(_.copy(propertyField = v)).getOrElse(RoutingFilter(v, "")))
-                      )
+                cls := s"mt-1 mb-2 text-xs ${Form.mutedTextCls}",
+                "Only rows matching this field/value are recorded against this account pair — leave " +
+                  "unset if this feed only covers one account."
+              ),
+              Form.selectField(
+                "routingField",
+                "Field",
+                ("" -> "(none — claims every row from this feed)") +: fields.map(f => f -> f),
+                spec.now().routingFilter.map(_.propertyField).getOrElse(""),
+                v =>
+                  spec.update(s =>
+                    s.copy(routingFilter =
+                      if v.isEmpty then None
+                      else Some(s.routingFilter.map(_.copy(propertyField = v)).getOrElse(RoutingFilter(v, "")))
                     )
-                ),
-                child <-- spec.signal.map(_.routingFilter.map(_.propertyField)).distinct.map {
-                  case None | Some("") => div()
-                  case Some(_) =>
-                    Form.field(
-                      "routingValue",
-                      "Equals",
-                      spec.now().routingFilter.map(_.matchValue).getOrElse(""),
-                      v => spec.update(s => s.copy(routingFilter = s.routingFilter.map(_.copy(matchValue = v))))
-                    )
-                }
-              )
-          },
+                  )
+              ),
+              child <-- spec.signal.map(_.routingFilter.map(_.propertyField)).distinct.map {
+                case None | Some("") => div()
+                case Some(_) =>
+                  Form.field(
+                    "routingValue",
+                    "Equals",
+                    spec.now().routingFilter.map(_.matchValue).getOrElse(""),
+                    v => spec.update(s => s.copy(routingFilter = s.routingFilter.map(_.copy(matchValue = v))))
+                  )
+              }
+            )
+        },
       child.maybe <-- saveError.signal.map(
         _.map(err => div(cls := "text-sm text-red-600 dark:text-red-400 mt-4", err))
       ),
@@ -248,3 +245,7 @@ object MaintainMovementSpecPage:
       selected,
       changeFn
     )
+
+  private enum LoadState:
+    case Loading
+    case Ready(spec: MovementSpecPayload)

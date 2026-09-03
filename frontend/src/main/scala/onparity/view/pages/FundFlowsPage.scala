@@ -35,23 +35,34 @@ object FundFlowsPage:
       div(
         cls := "w-full px-8",
         child <-- fundFlows.signal.map { ffs =>
+          // Every cell (not just Name) carries its own click-to-navigate handler, so the whole row
+          // is clickable — Table is a shared component with no row-level click plumbing, and adding
+          // it there would need to survive this page's own sort-by-column reordering, whereas
+          // keeping the handler bundled into each cell's own HtmlElement means it just travels along
+          // with that cell when Table re-sorts the display order. The hover *highlight* is still
+          // driven by Table itself (hoverableRows), so the whole row lights up as one bar rather
+          // than three separately-hovering cells.
+          def cell(content: String, ff: FundFlowPayload): HtmlElement =
+            a(
+              href := "/components/fund-flow",
+              cls  := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300",
+              onClick --> { e =>
+                e.preventDefault()
+                Nav.toFundFlow(ff)
+              },
+              content
+            )
+
           Table.create(
             Seq("Name", "Created At", "Updated At", "", ""),
             ffs.sortBy(_.name).map { ff =>
               Seq(
-                a(
-                  href := "/components/fund-flow",
-                  cls  := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors duration-200",
-                  onClick --> { e =>
-                    e.preventDefault()
-                    Nav.toFundFlow(ff)
-                  },
-                  ff.name
-                ),
-                span(ff.createdAt.map(ViewHelper.formatDateTime).getOrElse("")),
-                span(ff.updatedAt.map(ViewHelper.formatDateTime).getOrElse(""))
+                cell(ff.name, ff),
+                cell(ff.createdAt.map(ViewHelper.formatDateTime).getOrElse(""), ff),
+                cell(ff.updatedAt.map(ViewHelper.formatDateTime).getOrElse(""), ff)
               )
-            }
+            },
+            hoverableRows = true
           )
         }
       )
