@@ -43,7 +43,9 @@ object MaintainUserPage:
   // loses focus/cursor position after every character. Fields that need to reflect data loaded
   // asynchronously (editing an existing user) are instead rebound in place via each field's own
   // `updates` stream, the same pattern Form.field/Form.tableInput already use elsewhere in this app.
-  def apply(userId: String): HtmlElement =
+  // Rendered inside Modal by UsersPage (its only caller) — onClose defaults to Nav.back() so this
+  // still works if ever reached directly via its route (/components/maintain-user/:id).
+  def apply(userId: String, onClose: () => Unit = () => Nav.back()): HtmlElement =
     val isNew    = userId == "new"
     val state    = Var(State(id = if isNew then None else Some(userId)))
     val saveBus  = EventBus[Unit]()
@@ -90,7 +92,7 @@ object MaintainUserPage:
               token
             )
       } --> {
-        case Right(_)  => Nav.toUsers()
+        case Right(_)  => onClose()
         case Left(err) => state.update(_.copy(saveError = Some(firstLine(err))))
       },
       resetBus.events.flatMapSwitch { _ =>
@@ -106,108 +108,110 @@ object MaintainUserPage:
           newPasswordBus.emit("")
         case Left(err) => state.update(_.copy(resetStatus = Some(s"Failed: ${firstLine(err)}")))
       },
-      cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
-      div(
-        cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "User"),
-        if isNew then Form.field("email", "Email", "", v => state.update(_.copy(email = v)))
-        else
-          div(
-            cls := "mb-5 text-sm text-md-on-surface-variant dark:text-gray-400",
-            child.text <-- state.signal.map(s => s"Email: ${s.email}")
-          )
-        ,
-        Form.field(
-          "firstName",
-          "First Name",
-          "",
-          v => state.update(_.copy(firstName = v)),
-          updates = firstNameBus.events
-        ),
-        Form.field("lastName", "Last Name", "", v => state.update(_.copy(lastName = v)), updates = lastNameBus.events),
-        // Reactively rebuilt on role change, unlike the text fields above: a <select> is a
-        // discrete click-to-choose control with no cursor/focus position to lose, so a full
-        // rebuild on load is safe here — no need for the same bus-based in-place rebind the text
-        // fields use to avoid disrupting mid-typing focus.
-        child <-- state.signal
-          .map(_.role)
-          .map(role => Form.selectField("role", "Role", roleOptions, role, v => state.update(_.copy(role = v)))),
-        if isNew then
-          Form.field(
-            "password",
-            "Password",
-            "",
-            v => state.update(_.copy(password = v)),
-            inputType = "password"
-          )
-        else
-          div(
-            cls := "flex items-center gap-2 mb-5 cursor-pointer",
-            onClick --> (_ => state.update(st => st.copy(active = !st.active))),
-            div(
-              cls <-- state.signal.map(s =>
-                s"w-4 h-4 rounded border flex items-center justify-center ${
-                    if s.active then "bg-md-primary border-md-primary" else "border-gray-400"
-                  }"
-              ),
-              child <-- state.signal.map(s =>
-                if s.active then span(cls := "text-white text-xs leading-none", "✓") else span()
-              )
-            ),
-            span(cls := "text-sm text-md-on-surface dark:text-gray-200", "Active")
-          )
-        ,
-        if isNew then div()
-        else
-          div(
-            cls := "border-t border-md-outline-variant dark:border-gray-700 pt-4 mt-2",
-            span(
-              cls := "text-xs font-semibold uppercase tracking-widest text-md-on-surface-variant dark:text-gray-400",
-              "Reset Password"
-            ),
-            div(
-              cls := "mt-2",
-              Form.field(
-                "newPassword",
-                "New Password",
-                "",
-                v => state.update(_.copy(newPassword = v)),
-                inputType = "password",
-                updates   = newPasswordBus.events
-              )
-            ),
-            div(
-              cls := "flex items-center gap-3",
-              Buttons.textButton(
-                "Reset Password",
-                Observer[Unit](_ =>
-                  if state.now().newPassword.length < minPasswordLength then
-                    state.update(_.copy(resetStatus = Some(s"Password must be at least $minPasswordLength characters")))
-                  else resetBus.emit(())
-                )
-              ),
-              child.maybe <-- state.signal.map(
-                _.resetStatus.map(msg => span(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", msg))
-              )
-            )
-          )
-        ,
-        child.maybe <-- state.signal.map(
-          _.saveError.map(msg => div(cls := "text-sm text-red-600 dark:text-red-400 mb-2", msg))
-        ),
+      h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "User"),
+      // autoCompleteHint = "off"/"new-password": without these, the browser's saved-credential
+      // autofill treats this email+password pair as a login form and silently fills in the admin's
+      // own saved onparity credentials rather than leaving a blank field to create a new user with.
+      if isNew then
+        Form.field("email", "Email", "", v => state.update(_.copy(email = v)), autoCompleteHint = Some("off"))
+      else
         div(
-          cls := "flex justify-end gap-2 mt-6",
-          Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),
-          Buttons.linkButton(
-            "Save",
-            Observer[Unit](_ =>
-              val s = state.now()
-              if isNew && s.password.length < minPasswordLength then
-                state.update(_.copy(saveError = Some(s"Password must be at least $minPasswordLength characters")))
-              else
-                state.update(_.copy(saveError = None))
-                saveBus.emit(())
+          cls := "mb-5 text-sm text-md-on-surface-variant dark:text-gray-400",
+          child.text <-- state.signal.map(s => s"Email: ${s.email}")
+        )
+      ,
+      Form.field(
+        "firstName",
+        "First Name",
+        "",
+        v => state.update(_.copy(firstName = v)),
+        updates = firstNameBus.events
+      ),
+      Form.field("lastName", "Last Name", "", v => state.update(_.copy(lastName = v)), updates = lastNameBus.events),
+      // Reactively rebuilt on role change, unlike the text fields above: a <select> is a
+      // discrete click-to-choose control with no cursor/focus position to lose, so a full
+      // rebuild on load is safe here — no need for the same bus-based in-place rebind the text
+      // fields use to avoid disrupting mid-typing focus.
+      child <-- state.signal
+        .map(_.role)
+        .map(role => Form.selectField("role", "Role", roleOptions, role, v => state.update(_.copy(role = v)))),
+      if isNew then
+        Form.field(
+          "password",
+          "Password",
+          "",
+          v => state.update(_.copy(password = v)),
+          inputType        = "password",
+          autoCompleteHint = Some("new-password")
+        )
+      else
+        div(
+          cls := "flex items-center gap-2 mb-5 cursor-pointer",
+          onClick --> (_ => state.update(st => st.copy(active = !st.active))),
+          div(
+            cls <-- state.signal.map(s =>
+              s"w-4 h-4 rounded border flex items-center justify-center ${
+                  if s.active then "bg-md-primary border-md-primary" else "border-gray-400"
+                }"
+            ),
+            child <-- state.signal.map(s =>
+              if s.active then span(cls := "text-white text-xs leading-none", "✓") else span()
             )
+          ),
+          span(cls := "text-sm text-md-on-surface dark:text-gray-200", "Active")
+        )
+      ,
+      if isNew then div()
+      else
+        div(
+          cls := "border-t border-md-outline-variant dark:border-gray-700 pt-4 mt-2",
+          span(
+            cls := "text-xs font-semibold uppercase tracking-widest text-md-on-surface-variant dark:text-gray-400",
+            "Reset Password"
+          ),
+          div(
+            cls := "mt-2",
+            Form.field(
+              "newPassword",
+              "New Password",
+              "",
+              v => state.update(_.copy(newPassword = v)),
+              inputType        = "password",
+              updates          = newPasswordBus.events,
+              autoCompleteHint = Some("new-password")
+            )
+          ),
+          div(
+            cls := "flex items-center gap-3",
+            Buttons.textButton(
+              "Reset Password",
+              Observer[Unit](_ =>
+                if state.now().newPassword.length < minPasswordLength then
+                  state.update(_.copy(resetStatus = Some(s"Password must be at least $minPasswordLength characters")))
+                else resetBus.emit(())
+              )
+            ),
+            child.maybe <-- state.signal.map(
+              _.resetStatus.map(msg => span(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", msg))
+            )
+          )
+        )
+      ,
+      child.maybe <-- state.signal.map(
+        _.saveError.map(msg => div(cls := "text-sm text-red-600 dark:text-red-400 mb-2", msg))
+      ),
+      div(
+        cls := "flex justify-end gap-2 mt-6",
+        Buttons.textButton("Cancel", Observer[Unit](_ => onClose())),
+        Buttons.linkButton(
+          "Save",
+          Observer[Unit](_ =>
+            val s = state.now()
+            if isNew && s.password.length < minPasswordLength then
+              state.update(_.copy(saveError = Some(s"Password must be at least $minPasswordLength characters")))
+            else
+              state.update(_.copy(saveError = None))
+              saveBus.emit(())
           )
         )
       )

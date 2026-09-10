@@ -4,22 +4,32 @@ import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
 import onparity.common.model.UserPayload
 import onparity.http.ApiClient
-import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.SessionStore
-import onparity.view.components.{Buttons, PageHeader, Table}
+import onparity.view.components.{Buttons, Modal, PageHeader, Table}
 
 object UsersPage:
 
   def apply(): HtmlElement =
     val users = Var(Seq.empty[UserPayload])
+    // In-page Modal (not a route navigation) so the users list stays mounted underneath, matching
+    // FundFlowPage's account/movement-spec edit pattern. None = no modal open.
+    val editingUserId = Var(Option.empty[String])
+    val refreshBus    = EventBus[Unit]()
+    val closeModal = () => {
+      editingUserId.set(None)
+      refreshBus.emit(())
+    }
 
     PageHeader.page(
       ApiClient.get[Seq[UserPayload]](HttpPath.url(HttpPath.users), SessionStore.token).apiBind(users.set),
+      refreshBus.events.flatMapSwitch { _ =>
+        ApiClient.get[Seq[UserPayload]](HttpPath.url(HttpPath.users), SessionStore.token)
+      }.apiBind(users.set),
       PageHeader.titleRow(
         cls := "flex justify-between items-center",
         PageHeader.title("Users & Roles"),
-        Buttons.linkButton("Add User", Observer[Unit](_ => Nav.toMaintainUser()))
+        Buttons.linkButton("Add User", Observer[Unit](_ => editingUserId.set(Some("new"))))
       ),
       div(
         cls := "w-full px-8",
@@ -32,18 +42,15 @@ object UsersPage:
                 span(u.email),
                 span(u.role),
                 span(if u.active then "Yes" else "No"),
-                a(
-                  href := s"/components/maintain-user/${u.id.getOrElse("new")}",
-                  cls  := "text-md-primary hover:underline",
-                  onClick --> { e =>
-                    e.preventDefault()
-                    Nav.toMaintainUser(u.id.getOrElse("new"))
-                  },
+                button(
+                  cls := "text-md-primary hover:underline",
+                  onClick --> (_ => editingUserId.set(Some(u.id.getOrElse("new")))),
                   "Edit"
                 )
               )
             }
           )
         }
-      )
+      ),
+      child.maybe <-- editingUserId.signal.map(_.map(id => Modal(closeModal, MaintainUserPage(id, closeModal))))
     )

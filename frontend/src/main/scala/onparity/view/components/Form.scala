@@ -5,13 +5,14 @@ import com.raquo.laminar.api.L.*
 object Form:
 
   def field(
-    id:        String,
-    lbl:       String,
-    value:     String,
-    inputFn:   String => Unit      = _ => (),
-    enabled:   Boolean             = true,
-    updates:   EventStream[String] = EventStream.empty,
-    inputType: String              = "text"
+    id:           String,
+    lbl:          String,
+    value:        String,
+    inputFn:      String => Unit      = _ => (),
+    enabled:      Boolean             = true,
+    updates:      EventStream[String] = EventStream.empty,
+    inputType:        String         = "text",
+    autoCompleteHint: Option[String] = None
   ): HtmlElement =
     div(
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",
@@ -27,6 +28,7 @@ object Form:
         cls          := "w-full px-4 py-3.5 bg-transparent text-md-on-surface dark:text-white text-base focus:outline-none rounded",
         onInput.mapToValue --> Observer[String](inputFn),
         if !enabled then disabled := true else emptyMod,
+        autoCompleteHint.map(ac => autoComplete := ac).getOrElse(emptyMod),
         inContext(el => updates --> Observer[String](v => el.ref.value = v))
       )
     )

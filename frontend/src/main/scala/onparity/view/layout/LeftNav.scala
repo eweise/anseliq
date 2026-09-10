@@ -8,10 +8,12 @@ import onparity.view.components.Icons
 object LeftNav:
 
   def apply(): HtmlElement =
-    // A snapshot at mount time, not a reactive binding: role doesn't change mid-session without a
-    // fresh login (which re-mounts the whole app), so re-deriving this on every SessionStore
-    // change would be work with no observable effect.
-    val isAdmin = SessionStore.currentUserNow.exists(_.role == "Admin")
+    // MainLayout/LeftNav is mounted exactly once at app boot (WebApp.scala), before any login has
+    // necessarily happened yet — a fresh login is a client-side Nav.push, not a page reload, so a
+    // one-time SessionStore.currentUserNow snapshot here would freeze isAdmin at whatever it was
+    // (usually false) for the rest of the session. Bound reactively instead, .distinct so logging
+    // out and back in as the same role doesn't needlessly rebuild the nav.
+    val isAdmin = SessionStore.currentUser.signal.map(_.exists(_.role == "Admin")).distinct
 
     asideTag(
       cls := "fixed left-0 top-0 bottom-0 w-64 z-10 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg overflow-y-auto",
@@ -23,7 +25,8 @@ object LeftNav:
           div(cls := "text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500", "Recon Platform")
         ),
         ul(
-          (cls := "space-y-1") +: groups(isAdmin).flatMap(navGroupItems)*
+          cls := "space-y-1",
+          children <-- isAdmin.map(groups(_).flatMap(navGroupItems))
         ),
         div(
           cls := "mt-4 pt-4 border-t border-gray-300 dark:border-gray-600",

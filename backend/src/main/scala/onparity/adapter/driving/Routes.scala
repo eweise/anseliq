@@ -621,7 +621,22 @@ class App(using
         cask.router.Result.Success(
           cask.Response("", statusCode = 200, headers = corsHeaders)
         )
-      else delegate(ctx, Map.empty).map(response => response.copy(headers = response.headers ++ corsHeaders))
+      else
+        // An uncaught exception from a route (e.g. login's UnauthorizedError) propagates as a real
+        // JVM throw straight through this delegate call, past the `.map` below (which only ever
+        // runs on the success path) — cask's own top-level handler is what finally catches it and
+        // renders the plain-text 500, entirely outside this decorator, so the response it builds
+        // never gets corsHeaders merged in. The browser then can't read that response cross-origin
+        // and fetch() fails with a generic "TypeError: Failed to fetch", masking the real error as
+        // what looks like a network problem. Catching here so every response — success or error —
+        // carries the same CORS headers.
+        try delegate(ctx, Map.empty).map(response => response.copy(headers = response.headers ++ corsHeaders))
+        catch
+          case e: Throwable =>
+            logger.error("Unhandled error", e)
+            cask.router.Result.Success(
+              cask.Response(Option(e.getMessage).getOrElse(e.toString), statusCode = 500, headers = corsHeaders)
+            )
 
   // Applied globally (see mainDecorators above) so every route requires a valid Bearer token
   // except /login itself (can't require a token to get a token). A route that needs to know who's

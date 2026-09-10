@@ -12,6 +12,13 @@ object LoginPage:
 
   case class State(email: String = "", password: String = "", error: Option[String] = None)
 
+  // Backend errors surface as an uncaught exception's raw message + stack trace in the response
+  // body (an app-wide characteristic of this backend's error handling, not something to work
+  // around here — see MaintainUserPage's identical helper) — take just the first line so a bad
+  // login shows one readable sentence instead of a multi-page trace that reads like a network
+  // failure.
+  private def firstLine(message: String): String = message.linesIterator.nextOption().getOrElse(message)
+
   def apply(): HtmlElement =
     val state    = Var(State())
     val loginBus = EventBus[Unit]()
@@ -29,7 +36,7 @@ object LoginPage:
           SessionStore.save(at, rt)
           Nav.push("/")
         case Left(err) =>
-          state.update(_.copy(error = Some(err)))
+          state.update(_.copy(error = Some(firstLine(err))))
       },
       cls := "h-screen flex justify-center bg-md-surface-variant dark:bg-gray-900",
       div(

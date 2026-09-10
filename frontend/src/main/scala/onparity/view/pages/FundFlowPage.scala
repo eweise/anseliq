@@ -35,6 +35,7 @@ object FundFlowPage:
     val ffVar             = Var(ff)
     val state             = Var(State())
     val configureReconBus = EventBus[AccountPayload]()
+    val manualMatchBus    = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
     val reconcileBus      = EventBus[String]()
     val saveFundFlowBus   = EventBus[Unit]()
@@ -105,6 +106,24 @@ object FundFlowPage:
         case (account, Right(specs)) =>
           val reconSpecId = specs.headOption.flatMap(_.id).getOrElse("new")
           Nav.toMaintainReconSpec(account.id.get, reconSpecId)
+        case (_, Left(e)) => AppState.globalError.set(Some(e))
+      },
+      // Shortcut straight to Manual Match for an account whose recon spec already exists — skips
+      // the "Configure Reconciliation" detour through MaintainReconSpecPage's edit form, which is
+      // otherwise the only way to reach it. No existing spec yet: fall back to the same "configure
+      // first" flow, since there's nothing to manually match against.
+      manualMatchBus.events.flatMapSwitch { account =>
+        ApiClient
+          .get[Seq[ReconciliationSpecPayload]](
+            HttpPath.url(s"${HttpPath.account}/${account.id.get}/recon-specs"),
+            SessionStore.token
+          )
+          .map(res => (account, res))
+      } --> {
+        case (account, Right(specs)) =>
+          specs.headOption.flatMap(_.id) match
+            case Some(reconSpecId) => Nav.toManualMatch(account.id.get, reconSpecId)
+            case None               => Nav.toMaintainReconSpec(account.id.get, "new")
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
       deleteSpecBus.events.flatMapSwitch { spec =>
@@ -190,7 +209,7 @@ object FundFlowPage:
                 ),
                 child <-- state.signal.map { s =>
                   if s.accounts.isEmpty then div(cls := "text-gray-500 dark:text-gray-400 text-sm", "No accounts")
-                  else renderDiagram(s, ff, configureReconBus, deleteSpecBus, state)
+                  else renderDiagram(s, ff, configureReconBus, manualMatchBus, deleteSpecBus, state)
                 }
               )
             )
@@ -204,6 +223,7 @@ object FundFlowPage:
                     "Cash Balance",
                     "Unreconciled Balance",
                     "Unreconciled Count",
+                    "",
                     ""
                   ),
                   s.accounts.sortBy(_.name).map { account =>
@@ -247,6 +267,18 @@ object FundFlowPage:
                           "Reconciliations"
                         )
                       else span()
+                    // Jumps straight to Manual Match for this account's recon spec (fetched on
+                    // click, since a row doesn't otherwise know its spec id) — this table is the
+                    // default landing tab, so it's the entry point people actually find, unlike the
+                    // Configuration tab's account-diagram menu where this same shortcut also lives.
+                    val manualMatchCell =
+                      if isRecon then
+                        button(
+                          cls := "text-md-primary hover:underline cursor-pointer",
+                          onClick --> (_ => manualMatchBus.emit(account)),
+                          "Manual Match"
+                        )
+                      else span()
                     val typePill = account.accountType match
                       case "Recon"     => Pill("Recon", Pill.Tone.Accent)
                       case "Primary"   => Pill("Primary", Pill.Tone.Good)
@@ -258,7 +290,8 @@ object FundFlowPage:
                       span(cls := "text-right w-full inline-block", f"$$${account.balance}%.2f"),
                       unreconBalanceCell,
                       unreconCell,
-                      reconciliationsCell
+                      reconciliationsCell,
+                      manualMatchCell
                     )
                   },
                   numCols = Set(2, 3, 4)
@@ -520,6 +553,7 @@ object FundFlowPage:
     s:                 State,
     ff:                FundFlowPayload,
     configureReconBus: EventBus[AccountPayload],
+    manualMatchBus:    EventBus[AccountPayload],
     deleteSpecBus:     EventBus[MovementSpecPayload],
     state:             Var[State]
   ): HtmlElement =
@@ -564,7 +598,7 @@ object FundFlowPage:
     val accountMenu = s.selectedAccount.flatMap { selected =>
       selected.id.flatMap { id =>
         posOf.get(id).map { (x, y) =>
-          renderAccountMenu(s, selected, ff, x, y + boxH + 4, configureReconBus, deleteSpecBus, state)
+          renderAccountMenu(s, selected, ff, x, y + boxH + 4, configureReconBus, manualMatchBus, deleteSpecBus, state)
         }
       }
     }.getOrElse(div())
@@ -598,6 +632,7 @@ object FundFlowPage:
     x:                 Int,
     y:                 Int,
     configureReconBus: EventBus[AccountPayload],
+    manualMatchBus:    EventBus[AccountPayload],
     deleteSpecBus:     EventBus[MovementSpecPayload],
     state:             Var[State]
   ): HtmlElement =
@@ -618,6 +653,18 @@ object FundFlowPage:
             configureReconBus.emit(selected)
           },
           "Configure Reconciliation"
+        )
+      else div()
+
+    val manualMatchBtn =
+      if selected.accountType == "Recon" then
+        button(
+          cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+          onClick --> { _ =>
+            state.update(_.copy(selectedAccount = None))
+            manualMatchBus.emit(selected)
+          },
+          "Manual Match"
         )
       else div()
 
@@ -668,7 +715,7 @@ object FundFlowPage:
 
     div(
       styleAttr := s"position:absolute;left:${x}px;top:${y}px;z-index:30;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);min-width:160px;overflow:hidden"
-    ).amend((editBtn +: reconBtn +: linkButtons ++: unlinkButtons)*)
+    ).amend((editBtn +: reconBtn +: manualMatchBtn +: linkButtons ++: unlinkButtons)*)
 
   private def renderMovementSpecMenu(
     spec:          MovementSpecPayload,
