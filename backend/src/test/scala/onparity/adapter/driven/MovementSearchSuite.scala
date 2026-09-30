@@ -2,6 +2,7 @@ package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
+import onparity.common.model.AppliedRules
 import onparity.common.model.model.ID
 import onparity.domain.DataSetup
 import onparity.domain.model.*
@@ -168,7 +169,7 @@ class MovementSearchSuite extends munit.FunSuite:
       )
 
       // Unreconciled-only: link m1 to a real reconciliation, then confirm it's excluded
-      val recon = Reconciliation(specId = Some(data.reconSpec.id))
+      val recon = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
       transact(transactor):
         reconRepo.insert(recon)
         movementRepo.setReconciliationIds(Seq(m1.id -> recon.id))

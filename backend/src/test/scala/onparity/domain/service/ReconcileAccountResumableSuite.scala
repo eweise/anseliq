@@ -3,7 +3,7 @@ package onparity.domain.service
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.adapter.driven.*
-import onparity.common.model.{StringAttribute, StringAttributeMatchRule}
+import onparity.common.model.*
 import onparity.domain.DataSetup
 import onparity.domain.model.*
 import onparity.domain.model.helper.JSONBProps
@@ -562,6 +562,51 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       val unreconciled = transact(transactor)(movementRepo.findUnReconciledByAccount(data.reconAccount.id))
       assertEquals(unreconciled.size, 1, "the id=999 in-movement is left unreconciled")
       assertEquals(unreconciled.head.props.get("id"), Some("999"))
+    finally
+      transact(transactor):
+        data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        data.reconSpecRepo.deleteById(spec.id)
+      teardown(data)
+
+  test("appliedRules records each leaf rule alongside the (post-modifier) value it matched on"):
+    val data    = transact(transactor)(DataSetup())
+    val inFeed  = FileFeed()
+    val outFeed = FileFeed()
+    val inSpec =
+      MovementSpec(inAccountId = data.reconAccount.id, outAccountId = data.journalAccount.id, fileFeedId = inFeed.id)
+    val outSpec =
+      MovementSpec(outAccountId = data.reconAccount.id, inAccountId = data.reportAccount.id, fileFeedId = outFeed.id)
+    val refRule = StringAttributeMatchRule(inKey = StringAttribute(key = "ref"), outKey = StringAttribute(key = "ref"))
+    val dateRule = DateAttributeMatchRule(
+      inKey  = DateAttribute(key = "txnDate", modifier = Some(DateAdd(Interval.Day, 2))),
+      outKey = DateAttribute(key = "settleDate")
+    )
+    val spec = ReconciliationSpec(
+      accountId         = data.reconAccount.id,
+      ruleJson          = upickle.write[Rule](AndRule(List(refRule, dateRule))),
+      inMovementSpecId  = inSpec.id,
+      outMovementSpecId = outSpec.id
+    )
+    given ops: FundFlowOperations = FundFlowOperations()
+    try
+      transact(transactor):
+        fileFeedRepo.insert(inFeed)
+        fileFeedRepo.insert(outFeed)
+        movementSpecRepo.insert(inSpec)
+        movementSpecRepo.insert(outSpec)
+        data.reconSpecRepo.insert(spec)
+        ops.postAmount(inSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "txnDate" -> "2026-09-01"))
+        ops.postAmount(outSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "settleDate" -> "2026-09-03"))
+
+      InMemoryReconciler().reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+
+      // Read back from the DB, so this also covers the jsonb round trip.
+      val reconciliations = transact(transactor)(data.reconRepo.findByReconSpecID(spec.id))
+      assertEquals(reconciliations.size, 1)
+      assertEquals(
+        reconciliations.head.appliedRules,
+        AppliedRules.Matched(List(RuleMatch(refRule, "INV-1"), RuleMatch(dateRule, "2026-09-03")))
+      )
     finally
       transact(transactor):
         data.reconRepo.findByReconSpecID(spec.id).foreach(r => data.reconRepo.deleteById(r.id))

@@ -179,15 +179,21 @@ class InMemoryReconciler(using
   // in-side and out-side lists below are always built from the same AndRule traversal, so they
   // pair up correctly). OrRule and any other Rule are unsupported and throw clearly rather than
   // silently comparing the wrong thing.
-  private def matchKeyAttributes(rule: Rule, direction: Direction): Seq[StringAttribute | DateAttribute] =
+  private def leafMatchRules(rule: Rule): Seq[StringAttributeMatchRule | DateAttributeMatchRule] =
     rule match
-      case s: StringAttributeMatchRule => Seq(if direction == IN then s.inKey else s.outKey)
-      case d: DateAttributeMatchRule   => Seq(if direction == IN then d.inKey else d.outKey)
-      case AndRule(rules) => rules.flatMap(r => matchKeyAttributes(r, direction))
+      case s: StringAttributeMatchRule => Seq(s)
+      case d: DateAttributeMatchRule   => Seq(d)
+      case AndRule(rules)              => rules.flatMap(leafMatchRules)
       case other =>
         throw UnsupportedOperationException(
           s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them; got ${other.getClass.getSimpleName}"
         )
+
+  private def matchKeyAttributes(rule: Rule, direction: Direction): Seq[StringAttribute | DateAttribute] =
+    leafMatchRules(rule).map {
+      case s: StringAttributeMatchRule => if direction == IN then s.inKey else s.outKey
+      case d: DateAttributeMatchRule   => if direction == IN then d.inKey else d.outKey
+    }
 
   // Deliberately doesn't reuse Rule.sql/Attribute.modifySQL: those access properties via jsonb
   // bracket indexing and (when a modifier is present) cast that to ::text, which preserves JSON
@@ -229,12 +235,21 @@ class InMemoryReconciler(using
       .map(a => s"(${attrSqlExpr(a, tableAlias)})::text")
       .mkString(" || chr(31) || ")
 
-  private def matchKeyValue(rule: Rule, direction: Direction, movement: Movement): String =
+  private def matchKeyValues(rule: Rule, direction: Direction, movement: Movement): Seq[String] =
     matchKeyAttributes(rule, direction).map {
       case s: StringAttribute => s.getValue(movement.props)
       case d: DateAttribute   => d.getValue(movement.props).toString
     }
-      .mkString(compositeKeyDelimiter)
+
+  private def matchKeyValue(rule: Rule, direction: Direction, movement: Movement): String =
+    matchKeyValues(rule, direction, movement).mkString(compositeKeyDelimiter)
+
+  // Every movement in a group shares the same composite key (that's what put them in one group),
+  // so any one in-side movement yields each leaf rule's matched value.
+  private def appliedRules(rule: Rule, inGroup: Vector[Movement]): AppliedRules =
+    AppliedRules.Matched(
+      leafMatchRules(rule).zip(matchKeyValues(rule, IN, inGroup.head)).map(RuleMatch(_, _)).toList
+    )
 
   /**
    * A keyset-paginated cursor over one side (in or out) of a match, fetching `pageSize` rows at a
@@ -498,7 +513,7 @@ class InMemoryReconciler(using
         val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
         Reconciliation(
           specId       = Some(reconSpec.id),
-          appliedRules = rule.sql,
+          appliedRules = appliedRules(rule, inGroup),
           status       = status,
           balance      = balance,
           createdAt    = Some(now),
@@ -598,7 +613,7 @@ class InMemoryReconciler(using
         val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
         Reconciliation(
           specId       = Some(reconSpec.id),
-          appliedRules = rule.sql,
+          appliedRules = appliedRules(rule, inGroup),
           status       = status,
           balance      = balance,
           createdAt    = Some(now),

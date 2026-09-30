@@ -46,7 +46,7 @@ object ReconciliationDetailPage:
         cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
         div(s"ID: ${r.id}"),
         div(s"Description: ${r.description}"),
-        div(s"Applied Rules: ${r.appliedRules}"),
+        div(s"Applied Rules: ${r.appliedRules.summary}"),
         div(cls := "flex items-center gap-2", span("Status:"), ReconciliationsPage.statusPill(r)),
         div(s"Balance: ${r.balance}"),
         div(s"Adjustment Reason: ${r.adjustmentReason.getOrElse("")}"),

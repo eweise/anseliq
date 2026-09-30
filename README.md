@@ -26,6 +26,14 @@ sbt
 
 ## Localstack
 
+### Start localstack
+
+- Get the token
+- Add the token locally
+    - localstack auth set-token ls-YaDEZADA-9583-SoKu-RAKA-tuQo9565e887
+- Start localstack
+    - localstack start
+
 Configuring a custom profile
 
 You can configure a custom profile to use with LocalStack. Add the following profile to your AWS configuration file (by

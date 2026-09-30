@@ -37,3 +37,6 @@ snapshot-db:
 restore-db: delete-db
 	$(POSTGRES_BIN)/createdb -p $(PG_DB_ROOT) -U$(PG_DB_USER) $(DB_NAME)
 	$(POSTGRES_BIN)/pg_restore -p $(PG_DB_ROOT) -U$(PG_DB_USER) -d $(DB_NAME) $(DB_SNAPSHOT_FILE)
+
+kill-java:
+	-pkill -x java

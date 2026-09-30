@@ -116,7 +116,7 @@ case class ReconciliationPayload(
   id: String,
   // None only for a system-generated Reversed reconciliation (see backend's ReconciliationStatus).
   reconSpecId:      Option[String],
-  appliedRules:     String,
+  appliedRules:     AppliedRules,
   description:      String,
   status:           String,
   balance:          Money,

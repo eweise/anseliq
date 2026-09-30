@@ -88,7 +88,7 @@ object ReconciliationsPage:
                   if r.description.trim.nonEmpty then r.description else "View"
                 ),
                 statusPill(r),
-                span(r.appliedRules),
+                span(r.appliedRules.summary),
                 span(r.balance.toString),
                 span(r.adjustmentReason.getOrElse("")),
                 span(ViewHelper.formatDateTime(r.createdAt)),

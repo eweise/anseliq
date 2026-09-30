@@ -135,7 +135,7 @@ create table recon.reconciliation
     -- contra-entry rather than governing a real matching rule.
     spec_id           uuid REFERENCES recon.reconciliation_spec (id),
     description       text,
-    applied_rules     text,
+    applied_rules     jsonb                                 not null,
     balance           numeric(15, 2)                        not null default 0,
     status            text                                  not null,
     adjustment_reason text,

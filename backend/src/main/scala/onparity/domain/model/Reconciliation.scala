@@ -1,8 +1,10 @@
 package onparity.domain.model
 
 import com.augustnagro.magnum.*
+import onparity.common.model.AppliedRules
 import onparity.common.model.model.{ID, Money}
 import onparity.domain.model.ReconciliationStatus.Final
+import onparity.domain.model.helper.upickleJsonBDbCodec
 
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -22,7 +24,8 @@ case class Reconciliation(
   // None only for a Reversed reconciliation — see ReconciliationStatus.Reversed's doc. No default:
   // every caller should have to consciously decide this, not fall into None by omission.
   specId:               Option[ID],
-  appliedRules:         String                 = "",
+  // No default, same reasoning as specId: every caller states why the group was formed.
+  appliedRules:         AppliedRules,
   description:          String                 = "",
   var status:           ReconciliationStatus   = Final,
   var balance:          Money                  = 0,
@@ -32,4 +35,6 @@ case class Reconciliation(
 ) derives DbCodec
 
 object Reconciliation:
+  given DbCodec[AppliedRules] = upickleJsonBDbCodec[AppliedRules]
+
   val Table = TableInfo[Reconciliation, Reconciliation, UUID]

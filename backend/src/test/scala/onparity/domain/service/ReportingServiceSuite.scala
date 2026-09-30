@@ -2,6 +2,7 @@ package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
+import onparity.common.model.AppliedRules
 import onparity.adapter.driven.{DailySnapshotRepoLive, DbDataSource}
 import onparity.common.model.model.ID
 import onparity.domain.DataSetup
@@ -80,7 +81,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         createMovement(spec.inAccountId, spec.outAccountId, spec.id, 100)
 
         // Reconcile 2 of the 4 movements on data.reconAccount together.
-        val recon = Reconciliation(specId = Some(data.reconSpec.id))
+        val recon = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         data.reconRepo.insert(recon)
         data.movementRepo.setReconciliationIds(Seq(m1.id -> recon.id, m2.id -> recon.id))
 

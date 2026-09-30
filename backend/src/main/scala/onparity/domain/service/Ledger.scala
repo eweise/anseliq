@@ -1,6 +1,7 @@
 package onparity.domain.service
 
 import com.fasterxml.uuid.Generators
+import onparity.common.model.AppliedRules
 import onparity.common.model.model.{ID, Money, Properties, Zero}
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.model.{
@@ -189,7 +190,7 @@ class Ledger(using
       val now = clock.now
       val reconciliation = Reconciliation(
         specId       = None,
-        appliedRules = "system: Ledger.reverseMovement",
+        appliedRules = AppliedRules.Reversal,
         description  = s"Reversal of movement ${movement.id}",
         status       = ReconciliationStatus.Reversed,
         balance      = Zero,

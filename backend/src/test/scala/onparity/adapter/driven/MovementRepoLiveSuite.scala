@@ -3,7 +3,7 @@ package onparity.adapter.driven
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.common.model.model.ID
-import onparity.common.model.{AndRule, StringAttribute, StringAttributeMatchRule}
+import onparity.common.model.{AndRule, AppliedRules, StringAttribute, StringAttributeMatchRule}
 import onparity.domain.DataSetup
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.model.{Movement, Reconciliation, createID}
@@ -73,7 +73,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = "")
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
@@ -108,7 +108,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = "")
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
@@ -180,7 +180,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = "")
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
@@ -230,7 +230,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val data           = DataSetup()
-        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = "")
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         reconRepo.insert(reconciliation)
 
         val outReconMovement = Movement(
@@ -362,8 +362,8 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         movementRepo.insert(m3)
 
         val reconRepo = ReconciliationRepoLive()
-        val recon1    = Reconciliation(specId = Some(data.reconSpec.id))
-        val recon2    = Reconciliation(specId = Some(data.reconSpec.id))
+        val recon1    = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+        val recon2    = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         reconRepo.insert(recon1)
         reconRepo.insert(recon2)
 

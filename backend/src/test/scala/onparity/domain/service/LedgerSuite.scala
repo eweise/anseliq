@@ -2,6 +2,7 @@ package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
+import onparity.common.model.AppliedRules
 import onparity.adapter.driven.DbDataSource
 import onparity.domain.DataSetup
 import onparity.domain.model.*
@@ -100,7 +101,7 @@ class LedgerSuite extends munit.FunSuite:
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
         val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
-        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id))
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         data.reconRepo.insert(reconciliation)
 
         data.ledger.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
@@ -125,7 +126,7 @@ class LedgerSuite extends munit.FunSuite:
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
         val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
-        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id))
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         data.reconRepo.insert(reconciliation)
         data.ledger.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
 

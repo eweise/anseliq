@@ -50,7 +50,7 @@ object AccountReconciliationsPage:
                   if r.description.trim.nonEmpty then r.description else "View"
                 ),
                 ReconciliationsPage.statusPill(r),
-                span(r.appliedRules),
+                span(r.appliedRules.summary),
                 span(r.balance.toString),
                 span(r.adjustmentReason.getOrElse("")),
                 span(ViewHelper.formatDateTime(r.createdAt)),

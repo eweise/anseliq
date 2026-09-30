@@ -140,7 +140,7 @@ object ExceptionDetailPage:
     div(
       cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
       div(s"Description: ${r.description}"),
-      div(s"Applied Rules: ${r.appliedRules}"),
+      div(s"Applied Rules: ${r.appliedRules.summary}"),
       div(s"Balance: ${r.balance}"),
       div(s"Status: ${r.status}"),
       div(s"Created: ${ViewHelper.formatDateTime(r.createdAt)}"),

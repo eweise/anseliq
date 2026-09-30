@@ -1,6 +1,7 @@
 package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
+import onparity.common.model.AppliedRules
 import onparity.common.model.model.{ID, Money, Zero}
 import onparity.domain.model.*
 import onparity.domain.port.driven.*
@@ -62,7 +63,7 @@ class ManualReconciler(using
     val now = clock.now
     val reconciliation = Reconciliation(
       specId       = Some(reconSpecId),
-      appliedRules = "manual",
+      appliedRules = AppliedRules.Manual,
       description  = description,
       status       = status,
       balance      = balance,
