@@ -59,7 +59,13 @@ class ManualReconciler(using
         throw IllegalArgumentError("outMovementIds", s"movement ${m.id} is already reconciled")
 
     val balance = inMovements.map(_.amount).sum - outMovements.map(_.amount).sum
-    val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
+    // Same rule as InMemoryReconciler: only a OneToMany group can still be completed by more
+    // movements arriving later (InProgress); under any other relationship nothing will ever join
+    // it, so an unbalanced manual match is Mismatched from the start.
+    val status =
+      if balance == Zero then ReconciliationStatus.Final
+      else if reconSpec.relationship == Relationship.OneToMany then ReconciliationStatus.InProgress
+      else ReconciliationStatus.Mismatched
 
     val now = clock.now
     val reconciliation = Reconciliation(
@@ -74,6 +80,9 @@ class ManualReconciler(using
     reconRepo.insert(reconciliation)
 
     ledger.reconcile(inMovements ++ outMovements, reconciliation.id, reconSpec.accountId)
+
+    if status == ReconciliationStatus.Mismatched then
+      AmountMismatchDisputes.raise(reconciliation.id, s"Balance mismatch of $balance")
 
     eventStore.publishEvent(ReconciliationManuallyMatched(reconciliationID = reconciliation.id))
 
@@ -104,43 +113,14 @@ class ManualReconciler(using
     reconciliation.status = ReconciliationStatus.Voided
     reconRepo.update(reconciliation)
 
-    resolveDanglingAmountMismatchDispute(reconciliationId, s"Auto-resolved: reconciliation $reconciliationId was voided.")
+    AmountMismatchDisputes.resolveOpen(reconciliationId, s"Auto-resolved: reconciliation $reconciliationId was voided.")
 
     eventStore.publishEvent(ReconciliationVoided(reconciliationID = reconciliationId))
 
-  // Voiding or writing off a reconciliation makes any AmountMismatch dispute raised against it (see
-  // InMemoryReconciler.streamMergeJoin's raiseDisputeOnMismatch) moot — the mismatch it was
-  // tracking no longer exists once the movements are back in the unreconciled pool, or once the
-  // difference has been posted as an adjustment. Same auto-resolve shape as
-  // Ingestor.resolveFileMissingDispute: status change + an explanatory comment, not just silently
-  // forgotten.
-  private def resolveDanglingAmountMismatchDispute(reconciliationId: ID, commentBody: String): Txn[Unit] =
-    disputeRepo
-      .findOpenByReferenceIdAndCategory(reconciliationId, DisputeCategory.AmountMismatch)
-      .foreach: dispute =>
-        dispute.status    = DisputeStatus.Resolved
-        dispute.updatedAt = Some(clock.now)
-        disputeRepo.update(dispute)
-        eventStore.publishEvent(
-          DisputeStatusChanged(disputeID = dispute.id, newStatus = DisputeStatus.Resolved.toString)
-        )
-
-        // insert, not insertReturning: a pgjdbc quirk misreads a nullable uuid column on readback
-        // (see DisputeService.raise's own comment for the full explanation) — DisputeComment now
-        // has one (newAssignedToUserId). Every field here is already fully populated, so returning
-        // it directly is exactly equivalent to a successful readback.
-        val comment = DisputeComment(
-          disputeId = dispute.id,
-          body      = Some(commentBody),
-          newStatus = Some(DisputeStatus.Resolved),
-          createdAt = Some(clock.now)
-        )
-        disputeCommentRepo.insert(comment)
-        eventStore.publishEvent(DisputeCommentAdded(disputeID = dispute.id, commentID = comment.id))
-
   /**
-   * Closes an InProgress reconciliation by posting its whole remaining difference as a
-   * ManualAdjustment movement, rather than just relabelling it Final and leaving the difference
+   * Closes a Mismatched (or still-InProgress OneToMany) reconciliation by posting its whole
+   * remaining difference as a ManualAdjustment movement, rather than just relabelling it Final and
+   * leaving the difference
    * stranded on the reconciled account. `movementId` — one of the reconciliation's own movements,
    * chosen by the user as where the difference belongs (e.g. the out-movement a bank fee was
    * deducted from) — decides the accounts: the adjustment runs between the reconciled account and
@@ -150,8 +130,8 @@ class ManualReconciler(using
    */
   def writeOff(reconciliationId: ID, movementId: ID, reason: String): Txn[Movement] =
     val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
-    if reconciliation.status != ReconciliationStatus.InProgress then
-      throw IllegalStateError(s"reconciliation $reconciliationId is not InProgress")
+    if reconciliation.status != ReconciliationStatus.Mismatched && reconciliation.status != ReconciliationStatus.InProgress
+    then throw IllegalStateError(s"reconciliation $reconciliationId is not Mismatched or InProgress")
 
     val specId         = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
     val reconAccountId = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId).accountId
@@ -192,7 +172,7 @@ class ManualReconciler(using
     reconciliation.status           = ReconciliationStatus.Final
     reconRepo.update(reconciliation)
 
-    resolveDanglingAmountMismatchDispute(
+    AmountMismatchDisputes.resolveOpen(
       reconciliationId,
       s"Auto-resolved: reconciliation $reconciliationId was written off ($reason)."
     )

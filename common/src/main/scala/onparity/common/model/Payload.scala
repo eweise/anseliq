@@ -189,9 +189,12 @@ case class AccountSummaryViewPayload(
   account:           AccountPayload,
   isReconAccount:    Boolean,
   unreconciledCount: Int,
-  // InProgress reconciliations for a recon account (0 otherwise). Their combined balance is the
-  // account's reconciledBalance, since Final reconciliations net to zero.
-  inProgressCount: Int = 0
+  // A recon account's InProgress and Mismatched reconciliations (all 0 otherwise). Final ones net
+  // to zero, so account.balance = account.unreconciledBalance + inProgressBalance + mismatchedBalance.
+  inProgressCount:   Int   = 0,
+  inProgressBalance: Money = 0,
+  mismatchedCount:   Int   = 0,
+  mismatchedBalance: Money = 0
 ) derives ReadWriter
 
 enum AccountTypePayload derives ReadWriter:

@@ -87,10 +87,12 @@ class DisputeServiceSuite extends munit.FunSuite:
         val manualReconciler = ManualReconciler()
         val disputeService   = DisputeService()
 
+        // Balanced, so matchMovements leaves it Final without raising its own AmountMismatch
+        // dispute — an unbalanced match would already have one open, and this would conflict.
         val inMovement  = createMovement(data.journalToRecon, 300)
-        val outMovement = createMovement(data.reportToRecon, 100)
+        val outMovement = createMovement(data.reportToRecon, 300)
         val recon =
-          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "partial match")
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "match")
 
         val dispute = disputeService.raise(recon.id, DisputeTarget.Reconciliation, DisputeCategory.AmountMismatch, None)
 

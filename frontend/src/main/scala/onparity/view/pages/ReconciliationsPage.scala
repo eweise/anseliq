@@ -22,6 +22,7 @@ object ReconciliationsPage:
   def statusPill(r: ReconciliationPayload): HtmlElement =
     val (label, tone) = r.status match
       case "InProgress"                                     => "In Progress" -> Pill.Tone.Warning
+      case "Mismatched"                                     => "Mismatched"  -> Pill.Tone.Critical
       case "Final" if r.adjustmentReason.exists(_.nonEmpty) => "Written Off" -> Pill.Tone.Serious
       case "Final"                                          => "Final"       -> Pill.Tone.Good
       case "Voided"                                         => "Voided"      -> Pill.Tone.Neutral
@@ -99,7 +100,7 @@ object ReconciliationsPage:
                   else
                     div(
                       cls := "flex flex-col gap-1",
-                      (if r.status == "InProgress" then
+                      (if r.status == "Mismatched" || r.status == "InProgress" then
                          if s.editingWriteOff.contains(r.id) then
                            writeOffForm(
                              r,

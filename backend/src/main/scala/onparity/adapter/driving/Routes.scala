@@ -4,7 +4,7 @@ import com.augustnagro.magnum.*
 import com.typesafe.scalalogging.StrictLogging
 import onparity.common.http.HttpPath
 import onparity.common.model.*
-import onparity.common.model.model.ID
+import onparity.common.model.model.{ID, Zero}
 import onparity.common.util.JwtHelper
 import onparity.domain.model.*
 import onparity.domain.port.driven.*
@@ -102,13 +102,20 @@ class App(using
       val accountSummaryViews = accounts.map(account =>
         val isReconAccount    = account.accountType == AccountType.Recon
         val unreconciledCount = if isReconAccount then movementRepo.countUnreconciledByAccount(account.id) else 0
-        val inProgressCount   = if isReconAccount then reconRepo.countInProgressByAccountID(account.id) else 0
+        val openTotals =
+          if isReconAccount then reconRepo.openTotalsByAccountID(account.id).map(t => t.status -> t).toMap
+          else Map.empty
+        val inProgress = openTotals.get(ReconciliationStatus.InProgress)
+        val mismatched = openTotals.get(ReconciliationStatus.Mismatched)
 
         AccountSummaryViewPayload(
           Payload.accountPayloadFromDomain(account),
           isReconAccount    = isReconAccount,
           unreconciledCount = unreconciledCount,
-          inProgressCount   = inProgressCount
+          inProgressCount   = inProgress.fold(0)(_.count),
+          inProgressBalance = inProgress.fold(Zero)(_.balance),
+          mismatchedCount   = mismatched.fold(0)(_.count),
+          mismatchedBalance = mismatched.fold(Zero)(_.balance)
         )
       )
       val fundFlowSummaryView = FundFlowSummaryViewPayload(

@@ -5,8 +5,8 @@ import onparity.common.model.model.{ID, Money}
 import java.time.OffsetDateTime
 
 // OpenBalance is every movement still contributing to an account's balance: unreconciled ones plus
-// those in an InProgress reconciliation (Final reconciliations net to zero, and a write-off makes
-// its reconciliation Final). For a recon account, these sum to its cash balance.
+// those in an InProgress or Mismatched reconciliation (Final reconciliations net to zero, and a
+// write-off makes its reconciliation Final). For a recon account, these sum to its cash balance.
 enum ReconciliationFilter:
   case All, Unreconciled, OpenBalance
 

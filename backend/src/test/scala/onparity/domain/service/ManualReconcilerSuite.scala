@@ -21,6 +21,7 @@ import onparity.domain.model.{
   Reconciliation,
   ReconciliationStatus,
   ReconciliationVoided,
+  Relationship,
   createID
 }
 import onparity.domain.port.driven.{DisputeRepo, JobRepo, Txn}
@@ -85,7 +86,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(account.reconciledBalance, BigDecimal(0)) // +100 (in) -100 (out) = 0
         assertEquals(account.unreconciledBalance, BigDecimal(0))
 
-  test("matchMovements with unequal totals creates an InProgress reconciliation with the residual balance"):
+  test("matchMovements with unequal totals under a OneToOne spec is Mismatched and raises an AmountMismatch dispute"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -103,12 +104,31 @@ class ManualReconcilerSuite extends munit.FunSuite:
           "test partial match"
         )
 
-        assertEquals(recon.status, ReconciliationStatus.InProgress)
+        assertEquals(recon.status, ReconciliationStatus.Mismatched)
         assertEquals(recon.balance, BigDecimal(100))
+        assert(data.disputeRepo.findOpenByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch).isDefined)
 
         val account = data.accountRepo.findById(data.reconAccount.id).get
         assertEquals(account.reconciledBalance, BigDecimal(100)) // +300 (in) -100 -100 (out) = 100
         assertEquals(account.unreconciledBalance, BigDecimal(-100))
+
+  // Under OneToMany more of the "many" side can still arrive later, so an unbalanced manual group
+  // is left InProgress with no dispute — the same as an automatic OneToMany group.
+  test("matchMovements with unequal totals under a OneToMany spec stays InProgress with no dispute"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+        data.reconSpecRepo.update(data.reconSpec.copy(relationship = Relationship.OneToMany))
+
+        val inMovement  = createMovement(data.journalToRecon, 300)
+        val outMovement = createMovement(data.reportToRecon, 100)
+        val recon =
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "partial")
+
+        assertEquals(recon.status, ReconciliationStatus.InProgress)
+        assertEquals(data.disputeRepo.findOpenByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch), None)
 
   test("matchMovements rejects a movement that is already reconciled"):
     transact(transactor):
@@ -205,7 +225,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
     val outMovement = createMovement(data.reportToRecon, 90)
     val recon =
       manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "residual match")
-    assertEquals(recon.status, ReconciliationStatus.InProgress)
+    assertEquals(recon.status, ReconciliationStatus.Mismatched)
     (inMovement, outMovement, recon)
 
   test("writeOff against the out-movement posts the difference to that movement's other account and closes the reconciliation"):
@@ -281,18 +301,9 @@ class ManualReconcilerSuite extends munit.FunSuite:
         val manualReconciler = ManualReconciler()
 
         val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
-        val dispute = data.disputeRepo
-          .insertIfNoOpenDispute(
-            Dispute(
-              referenceId = recon.id,
-              targetType  = DisputeTarget.Reconciliation,
-              category    = DisputeCategory.AmountMismatch,
-              detail      = Some(s"Balance mismatch of ${recon.balance}"),
-              createdAt   = Some(clockSvc.now),
-              updatedAt   = Some(clockSvc.now)
-            )
-          )
-          .get
+        // Raised by matchMovements itself, since the match left it Mismatched.
+        val dispute =
+          data.disputeRepo.findOpenByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch).get
 
         manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
 
@@ -386,7 +397,13 @@ class ManualReconcilerSuite extends munit.FunSuite:
           .findByEventType("AccountReconciled")
           .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == data.reconAccount.id).getOrElse(false))
           .foreach(es => eventRepo.deleteById(es.id))
-        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
+        // matchMovements raises an AmountMismatch dispute for the unbalanced match (writeOff then
+        // resolves it), so it has to go too — otherwise it's left committed, pointing at a
+        // reconciliation that no longer exists, and the Exceptions page 404s looking it up.
+        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach { r =>
+          data.disputeRepo.findAll.filter(_.referenceId == r.id).foreach(d => data.disputeRepo.deleteById(d.id))
+          data.reconRepo.deleteById(r.id)
+        }
         data.reconSpecRepo.deleteById(data.reconSpec.id)
         data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
 

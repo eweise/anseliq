@@ -20,6 +20,7 @@ object AccountReconciliationsPage:
   private val statusOptions = Seq(
     ""           -> "All",
     "InProgress" -> "In Progress",
+    "Mismatched" -> "Mismatched",
     "Final"      -> "Final",
     "Voided"     -> "Voided",
     "Reversed"   -> "Reversed"

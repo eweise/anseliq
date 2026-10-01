@@ -241,6 +241,7 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
     val anyRecon    = c.reconciliation == ReconciliationFilter.All
     val openBalance = c.reconciliation == ReconciliationFilter.OpenBalance
     val inProgress  = ReconciliationStatus.InProgress
+    val mismatched  = ReconciliationStatus.Mismatched
     sql"""
       SELECT ${m.all}
       FROM $m AS a
@@ -256,7 +257,7 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
            OR a.meta_data -> 'props' ->> 'file_source_entry' ILIKE '%' || ${c.fileSourceQuery} || '%')
       AND ($anyRecon
            OR a.reconciliation_id IS NULL
-           OR ($openBalance AND a.reconciliation_id IN (SELECT id FROM $r WHERE status = $inProgress)))
+           OR ($openBalance AND a.reconciliation_id IN (SELECT id FROM $r WHERE status IN ($inProgress, $mismatched))))
       AND (${c.createdFrom}::timestamptz IS NULL OR a.created_at >= ${c.createdFrom})
       AND (${c.createdTo}::timestamptz IS NULL OR a.created_at < ${c.createdTo})
       AND (${c.movementType}::text IS NULL OR a.movement_type = ${c.movementType})

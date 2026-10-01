@@ -4,7 +4,8 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.common.model.{AppliedRules, RuleMatch, StringAttribute, StringAttributeMatchRule}
 import onparity.domain.DataSetup
-import onparity.domain.model.{Reconciliation, ReconciliationStatus}
+import onparity.domain.model.helper.JSONBProps
+import onparity.domain.model.{Movement, MovementSpec, Reconciliation, ReconciliationStatus}
 import onparity.testing.rollBackOnly
 
 import java.util.UUID
@@ -103,20 +104,49 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
         val foundRecons = reconRepo.findByReconSpecID(data.reconSpec.id)
         assert(foundRecons.nonEmpty)
 
-  test("countInProgressByAccountID counts only the account's InProgress reconciliations"):
-    val reconRepo = ReconciliationRepoLive()
+  test("openTotalsByAccountID totals InProgress and Mismatched reconciliations from the account's side"):
+    val reconRepo    = ReconciliationRepoLive()
+    val movementRepo = MovementRepoLive()
     transact(transactor):
       rollBackOnly:
         val data = DataSetup()
         def recon(status: ReconciliationStatus) =
-          Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, status = status)
-        reconRepo.insert(recon(ReconciliationStatus.InProgress))
-        reconRepo.insert(recon(ReconciliationStatus.InProgress))
-        reconRepo.insert(recon(ReconciliationStatus.Final))
-        reconRepo.insert(recon(ReconciliationStatus.Voided))
+          val r = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, status = status)
+          reconRepo.insert(r)
+          r
+        // journalToRecon pays into the recon account (+ from its side), reportToRecon pays out of it (−).
+        def movement(spec: MovementSpec, amount: BigDecimal) =
+          val m = Movement(
+            inAccountId    = spec.inAccountId,
+            outAccountId   = spec.outAccountId,
+            movementSpecId = spec.id,
+            amount         = amount,
+            properties     = JSONBProps(Map())
+          )
+          movementRepo.insert(m)
+          m
 
-        assertEquals(reconRepo.countInProgressByAccountID(data.reconAccount.id), 2)
-        assertEquals(reconRepo.countInProgressByAccountID(data.journalAccount.id), 0)
+        val inProgress  = recon(ReconciliationStatus.InProgress)
+        val mismatchedA = recon(ReconciliationStatus.Mismatched)
+        val mismatchedB = recon(ReconciliationStatus.Mismatched)
+        val finalRecon  = recon(ReconciliationStatus.Final)
+        movementRepo.setReconciliationIds(
+          Seq(
+            movement(data.journalToRecon, 31).id -> inProgress.id,
+            movement(data.reportToRecon, 30).id  -> mismatchedA.id,
+            movement(data.journalToRecon, 5).id  -> mismatchedB.id,
+            movement(data.reportToRecon, 11).id  -> mismatchedB.id,
+            movement(data.journalToRecon, 10).id -> finalRecon.id,
+            movement(data.reportToRecon, 10).id  -> finalRecon.id
+          )
+        )
+
+        val totals = reconRepo.openTotalsByAccountID(data.reconAccount.id).map(t => t.status -> t).toMap
+        assertEquals(totals.keySet, Set(ReconciliationStatus.InProgress, ReconciliationStatus.Mismatched))
+        assertEquals(totals(ReconciliationStatus.InProgress).count, 1)
+        assertEquals(totals(ReconciliationStatus.InProgress).balance, BigDecimal(31))
+        assertEquals(totals(ReconciliationStatus.Mismatched).count, 2)
+        assertEquals(totals(ReconciliationStatus.Mismatched).balance, BigDecimal(-36))
 
   test("findByAccountID filters by status when one is given"):
     val reconRepo = ReconciliationRepoLive()

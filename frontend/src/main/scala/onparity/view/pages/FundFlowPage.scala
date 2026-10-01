@@ -16,15 +16,6 @@ import scala.collection.mutable
 object FundFlowPage:
 
   private val tabs = Set("Overview", "Search", "Configuration")
-
-  // The active tab comes from ?tab= so each switch is its own history entry. frontroute only
-  // re-renders a route when its matched path changes, not its query string, so changing tabs keeps
-  // this page (and its State) mounted.
-  private def tabFromUrl(): String =
-    Option(new org.scalajs.dom.URLSearchParams(org.scalajs.dom.window.location.search).get("tab"))
-      .filter(tabs.contains)
-      .getOrElse("Overview")
-
   private val boxW      = 140
   private val boxH      = 52
   private val colGap    = 100
@@ -39,10 +30,10 @@ object FundFlowPage:
       case Some(ff) => renderPage(ff)
 
   private def renderPage(ff: FundFlowPayload): HtmlElement =
-    val ffId              = ff.id.getOrElse("")
-    val ffVar             = Var(ff)
-    val state             = Var(State())
-    val activeTab         = Var(tabFromUrl())
+    val ffId      = ff.id.getOrElse("")
+    val ffVar     = Var(ff)
+    val state     = Var(State())
+    val activeTab = Var(tabFromUrl())
     val selectTab = (tab: String) =>
       if activeTab.now() != tab then
         activeTab.set(tab)
@@ -255,8 +246,8 @@ object FundFlowPage:
                           selectTab("Search")
                         ),
                         onReconciliations = Observer[Unit](_ => Nav.toAccountReconciliations(accountId)),
-                        onInProgress =
-                          Observer[Unit](_ => Nav.toAccountReconciliations(accountId, Some("InProgress"))),
+                        onInProgress      = Observer[Unit](_ => Nav.toAccountReconciliations(accountId, Some("InProgress"))),
+                        onMismatched      = Observer[Unit](_ => Nav.toAccountReconciliations(accountId, Some("Mismatched"))),
                         // Fetches the account's recon spec on click, since the card doesn't
                         // otherwise know its spec id — see manualMatchBus.
                         onManualMatch = Observer[Unit](_ => manualMatchBus.emit(account))
@@ -272,28 +263,28 @@ object FundFlowPage:
       )
     )
 
-  private def money(amount: BigDecimal): String =
-    if amount < 0 then f"-$$${-amount}%.2f" else f"$$${amount}%.2f"
+  // The active tab comes from ?tab= so each switch is its own history entry. frontroute only
+  // re-renders a route when its matched path changes, not its query string, so changing tabs keeps
+  // this page (and its State) mounted.
+  private def tabFromUrl(): String =
+    Option(new org.scalajs.dom.URLSearchParams(org.scalajs.dom.window.location.search).get("tab"))
+      .filter(tabs.contains)
+      .getOrElse("Overview")
 
-  private def typePill(accountType: AccountTypePayload): HtmlElement = accountType match
-    case AccountTypePayload.Recon     => Pill("Recon", Pill.Tone.Accent)
-    case AccountTypePayload.Primary   => Pill("Primary", Pill.Tone.Good)
-    case AccountTypePayload.Secondary => Pill("Secondary", Pill.Tone.Neutral)
-
-  // A recon account's cash balance always splits exactly into unreconciled + in progress: the
-  // ledger keeps balance = unreconciledBalance + reconciledBalance, and every Final reconciliation
-  // nets to zero (a write-off makes one Final), so reconciledBalance is what's still sitting in
-  // InProgress reconciliations.
+  // A recon account's cash balance always splits exactly into unreconciled + in progress +
+  // mismatched: every Final reconciliation nets to zero (a write-off makes one Final), so whatever
+  // isn't unreconciled is sitting in an InProgress or Mismatched one. The two reconciled figures
+  // come from the summary endpoint (see AccountSummaryViewPayload), so they read "…" until it loads.
   private def reconciliationCard(
     account:           AccountPayload,
     summary:           Option[AccountSummaryViewPayload],
     onUnreconciled:    Observer[Unit],
     onReconciliations: Observer[Unit],
     onInProgress:      Observer[Unit],
+    onMismatched:      Observer[Unit],
     onManualMatch:     Observer[Unit]
   ): HtmlElement =
-    val unreconciledCount = summary.map(_.unreconciledCount)
-    val inProgressCount   = summary.map(_.inProgressCount)
+    def plural(n: Int, word: String) = s"$n $word${if n == 1 then "" else "s"}"
     div(
       cls := s"${Card.cls} p-6",
       div(
@@ -305,32 +296,41 @@ object FundFlowPage:
             typePill(account.accountType)
           ),
           div(cls := s"${Form.sectionLabelCls} mt-4", "Cash balance"),
-          div(cls := "mt-1 text-3xl font-semibold tabular-nums text-md-on-surface dark:text-white", money(account.balance))
+          div(
+            cls := "mt-1 text-3xl font-semibold tabular-nums text-md-on-surface dark:text-white",
+            money(account.balance)
+          )
         ),
         div(
           cls := "flex items-center gap-2",
           Buttons.textButton("Reconciliations", onReconciliations),
-          Buttons.linkButton("Manual Match", onManualMatch)
+          Buttons.textButton("Manual Match", onManualMatch)
         )
       ),
       div(
-        cls := "mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4",
+        cls := "mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4",
         balanceTile(
           "Unreconciled",
           money(account.unreconciledBalance),
-          unreconciledCount.map(n => s"$n movement${if n == 1 then "" else "s"}"),
+          summary.map(s => plural(s.unreconciledCount, "movement")),
           Some(onUnreconciled)
         ),
         balanceTile(
           "In progress",
-          money(account.reconciledBalance),
-          inProgressCount.map(n => s"$n reconciliation${if n == 1 then "" else "s"}"),
+          summary.fold("…")(s => money(s.inProgressBalance)),
+          summary.map(s => plural(s.inProgressCount, "reconciliation")),
           Some(onInProgress)
+        ),
+        balanceTile(
+          "Mismatched",
+          summary.fold("…")(s => money(s.mismatchedBalance)),
+          summary.map(s => plural(s.mismatchedCount, "reconciliation")),
+          Some(onMismatched)
         )
       ),
       p(
         cls := s"mt-4 text-xs ${Form.mutedTextCls}",
-        "Cash balance = unreconciled + in progress. Final reconciliations net to zero."
+        "Cash balance = unreconciled + in progress + mismatched. Final reconciliations net to zero."
       )
     )
 
@@ -376,6 +376,14 @@ object FundFlowPage:
       )
     )
 
+  private def money(amount: BigDecimal): String =
+    if amount < 0 then f"-$$${-amount}%.2f" else f"$$${amount}%.2f"
+
+  private def typePill(accountType: AccountTypePayload): HtmlElement = accountType match
+    case AccountTypePayload.Recon     => Pill("Recon", Pill.Tone.Accent)
+    case AccountTypePayload.Primary   => Pill("Primary", Pill.Tone.Good)
+    case AccountTypePayload.Secondary => Pill("Secondary", Pill.Tone.Neutral)
+
   private def tabButton(
     label:     String,
     tabId:     String,
@@ -414,16 +422,16 @@ object FundFlowPage:
       EventStream.merge(autoSearchTrigger, searchBus.events).flatMapSwitch { _ =>
         val s = searchVar.now()
         val req = MovementSearchRequest(
-          fundFlowId       = ffId,
-          accountId        = Option(s.accountId).filter(_.nonEmpty),
-          amount           = scala.util.Try(BigDecimal(s.amount)).toOption,
-          movementSpecId   = Option(s.movementSpecId).filter(_.nonEmpty),
-          properties       = s.properties.filter(_._2.nonEmpty),
-          fileSourceQuery  = Option(s.fileSourceFilename).filter(_.nonEmpty),
-          reconciliation   = s.reconciliation,
-          createdFrom      = parseDateStart(s.createdFrom),
-          createdTo        = parseDateEndExclusive(s.createdTo),
-          movementType     = Option(s.movementType).filter(_.nonEmpty)
+          fundFlowId      = ffId,
+          accountId       = Option(s.accountId).filter(_.nonEmpty),
+          amount          = scala.util.Try(BigDecimal(s.amount)).toOption,
+          movementSpecId  = Option(s.movementSpecId).filter(_.nonEmpty),
+          properties      = s.properties.filter(_._2.nonEmpty),
+          fileSourceQuery = Option(s.fileSourceFilename).filter(_.nonEmpty),
+          reconciliation  = s.reconciliation,
+          createdFrom     = parseDateStart(s.createdFrom),
+          createdTo       = parseDateEndExclusive(s.createdTo),
+          movementType    = Option(s.movementType).filter(_.nonEmpty)
         )
         ApiClient.post[Seq[MovementSearchResultPayload], MovementSearchRequest](
           HttpPath.url(s"${HttpPath.movements}/search"),
@@ -872,7 +880,8 @@ object FundFlowPage:
         posOf.get(id).foreach { (x, y) =>
           val (fill, stroke, textFill) =
             acc.accountType match
-              case AccountTypePayload.Recon => ("var(--md-primary-container)", "var(--md-primary)", "var(--md-on-primary-container)")
+              case AccountTypePayload.Recon =>
+                ("var(--md-primary-container)", "var(--md-primary)", "var(--md-on-primary-container)")
               case AccountTypePayload.Primary =>
                 (
                   "var(--acct-role-primary-container)",
@@ -982,12 +991,12 @@ object FundFlowPage:
     case Failed(msg: String)
 
   case class State(
-    accounts:             Seq[AccountPayload]          = Seq.empty,
-    movementSpecs:        Seq[MovementSpecPayload]     = Seq.empty,
-    fileFeeds:            Seq[FileFeedPayload]         = Seq.empty,
-    selectedAccount:      Option[AccountPayload]       = None,
-    selectedMovementSpec: Option[MovementSpecPayload]  = None,
-    reconcileStatuses:    Map[String, ReconcileStatus] = Map.empty,
+    accounts:             Seq[AccountPayload]                    = Seq.empty,
+    movementSpecs:        Seq[MovementSpecPayload]               = Seq.empty,
+    fileFeeds:            Seq[FileFeedPayload]                   = Seq.empty,
+    selectedAccount:      Option[AccountPayload]                 = None,
+    selectedMovementSpec: Option[MovementSpecPayload]            = None,
+    reconcileStatuses:    Map[String, ReconcileStatus]           = Map.empty,
     summaries:            Map[String, AccountSummaryViewPayload] = Map.empty,
     // Set by the Overview tab's Unreconciled tile, consumed once by searchMovementsTab to seed and auto-run a pre-filled search — see that
     // function. (accountId, reconciliation filter)

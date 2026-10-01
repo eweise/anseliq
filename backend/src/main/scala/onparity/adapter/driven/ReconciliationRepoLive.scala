@@ -8,7 +8,7 @@ import onparity.domain.model.{Reconciliation, ReconciliationStatus}
 // derived codec, and silently falls back to setObject (which Postgres rejects) when none is in
 // scope — so the jsonb AppliedRules codec in Reconciliation's companion has to be imported.
 import onparity.domain.model.Reconciliation.given
-import onparity.domain.port.driven.{ReconciliationRepo, Txn}
+import onparity.domain.port.driven.{ReconciliationRepo, StatusTotals, Txn}
 
 import java.util.UUID
 
@@ -23,8 +23,7 @@ class ReconciliationRepoLive extends Repo[Reconciliation, Reconciliation, UUID] 
       ORDER BY created_at
     """.query[Reconciliation].run()
 
-  def findInProgressBySpecId(specId: ID): Txn[Vector[Reconciliation]] =
-    val status = ReconciliationStatus.InProgress
+  def findBySpecIdAndStatus(specId: ID, status: ReconciliationStatus): Txn[Vector[Reconciliation]] =
     sql"""
       SELECT ${r.all}
       FROM $r AS a
@@ -48,12 +47,21 @@ class ReconciliationRepoLive extends Repo[Reconciliation, Reconciliation, UUID] 
       LIMIT $limit
     """.query[Reconciliation].run()
 
-  def countInProgressByAccountID(accountId: ID): Txn[Int] =
-    val status = ReconciliationStatus.InProgress
+  // Joins through the movements rather than summing reconciliation.balance: that column is
+  // (in-spec amounts − out-spec amounts) for the group, which isn't necessarily signed the way the
+  // account's own balance is; the movements' in/out accounts give the account's view directly.
+  def openTotalsByAccountID(accountId: ID): Txn[Vector[StatusTotals]] =
+    val inProgress = ReconciliationStatus.InProgress
+    val mismatched = ReconciliationStatus.Mismatched
     sql"""
-      SELECT count(*)
+      SELECT a.status,
+             count(DISTINCT a.id)::int,
+             coalesce(sum(CASE WHEN m.in_account_id = $accountId THEN m.amount ELSE -m.amount END), 0)
       FROM $r AS a
       JOIN reconciliation_spec rs ON rs.id = a.spec_id
+      JOIN movement m ON m.reconciliation_id = a.id
       WHERE rs.account_id = $accountId
-      AND a.status = $status
-    """.query[Int].run().head
+      AND (m.in_account_id = $accountId OR m.out_account_id = $accountId)
+      AND a.status IN ($inProgress, $mismatched)
+      GROUP BY a.status
+    """.query[(ReconciliationStatus, Int, BigDecimal)].run().map(StatusTotals.apply.tupled)

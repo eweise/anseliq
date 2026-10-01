@@ -46,6 +46,7 @@ class InMemoryReconciler(using
   val transactor:         Transactor,
   val jobRepo:            JobRepo,
   val disputeRepo:        DisputeRepo,
+  val disputeCommentRepo: DisputeCommentRepo,
   val dataSource:         DataSource
 ):
 
@@ -101,7 +102,7 @@ class InMemoryReconciler(using
                 completed = false
                 break()
             case OneToMany =>
-              completeInProgressReconciliations(reconSpec, accountId)
+              completeOpenReconciliations(reconSpec, accountId)
               val (matchCount, endingCheckpoint, stopped) =
                 reconcileOneToManyStreaming(
                   reconSpec,
@@ -134,44 +135,37 @@ class InMemoryReconciler(using
   end reconcileAccountResumable
 
   /**
-   * Follow-up to OneToMany reconciliations never auto-raising AmountMismatch when first formed (see
-   * raiseDisputeOnMismatch in streamMergeJoin below): landing InProgress with a non-zero balance
-   * isn't proof of a real mismatch there, since more movements on the "many" side could still
-   * arrive later and close the gap on their own — that's exactly the premature-dispute bug that was
-   * fixed by making OneToMany skip the immediate raise. But nothing was ever added to revisit a
-   * group that's still InProgress once no more data is realistically coming, so a genuine mismatch
-   * could sit forever with no dispute at all. This is that follow-up: once a OneToMany
-   * reconciliation has sat InProgress past its reconSpec's agingLimit (the same field
-   * ReportingService's aging/overdue calculation already uses), that's no longer "still waiting" —
-   * it's raised as AmountMismatch, idempotently (insertIfNoOpenDispute), same as the immediate
-   * OneToOne path. Meant to be polled periodically per reconSpec, the same way
-   * Ingestor.checkForMissingFile is polled periodically per movementSpec. OneToOne specs are a
-   * no-op here since they already raise immediately and can never receive more data to wait on.
+   * A OneToMany reconciliation lands InProgress when its balance is non-zero, since more of the
+   * "many" side could still arrive (a different file, a delayed batch) and close the gap on its own
+   * — so no dispute is raised when it first forms. Once it has sat InProgress past its reconSpec's
+   * agingLimit (the same field ReportingService's aging/overdue calculation uses), it's no longer
+   * "still waiting": it becomes Mismatched and gets an AmountMismatch dispute, the same as a
+   * OneToOne pair that mismatches immediately. It isn't closed off, though —
+   * completeOpenReconciliations still tops up Mismatched OneToMany groups, so a late
+   * movement that closes the gap takes it to Final and auto-resolves the dispute. Meant to be
+   * polled periodically per reconSpec, the same way Ingestor.checkForMissingFile is polled
+   * periodically per movementSpec. A no-op for every other relationship, since only OneToMany
+   * groups are ever left InProgress. Returns the number of reconciliations newly flagged.
    */
   def raiseStaleMismatchDisputes(reconSpec: ReconciliationSpec): Txn[Int] =
     if reconSpec.relationship != OneToMany then 0
     else
       val now = clock.now
       val stale = reconRepo
-        .findInProgressBySpecId(reconSpec.id)
+        .findBySpecIdAndStatus(reconSpec.id, ReconciliationStatus.InProgress)
         .filter(r => r.balance != Zero)
         .filter(_.createdAt.exists(ca => ChronoUnit.DAYS.between(ca, now) > reconSpec.agingLimit))
 
-      val raised = stale.flatMap { recon =>
-        disputeRepo.insertIfNoOpenDispute(
-          Dispute(
-            referenceId    = recon.id,
-            targetType     = DisputeTarget.Reconciliation,
-            category       = DisputeCategory.AmountMismatch,
-            detail         = Some(s"Balance mismatch of ${recon.balance}, unresolved after ${reconSpec.agingLimit} day(s)"),
-            raisedByUserId = None, // system-raised, no human actor
-            createdAt      = Some(now),
-            updatedAt      = Some(now)
-          )
+      stale.foreach { recon =>
+        recon.status    = ReconciliationStatus.Mismatched
+        recon.updatedAt = Some(now)
+        reconRepo.update(recon)
+        AmountMismatchDisputes.raise(
+          recon.id,
+          s"Balance mismatch of ${recon.balance}, unresolved after ${reconSpec.agingLimit} day(s)"
         )
       }
-      raised.foreach(dispute => eventStore.publishEvent(DisputeRaised(disputeID = dispute.id)))
-      raised.size
+      stale.size
 
   // Supports StringAttributeMatchRule/DateAttributeMatchRule, singly or ANDed together via
   // AndRule (each sub-rule contributes one attribute to a composite key, in rule order — the
@@ -288,12 +282,10 @@ class InMemoryReconciler(using
    *   - `toReconciliation` builds the Reconciliation for one group, given the batch's shared
    *     timestamp.
    *
-   * `raiseDisputeOnMismatch` controls whether a group landing InProgress auto-raises a dispute
-   * right here. True for OneToOne, where a group only ever forms once both sides have actually
-   * shown up, so InProgress is a genuine terminal mismatch. False for OneToMany: a group's first
-   * formation says nothing about whether the rest of the "many" side is still in transit (a
-   * different file, a delayed batch) — that's aging-gated separately in
-   * completeInProgressReconciliations, not raised on sight.
+   * Every group that `toReconciliation` makes Mismatched gets an AmountMismatch dispute raised in
+   * the same batch transaction. Only OneToOne produces Mismatched here; an unbalanced OneToMany
+   * group is InProgress instead, and only becomes Mismatched once it ages out (see
+   * raiseStaleMismatchDisputes).
    */
   private def streamMergeJoin(
     reconSpec:              ReconciliationSpec,
@@ -302,8 +294,7 @@ class InMemoryReconciler(using
     batchSize:              Int,
     jobId:                  Option[ID],
     allCheckpoints:         Map[ID, ReconciliationCheckpoint],
-    onBatchComplete:        SpecBatchProgress => BatchDecision,
-    raiseDisputeOnMismatch: Boolean
+    onBatchComplete:        SpecBatchProgress => BatchDecision
   )(
     formGroup:        (MergeCursor, MergeCursor) => Option[(Vector[Movement], Vector[Movement])],
     toReconciliation: (Vector[Movement], Vector[Movement], OffsetDateTime) => Reconciliation
@@ -361,25 +352,9 @@ class InMemoryReconciler(using
             // internally per reconciliation; here the sum spans every reconciliation in the batch.
             ledger.markReconciled(accountId, batchDelta)
 
-            // See raiseDisputeOnMismatch's doc above streamMergeJoin: only meaningful where a
-            // group's first formation is itself proof that nothing more is expected to arrive for it.
-            if raiseDisputeOnMismatch then
-              reconciliations
-                .filter(_.status == ReconciliationStatus.InProgress)
-                .foreach: recon =>
-                  disputeRepo
-                    .insertIfNoOpenDispute(
-                      Dispute(
-                        referenceId    = recon.id,
-                        targetType     = DisputeTarget.Reconciliation,
-                        category       = DisputeCategory.AmountMismatch,
-                        detail         = Some(s"Balance mismatch of ${recon.balance}"),
-                        raisedByUserId = None, // system-raised, no human actor
-                        createdAt      = Some(now),
-                        updatedAt      = Some(now)
-                      )
-                    )
-                    .foreach(dispute => eventStore.publishEvent(DisputeRaised(disputeID = dispute.id)))
+            reconciliations
+              .filter(_.status == ReconciliationStatus.Mismatched)
+              .foreach(recon => AmountMismatchDisputes.raise(recon.id, s"Balance mismatch of ${recon.balance}"))
 
             jobId.foreach: id =>
               val job                = jobRepo.findById(id).ErrIfNotFound("Job", id)
@@ -439,11 +414,11 @@ class InMemoryReconciler(using
    * about which side is "the one" — both sides always contribute exactly one movement). The pair's
    * balance is still verified, the same as OneToMany: a key match with mismatched amounts (a short
    * payment, a fee deduction, a rounding difference) is exactly the kind of thing reconciliation is
-   * supposed to catch, so it's InProgress rather than silently Final — see
+   * supposed to catch, so it's Mismatched rather than silently Final — see
    * DisputeCategory.AmountMismatch. Unlike OneToMany, though, a 1:1 pair can never be completed
    * later: there's no third movement that could ever arrive to close the gap under a OneToOne rule,
-   * so a mismatched pair stays InProgress permanently until resolved manually
-   * (ManualReconciler.writeOff) — no top-up phase.
+   * so it's Mismatched straight away (not InProgress — nothing is pending) and stays that way until
+   * resolved manually (ManualReconciler.writeOff or unmatch) — no top-up phase.
    */
   private def reconcileOneToOneStreaming(
     reconSpec:       ReconciliationSpec,
@@ -462,8 +437,7 @@ class InMemoryReconciler(using
       batchSize,
       jobId,
       allCheckpoints,
-      onBatchComplete,
-      raiseDisputeOnMismatch = true
+      onBatchComplete
     )(
       formGroup = (inCursor, outCursor) =>
         val group = Vector(inCursor.current) -> Vector(outCursor.current)
@@ -473,7 +447,7 @@ class InMemoryReconciler(using
       ,
       toReconciliation = (inGroup, outGroup, now) =>
         val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
-        val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
+        val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.Mismatched
         Reconciliation(
           specId       = Some(reconSpec.id),
           appliedRules = appliedRules(rule, inGroup),
@@ -485,19 +459,24 @@ class InMemoryReconciler(using
     )
 
   /**
-   * Phase 1 of OneToMany: complete existing InProgress reconciliations against newly-unreconciled
-   * out-movements sharing their in-movement's match key. Bounded by however many reconciliations
-   * are currently InProgress (not by the size of the backlog), so — unlike Phase 2 — this doesn't
-   * need pagination: findInProgressBySpecId and the per-reconciliation exact-key lookup are both
-   * small, targeted queries. Each reconciliation's completion commits as its own small transaction.
+   * Phase 1 of OneToMany: complete existing unbalanced reconciliations — InProgress, and Mismatched
+   * ones that aged out but can still be closed by a late arrival — against newly-unreconciled
+   * movements sharing their anchor's match key. Bounded by however many reconciliations are
+   * currently unbalanced (not by the size of the backlog), so — unlike Phase 2 — this doesn't need
+   * pagination: findBySpecIdAndStatus and the per-reconciliation exact-key lookup are both small,
+   * targeted queries. Each reconciliation's completion commits as its own small transaction. A
+   * group brought to zero becomes Final, and (if it was Mismatched) its AmountMismatch dispute is
+   * auto-resolved; one only partly topped up keeps its status with the new balance.
    */
-  private def completeInProgressReconciliations(reconSpec: ReconciliationSpec, accountId: ID): Unit =
+  private def completeOpenReconciliations(reconSpec: ReconciliationSpec, accountId: ID): Unit =
     val rule    = reconSpec.rule()
     val inExpr  = matchKeyExpr(rule, IN, "a")
     val outExpr = matchKeyExpr(rule, OUT, "a")
 
-    val inProgressRecons = transact(transactor)(reconRepo.findInProgressBySpecId(reconSpec.id))
-    for recon <- inProgressRecons do
+    val openRecons = transact(transactor):
+      reconRepo.findBySpecIdAndStatus(reconSpec.id, ReconciliationStatus.InProgress) ++
+        reconRepo.findBySpecIdAndStatus(reconSpec.id, ReconciliationStatus.Mismatched)
+    for recon <- openRecons do
       transact(transactor):
         val reconMovements = movementRepo.findByReconciliationID(recon.id)
         val inAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
@@ -525,8 +504,14 @@ class InMemoryReconciler(using
           movementRepo.setReconciliationIds(matched.map(_.id -> recon.id))
           ledger.markReconciled(accountId, matched.map(_.signedAmountFor(accountId)).sum)
 
-          recon.balance                           = newBalance
-          if newBalance == Zero then recon.status = ReconciliationStatus.Final
+          recon.balance   = newBalance
+          recon.updatedAt = Some(clock.now)
+          if newBalance == Zero then
+            recon.status = ReconciliationStatus.Final
+            AmountMismatchDisputes.resolveOpen(
+              recon.id,
+              s"Auto-resolved: late movements brought reconciliation ${recon.id} into balance."
+            )
           reconRepo.update(recon)
 
   /**
@@ -536,7 +521,7 @@ class InMemoryReconciler(using
    * support, so it's skipped (both runs are still consumed, so it isn't retried) rather than
    * guessed at. Unlike OneToOne, the group's balance is always computed and checked — a OneToMany
    * group can legitimately arrive partially (some of the "many" side not posted yet), which is what
-   * completeInProgressReconciliations (Phase 1, above) exists to top up on a later run.
+   * completeOpenReconciliations (Phase 1, above) exists to top up on a later run.
    */
   private def reconcileOneToManyStreaming(
     reconSpec:       ReconciliationSpec,
@@ -555,8 +540,7 @@ class InMemoryReconciler(using
       batchSize,
       jobId,
       allCheckpoints,
-      onBatchComplete,
-      raiseDisputeOnMismatch = false
+      onBatchComplete
     )(
       formGroup = (inCursor, outCursor) =>
         val matchedKey = inCursor.key

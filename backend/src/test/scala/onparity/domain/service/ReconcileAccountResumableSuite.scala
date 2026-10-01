@@ -40,6 +40,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
   given disputeRepo: DisputeRepo = DisputeRepoLive()
 
+  given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
+
   given ledger: Ledger = Ledger()
 
   private def teardown(data: DataSetup): Unit =
@@ -85,7 +87,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assert(movements.forall(_.reconciliationId.nonEmpty), "every movement should be reconciled")
     finally teardown(data)
 
-  test("OneToOne verifies amount balance: a key match with mismatched amounts stays InProgress, not Final"):
+  test("OneToOne verifies amount balance: a key match with mismatched amounts is Mismatched, not Final"):
     // A OneToOne pair is inherently a single, final judgment — there's no third movement that could
     // ever arrive to close the gap under a OneToOne rule — but "stays InProgress" (rather than
     // silently marked Final) is still the correct outcome: it's exactly the kind of exception
@@ -119,7 +121,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       val reconciliations = transact(transactor)(data.reconRepo.findByReconSpecID(data.reconSpec.id))
       assertEquals(reconciliations.size, 1)
-      assertEquals(reconciliations.head.status, ReconciliationStatus.InProgress)
+      assertEquals(reconciliations.head.status, ReconciliationStatus.Mismatched)
       assertEquals(reconciliations.head.balance, BigDecimal(10))
 
       val movements = transact(transactor)(data.movementRepo.findByAccount(data.reconAccount.id))
@@ -455,7 +457,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       teardown(data)
 
   test(
-    "raiseStaleMismatchDisputes: a OneToMany reconciliation past agingLimit gets an AmountMismatch dispute, but not before"
+    "raiseStaleMismatchDisputes: a OneToMany reconciliation past agingLimit becomes Mismatched with an AmountMismatch dispute, but not before; a late movement closing the gap then makes it Final and resolves the dispute"
   ):
     given clock: ClockService       = ClockServiceLive()
     val data                    = transact(transactor)(DataSetup())
@@ -482,6 +484,11 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       clock.addHours(72)
       val raisedNow = transact(transactor)(reconciler.raiseStaleMismatchDisputes(spec))
       assertEquals(raisedNow, 1, "due now: InProgress past agingLimit with a real (non-zero) balance")
+      assertEquals(
+        transact(transactor)(data.reconRepo.findById(recon.id)).get.status,
+        ReconciliationStatus.Mismatched,
+        "no longer waiting on more data, so it's flagged rather than left InProgress"
+      )
 
       val disputes = transact(transactor)(disputeRepo.findAll.filter(_.referenceId == recon.id))
       assertEquals(disputes.size, 1)
@@ -490,7 +497,21 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       // idempotent: a later poll finds the dispute already open and raises nothing new
       val raisedAgain = transact(transactor)(reconciler.raiseStaleMismatchDisputes(spec))
-      assertEquals(raisedAgain, 0, "already has an open dispute: nothing left to raise")
+      assertEquals(raisedAgain, 0, "already Mismatched: nothing left to flag")
+
+      // Mismatched isn't terminal for OneToMany: the missing 40 turning up late still completes
+      // the group, which moves it to Final and auto-resolves the dispute it had been carrying.
+      transact(transactor):
+        ops.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g3"))
+      reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
+
+      val completed = transact(transactor)(data.reconRepo.findById(recon.id)).get
+      assertEquals(completed.status, ReconciliationStatus.Final)
+      assertEquals(completed.balance, BigDecimal(0))
+      assertEquals(
+        transact(transactor)(disputeRepo.findById(disputes.head.id)).get.status,
+        DisputeStatus.Resolved
+      )
     finally
       transact(transactor):
         data.reconRepo.findByReconSpecID(spec.id).foreach { r =>

@@ -2,7 +2,13 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.{ManualMatchRequest, MovementPayload, ReconciliationPayload, ReconciliationSpecPayload}
+import onparity.common.model.{
+  ManualMatchRequest,
+  MovementPayload,
+  ReconRelationship,
+  ReconciliationPayload,
+  ReconciliationSpecPayload
+}
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
@@ -128,11 +134,16 @@ object ManualMatchPage:
       ),
       div(
         cls := "mt-4 text-sm text-md-on-surface dark:text-gray-200",
-        child.text <-- state.signal.map { s =>
+        child.text <-- state.signal.combineWith(spec.signal).map { (s, sp) =>
           val inTotal  = s.inMovements.filter(m => s.selectedIn.contains(m.id)).map(_.amount).sum
           val outTotal = s.outMovements.filter(m => s.selectedOut.contains(m.id)).map(_.amount).sum
           val diff     = inTotal - outTotal
-          val note     = if diff == BigDecimal(0) then "will close as Final" else "will save as InProgress"
+          // Mirrors ManualReconciler.matchMovements: only a OneToMany group can still be completed
+          // later, so only it is left InProgress; otherwise an unbalanced match is Mismatched.
+          val note =
+            if diff == BigDecimal(0) then "will close as Final"
+            else if sp.relationship == ReconRelationship.OneToMany then "will save as InProgress"
+            else "will save as Mismatched and raise an AmountMismatch dispute"
           s"Selected In: ${s.selectedIn.size} ($inTotal)  Selected Out: ${s.selectedOut.size} ($outTotal)  Diff: $diff — $note"
         }
       ),
