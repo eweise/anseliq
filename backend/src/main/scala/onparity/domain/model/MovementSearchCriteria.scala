@@ -4,6 +4,12 @@ import onparity.common.model.model.{ID, Money}
 
 import java.time.OffsetDateTime
 
+// OpenBalance is every movement still contributing to an account's balance: unreconciled ones plus
+// those in an InProgress reconciliation (Final reconciliations net to zero, and a write-off makes
+// its reconciliation Final). For a recon account, these sum to its cash balance.
+enum ReconciliationFilter:
+  case All, Unreconciled, OpenBalance
+
 case class MovementSearchCriteria(
   fundFlowId:     ID,
   accountId:      Option[ID]          = None,
@@ -16,7 +22,7 @@ case class MovementSearchCriteria(
   // anywhere in the stored value (which usually falls within the key/path portion) is what they
   // actually want to search by.
   fileSourceQuery:  Option[String]         = None,
-  unreconciledOnly: Boolean                = false,
+  reconciliation:   ReconciliationFilter   = ReconciliationFilter.All,
   createdFrom:      Option[OffsetDateTime] = None,
   createdTo:        Option[OffsetDateTime] = None,
   movementType:     Option[MovementType]   = None

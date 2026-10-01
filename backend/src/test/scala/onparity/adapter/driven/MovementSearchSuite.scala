@@ -56,7 +56,7 @@ class MovementSearchSuite extends munit.FunSuite:
       movement
 
   test(
-    "search filters by account, amount, movement spec, properties, metadata prefix, movement type, date range, and unreconciled flag"
+    "search filters by account, amount, movement spec, properties, metadata prefix, movement type, date range, and reconciliation filter"
   ):
     val data = transact(transactor)(DataSetup())
     try
@@ -168,15 +168,27 @@ class MovementSearchSuite extends munit.FunSuite:
         Set.empty
       )
 
-      // Unreconciled-only: link m1 to a real reconciliation, then confirm it's excluded
-      val recon = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+      // Reconciliation filter: m1 in a Final reconciliation, m2 in an InProgress one, m3 unreconciled.
+      // Unreconciled excludes both reconciled movements; OpenBalance keeps the InProgress one too,
+      // since only Final reconciliations net out of the balance.
+      val finalRecon = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+      val inProgressRecon = Reconciliation(
+        specId       = Some(data.reconSpec.id),
+        appliedRules = AppliedRules.Manual,
+        status       = ReconciliationStatus.InProgress
+      )
       transact(transactor):
-        reconRepo.insert(recon)
-        movementRepo.setReconciliationIds(Seq(m1.id -> recon.id))
+        reconRepo.insert(finalRecon)
+        reconRepo.insert(inProgressRecon)
+        movementRepo.setReconciliationIds(Seq(m1.id -> finalRecon.id, m2.id -> inProgressRecon.id))
+      def searchByRecon(filter: ReconciliationFilter) =
+        searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, reconciliation = filter))
       try
-        assertEquals(
-          searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, unreconciledOnly = true)),
-          Set(m2.id, m3.id)
-        )
-      finally transact(transactor)(reconRepo.deleteById(recon.id))
+        assertEquals(searchByRecon(ReconciliationFilter.All), Set(m1.id, m2.id, m3.id))
+        assertEquals(searchByRecon(ReconciliationFilter.Unreconciled), Set(m3.id))
+        assertEquals(searchByRecon(ReconciliationFilter.OpenBalance), Set(m2.id, m3.id))
+      finally
+        transact(transactor):
+          reconRepo.deleteById(finalRecon.id)
+          reconRepo.deleteById(inProgressRecon.id)
     finally teardown(data)

@@ -4,7 +4,7 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
 import onparity.common.model.{AppliedRules, RuleMatch, StringAttribute, StringAttributeMatchRule}
 import onparity.domain.DataSetup
-import onparity.domain.model.Reconciliation
+import onparity.domain.model.{Reconciliation, ReconciliationStatus}
 import onparity.testing.rollBackOnly
 
 import java.util.UUID
@@ -102,3 +102,41 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
         reconRepo.insert(Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "first"))
         val foundRecons = reconRepo.findByReconSpecID(data.reconSpec.id)
         assert(foundRecons.nonEmpty)
+
+  test("countInProgressByAccountID counts only the account's InProgress reconciliations"):
+    val reconRepo = ReconciliationRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        def recon(status: ReconciliationStatus) =
+          Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, status = status)
+        reconRepo.insert(recon(ReconciliationStatus.InProgress))
+        reconRepo.insert(recon(ReconciliationStatus.InProgress))
+        reconRepo.insert(recon(ReconciliationStatus.Final))
+        reconRepo.insert(recon(ReconciliationStatus.Voided))
+
+        assertEquals(reconRepo.countInProgressByAccountID(data.reconAccount.id), 2)
+        assertEquals(reconRepo.countInProgressByAccountID(data.journalAccount.id), 0)
+
+  test("findByAccountID filters by status when one is given"):
+    val reconRepo = ReconciliationRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        def recon(status: ReconciliationStatus) =
+          Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, status = status)
+        val inProgress = recon(ReconciliationStatus.InProgress)
+        val finalRecon = recon(ReconciliationStatus.Final)
+        reconRepo.insert(inProgress)
+        reconRepo.insert(finalRecon)
+
+        val accountId = data.reconAccount.id
+        assertEquals(reconRepo.findByAccountID(accountId, 100).map(_.id).toSet, Set(inProgress.id, finalRecon.id))
+        assertEquals(
+          reconRepo.findByAccountID(accountId, 100, Some(ReconciliationStatus.InProgress)).map(_.id),
+          Vector(inProgress.id)
+        )
+        assertEquals(
+          reconRepo.findByAccountID(accountId, 100, Some(ReconciliationStatus.Final)).map(_.id),
+          Vector(finalRecon.id)
+        )

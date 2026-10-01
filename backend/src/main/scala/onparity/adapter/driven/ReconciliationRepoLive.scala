@@ -33,12 +33,27 @@ class ReconciliationRepoLive extends Repo[Reconciliation, Reconciliation, UUID] 
       ORDER BY created_at
     """.query[Reconciliation].run()
 
-  def findByAccountID(accountId: ID, limit: Int): Txn[Vector[Reconciliation]] =
+  def findByAccountID(
+    accountId: ID,
+    limit:     Int,
+    status:    Option[ReconciliationStatus] = None
+  ): Txn[Vector[Reconciliation]] =
     sql"""
       SELECT ${r.alias("a").all}
       FROM $r AS a
       JOIN reconciliation_spec rs ON rs.id = a.spec_id
       WHERE rs.account_id = $accountId
+      AND ($status::text IS NULL OR a.status = $status)
       ORDER BY a.created_at DESC
       LIMIT $limit
     """.query[Reconciliation].run()
+
+  def countInProgressByAccountID(accountId: ID): Txn[Int] =
+    val status = ReconciliationStatus.InProgress
+    sql"""
+      SELECT count(*)
+      FROM $r AS a
+      JOIN reconciliation_spec rs ON rs.id = a.spec_id
+      WHERE rs.account_id = $accountId
+      AND a.status = $status
+    """.query[Int].run().head

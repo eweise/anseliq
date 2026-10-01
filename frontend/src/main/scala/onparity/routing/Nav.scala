@@ -16,6 +16,10 @@ object Nav:
     AppState.activeFundFlow.set(Some(ff))
     push("/components/fund-flow")
 
+  // Same page as toFundFlow — the tab lives in the query string so switching tabs adds a history
+  // entry and the back button steps between tabs (see FundFlowPage.tabFromUrl).
+  def toFundFlowTab(tab: String): Unit = push(s"/components/fund-flow?tab=$tab")
+
   def toMaintainFundFlow(): Unit =
     push("/components/maintain-fund-flow")
 
@@ -55,8 +59,12 @@ object Nav:
 
   def toReconciliationDetail(id: String): Unit = push(s"/components/reconciliations/$id")
 
-  def toAccountReconciliations(accountId: String): Unit =
-    push(s"/components/accounts/$accountId/recent-reconciliations")
+  // status: a ReconciliationStatus name (e.g. "InProgress") to open the page pre-filtered.
+  def toAccountReconciliations(accountId: String, status: Option[String] = None): Unit =
+    push(accountReconciliationsUrl(accountId, status))
+
+  def accountReconciliationsUrl(accountId: String, status: Option[String]): String =
+    s"/components/accounts/$accountId/recent-reconciliations" + status.fold("")(s => s"?status=$s")
 
   def toMovementDetail(id: String): Unit = push(s"/components/movements/$id")
 

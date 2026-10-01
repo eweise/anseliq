@@ -188,7 +188,10 @@ case class FundFlowSummaryViewPayload(
 case class AccountSummaryViewPayload(
   account:           AccountPayload,
   isReconAccount:    Boolean,
-  unreconciledCount: Int
+  unreconciledCount: Int,
+  // InProgress reconciliations for a recon account (0 otherwise). Their combined balance is the
+  // account's reconciledBalance, since Final reconciliations net to zero.
+  inProgressCount: Int = 0
 ) derives ReadWriter
 
 enum AccountTypePayload derives ReadWriter:
@@ -273,6 +276,10 @@ case class MovementDetailPayload(
   movementType: Option[String] = None
 ) derives ReadWriter
 
+// See backend's ReconciliationFilter.
+enum ReconciliationFilterPayload derives ReadWriter:
+  case All, Unreconciled, OpenBalance
+
 case class MovementSearchRequest(
   fundFlowId:       String,
   accountId:        Option[String]         = None,
@@ -280,7 +287,7 @@ case class MovementSearchRequest(
   movementSpecId:   Option[String]         = None,
   properties:       Map[String, String]    = Map.empty,
   fileSourceQuery:  Option[String]         = None,
-  unreconciledOnly: Boolean                = false,
+  reconciliation:   ReconciliationFilterPayload = ReconciliationFilterPayload.All,
   createdFrom:      Option[OffsetDateTime] = None,
   createdTo:        Option[OffsetDateTime] = None,
   // "Ingestion" | "ManualAdjustment" | "Reversal" — see backend's MovementType.

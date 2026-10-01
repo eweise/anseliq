@@ -102,11 +102,13 @@ class App(using
       val accountSummaryViews = accounts.map(account =>
         val isReconAccount    = account.accountType == AccountType.Recon
         val unreconciledCount = if isReconAccount then movementRepo.countUnreconciledByAccount(account.id) else 0
+        val inProgressCount   = if isReconAccount then reconRepo.countInProgressByAccountID(account.id) else 0
 
         AccountSummaryViewPayload(
           Payload.accountPayloadFromDomain(account),
           isReconAccount    = isReconAccount,
-          unreconciledCount = unreconciledCount
+          unreconciledCount = unreconciledCount,
+          inProgressCount   = inProgressCount
         )
       )
       val fundFlowSummaryView = FundFlowSummaryViewPayload(
@@ -174,7 +176,7 @@ class App(using
         movementSpecId   = req.movementSpecId.map(UUID.fromString),
         properties       = req.properties,
         fileSourceQuery  = req.fileSourceQuery,
-        unreconciledOnly = req.unreconciledOnly,
+        reconciliation   = Payload.reconciliationFilterToDomain(req.reconciliation),
         createdFrom      = req.createdFrom,
         createdTo        = req.createdTo,
         movementType     = req.movementType.map(MovementType.valueOf)
@@ -192,9 +194,14 @@ class App(using
       write(results.map(m => Payload.movementSearchResultPayloadFromDomain(m, accountNames, movSpecNames)))
 
   @cask.route(s"${HttpPath.account}/:id/reconciliations", methods = HttpCmd.GET)
-  def reconciliationsByAccount(id: String, limit: Int = 100): String =
+  def reconciliationsByAccount(id: String, limit: Int = 100, status: Option[String] = None): String =
+    val statusFilter = status.map(s =>
+      ReconciliationStatus.values
+        .find(_.toString == s)
+        .getOrElse(throw IllegalArgumentError("status", s"unknown reconciliation status: $s"))
+    )
     transact(transactor):
-      val reconciliations = reconRepo.findByAccountID(UUID.fromString(id), limit)
+      val reconciliations = reconRepo.findByAccountID(UUID.fromString(id), limit, statusFilter)
       write(reconciliations.map(Payload.reconFromDomain))
 
   @cask.route(HttpPath.login, methods = HttpCmd.POST)

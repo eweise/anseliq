@@ -8,21 +8,52 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{PageHeader, Table}
+import frontroute.BrowserNavigation
+import onparity.view.components.{Form, PageHeader, Table}
+import org.scalajs.dom
 
 object AccountReconciliationsPage:
 
   case class State(recons: Seq[ReconciliationPayload] = Seq.empty)
 
+  // Values are ReconciliationStatus names, as the backend's ?status= filter expects; "" = all.
+  private val statusOptions = Seq(
+    ""           -> "All",
+    "InProgress" -> "In Progress",
+    "Final"      -> "Final",
+    "Voided"     -> "Voided",
+    "Reversed"   -> "Reversed"
+  )
+
+  // The filter lives in ?status= so a link (e.g. the fund flow Overview's "In progress" tile) can
+  // open the page pre-filtered, and a reload keeps it.
+  private def statusFromUrl(): String =
+    Option(new dom.URLSearchParams(dom.window.location.search).get("status"))
+      .filter(s => statusOptions.exists(_._1 == s))
+      .getOrElse("")
+
   def apply(accountId: String): HtmlElement =
     val state   = Var(State())
+    val status  = Var(statusFromUrl())
     val loadBus = EventBus[Unit]()
 
     def load() =
+      val query = Option(status.now()).filter(_.nonEmpty).fold("")(s => s"?status=$s")
       ApiClient.get[Seq[ReconciliationPayload]](
-        HttpPath.url(s"${HttpPath.account}/$accountId/reconciliations"),
+        HttpPath.url(s"${HttpPath.account}/$accountId/reconciliations$query"),
         SessionStore.token
       )
+
+    // replaceState rather than push: changing the filter shouldn't add a history entry, so back
+    // still returns to wherever the page was opened from. popStateEvent = false since nothing here
+    // needs to react to its own URL update.
+    def selectStatus(s: String): Unit =
+      status.set(s)
+      BrowserNavigation.replaceState(
+        url = Nav.accountReconciliationsUrl(accountId, Option(s).filter(_.nonEmpty)),
+        popStateEvent = false
+      )
+      loadBus.emit(())
 
     PageHeader.page(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(rs => state.update(_.copy(recons = rs))),
@@ -33,6 +64,10 @@ object AccountReconciliationsPage:
       ),
       div(
         cls := "w-full px-8",
+        div(
+          cls := "max-w-xs",
+          Form.selectField("reconStatus", "Status", statusOptions, status.now(), selectStatus)
+        ),
         child <-- state.signal.map { s =>
           Table.create(
             Seq("Description", "Status", "Applied Rules", "Balance", "Adjustment Reason", "Created At", "Updated At"),

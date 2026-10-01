@@ -4,7 +4,7 @@ import com.augustnagro.magnum.*
 import onparity.common.model.model.ID
 import onparity.domain.model
 import onparity.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
-import onparity.domain.model.{Account, Movement, MovementSearchCriteria, Reconciliation, Relationship}
+import onparity.domain.model.{Account, Movement, MovementSearchCriteria, Reconciliation, ReconciliationFilter, ReconciliationStatus, Relationship}
 import onparity.domain.port.driven.{MovementInID, MovementOutID, MovementRepo, Txn, UnreconciledCursor}
 
 import java.util.UUID
@@ -237,7 +237,10 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
   // comparison. The explicit `::type` casts on each nullable bind param exist because Postgres
   // can't infer a bind parameter's type from `IS NULL` alone.
   def search(c: MovementSearchCriteria): Txn[Vector[Movement]] =
-    val propsJson = if c.properties.isEmpty then None else Some(upickle.default.write(c.properties))
+    val propsJson   = if c.properties.isEmpty then None else Some(upickle.default.write(c.properties))
+    val anyRecon    = c.reconciliation == ReconciliationFilter.All
+    val openBalance = c.reconciliation == ReconciliationFilter.OpenBalance
+    val inProgress  = ReconciliationStatus.InProgress
     sql"""
       SELECT ${m.all}
       FROM $m AS a
@@ -251,7 +254,9 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       AND ($propsJson::jsonb IS NULL OR a.properties -> 'props' @> $propsJson::jsonb)
       AND (${c.fileSourceQuery}::text IS NULL
            OR a.meta_data -> 'props' ->> 'file_source_entry' ILIKE '%' || ${c.fileSourceQuery} || '%')
-      AND (${c.unreconciledOnly} = false OR a.reconciliation_id IS NULL)
+      AND ($anyRecon
+           OR a.reconciliation_id IS NULL
+           OR ($openBalance AND a.reconciliation_id IN (SELECT id FROM $r WHERE status = $inProgress)))
       AND (${c.createdFrom}::timestamptz IS NULL OR a.created_at >= ${c.createdFrom})
       AND (${c.createdTo}::timestamptz IS NULL OR a.created_at < ${c.createdTo})
       AND (${c.movementType}::text IS NULL OR a.movement_type = ${c.movementType})

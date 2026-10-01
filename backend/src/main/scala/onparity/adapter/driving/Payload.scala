@@ -283,6 +283,11 @@ object Payload:
     case AccountTypePayload.Secondary => AccountType.Secondary
     case AccountTypePayload.Recon     => AccountType.Recon
 
+  def reconciliationFilterToDomain(p: ReconciliationFilterPayload): ReconciliationFilter = p match
+    case ReconciliationFilterPayload.All          => ReconciliationFilter.All
+    case ReconciliationFilterPayload.Unreconciled => ReconciliationFilter.Unreconciled
+    case ReconciliationFilterPayload.OpenBalance  => ReconciliationFilter.OpenBalance
+
   def accountTypeFromDomain(a: AccountType): AccountTypePayload = a match
     case AccountType.Primary   => AccountTypePayload.Primary
     case AccountType.Secondary => AccountTypePayload.Secondary
