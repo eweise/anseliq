@@ -67,8 +67,8 @@ object FundFlowPage:
           SessionStore.token
         )
         .apiBind { summary =>
-          val counts = summary.accounts.flatMap(a => a.account.id.map(_ -> a.unreconciledCount)).toMap
-          state.update(_.copy(unreconciledCounts = counts))
+          val count = summary.accounts.find(_.isReconAccount).map(_.unreconciledCount).getOrElse(0)
+          state.update(_.copy(unreconciledCount = count))
         },
       ApiClient
         .get[Seq[MovementSpecPayload]](
@@ -123,7 +123,7 @@ object FundFlowPage:
         case (account, Right(specs)) =>
           specs.headOption.flatMap(_.id) match
             case Some(reconSpecId) => Nav.toManualMatch(account.id.get, reconSpecId)
-            case None               => Nav.toMaintainReconSpec(account.id.get, "new")
+            case None              => Nav.toMaintainReconSpec(account.id.get, "new")
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
       deleteSpecBus.events.flatMapSwitch { spec =>
@@ -229,7 +229,7 @@ object FundFlowPage:
                   s.accounts.sortBy(_.name).map { account =>
                     val accountId    = account.id.getOrElse("")
                     val status       = s.reconcileStatuses.getOrElse(accountId, ReconcileStatus.Idle)
-                    val unreconCount = s.unreconciledCounts.getOrElse(accountId, 0)
+                    val unreconCount = if account.accountType == AccountTypePayload.Recon then s.unreconciledCount else 0
                     // Both cells jump to the Search Movements tab (not the old per-account
                     // Unreconciled Movements page) with the account and "unreconciled only"
                     // pre-filled and the search already run — see searchMovementsTab's
@@ -238,7 +238,7 @@ object FundFlowPage:
                       state.update(_.copy(pendingSearchAccountId = Some(accountId)))
                       activeTab.set("Search")
                     )
-                    val isRecon = account.accountType == "Recon"
+                    val isRecon = account.accountType == AccountTypePayload.Recon
                     val unreconCell =
                       if isRecon then
                         span(
@@ -246,7 +246,7 @@ object FundFlowPage:
                           onClick.mapToUnit --> goToUnreconciledSearch,
                           unreconCount.toString
                         )
-                      else span(cls := "text-right w-full inline-block", unreconCount.toString)
+                      else span(cls := "text-right w-full inline-block", "")
                     val unreconBalanceCell =
                       if isRecon then
                         span(
@@ -280,10 +280,9 @@ object FundFlowPage:
                         )
                       else span()
                     val typePill = account.accountType match
-                      case "Recon"     => Pill("Recon", Pill.Tone.Accent)
-                      case "Primary"   => Pill("Primary", Pill.Tone.Good)
-                      case "Secondary" => Pill("Secondary", Pill.Tone.Neutral)
-                      case other       => Pill(other, Pill.Tone.Neutral)
+                      case AccountTypePayload.Recon     => Pill("Recon", Pill.Tone.Accent)
+                      case AccountTypePayload.Primary   => Pill("Primary", Pill.Tone.Good)
+                      case AccountTypePayload.Secondary => Pill("Secondary", Pill.Tone.Neutral)
                     Seq(
                       span(cls := "inline-block w-40", account.name),
                       typePill,
@@ -645,7 +644,7 @@ object FundFlowPage:
     )
 
     val reconBtn =
-      if selected.accountType == "Recon" then
+      if selected.accountType == AccountTypePayload.Recon then
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
@@ -657,7 +656,7 @@ object FundFlowPage:
       else div()
 
     val manualMatchBtn =
-      if selected.accountType == "Recon" then
+      if selected.accountType == AccountTypePayload.Recon then
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
           onClick --> { _ =>
@@ -682,11 +681,11 @@ object FundFlowPage:
       .filter(a =>
         a.id != selected.id
           && !a.id.exists(linkedIds.contains)
-          && (a.accountType == "Recon") != (selected.accountType == "Recon")
+          && (a.accountType == AccountTypePayload.Recon) != (selected.accountType == AccountTypePayload.Recon)
       )
       .map { target =>
-        val nonRecon            = if selected.accountType == "Recon" then target else selected
-        val recon               = if selected.accountType == "Recon" then selected else target
+        val nonRecon            = if selected.accountType == AccountTypePayload.Recon then target else selected
+        val recon               = if selected.accountType == AccountTypePayload.Recon then selected else target
         val (outAccId, inAccId) = ViewHelper.accountLinkFields(nonRecon, recon)
         button(
           cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
@@ -791,20 +790,19 @@ object FundFlowPage:
         posOf.get(id).foreach { (x, y) =>
           val (fill, stroke, textFill) =
             acc.accountType match
-              case "Recon" => ("var(--md-primary-container)", "var(--md-primary)", "var(--md-on-primary-container)")
-              case "Primary" =>
+              case AccountTypePayload.Recon => ("var(--md-primary-container)", "var(--md-primary)", "var(--md-on-primary-container)")
+              case AccountTypePayload.Primary =>
                 (
                   "var(--acct-role-primary-container)",
                   "var(--acct-role-primary)",
                   "var(--acct-role-primary-on-container)"
                 )
-              case "Secondary" =>
+              case AccountTypePayload.Secondary =>
                 (
                   "var(--acct-role-secondary-container)",
                   "var(--acct-role-secondary)",
                   "var(--acct-role-secondary-on-container)"
                 )
-              case _ => ("white", "#d1d5db", "#374151")
           sb.append(
             s"""<rect x="$x" y="$y" width="$boxW" height="$boxH" rx="8" fill="$fill" stroke="$stroke" stroke-width="2" />"""
           )
@@ -834,7 +832,7 @@ object FundFlowPage:
   // whichever end is Recon, regardless of whether Recon is that spec's in or out account. Falls
   // back to the original out -> in direction if neither (or both) side is Recon.
   private def pointTowardRecon(accounts: Seq[AccountPayload], ms: MovementSpecPayload): (String, String) =
-    val reconIds = accounts.filter(_.accountType == "Recon").flatMap(_.id).toSet
+    val reconIds = accounts.filter(_.accountType == AccountTypePayload.Recon).flatMap(_.id).toSet
     if reconIds.contains(ms.outAccountId) && !reconIds.contains(ms.inAccountId) then (ms.inAccountId, ms.outAccountId)
     else if reconIds.contains(ms.inAccountId) && !reconIds.contains(ms.outAccountId) then
       (ms.outAccountId, ms.inAccountId)
@@ -908,7 +906,7 @@ object FundFlowPage:
     selectedAccount:      Option[AccountPayload]       = None,
     selectedMovementSpec: Option[MovementSpecPayload]  = None,
     reconcileStatuses:    Map[String, ReconcileStatus] = Map.empty,
-    unreconciledCounts:   Map[String, Int]             = Map.empty,
+    unreconciledCount:    Int                          = 0,
     // Set by the Accounts tab's "Unreconciled Count"/"Unreconciled Balance" links, consumed once
     // by searchMovementsTab to seed and auto-run a pre-filled search — see that function.
     pendingSearchAccountId: Option[String] = None,

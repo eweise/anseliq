@@ -2,7 +2,7 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.AccountPayload
+import onparity.common.model.{AccountPayload, AccountTypePayload}
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
@@ -11,7 +11,7 @@ import onparity.view.components.{Buttons, Form}
 
 object MaintainAccountPage:
 
-  private val accountTypeOptions = Seq("Primary" -> "Primary", "Secondary" -> "Secondary", "Recon" -> "Recon")
+  private val accountTypeOptions = AccountTypePayload.values.toSeq.map(t => t.toString -> t.toString)
 
   // Rendered inside Modal by FundFlowPage (its only caller) — onClose defaults to Nav.back() so
   // this still works if ever reached directly via its route (/components/accounts/:id/maintain).
@@ -21,7 +21,7 @@ object MaintainAccountPage:
     val initial = AccountPayload(
       id          = if accountId == "new" then None else Some(accountId),
       fundFlowId  = ffId,
-      accountType = "Primary"
+      accountType = AccountTypePayload.Primary
     )
     val account        = Var(initial)
     val setNameBus     = EventBus[String]()
@@ -40,7 +40,7 @@ object MaintainAccountPage:
       }.apiBind { a =>
         account.set(a)
         setNameBus.emit(a.name)
-        setAccountType.emit(a.accountType)
+        setAccountType.emit(a.accountType.toString)
       },
       saveBus.events.flatMapSwitch { _ =>
         val a     = account.now()
@@ -55,8 +55,8 @@ object MaintainAccountPage:
         "accountType",
         "Account Type",
         accountTypeOptions,
-        initial.accountType,
-        v => account.update(_.copy(accountType = v)),
+        initial.accountType.toString,
+        v => account.update(_.copy(accountType = AccountTypePayload.valueOf(v))),
         updates = setAccountType.events
       ),
       div(

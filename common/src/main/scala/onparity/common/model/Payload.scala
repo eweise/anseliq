@@ -3,7 +3,6 @@ package onparity.common.model
 import onparity.common.model.ReconRelationship.OneToOne
 import onparity.common.model.model.{Money, Properties}
 import upickle.default.*
-import zio.json.*
 
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, OffsetDateTime}
@@ -192,23 +191,23 @@ case class AccountSummaryViewPayload(
   unreconciledCount: Int
 ) derives ReadWriter
 
+enum AccountTypePayload derives ReadWriter:
+  case Primary, Secondary, Recon
+
 case class AccountPayload(
-  id:                  Option[String] = None,
-  name:                String         = "",
-  fundFlowId:          String         = "",
-  properties:          Properties     = Map(),
-  // "Primary" | "Secondary" | "Recon" — see backend's AccountType.
-  accountType:         String         = "",
-  balance:             Money          = 0,
-  reconciledBalance:   Money          = 0,
-  unreconciledBalance: Money          = 0
+  id:         Option[String] = None,
+  name:       String         = "",
+  fundFlowId: String         = "",
+  properties: Properties     = Map(),
+  accountType:         AccountTypePayload = AccountTypePayload.Primary,
+  balance:             Money              = 0,
+  reconciledBalance:   Money              = 0,
+  unreconciledBalance: Money              = 0
 ) extends CanValidate
     derives ReadWriter:
   override def validate(): ValidationErrors =
     var errors = Map[String, String]()
     if name.length < 3 then errors += ("name" -> "name must be at least 3 characters long")
-    if !Set("Primary", "Secondary", "Recon").contains(accountType) then
-      errors += ("accountType" -> "accountType must be Primary, Secondary, or Recon")
     errors
 
 case class FileFeedPayload(
@@ -271,7 +270,7 @@ case class MovementDetailPayload(
   metaData:          Properties,
   movementSpecName:  String,
   // None only for a row that predates this field — see backend's MovementType.
-  movementType:      Option[String] = None
+  movementType: Option[String] = None
 ) derives ReadWriter
 
 case class MovementSearchRequest(
@@ -285,7 +284,7 @@ case class MovementSearchRequest(
   createdFrom:      Option[OffsetDateTime] = None,
   createdTo:        Option[OffsetDateTime] = None,
   // "Ingestion" | "ManualAdjustment" | "Reversal" — see backend's MovementType.
-  movementType:     Option[String]         = None
+  movementType: Option[String] = None
 ) derives ReadWriter
 
 // Richer than MovementPayload (which lacks names/metaData) — mirrors MovementDetailPayload's
@@ -302,7 +301,7 @@ case class MovementSearchResultPayload(
   reconciled:       Boolean,
   createdAt:        OffsetDateTime,
   // None only for a row that predates this field — see backend's MovementType.
-  movementType:     Option[String] = None
+  movementType: Option[String] = None
 ) derives ReadWriter
 
 case class MovementSpecAndAccounts(
@@ -366,20 +365,20 @@ case class DisputeDetailPayload(
 case class AddDisputeCommentRequest(
   body:                Option[String]               = None,
   newStatus:           Option[DisputeStatusPayload] = None,
-  newAssignedToUserId: Option[String]                = None
+  newAssignedToUserId: Option[String]               = None
 ) derives ReadWriter
 
 case class MatchRatePayload(
-  accountId:               String,
-  accountName:             String,
-  balance:                 Money,
-  reconciledBalance:       Money,
+  accountId:         String,
+  accountName:       String,
+  balance:           Money,
+  reconciledBalance: Money,
   // reconciledBalance/balance*100 — a $ coverage ratio, not a rate; can exceed 100%.
   balanceCoveragePercent:  Option[BigDecimal],
   reconciledMovementCount: Int,
   totalMovementCount:      Int,
   // The real match rate: reconciledMovementCount/totalMovementCount*100, a true 0-100% ratio.
-  matchRatePercent:        Option[BigDecimal]
+  matchRatePercent: Option[BigDecimal]
 ) derives ReadWriter
 
 case class ExceptionBreakdownPayload(

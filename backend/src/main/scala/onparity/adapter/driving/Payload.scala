@@ -51,7 +51,7 @@ object Payload:
       fundFlowId          = account.fundFlowId.toString,
       id                  = Some(account.id.toString),
       name                = account.name,
-      accountType         = account.accountType.toString,
+      accountType         = accountTypeFromDomain(account.accountType),
       balance             = account.balance,
       reconciledBalance   = account.reconciledBalance,
       unreconciledBalance = account.unreconciledBalance,
@@ -277,6 +277,16 @@ object Payload:
       movementSpecName  = movementSpecName,
       movementType      = m.movementType.map(_.toString)
     )
+
+  def accountTypeToDomain(p: AccountTypePayload): AccountType = p match
+    case AccountTypePayload.Primary   => AccountType.Primary
+    case AccountTypePayload.Secondary => AccountType.Secondary
+    case AccountTypePayload.Recon     => AccountType.Recon
+
+  def accountTypeFromDomain(a: AccountType): AccountTypePayload = a match
+    case AccountType.Primary   => AccountTypePayload.Primary
+    case AccountType.Secondary => AccountTypePayload.Secondary
+    case AccountType.Recon     => AccountTypePayload.Recon
 
   def disputeTargetToDomain(p: DisputeTargetPayload): DisputeTarget = p match
     case DisputeTargetPayload.Movement       => DisputeTarget.Movement

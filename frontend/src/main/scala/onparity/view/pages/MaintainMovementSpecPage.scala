@@ -2,7 +2,7 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.{AccountPayload, FileFeedPayload, MovementSpecPayload, RoutingFilter}
+import onparity.common.model.{AccountPayload, AccountTypePayload, FileFeedPayload, MovementSpecPayload, RoutingFilter}
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
@@ -76,7 +76,7 @@ object MaintainMovementSpecPage:
       ApiClient
         .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
         .apiBind { accs =>
-          val initialInIsRecon = accs.find(_.id.contains(initial.inAccountId)).exists(_.accountType == "Recon")
+          val initialInIsRecon = accs.find(_.id.contains(initial.inAccountId)).exists(_.accountType == AccountTypePayload.Recon)
           if initialInIsRecon then
             accountId.set(initial.outAccountId)
             reconAccountId.set(initial.inAccountId)
@@ -125,8 +125,8 @@ object MaintainMovementSpecPage:
       // ends up in is computed at save time from the chosen Account's type — see
       // ViewHelper.accountLinkFields — not fixed to either dropdown.
       child <-- accounts.signal.map { accs =>
-        val accountOptions = accs.filter(_.accountType != "Recon")
-        val reconOptions   = accs.filter(_.accountType == "Recon")
+        val accountOptions = accs.filter(_.accountType != AccountTypePayload.Recon)
+        val reconOptions   = accs.filter(_.accountType == AccountTypePayload.Recon)
         div(
           accountSelect(
             "account",

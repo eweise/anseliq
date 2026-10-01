@@ -79,7 +79,7 @@ class FundFlowOperations(using
     val newAccount = Account(
       name        = payload.name,
       fundFlowId  = UUID.fromString(payload.fundFlowId),
-      accountType = AccountType.valueOf(payload.accountType),
+      accountType = Payload.accountTypeToDomain(payload.accountType),
       properties  = JSONBProps(payload.properties)
     )
     accountRepo.insert(newAccount)
@@ -91,7 +91,7 @@ class FundFlowOperations(using
     var existingAccount = accountRepo.findById(accountID).ErrIfNotFound("account", accountID)
     existingAccount = existingAccount.copy(
       name        = payload.name,
-      accountType = AccountType.valueOf(payload.accountType),
+      accountType = Payload.accountTypeToDomain(payload.accountType),
       properties  = JSONBProps(payload.properties)
     )
     accountRepo.update(existingAccount)
