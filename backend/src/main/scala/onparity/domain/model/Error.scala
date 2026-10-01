@@ -23,4 +23,4 @@ class DBError(msg: String) extends ReconError(msg)
 
 extension [A](maybeEntity: Option[A])
   def ErrIfNotFound(name: String, id: ID): A =
-    maybeEntity.getOrElse(throw NotFoundError(s"name with id $id not found"))
+    maybeEntity.getOrElse(throw NotFoundError(s"$name with id $id not found"))

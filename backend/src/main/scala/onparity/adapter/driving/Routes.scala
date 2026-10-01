@@ -635,34 +635,65 @@ class App(using
 
       write(adapterMovements.toSeq)
 
+  private val corsHeaders = Seq(
+    "Access-Control-Allow-Origin"  -> "*",
+    "Access-Control-Allow-Methods" -> "GET, POST, DELETE, PUT, OPTIONS, HEAD",
+    "Access-Control-Allow-Headers" -> "Authorization, Content-Type, Accept",
+    "Access-Control-Max-Age"       -> "86400"
+  )
+
+  // Where cask renders a route that failed, outside corsDecorator: delegate returns a Result.Error
+  // rather than throwing, so neither corsDecorator's `.map` nor its catch sees it. Two cases:
+  //   - Exception: the route body threw (e.g. ErrIfNotFound's NotFoundError). cask catches it
+  //     itself; its default would be a 500 with the full stack trace as the body, so it's mapped to
+  //     a status and the plain message here instead (the trace still goes to the log).
+  //   - anything else: cask couldn't bind the route's arguments (an unknown or malformed query
+  //     param, say) — cask's own 400 is kept, just given the CORS headers.
+  // Without the CORS headers the browser hides either one behind a generic "NetworkError when
+  // attempting to fetch resource" instead of showing the message.
+  override def handleEndpointError(
+    routes:   cask.main.Routes,
+    metadata: cask.router.EndpointMetadata[?],
+    e:        cask.router.Result.Error,
+    req:      cask.model.Request
+  ): cask.Response.Raw =
+    e match
+      case cask.router.Result.Error.Exception(t) => errorResponse(t)
+      case _ =>
+        val response = super.handleEndpointError(routes, metadata, e, req)
+        response.copy(headers = response.headers ++ corsHeaders)
+
+  private def errorResponse(e: Throwable): cask.Response.Raw =
+    val status = statusFor(e)
+    if status >= 500 then logger.error("Unhandled error", e)
+    else logger.warn(s"Request rejected with $status: ${e.getMessage}")
+    cask.Response(Option(e.getMessage).getOrElse(e.toString), statusCode = status, headers = corsHeaders)
+
   class corsDecorator extends cask.RawDecorator:
     def wrapFunction(ctx: cask.model.Request, delegate: Delegate) =
-      val corsHeaders = Seq(
-        "Access-Control-Allow-Origin"  -> "*",
-        "Access-Control-Allow-Methods" -> "GET, POST, DELETE, PUT, OPTIONS, HEAD",
-        "Access-Control-Allow-Headers" -> "Authorization, Content-Type, Accept",
-        "Access-Control-Max-Age"       -> "86400"
-      )
       if ctx.exchange.getRequestMethod.toString == "OPTIONS" then
         cask.router.Result.Success(
           cask.Response("", statusCode = 200, headers = corsHeaders)
         )
       else
-        // An uncaught exception from a route (e.g. login's UnauthorizedError) propagates as a real
-        // JVM throw straight through this delegate call, past the `.map` below (which only ever
-        // runs on the success path) — cask's own top-level handler is what finally catches it and
-        // renders the plain-text 500, entirely outside this decorator, so the response it builds
-        // never gets corsHeaders merged in. The browser then can't read that response cross-origin
-        // and fetch() fails with a generic "TypeError: Failed to fetch", masking the real error as
-        // what looks like a network problem. Catching here so every response — success or error —
-        // carries the same CORS headers.
+        // A route body's exceptions don't arrive here as a throw: cask catches them while invoking
+        // the endpoint and returns them as Result.Error.Exception, which skips the `.map` below and
+        // is rendered by handleEndpointError instead (see there). This catch is the fallback for
+        // anything that does throw through delegate, so it still gets the same status mapping and
+        // CORS headers rather than reaching the browser as a generic "Failed to fetch".
         try delegate(ctx, Map.empty).map(response => response.copy(headers = response.headers ++ corsHeaders))
-        catch
-          case e: Throwable =>
-            logger.error("Unhandled error", e)
-            cask.router.Result.Success(
-              cask.Response(Option(e.getMessage).getOrElse(e.toString), statusCode = 500, headers = corsHeaders)
-            )
+        catch case e: Throwable => cask.router.Result.Success(errorResponse(e))
+
+  // The domain's NonRetryableError subtypes are the caller's fault (bad input, no access, missing
+  // or conflicting state), so they map to the matching 4xx; anything else — including the
+  // retryable DBError — is a server-side failure and stays 500.
+  private def statusFor(e: Throwable): Int = e match
+    case _: IllegalArgumentError => 400
+    case _: UnauthorizedError    => 401
+    case _: ForbiddenError       => 403
+    case _: NotFoundError        => 404
+    case _: IllegalStateError    => 409
+    case _                       => 500
 
   // Applied globally (see mainDecorators above) so every route requires a valid Bearer token
   // except /login itself (can't require a token to get a token). A route that needs to know who's
