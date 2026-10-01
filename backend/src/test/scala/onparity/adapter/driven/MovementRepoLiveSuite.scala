@@ -6,7 +6,7 @@ import onparity.common.model.model.ID
 import onparity.common.model.{AndRule, AppliedRules, StringAttribute, StringAttributeMatchRule}
 import onparity.domain.DataSetup
 import onparity.domain.model.helper.JSONBProps
-import onparity.domain.model.{Movement, Reconciliation, createID}
+import onparity.domain.model.{DBError, Movement, Reconciliation, createID}
 import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
@@ -378,6 +378,42 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         // Every other column must be untouched by the narrow update.
         assertEquals(movementRepo.findById(m2.id).get.amount, BigDecimal(200))
         assertEquals(movementRepo.findById(m2.id).get.properties.props("id"), "2")
+
+  test("setReconciliationIds refuses to re-link a movement that is already reconciled"):
+    val movementRepo = MovementRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+
+        val m1 = Movement(
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 100,
+          properties     = JSONBProps(Map("id" -> "1"))
+        )
+        val m2 = Movement(
+          inAccountId    = data.journalAccount.id,
+          outAccountId   = data.reconAccount.id,
+          movementSpecId = data.journalToRecon.id,
+          amount         = 200,
+          properties     = JSONBProps(Map("id" -> "2"))
+        )
+        movementRepo.insert(m1)
+        movementRepo.insert(m2)
+
+        val reconRepo = ReconciliationRepoLive()
+        val original  = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+        val competing = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+        reconRepo.insert(original)
+        reconRepo.insert(competing)
+
+        movementRepo.setReconciliationIds(Seq(m1.id -> original.id))
+
+        intercept[DBError]:
+          movementRepo.setReconciliationIds(Seq(m1.id -> competing.id, m2.id -> competing.id))
+
+        assertEquals(movementRepo.findById(m1.id).get.reconciliationId, Some(original.id))
 
   test("setReconciliationIds does nothing for an empty input"):
     val movementRepo = MovementRepoLive()

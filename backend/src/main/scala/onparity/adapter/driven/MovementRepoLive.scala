@@ -266,15 +266,25 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
   // (rather than bind parameters) is safe here specifically because ID is always a UUID: its
   // toString is a fixed, closed hex+hyphen format that cannot contain quotes or SQL
   // metacharacters, unlike arbitrary user-supplied strings.
+  // The `reconciliation_id IS NULL` guard stops a movement that was reconciled elsewhere (e.g. a
+  // manual match) after the caller read it from being silently re-linked. Any skipped row fails the
+  // whole call rather than being dropped, because callers have already built reconciliations and
+  // ledger deltas that assume every movement was linked — throwing rolls their transaction back.
+  // DBError (retryable) since a rerun re-reads unreconciled movements and won't see that row again.
   def setReconciliationIds(idPairs: Iterable[(ID, ID)]): Txn[Unit] =
     if idPairs.nonEmpty then
       val valuesClause = SqlLiteral(
         idPairs.map { case (movementId, reconciliationId) => s"('$movementId'::uuid, '$reconciliationId'::uuid)" }
           .mkString(", ")
       )
-      sql"""
+      val updated = sql"""
         UPDATE $m AS a
         SET reconciliation_id = v.reconciliation_id
         FROM (VALUES $valuesClause) AS v(id, reconciliation_id)
         WHERE a.id = v.id
+        AND a.reconciliation_id IS NULL
       """.update.run()
+      if updated != idPairs.size then
+        throw model.DBError(
+          s"setReconciliationIds linked $updated of ${idPairs.size} movements; the rest are missing or already reconciled"
+        )
