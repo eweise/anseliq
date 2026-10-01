@@ -82,7 +82,7 @@ object ManualMatchPage:
       div(
         cls := "grid grid-cols-2 gap-4 mt-6 text-left",
         div(
-          h3(cls := "font-medium mb-2", "In Movements"),
+          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "In Movements"),
           child <-- state.signal.map { s =>
             Table.create(
               Seq("", "Reference ID", "Amount"),
@@ -104,7 +104,7 @@ object ManualMatchPage:
           }
         ),
         div(
-          h3(cls := "font-medium mb-2", "Out Movements"),
+          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Out Movements"),
           child <-- state.signal.map { s =>
             Table.create(
               Seq("", "Reference ID", "Amount"),
@@ -127,7 +127,7 @@ object ManualMatchPage:
         )
       ),
       div(
-        cls := "mt-4 text-sm",
+        cls := "mt-4 text-sm text-md-on-surface dark:text-gray-200",
         child.text <-- state.signal.map { s =>
           val inTotal  = s.inMovements.filter(m => s.selectedIn.contains(m.id)).map(_.amount).sum
           val outTotal = s.outMovements.filter(m => s.selectedOut.contains(m.id)).map(_.amount).sum
@@ -138,7 +138,7 @@ object ManualMatchPage:
       ),
       div(
         cls := "mt-4",
-        child.maybe <-- state.signal.map(_.message.map(m => span(cls := "text-sm", m)))
+        child.maybe <-- state.signal.map(_.message.map(m => span(cls := "text-sm text-md-on-surface dark:text-gray-200", m)))
       ),
       div(
         cls := "mt-4",
@@ -174,12 +174,12 @@ object ManualMatchPage:
       child <-- state.signal.map { s =>
         if s.expandedProperties.contains(m.id) then
           table(
-            cls := "mt-1 text-xs border border-gray-200",
+            cls := "mt-1 text-xs border border-gray-200 dark:border-gray-700",
             tbody(
               m.properties.toSeq.sortBy(_._1).map { case (k, v) =>
                 tr(
-                  td(cls := "px-2 py-1 font-medium border-b border-gray-100", k),
-                  td(cls := "px-2 py-1 border-b border-gray-100", v)
+                  td(cls := "px-2 py-1 font-medium text-md-on-surface-variant dark:text-gray-400 border-b border-gray-100 dark:border-gray-700", k),
+                  td(cls := "px-2 py-1 border-b border-gray-100 dark:border-gray-700", v)
                 )
               }*
             )

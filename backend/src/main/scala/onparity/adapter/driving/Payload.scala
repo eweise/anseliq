@@ -1,6 +1,6 @@
 package onparity.adapter.driving
 
-import onparity.common.model.{ReconRelationship as ComRel, *}
+import onparity.common.model.{Direction as ComDirection, ReconRelationship as ComRel, *}
 import onparity.common.model.model.ID
 import onparity.domain.model.{Relationship as Rel, *}
 import onparity.domain.service.{BadFilePreview, FixBadFileResult, ParseTestResult}
@@ -114,7 +114,7 @@ object Payload:
   def reconciliationDetailPayloadFromDomain(
     recon:     Reconciliation,
     spec:      Option[(ReconciliationSpec, String)], // (spec, its account's name)
-    movements: Seq[Movement]
+    movements: Seq[ReconciliationMovementPayload]
   ): ReconciliationDetailPayload =
     ReconciliationDetailPayload(
       reconciliation = reconFromDomain(recon),
@@ -127,7 +127,26 @@ object Payload:
           accountName  = accountName
         )
       },
-      movements = movements.map(m => ReconciliationMovementPayload(id = m.id.toString, amount = m.amount))
+      movements = movements
+    )
+
+  // reconAccountId: the reconciliation spec's account, None for a spec-less Reversed reconciliation.
+  def reconciliationMovementFromDomain(
+    m:              Movement,
+    reconAccountId: Option[ID],
+    accountName:    ID => String
+  ): ReconciliationMovementPayload =
+    val direction = reconAccountId.map(id => if m.inAccountId == id then ComDirection.IN else ComDirection.OUT)
+    val otherAccountId = direction.map:
+      case ComDirection.IN  => m.outAccountId
+      case ComDirection.OUT => m.inAccountId
+    ReconciliationMovementPayload(
+      id               = m.id.toString,
+      referenceId      = m.referenceId.toString,
+      amount           = m.amount,
+      direction        = direction,
+      otherAccountName = otherAccountId.map(accountName),
+      movementType     = m.movementType.map(_.toString)
     )
 
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =

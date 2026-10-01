@@ -4,6 +4,7 @@ import com.augustnagro.magnum.*
 import com.typesafe.scalalogging.StrictLogging
 import onparity.common.http.HttpPath
 import onparity.common.model.*
+import onparity.common.model.model.ID
 import onparity.common.util.JwtHelper
 import onparity.domain.model.*
 import onparity.domain.port.driven.*
@@ -370,8 +371,22 @@ class App(using
         val spec    = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
         val account = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
         (spec, account.name)
-      val movements = movementRepo.findByReconciliationID(reconId)
+      val movements = reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
       write(Payload.reconciliationDetailPayloadFromDomain(recon, spec, movements))
+
+  // A reconciliation's movements as payload rows, each movement's accounts' names looked up once
+  // per distinct account rather than once per movement.
+  private def reconciliationMovementPayloads(
+    recon:          Reconciliation,
+    reconAccountId: Option[ID]
+  ): Txn[Seq[ReconciliationMovementPayload]] =
+    val movements = movementRepo.findByReconciliationID(recon.id)
+    val accountNames = movements
+      .flatMap(m => Seq(m.inAccountId, m.outAccountId))
+      .distinct
+      .map(id => id -> accountRepo.findById(id).map(_.name).getOrElse(id.toString))
+      .toMap
+    movements.map(Payload.reconciliationMovementFromDomain(_, reconAccountId, accountNames))
 
   @cask.route(s"${HttpPath.movement}/:id", methods = HttpCmd.GET)
   def getMovementDetail(id: String): String =
@@ -393,7 +408,7 @@ class App(using
   def writeOffReconciliation(id: String, request: cask.Request): String =
     val payload = read[WriteOffRequest](request.text())
     transact(transactor):
-      manualReconciler.writeOff(UUID.fromString(id), payload.reason)
+      manualReconciler.writeOff(UUID.fromString(id), UUID.fromString(payload.movementId), payload.reason)
     write("written-off")
 
   @cask.route(s"${HttpPath.movements}/bad-file-preview", methods = HttpCmd.POST)
@@ -456,15 +471,19 @@ class App(using
       case DisputeTarget.Reconciliation => None
       case DisputeTarget.MovementSpec   => None
       case DisputeTarget.FileFeed       => None
-    val reconPayload = dispute.targetType match
-      case DisputeTarget.Reconciliation => reconRepo.findById(dispute.referenceId).map(Payload.reconFromDomain)
+    val recon = dispute.targetType match
+      case DisputeTarget.Reconciliation => reconRepo.findById(dispute.referenceId)
       case DisputeTarget.Movement       => None
       case DisputeTarget.MovementSpec   => None
       case DisputeTarget.FileFeed       => None
+    val reconPayload = recon.map(Payload.reconFromDomain)
+    val reconMovements = recon
+      .map(r => reconciliationMovementPayloads(r, r.specId.flatMap(reconSpecRepo.findById).map(_.accountId)))
+      .getOrElse(Seq.empty)
     val comments = disputeCommentRepo
       .findByDisputeId(dispute.id)
       .map(c => Payload.disputeCommentPayloadFromDomain(c, userDisplay(c.newAssignedToUserId)))
-    DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments)
+    DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments, reconMovements)
 
   private def disputePayloadWithNames(dispute: Dispute): Txn[DisputePayload] =
     val (accountId, accountName, referenceLabel) = disputeContext(dispute)

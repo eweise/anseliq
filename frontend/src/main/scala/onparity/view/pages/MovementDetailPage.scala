@@ -3,11 +3,12 @@ package onparity.view.pages
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
 import onparity.common.model.MovementDetailPayload
+import onparity.common.model.model.Money
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Card, PageHeader}
+import onparity.view.components.{Card, DetailList, PageHeader}
 
 object MovementDetailPage:
 
@@ -40,15 +41,24 @@ object MovementDetailPage:
     div(
       cls := s"${Card.cls} p-4 mb-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Movement"),
-      div(
-        cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
-        div(s"ID: ${d.id}"),
-        div(s"Reference ID: ${d.referenceId}"),
-        div(s"Type: ${d.movementType.getOrElse("Unclassified")}"),
-        div(s"Amount: ${d.amount}"),
-        div(s"Movement Spec: ${d.movementSpecName}"),
-        div(s"Secondary Account: ${d.outAccountName} (Balance: ${d.outAccountBalance})"),
-        div(s"Primary Account: ${d.inAccountName} (Balance: ${d.inAccountBalance})")
+      DetailList(
+        "ID"                -> DetailList.mono(d.id),
+        "Reference ID"      -> DetailList.mono(d.referenceId),
+        "Type"              -> d.movementType.map(span(_)).getOrElse(DetailList.empty),
+        "Amount"            -> span(cls := "tabular-nums", d.amount.toString),
+        "Movement Spec"     -> span(d.movementSpecName),
+        "Primary Account"   -> accountView(d.inAccountName, d.inAccountBalance),
+        "Secondary Account" -> accountView(d.outAccountName, d.outAccountBalance)
+      )
+    )
+
+  // Account name, with its current balance as secondary detail rather than a parenthetical.
+  private def accountView(name: String, balance: Money): HtmlElement =
+    span(
+      name,
+      span(
+        cls := "ml-2 text-xs text-md-on-surface-variant dark:text-gray-400 tabular-nums",
+        s"Balance ${balance}"
       )
     )
 
@@ -58,16 +68,7 @@ object MovementDetailPage:
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", title),
       if props.isEmpty then div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400", "None")
       else
-        table(
-          cls := "text-sm w-full",
-          tbody(
-            props.toSeq.sortBy(_._1).map { (k, v) =>
-              tr(
-                cls := "border-b border-md-outline dark:border-gray-700 last:border-b-0",
-                td(cls := "py-1 pr-4 font-medium text-md-on-surface-variant dark:text-gray-400 align-top", k),
-                td(cls := "py-1 text-md-on-surface dark:text-gray-200 break-all", v)
-              )
-            }*
-          )
+        DetailList(
+          props.toSeq.sortBy(_._1).map((k, v) => k -> (if v.isEmpty then DetailList.empty else span(cls := "break-all", v)))*
         )
     )

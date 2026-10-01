@@ -87,6 +87,47 @@ class Ledger(using
     end if
   end recordMovements
 
+  /**
+   * Posts one ManualAdjustment movement of `amount` from outAccountId to inAccountId, with the same
+   * balance/unreconciledBalance effect recordMovements applies to an ingested movement — so a
+   * correction shows up on the books as a real, auditable entry rather than an out-of-band edit to
+   * an account's balance. Used by ManualReconciler.writeOff. Unlike recordMovements there's no
+   * referenceId dedupe here: callers pass a referenceId deterministic for what they're adjusting, so
+   * a duplicate attempt fails on movement.reference_id's UNIQUE constraint instead of double-posting.
+   */
+  def recordAdjustment(
+    inAccountId:    ID,
+    outAccountId:   ID,
+    amount:         Money,
+    movementSpecId: ID,
+    referenceId:    ID,
+    metaData:       Properties
+  ): Txn[Movement] =
+    if amount <= Zero then throw IllegalStateError(s"adjustment amount must be positive, got $amount")
+    val inAccount  = accountRepo.findByIdForUpdate(inAccountId).ErrIfNotFound("In Account", inAccountId)
+    val outAccount = accountRepo.findByIdForUpdate(outAccountId).ErrIfNotFound("Out Account", outAccountId)
+
+    inAccount.balance += amount
+    inAccount.unreconciledBalance += amount
+    outAccount.balance -= amount
+    outAccount.unreconciledBalance -= amount
+    accountRepo.update(inAccount)
+    accountRepo.update(outAccount)
+
+    val adjustment = Movement(
+      inAccountId       = inAccountId,
+      outAccountId      = outAccountId,
+      referenceId       = referenceId,
+      inAccountBalance  = inAccount.balance,
+      outAccountBalance = outAccount.balance,
+      amount            = amount,
+      metaData          = JSONBProps(metaData),
+      movementSpecId    = movementSpecId,
+      movementType      = Some(MovementType.ManualAdjustment)
+    )
+    movementRepo.insert(adjustment)
+    adjustment
+
   // Links `movements` to `reconciliationId` and applies their combined effect on accountId's
   // reconciled/unreconciled balance in one step, so the two can never drift apart.
   def reconcile(movements: Seq[Movement], reconciliationId: ID, accountId: ID): Txn[Unit] =

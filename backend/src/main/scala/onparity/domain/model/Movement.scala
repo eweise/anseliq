@@ -9,8 +9,8 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum MovementType derives DbCodec:
-  // ManualAdjustment: no creator exists yet — included for a planned manual-correction-entry
-  // feature, not currently constructed anywhere.
+  // ManualAdjustment: a correction entry posted by Ledger.recordAdjustment (currently only for
+  // ManualReconciler.writeOff), not ingested from a file.
   case Ingestion, ManualAdjustment, Reversal
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)

@@ -2,7 +2,7 @@ package onparity.adapter.driven
 
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.config.ConfigFactory
-import onparity.common.model.AppliedRules
+import onparity.common.model.{AppliedRules, RuleMatch, StringAttribute, StringAttributeMatchRule}
 import onparity.domain.DataSetup
 import onparity.domain.model.Reconciliation
 import onparity.testing.rollBackOnly
@@ -50,6 +50,23 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
 
         val found = reconRepo.findById(reconciliation.id)
         assertEquals(found.get.description, "updated")
+
+  // Repo.update binds each column with the codec summoned where the Repo is defined, not via
+  // Reconciliation's derived codec (which insert/select use), so a jsonb column can round-trip
+  // through insert yet fail on update if its codec isn't in scope in ReconciliationRepoLive.
+  test("update round-trips Matched appliedRules through the jsonb column"):
+    val reconRepo = ReconciliationRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data           = DataSetup()
+        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+        reconRepo.insert(reconciliation)
+
+        val rule    = StringAttributeMatchRule(inKey = StringAttribute(key = "id"), outKey = StringAttribute(key = "id"))
+        val matched = AppliedRules.Matched(List(RuleMatch(rule, "42")))
+        reconRepo.update(reconciliation.copy(appliedRules = matched))
+
+        assertEquals(reconRepo.findById(reconciliation.id).get.appliedRules, matched)
 
   test("delete removes reconciliation"):
     val reconRepo = ReconciliationRepoLive()

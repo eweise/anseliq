@@ -1,6 +1,7 @@
 package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
+import com.fasterxml.uuid.Generators
 import onparity.common.model.AppliedRules
 import onparity.common.model.model.{ID, Money, Zero}
 import onparity.domain.model.*
@@ -95,19 +96,25 @@ class ManualReconciler(using
 
     ledger.unreconcile(movements, reconSpec.accountId)
 
+    // A write-off's adjustment exists only to close this reconciliation's difference. Returned to
+    // the unreconciled pool it would be matchable like a real movement, so it's reversed instead —
+    // reverseMovement also links it to its reversal, permanently excluding both from matching.
+    movements.filter(_.movementType.contains(MovementType.ManualAdjustment)).foreach(ledger.reverseMovement)
+
     reconciliation.status = ReconciliationStatus.Voided
     reconRepo.update(reconciliation)
 
-    resolveDanglingAmountMismatchDispute(reconciliationId)
+    resolveDanglingAmountMismatchDispute(reconciliationId, s"Auto-resolved: reconciliation $reconciliationId was voided.")
 
     eventStore.publishEvent(ReconciliationVoided(reconciliationID = reconciliationId))
 
-  // Voiding a reconciliation makes any AmountMismatch dispute raised against it (see
+  // Voiding or writing off a reconciliation makes any AmountMismatch dispute raised against it (see
   // InMemoryReconciler.streamMergeJoin's raiseDisputeOnMismatch) moot — the mismatch it was
-  // tracking no longer exists once the movements are back in the unreconciled pool. Same
-  // auto-resolve shape as Ingestor.resolveFileMissingDispute: status change + an explanatory
-  // comment, not just silently forgotten.
-  private def resolveDanglingAmountMismatchDispute(reconciliationId: ID): Txn[Unit] =
+  // tracking no longer exists once the movements are back in the unreconciled pool, or once the
+  // difference has been posted as an adjustment. Same auto-resolve shape as
+  // Ingestor.resolveFileMissingDispute: status change + an explanatory comment, not just silently
+  // forgotten.
+  private def resolveDanglingAmountMismatchDispute(reconciliationId: ID, commentBody: String): Txn[Unit] =
     disputeRepo
       .findOpenByReferenceIdAndCategory(reconciliationId, DisputeCategory.AmountMismatch)
       .foreach: dispute =>
@@ -124,23 +131,74 @@ class ManualReconciler(using
         // it directly is exactly equivalent to a successful readback.
         val comment = DisputeComment(
           disputeId = dispute.id,
-          body      = Some(s"Auto-resolved: reconciliation $reconciliationId was voided."),
+          body      = Some(commentBody),
           newStatus = Some(DisputeStatus.Resolved),
           createdAt = Some(clock.now)
         )
         disputeCommentRepo.insert(comment)
         eventStore.publishEvent(DisputeCommentAdded(disputeID = dispute.id, commentID = comment.id))
 
-  def writeOff(reconciliationId: ID, reason: String): Txn[Unit] =
+  /**
+   * Closes an InProgress reconciliation by posting its whole remaining difference as a
+   * ManualAdjustment movement, rather than just relabelling it Final and leaving the difference
+   * stranded on the reconciled account. `movementId` — one of the reconciliation's own movements,
+   * chosen by the user as where the difference belongs (e.g. the out-movement a bank fee was
+   * deducted from) — decides the accounts: the adjustment runs between the reconciled account and
+   * that movement's other account, in whichever direction cancels the difference on the reconciled
+   * account. The adjustment is linked into this reconciliation, so its movements net to zero and
+   * its balance becomes zero; the written-off amount lives on as the adjustment's amount.
+   */
+  def writeOff(reconciliationId: ID, movementId: ID, reason: String): Txn[Movement] =
     val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
     if reconciliation.status != ReconciliationStatus.InProgress then
       throw IllegalStateError(s"reconciliation $reconciliationId is not InProgress")
 
+    val specId         = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
+    val reconAccountId = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId).accountId
+    val movements      = movementRepo.findByReconciliationID(reconciliationId)
+
+    val against = movements
+      .find(_.id == movementId)
+      .getOrElse(throw IllegalArgumentError("movementId", s"movement $movementId is not part of reconciliation $reconciliationId"))
+    val counterpartyId =
+      if against.inAccountId == reconAccountId then against.outAccountId
+      else if against.outAccountId == reconAccountId then against.inAccountId
+      else throw IllegalArgumentError("movementId", s"movement $movementId does not touch the reconciled account")
+
+    // The difference as the ledger holds it on the reconciled account (what reconcile accumulated
+    // into reconciledBalance), rather than reconciliation.balance, so the adjustment is guaranteed
+    // to zero out exactly what was posted.
+    val difference = movements.map(_.signedAmountFor(reconAccountId)).sum
+    if difference == Zero then
+      throw IllegalStateError(s"reconciliation $reconciliationId has no difference to write off")
+    val (inAccountId, outAccountId) =
+      if difference > Zero then (counterpartyId, reconAccountId) else (reconAccountId, counterpartyId)
+
+    val adjustment = ledger.recordAdjustment(
+      inAccountId    = inAccountId,
+      outAccountId   = outAccountId,
+      amount         = difference.abs,
+      movementSpecId = against.movementSpecId,
+      referenceId    = Generators.nameBasedGenerator().generate(s"write-off of reconciliation $reconciliationId"),
+      metaData = Map(
+        "write_off_of_reconciliation_id" -> reconciliationId.toString,
+        "write_off_against_movement_id"  -> movementId.toString
+      )
+    )
+    ledger.reconcile(Seq(adjustment), reconciliationId, reconAccountId)
+
     reconciliation.adjustmentReason = Some(reason)
+    reconciliation.balance          = Zero
     reconciliation.status           = ReconciliationStatus.Final
     reconRepo.update(reconciliation)
 
+    resolveDanglingAmountMismatchDispute(
+      reconciliationId,
+      s"Auto-resolved: reconciliation $reconciliationId was written off ($reason)."
+    )
+
     eventStore.publishEvent(ReconciliationWrittenOff(reconciliationID = reconciliationId, reason = reason))
+    adjustment
 
   /**
    * For a bad ingest (e.g. a FileFeed misconfigured with the wrong amount field): finds every

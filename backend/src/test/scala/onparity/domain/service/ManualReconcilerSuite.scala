@@ -10,6 +10,7 @@ import onparity.domain.model.{
   Dispute,
   DisputeCategory,
   DisputeCommentAdded,
+  DisputeStatus,
   DisputeStatusChanged,
   DisputeTarget,
   IllegalArgumentError,
@@ -17,6 +18,7 @@ import onparity.domain.model.{
   Movement,
   MovementSpec,
   MovementType,
+  Reconciliation,
   ReconciliationStatus,
   ReconciliationVoided,
   createID
@@ -194,31 +196,131 @@ class ManualReconcilerSuite extends munit.FunSuite:
         intercept[IllegalStateError]:
           manualReconciler.unmatch(recon.id)
 
-  test("writeOff closes an InProgress reconciliation with a reason and leaves account balances untouched"):
+  // in 100 (reconAccount <- journalAccount) vs out 90 (reconAccount -> reportAccount): matching
+  // leaves +10 on reconAccount's reconciledBalance, which every writeOff test below closes out.
+  private def mismatchedRecon(manualReconciler: ManualReconciler)(using
+    data: DataSetup
+  ): Txn[(Movement, Movement, Reconciliation)] =
+    val inMovement  = createMovement(data.journalToRecon, 100)
+    val outMovement = createMovement(data.reportToRecon, 90)
+    val recon =
+      manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "residual match")
+    assertEquals(recon.status, ReconciliationStatus.InProgress)
+    (inMovement, outMovement, recon)
+
+  test("writeOff against the out-movement posts the difference to that movement's other account and closes the reconciliation"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
         import data.given
         val manualReconciler = ManualReconciler()
 
-        val inMovement  = createMovement(data.journalToRecon, 100)
-        val outMovement = createMovement(data.reportToRecon, 90)
-        val recon =
-          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "residual match")
-        assertEquals(recon.status, ReconciliationStatus.InProgress)
+        val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
+        val reconBefore             = data.accountRepo.findById(data.reconAccount.id).get
+        val reportBefore            = data.accountRepo.findById(data.reportAccount.id).get
 
-        val beforeWriteOff = data.accountRepo.findById(data.reconAccount.id).get
+        val adjustment = manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
 
-        manualReconciler.writeOff(recon.id, "bank fee")
+        assertEquals(adjustment.movementType, Some(MovementType.ManualAdjustment))
+        assertEquals(adjustment.amount, BigDecimal(10))
+        assertEquals(adjustment.outAccountId, data.reconAccount.id)
+        assertEquals(adjustment.inAccountId, data.reportAccount.id)
 
         val closed = data.reconRepo.findById(recon.id).get
         assertEquals(closed.status, ReconciliationStatus.Final)
         assertEquals(closed.adjustmentReason, Some("bank fee"))
-        assertEquals(closed.balance, BigDecimal(10)) // residual preserved as the historical write-off amount
+        assertEquals(closed.balance, BigDecimal(0))
+        val linked = data.movementRepo.findByReconciliationID(recon.id)
+        assert(linked.exists(_.id == adjustment.id), "adjustment is linked into the reconciliation")
+        assertEquals(linked.map(_.signedAmountFor(data.reconAccount.id)).sum, BigDecimal(0))
 
-        val afterWriteOff = data.accountRepo.findById(data.reconAccount.id).get
-        assertEquals(afterWriteOff.reconciledBalance, beforeWriteOff.reconciledBalance)
-        assertEquals(afterWriteOff.unreconciledBalance, beforeWriteOff.unreconciledBalance)
+        val reconAfter  = data.accountRepo.findById(data.reconAccount.id).get
+        val reportAfter = data.accountRepo.findById(data.reportAccount.id).get
+        assertEquals(reconAfter.balance, reconBefore.balance - 10)
+        assertEquals(reconAfter.reconciledBalance, reconBefore.reconciledBalance - 10)
+        assertEquals(reconAfter.unreconciledBalance, reconBefore.unreconciledBalance)
+        assertEquals(reportAfter.balance, reportBefore.balance + 10)
+
+  test("writeOff against the in-movement posts the difference to that movement's other account instead"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val (inMovement, _, recon) = mismatchedRecon(manualReconciler)
+        val journalBefore          = data.accountRepo.findById(data.journalAccount.id).get
+        val reportBefore           = data.accountRepo.findById(data.reportAccount.id).get
+
+        val adjustment = manualReconciler.writeOff(recon.id, inMovement.id, "over-posted journal entry")
+
+        assertEquals(adjustment.outAccountId, data.reconAccount.id)
+        assertEquals(adjustment.inAccountId, data.journalAccount.id)
+        assertEquals(data.accountRepo.findById(data.journalAccount.id).get.balance, journalBefore.balance + 10)
+        assertEquals(data.accountRepo.findById(data.reportAccount.id).get.balance, reportBefore.balance)
+        assertEquals(data.reconRepo.findById(recon.id).get.balance, BigDecimal(0))
+
+  test("writeOff rejects a movement that isn't part of the reconciliation"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val (_, _, recon) = mismatchedRecon(manualReconciler)
+        val unrelated     = createMovement(data.reportToRecon, 5)
+
+        intercept[IllegalArgumentError]:
+          manualReconciler.writeOff(recon.id, unrelated.id, "wrong movement")
+
+  test("writeOff auto-resolves the reconciliation's open AmountMismatch dispute"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
+        val dispute = data.disputeRepo
+          .insertIfNoOpenDispute(
+            Dispute(
+              referenceId = recon.id,
+              targetType  = DisputeTarget.Reconciliation,
+              category    = DisputeCategory.AmountMismatch,
+              detail      = Some(s"Balance mismatch of ${recon.balance}"),
+              createdAt   = Some(clockSvc.now),
+              updatedAt   = Some(clockSvc.now)
+            )
+          )
+          .get
+
+        manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
+
+        assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Resolved)
+
+  test("unmatch after writeOff reverses the adjustment instead of returning it to the unreconciled pool"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val (inMovement, outMovement, recon) = mismatchedRecon(manualReconciler)
+        val reconBeforeWriteOff              = data.accountRepo.findById(data.reconAccount.id).get
+        val adjustment                       = manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
+
+        manualReconciler.unmatch(recon.id)
+
+        assertEquals(data.movementRepo.findById(inMovement.id).get.reconciliationId, None)
+        assertEquals(data.movementRepo.findById(outMovement.id).get.reconciliationId, None)
+        val adjustmentAfter = data.movementRepo.findById(adjustment.id).get
+        val reversedVia     = adjustmentAfter.reconciliationId.flatMap(data.reconRepo.findById)
+        assertEquals(reversedVia.map(_.status), Some(ReconciliationStatus.Reversed))
+
+        // adjustment + its reversal net to nothing; the original pair's match is undone as usual.
+        val reconAfter = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(reconAfter.balance, reconBeforeWriteOff.balance)
+        assertEquals(reconAfter.reconciledBalance, reconBeforeWriteOff.reconciledBalance - 10)
 
   test("writeOff on a Final reconciliation errors"):
     transact(transactor):
@@ -234,7 +336,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(recon.status, ReconciliationStatus.Final)
 
         intercept[IllegalStateError]:
-          manualReconciler.writeOff(recon.id, "should not work")
+          manualReconciler.writeOff(recon.id, outMovement.id, "should not work")
 
   test("writeOff on a Voided reconciliation errors"):
     transact(transactor):
@@ -250,7 +352,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
         manualReconciler.unmatch(recon.id)
 
         intercept[IllegalStateError]:
-          manualReconciler.writeOff(recon.id, "should not work")
+          manualReconciler.writeOff(recon.id, outMovement.id, "should not work")
 
   test("after writeOff, InMemoryReconciler no longer tries to top up the reconciliation"):
     // reconcileAccountResumable commits its own transaction internally (unlike the rest of this
@@ -267,7 +369,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
         val outMovement = createMovement(data.reportToRecon, 90)
         val recon =
           manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "will write off")
-        manualReconciler.writeOff(recon.id, "bank fee")
+        manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
 
         // A fresh unmatched out-movement that would otherwise top up this reconciliation's residual
         createMovement(data.reportToRecon, 10)
@@ -277,7 +379,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
 
       val stillClosed = transact(transactor)(data.reconRepo.findById(recon.id).get)
       assertEquals(stillClosed.status, ReconciliationStatus.Final)
-      assertEquals(stillClosed.balance, BigDecimal(10))
+      assertEquals(stillClosed.balance, BigDecimal(0))
     finally
       transact(transactor):
         eventRepo

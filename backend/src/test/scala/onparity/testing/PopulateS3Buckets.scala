@@ -14,22 +14,8 @@ class PopulateS3Buckets extends munit.FunSuite:
   val bucket             = "onparity"
   val localstackEndpoint = URI.create("http://localhost:4566")
 
-  test("1 to 1 attribute test"):
-    val bucket             = "onparity"
-    val localstackEndpoint = URI.create("http://localhost:4566")
-    lazy val s3Client: S3Client = S3Client
-      .builder()
-      .region(Region.US_EAST_1)
-      .endpointOverride(localstackEndpoint)
-      .credentialsProvider(
-        StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test"))
-      )
-      .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
-      .build()
-
-    s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
-
-    val buckets = s3Client.listBuckets()
+  test("1 to 1 attribute test") {
+    val (bucket: String, s3Client: S3Client) = init
 
     for i <- 0 until 1 do {
       var bankContents     = ""
@@ -56,8 +42,52 @@ class PopulateS3Buckets extends munit.FunSuite:
         RequestBody.fromString(internalContents)
       )
     }
+  }
 
-    val objects = s3Client.listObjectsV2(ListObjectsV2Request.builder().bucket(bucket).build())
+  test("mismatched ids") {
+    val (bucket: String, s3Client: S3Client) = init
+
+    var bankContents     = ""
+    var internalContents = ""
+    for (x <- 1 until 2) {
+      val transactionID = UUID.randomUUID()
+      bankContents += s"""$transactionID,${x * 10}\n"""
+      internalContents += s"""${transactionID}_B,${x * 10},${OffsetDateTime.now()}\n"""
+    }
+    s3Client.putObject(
+      PutObjectRequest
+        .builder()
+        .bucket(bucket)
+        .key(s"bank/file_${UUID.randomUUID()}.csv")
+        .build(),
+      RequestBody.fromString(bankContents)
+    )
+    s3Client.putObject(
+      PutObjectRequest
+        .builder()
+        .bucket(bucket)
+        .key(s"internal/data_${UUID.randomUUID()}.csv")
+        .build(),
+      RequestBody.fromString(internalContents)
+    )
+  }
+
+  private def init = {
+    val bucket             = "onparity"
+    val localstackEndpoint = URI.create("http://localhost:4566")
+    lazy val s3Client: S3Client = S3Client
+      .builder()
+      .region(Region.US_EAST_1)
+      .endpointOverride(localstackEndpoint)
+      .credentialsProvider(
+        StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test"))
+      )
+      .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
+      .build()
+
+    s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
+    (bucket, s3Client)
+  }
 
   test("one to many attribute test"):
     lazy val s3Client: S3Client = createS3Client()

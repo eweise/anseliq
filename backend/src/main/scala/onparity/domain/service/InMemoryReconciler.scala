@@ -7,13 +7,12 @@ import onparity.common.model.*
 import onparity.common.model.Direction.{IN, OUT}
 import onparity.common.model.model.{ID, Money, Zero}
 import onparity.domain.model.*
-import onparity.domain.model.Relationship.{OneToMany, OneToOne}
+import onparity.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
 import onparity.domain.port.driven.*
 import onparity.util.{LogContext, PerfLogger}
 
-import java.time.{Instant, OffsetDateTime}
 import java.time.temporal.ChronoUnit
-import java.util.UUID
+import java.time.{Instant, OffsetDateTime}
 import javax.sql.DataSource
 import scala.collection.mutable.ListBuffer
 import scala.util.boundary
@@ -51,6 +50,9 @@ class InMemoryReconciler(using
 ):
 
   private val pageSize = 10000
+  // ASCII unit separator: joins a composite key's per-attribute values on the Scala side, mirroring
+  // chr(31) used in the SQL-side concatenation in matchKeyExpr below.
+  private val compositeKeyDelimiter = 31.toChar.toString
 
   def reconcileAccountResumable(
     accountId:       ID,
@@ -115,6 +117,7 @@ class InMemoryReconciler(using
               if stopped then
                 completed = false
                 break()
+            case ManyToMany => break()
           end match
         end for
       // end boundary
@@ -170,10 +173,6 @@ class InMemoryReconciler(using
       raised.foreach(dispute => eventStore.publishEvent(DisputeRaised(disputeID = dispute.id)))
       raised.size
 
-  // ASCII unit separator: joins a composite key's per-attribute values on the Scala side, mirroring
-  // chr(31) used in the SQL-side concatenation in matchKeyExpr below.
-  private val compositeKeyDelimiter = 31.toChar.toString
-
   // Supports StringAttributeMatchRule/DateAttributeMatchRule, singly or ANDed together via
   // AndRule (each sub-rule contributes one attribute to a composite key, in rule order — the
   // in-side and out-side lists below are always built from the same AndRule traversal, so they
@@ -183,7 +182,7 @@ class InMemoryReconciler(using
     rule match
       case s: StringAttributeMatchRule => Seq(s)
       case d: DateAttributeMatchRule   => Seq(d)
-      case AndRule(rules)              => rules.flatMap(leafMatchRules)
+      case AndRule(rules) => rules.flatMap(leafMatchRules)
       case other =>
         throw UnsupportedOperationException(
           s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them; got ${other.getClass.getSimpleName}"
@@ -250,42 +249,6 @@ class InMemoryReconciler(using
     AppliedRules.Matched(
       leafMatchRules(rule).zip(matchKeyValues(rule, IN, inGroup.head)).map(RuleMatch(_, _)).toList
     )
-
-  /**
-   * A keyset-paginated cursor over one side (in or out) of a match, fetching `pageSize` rows at a
-   * time from an already-open UnreconciledCursor (a WITH HOLD DB cursor sorted once by keyExpr, not
-   * re-sorted per page — see MovementRepoLive.withUnreconciledCursor) and transparently refetching
-   * the next page once the current one is exhausted. `lastKey` tracks the most recently consumed
-   * row's match key, which becomes the checkpoint for resuming this side on a later call.
-   */
-  private class MergeCursor(
-    rule:      Rule,
-    direction: Direction,
-    cursor:    UnreconciledCursor,
-    startKey:  Option[String]
-  ):
-    private var page = cursor.fetchPage()
-    private var idx  = 0
-    var lastKey: Option[String] = startKey
-
-    /**
-     * True if `current`/`key` are valid, fetching the next page first if the current one ran out.
-     */
-    def ensure(): Boolean =
-      if idx < page.size then true
-      else if page.size < pageSize then false
-      else
-        page = cursor.fetchPage()
-        idx  = 0
-        page.nonEmpty
-
-    def key:     String   = matchKeyValue(rule, direction, page(idx))
-    def current: Movement = page(idx)
-
-    /** Consumes the current row, recording its key as the new checkpoint watermark. */
-    def advance(): Unit =
-      lastKey = Some(key)
-      idx += 1
 
   /**
    * Gathers the current row plus every immediately-following row on this cursor that shares its
@@ -620,3 +583,40 @@ class InMemoryReconciler(using
           updatedAt    = Some(now)
         )
     )
+
+  /**
+   * A keyset-paginated cursor over one side (in or out) of a match, fetching `pageSize` rows at a
+   * time from an already-open UnreconciledCursor (a WITH HOLD DB cursor sorted once by keyExpr, not
+   * re-sorted per page — see MovementRepoLive.withUnreconciledCursor) and transparently refetching
+   * the next page once the current one is exhausted. `lastKey` tracks the most recently consumed
+   * row's match key, which becomes the checkpoint for resuming this side on a later call.
+   */
+  private class MergeCursor(
+    rule:      Rule,
+    direction: Direction,
+    cursor:    UnreconciledCursor,
+    startKey:  Option[String]
+  ):
+    var lastKey: Option[String] = startKey
+    private var page = cursor.fetchPage()
+    private var idx  = 0
+
+    /**
+     * True if `current`/`key` are valid, fetching the next page first if the current one ran out.
+     */
+    def ensure(): Boolean =
+      if idx < page.size then true
+      else if page.size < pageSize then false
+      else
+        page = cursor.fetchPage()
+        idx  = 0
+        page.nonEmpty
+
+    def current: Movement = page(idx)
+
+    /** Consumes the current row, recording its key as the new checkpoint watermark. */
+    def advance(): Unit =
+      lastKey = Some(key)
+      idx += 1
+
+    def key: String = matchKeyValue(rule, direction, page(idx))

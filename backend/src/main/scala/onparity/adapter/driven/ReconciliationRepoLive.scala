@@ -4,6 +4,10 @@ import com.augustnagro.magnum.{Repo, sql}
 import onparity.common.model.model.ID
 import onparity.domain.model
 import onparity.domain.model.{Reconciliation, ReconciliationStatus}
+// Repo's generated update binds each column with a codec summoned here, not via Reconciliation's
+// derived codec, and silently falls back to setObject (which Postgres rejects) when none is in
+// scope — so the jsonb AppliedRules codec in Reconciliation's companion has to be imported.
+import onparity.domain.model.Reconciliation.given
 import onparity.domain.port.driven.{ReconciliationRepo, Txn}
 
 import java.util.UUID

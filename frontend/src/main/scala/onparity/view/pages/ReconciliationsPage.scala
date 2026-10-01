@@ -2,7 +2,7 @@ package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
 import onparity.common.http.HttpPath
-import onparity.common.model.{ReconciliationPayload, WriteOffRequest}
+import onparity.common.model.{ReconciliationDetailPayload, ReconciliationMovementPayload, ReconciliationPayload, WriteOffRequest}
 import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
@@ -15,7 +15,7 @@ object ReconciliationsPage:
 
   case class State(
     recons:          Seq[ReconciliationPayload] = Seq.empty,
-    editingWriteOff: Option[String]             = None // reconciliation id currently showing the reason field
+    editingWriteOff: Option[String]             = None // reconciliation id currently showing the write-off form
   )
 
   // Shared with ReconciliationDetailPage so both pages render status identically.
@@ -33,7 +33,7 @@ object ReconciliationsPage:
     val state       = Var(State())
     val loadBus     = EventBus[Unit]()
     val unmatchBus  = EventBus[String]()
-    val writeOffBus = EventBus[(String, String)]()
+    val writeOffBus = EventBus[(String, String, String)]() // (reconciliation id, movement id, reason)
 
     def load() =
       ApiClient.get[Seq[ReconciliationPayload]](
@@ -46,10 +46,10 @@ object ReconciliationsPage:
       unmatchBus.events.flatMapSwitch { reconId =>
         ApiClient.postRaw(HttpPath.url(s"${HttpPath.reconciliation}/$reconId/unmatch"), "", SessionStore.token)
       }.apiBind(_ => loadBus.emit(())),
-      writeOffBus.events.flatMapSwitch { (reconId, reason) =>
+      writeOffBus.events.flatMapSwitch { (reconId, movementId, reason) =>
         ApiClient.postRaw(
           HttpPath.url(s"${HttpPath.reconciliation}/$reconId/write-off"),
-          write(WriteOffRequest(reason)),
+          write(WriteOffRequest(reason = reason, movementId = movementId)),
           SessionStore.token
         )
       }.apiBind { _ =>
@@ -100,7 +100,12 @@ object ReconciliationsPage:
                     div(
                       cls := "flex flex-col gap-1",
                       (if r.status == "InProgress" then
-                         if s.editingWriteOff.contains(r.id) then writeOffInput(r.id, writeOffBus)
+                         if s.editingWriteOff.contains(r.id) then
+                           writeOffForm(
+                             r,
+                             writeOffBus,
+                             onCancel = Observer[Unit](_ => state.update(_.copy(editingWriteOff = None)))
+                           )
                          else
                            Buttons.textButton(
                              "Write Off",
@@ -118,18 +123,58 @@ object ReconciliationsPage:
       )
     )
 
-  // A local Var, not the page-level State: writing every keystroke into the outer State would trigger the
+  private val controlCls =
+    "px-2 py-1 text-xs rounded border border-md-outline dark:border-gray-600 bg-white dark:bg-gray-800 text-md-on-surface dark:text-gray-200"
+
+  // Local Vars, not the page-level State: writing every keystroke into the outer State would trigger the
   // `child <-- state.signal.map(...)` above to rebuild the whole table on each keystroke, destroying and
-  // recreating this very input element and dropping whatever had been typed so far. Scoping the reason to a
-  // Var created only when this element is built keeps typing from touching outer State at all.
-  private def writeOffInput(reconId: String, writeOffBus: EventBus[(String, String)]): HtmlElement =
-    val reasonVar = Var("")
+  // recreating this very form and dropping whatever had been entered so far. Scoping the form's values to
+  // Vars created only when this element is built keeps editing from touching outer State at all.
+  //
+  // The chosen movement decides which accounts the difference is posted between (see
+  // ManualReconciler.writeOff), so the reconciliation's movements are loaded when the form opens.
+  private def writeOffForm(
+    r:           ReconciliationPayload,
+    writeOffBus: EventBus[(String, String, String)],
+    onCancel:    Observer[Unit]
+  ): HtmlElement =
+    val movementsVar = Var(Seq.empty[ReconciliationMovementPayload])
+    val movementVar  = Var("")
+    val reasonVar    = Var("")
     div(
-      cls := "flex gap-1",
+      cls := "flex flex-col gap-1 min-w-56",
+      ApiClient
+        .get[ReconciliationDetailPayload](HttpPath.url(s"${HttpPath.reconciliation}/${r.id}"), SessionStore.token)
+        .apiBind(d => movementsVar.set(d.movements)),
+      span(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", s"Write off ${r.balance} against:"),
+      select(
+        cls := controlCls,
+        onChange.mapToValue --> movementVar,
+        option(value := "", "Choose a movement…"),
+        children <-- movementsVar.signal.map(_.map(m =>
+          option(value := m.id, ReconciliationDetailPage.movementChoiceLabel(m))
+        ))
+      ),
       input(
         typ         := "text",
-        placeholder := "reason",
-        onInput.mapToValue --> Observer[String](v => reasonVar.set(v))
+        placeholder := "Reason",
+        cls         := controlCls,
+        onInput.mapToValue --> reasonVar
       ),
-      Buttons.textButton("Confirm", Observer[Unit](_ => writeOffBus.emit((reconId, reasonVar.now()))))
+      div(
+        cls := "flex gap-1",
+        button(
+          cls := "text-md-primary dark:text-md-primary-dark rounded-full px-3 py-1 text-xs font-medium hover:bg-md-primary-container dark:hover:bg-md-primary-container-dark disabled:opacity-40 disabled:pointer-events-none",
+          typ := "button",
+          disabled <-- movementVar.signal.combineWith(reasonVar.signal).map((m, reason) => m.isEmpty || reason.trim.isEmpty),
+          onClick.mapToUnit --> Observer[Unit](_ => writeOffBus.emit((r.id, movementVar.now(), reasonVar.now().trim))),
+          "Confirm"
+        ),
+        button(
+          cls := "text-md-on-surface-variant dark:text-gray-400 rounded-full px-3 py-1 text-xs font-medium hover:bg-md-surface-variant dark:hover:bg-gray-700",
+          typ := "button",
+          onClick.mapToUnit --> onCancel,
+          "Cancel"
+        )
+      )
     )

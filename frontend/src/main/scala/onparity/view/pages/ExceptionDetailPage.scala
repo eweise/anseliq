@@ -16,7 +16,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, Card, Form, PageHeader, Pill}
+import onparity.view.components.{Buttons, Card, DetailList, Form, PageHeader, Pill}
 import upickle.default.*
 
 object ExceptionDetailPage:
@@ -96,6 +96,9 @@ object ExceptionDetailPage:
             ),
             assignmentDetails(d, assignBus),
             targetDetails(d),
+            if d.reconciliation.isDefined then
+              div(cls := "mb-4", ReconciliationDetailPage.movementsSection(d.reconciliationMovements))
+            else div(),
             h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
             div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
             commentForm(statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
@@ -115,36 +118,36 @@ object ExceptionDetailPage:
     )
 
   private def targetDetails(d: DisputeDetailPayload): HtmlElement =
+    val disputeRows = Seq(
+      "Account"     -> span(d.dispute.accountName),
+      "Raised With" -> d.dispute.detail.map(span(_)).getOrElse(DetailList.empty)
+    )
+    val targetRows = (d.movement, d.reconciliation) match
+      case (Some(m), _) => movementRows(m)
+      case (_, Some(r)) => reconciliationRows(r)
+      case _            => Seq("Target" -> span(cls := "text-md-on-surface-variant dark:text-gray-400", "Not found"))
     div(
       cls := s"${Card.cls} p-4 mb-4",
-      div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400 mb-2", s"Account: ${d.dispute.accountName}"),
-      d.dispute.detail
-        .map(det => div(cls := "text-sm mb-2 text-md-on-surface dark:text-gray-200", s"Raised with: $det"))
-        .getOrElse(div()),
-      (d.movement, d.reconciliation) match
-        case (Some(m), _) => movementDetails(m)
-        case (_, Some(r)) => reconciliationDetails(r)
-        case _            => div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400", "Target entity not found")
+      h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", d.dispute.targetType.toString),
+      DetailList((disputeRows ++ targetRows)*)
     )
 
-  private def movementDetails(m: MovementPayload): HtmlElement =
-    div(
-      cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
-      div(s"Reference ID: ${m.referenceId}"),
-      div(s"Amount: ${m.amount}"),
-      div(s"Primary Account: ${m.inAccountId}"),
-      div(s"Secondary Account: ${m.outAccountId}")
+  private def movementRows(m: MovementPayload): Seq[(String, HtmlElement)] =
+    Seq(
+      "Reference ID"      -> DetailList.mono(m.referenceId),
+      "Amount"            -> span(cls := "tabular-nums", m.amount.toString),
+      "Primary Account"   -> DetailList.mono(m.inAccountId),
+      "Secondary Account" -> DetailList.mono(m.outAccountId)
     )
 
-  private def reconciliationDetails(r: ReconciliationPayload): HtmlElement =
-    div(
-      cls := "text-sm space-y-1 text-md-on-surface dark:text-gray-200",
-      div(s"Description: ${r.description}"),
-      div(s"Applied Rules: ${r.appliedRules.summary}"),
-      div(s"Balance: ${r.balance}"),
-      div(s"Status: ${r.status}"),
-      div(s"Created: ${ViewHelper.formatDateTime(r.createdAt)}"),
-      div(s"Updated: ${ViewHelper.formatDateTime(r.updatedAt)}")
+  private def reconciliationRows(r: ReconciliationPayload): Seq[(String, HtmlElement)] =
+    Seq(
+      "Description"   -> (if r.description.isEmpty then DetailList.empty else span(r.description)),
+      "Status"        -> ReconciliationsPage.statusPill(r),
+      "Balance"       -> span(cls := "tabular-nums", r.balance.toString),
+      "Applied Rules" -> ReconciliationDetailPage.appliedRulesView(r.appliedRules),
+      "Created At"    -> span(ViewHelper.formatDateTime(r.createdAt)),
+      "Updated At"    -> span(ViewHelper.formatDateTime(r.updatedAt))
     )
 
   private def commentEntry(c: DisputeCommentPayload): HtmlElement =

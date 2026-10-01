@@ -5,7 +5,7 @@ import upickle.default.ReadWriter
 
 import java.time.{LocalDate, OffsetDateTime}
 
-enum Direction:
+enum Direction derives ReadWriter:
   case IN, OUT
 
 sealed trait Rule derives ReadWriter:

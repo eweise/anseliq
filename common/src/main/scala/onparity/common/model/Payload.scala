@@ -126,8 +126,15 @@ case class ReconciliationPayload(
 ) derives ReadWriter
 
 case class ReconciliationMovementPayload(
-  id:     String,
-  amount: Money
+  id:          String,
+  referenceId: String,
+  amount:      Money,
+  // Relative to the reconciliation spec's account: IN = money into it, OUT = money out of it. None
+  // (as is otherAccountName) only for a spec-less Reversed reconciliation, which has no such account.
+  direction: Option[Direction],
+  // The movement's account that isn't the reconciled one — where a write-off against it would post.
+  otherAccountName: Option[String],
+  movementType:     Option[String]
 ) derives ReadWriter
 
 // Distinct from ReconciliationSpecPayload (the maintain-form shape, keyed by accountId and the
@@ -154,7 +161,9 @@ case class ManualMatchRequest(
   description:    String = "Manual match"
 ) derives ReadWriter
 
-case class WriteOffRequest(reason: String) derives ReadWriter
+// movementId: one of the reconciliation's movements, deciding which accounts the write-off posts
+// between — see ManualReconciler.writeOff.
+case class WriteOffRequest(reason: String, movementId: String) derives ReadWriter
 
 case class BadFilePreviewRequest(fileSourceEntry: String) derives ReadWriter
 
@@ -349,7 +358,9 @@ case class DisputeDetailPayload(
   dispute:        DisputePayload,
   movement:       Option[MovementPayload],
   reconciliation: Option[ReconciliationPayload],
-  comments:       Seq[DisputeCommentPayload]
+  comments:       Seq[DisputeCommentPayload],
+  // The disputed reconciliation's movements; empty unless the target is a Reconciliation.
+  reconciliationMovements: Seq[ReconciliationMovementPayload] = Seq.empty
 ) derives ReadWriter
 
 case class AddDisputeCommentRequest(
