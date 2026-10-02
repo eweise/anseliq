@@ -47,6 +47,15 @@ class ReconciliationRepoLive extends Repo[Reconciliation, Reconciliation, UUID] 
       LIMIT $limit
     """.query[Reconciliation].run()
 
+  def countByStatusForAccountID(accountId: ID): Txn[Map[ReconciliationStatus, Int]] =
+    sql"""
+      SELECT a.status, count(*)::int
+      FROM $r AS a
+      JOIN reconciliation_spec rs ON rs.id = a.spec_id
+      WHERE rs.account_id = $accountId
+      GROUP BY a.status
+    """.query[(ReconciliationStatus, Int)].run().toMap
+
   // Joins through the movements rather than summing reconciliation.balance: that column is
   // (in-spec amounts − out-spec amounts) for the group, which isn't necessarily signed the way the
   // account's own balance is; the movements' in/out accounts give the account's view directly.

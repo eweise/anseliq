@@ -83,7 +83,11 @@ object ManualMatchPage:
         movementsBus.emit(spec.now())
       },
       onMountCallback(_ => loadBus.emit(())),
-      PageHeader.backLink(Observer[Unit](_ => Nav.toReconciliations(accountId, reconSpecId))),
+      PageHeader.ledgerBreadcrumb(
+        AppState.activeFundFlow.now(),
+        Some("Reconciliations" -> "Reconciliations"),
+        "Manual match" -> None
+      ),
       PageHeader.title("Manual Match"),
       div(
         cls := "grid grid-cols-2 gap-4 mt-6 text-left",

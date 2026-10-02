@@ -41,16 +41,6 @@ object Routes:
               path("fund-flow")(FundFlowPage()),
               path("maintain-fund-flow")(MaintainFundFlowPage()),
               path("accounts" / segment / "maintain")(accountId => MaintainAccountPage(accountId)),
-              path("accounts" / segment / "recon-specs")(accountId => ReconSpecsPage(accountId)),
-              path("accounts" / segment / "maintain-recon-spec" / segment)((accountId, reconSpecId) =>
-                MaintainReconSpecPage(accountId, reconSpecId)
-              ),
-              path("accounts" / segment / "ingest" / segment)((accountId, reconSpecId) =>
-                IngestPage(accountId, reconSpecId)
-              ),
-              path("accounts" / segment / "reconciliations" / segment)((accountId, reconSpecId) =>
-                ReconciliationsPage(accountId, reconSpecId)
-              ),
               path("reconciliations" / segment)(id => ReconciliationDetailPage(id)),
               path("movements" / segment)(id => MovementDetailPage(id)),
               path("file-feeds" / segment / "test-parse")(id => TestParserPage(id)),
@@ -58,7 +48,6 @@ object Routes:
                 ManualMatchPage(accountId, reconSpecId)
               ),
               path("unreconciled-movements")(AllUnreconciledMovementsPage()),
-              path("accounts" / segment / "recent-reconciliations")(accountId => AccountReconciliationsPage(accountId)),
               path("maintain-movement-spec" / segment / segment / segment)((outAccountId, inAccountId, id) =>
                 MaintainMovementSpecPage(outAccountId, inAccountId, id)
               ),
@@ -69,12 +58,10 @@ object Routes:
               path("file-inventory")(FileInventoryPage()),
               path("exceptions")(ExceptionsPage()),
               path("exceptions" / segment)(id => ExceptionDetailPage(id)),
-              path("coming-soon" / "recon-rules")(ComingSoonPage("Recon Rules")),
               path("reports")(ReportsPage()),
               path("users")(UsersPage()),
               path("maintain-user" / segment)(id => MaintainUserPage(id)),
-              path("fix-bad-file")(FixBadFilePage()),
-              path("coming-soon" / "settings")(ComingSoonPage("Settings"))
+              path("fix-bad-file")(FixBadFilePage())
             )
           },
           runEffect(BrowserNavigation.pushState(url = "/login"))

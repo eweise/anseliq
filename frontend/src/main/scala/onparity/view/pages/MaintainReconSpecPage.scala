@@ -10,17 +10,21 @@ import onparity.state.{AppState, SessionStore}
 import onparity.view.components.{Buttons, Form, RuleWidget}
 import upickle.default.*
 
+// The recon rule form (relationship, aging limit, in/out movement specs, match rule). Rendered in a
+// Modal by the ledger page's Setup tab — the same in-page pattern as the account and movement-spec
+// forms — rather than as its own route; `onClose` runs after Save, Delete or Cancel.
 object MaintainReconSpecPage:
 
-  def apply(accountId: String, reconSpecId: String): HtmlElement =
+  def apply(accountId: String, reconSpecId: String, onClose: () => Unit): HtmlElement =
     AppState.activeFundFlow.now() match
-      case None     => div(onMountCallback(_ => Nav.toFundFlows()))
-      case Some(ff) => renderPage(accountId, reconSpecId, ff)
+      case None     => div(onMountCallback(_ => onClose()))
+      case Some(ff) => renderPage(accountId, reconSpecId, ff, onClose)
 
   private def renderPage(
     accountId:   String,
     reconSpecId: String,
-    ff:          onparity.common.model.FundFlowPayload
+    ff:          onparity.common.model.FundFlowPayload,
+    onClose:     () => Unit
   ): HtmlElement =
     val ffId      = ff.id.getOrElse("")
     val loadState = Var[LoadState](if reconSpecId == "new" then LoadState.Ready(None) else LoadState.Loading)
@@ -37,19 +41,16 @@ object MaintainReconSpecPage:
         .apiBind(specs => loadState.set(LoadState.Ready(specs.find(_.id.contains(reconSpecId))))),
       onMountCallback(_ => if reconSpecId != "new" then loadBus.emit(())),
       child <-- loadState.signal.map {
-        case LoadState.Loading =>
-          div(
-            cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-center justify-center pt-20 px-4",
-            span(cls := "text-md-on-surface-variant", "Loading...")
-          )
-        case LoadState.Ready(initialSpec) => renderForm(accountId, ffId, initialSpec)
+        case LoadState.Loading            => span(cls := "text-md-on-surface-variant", "Loading…")
+        case LoadState.Ready(initialSpec) => renderForm(accountId, ffId, initialSpec, onClose)
       }
     )
 
   private def renderForm(
     accountId:   String,
     ffId:        String,
-    initialSpec: Option[ReconciliationSpecPayload]
+    initialSpec: Option[ReconciliationSpecPayload],
+    onClose:     () => Unit
   ): HtmlElement =
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
     val fileFeeds     = Var(Seq.empty[FileFeedPayload])
@@ -104,14 +105,12 @@ object MaintainReconSpecPage:
             ApiClient
               .post[ReconciliationSpecPayload, ReconciliationSpecPayload](HttpPath.url(HttpPath.reconSpec), s, token)
         }
-        .apiBind(_ => Nav.back()),
+        .apiBind(_ => onClose()),
       deleteBus.events.flatMapSwitch { _ =>
         ApiClient.delete(HttpPath.url(s"${HttpPath.reconSpec}/${spec.now().id.get}"), SessionStore.token)
-      }.apiBind(_ => Nav.back()),
-      cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
+      }.apiBind(_ => onClose()),
       div(
-        cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Recon Spec"),
+        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Reconciliation rule"),
         child <-- spec.signal.map { s =>
           div(
             Form.field(
@@ -154,17 +153,13 @@ object MaintainReconSpecPage:
             if s.id.isDefined then
               div(
                 cls := "flex gap-2",
-                Buttons.textButton(
-                  "Reconciliations",
-                  Observer[Unit](_ => Nav.toReconciliations(accountId, s.id.getOrElse("")))
-                ),
                 Buttons.textButton("Delete", Observer[Unit](_ => deleteBus.emit(())))
               )
             else div()
           },
           div(
             cls := "flex gap-2",
-            Buttons.textButton("Cancel", Observer[Unit](_ => Nav.back())),
+            Buttons.textButton("Cancel", Observer[Unit](_ => onClose())),
             Buttons.linkButton("Save", Observer[Unit](_ => saveBus.emit(())))
           )
         )

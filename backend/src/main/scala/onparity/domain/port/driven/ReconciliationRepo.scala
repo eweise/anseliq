@@ -25,3 +25,7 @@ trait ReconciliationRepo extends DomainRepo[Reconciliation, Reconciliation]:
   // hasn't netted to zero, so they still make up part of the account's balance. A status with no
   // reconciliations is simply absent.
   def openTotalsByAccountID(accountId: ID): Txn[Vector[StatusTotals]]
+
+  // How many of the account's reconciliations are in each status, for the ledger's status filter
+  // chips. A status with none is absent.
+  def countByStatusForAccountID(accountId: ID): Txn[Map[ReconciliationStatus, Int]]

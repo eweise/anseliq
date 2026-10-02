@@ -1,0 +1,173 @@
+package onparity.view.components
+
+import com.raquo.laminar.api.L.*
+import onparity.common.http.HttpPath
+import onparity.common.model.{ReconciliationMovementPayload, ReconciliationPayload, WriteOffRequest}
+import onparity.http.ApiClient
+import onparity.state.AppState.apiBind
+import onparity.state.SessionStore
+import onparity.view.pages.ReconciliationDetailPage
+import upickle.default.*
+
+/**
+ * Everything a person can do to one reconciliation, driven by its status. The reconciliation
+ * detail page's action bar and the exception page's subject card both render this, so resolving a
+ * mismatch works the same from either place:
+ *   - Mismatched / InProgress: Write off… and Unmatch
+ *   - Final: Unmatch (for a written-off one, that also reverses the adjustment — see
+ *     ManualReconciler.unmatch)
+ *   - Voided / Reversed: nothing; a short note says why
+ * Write off and Unmatch each open an inline panel to confirm, since both change the ledger.
+ * `onChanged` fires after either succeeds so the host page can reload.
+ */
+object ReconciliationActions:
+
+  private enum Panel:
+    case Closed, WriteOff, Unmatch
+
+  private val panelCls =
+    "flex flex-col gap-3 p-4 rounded-lg border border-md-outline dark:border-gray-700 bg-md-surface-variant dark:bg-md-surface-alt-dark max-w-xl"
+  private val controlCls =
+    "w-full px-3 py-2 text-sm rounded border border-md-outline dark:border-gray-600 bg-white dark:bg-gray-800 text-md-on-surface dark:text-gray-200"
+  private val dangerBtnCls =
+    "bg-md-critical text-white rounded-full px-5 py-2 text-sm font-medium tracking-wide disabled:opacity-40 disabled:pointer-events-none"
+
+  def apply(
+    r:          ReconciliationPayload,
+    movements:  Seq[ReconciliationMovementPayload],
+    onChanged:  Observer[Unit],
+    agingLimit: Option[Int] = None
+  ): HtmlElement =
+    val panel       = Var(Panel.Closed)
+    val writeOffBus = EventBus[(String, String)]() // (movement id, reason)
+    val unmatchBus  = EventBus[Unit]()
+    val writtenOff  = r.adjustmentReason.exists(_.nonEmpty)
+
+    val (actions, hint): (Seq[(String, Panel)], Option[String]) = r.status match
+      case "Mismatched" =>
+        Seq("Write off…" -> Panel.WriteOff, "Unmatch" -> Panel.Unmatch) ->
+          Some("Nothing else will join this match. Write off the difference, or unmatch to match these movements differently.")
+      case "InProgress" =>
+        Seq("Write off…" -> Panel.WriteOff, "Unmatch" -> Panel.Unmatch) ->
+          Some(
+            "Waiting for more movements to complete the group." +
+              agingLimit.fold("")(d => s" It's flagged as Mismatched if still unbalanced after $d day${if d == 1 then "" else "s"}.")
+          )
+      case "Final" =>
+        Seq("Unmatch" -> Panel.Unmatch) ->
+          (if writtenOff then Some("Written off. Unmatching also reverses the write-off adjustment.") else None)
+      case "Voided" =>
+        Seq.empty -> Some("Voided: its movements were returned to the unreconciled pool. Nothing left to do here.")
+      case "Reversed" =>
+        Seq.empty -> Some("A system reversal pairing a movement with its correction. It can't be changed.")
+      case _ => Seq.empty -> None
+
+    div(
+      cls := "flex flex-col gap-3",
+      writeOffBus.events.flatMapSwitch { (movementId, reason) =>
+        ApiClient.postRaw(
+          HttpPath.url(s"${HttpPath.reconciliation}/${r.id}/write-off"),
+          write(WriteOffRequest(reason = reason, movementId = movementId)),
+          SessionStore.token
+        )
+      }.apiBind { _ =>
+        panel.set(Panel.Closed)
+        onChanged.onNext(())
+      },
+      unmatchBus.events.flatMapSwitch { _ =>
+        ApiClient.postRaw(HttpPath.url(s"${HttpPath.reconciliation}/${r.id}/unmatch"), "", SessionStore.token)
+      }.apiBind { _ =>
+        panel.set(Panel.Closed)
+        onChanged.onNext(())
+      },
+      if actions.isEmpty then emptyNode
+      else
+        div(
+          cls := "flex flex-wrap items-center gap-2",
+          actions.zipWithIndex.map { case ((label, target), i) =>
+            val styled =
+              if i == 0 then
+                "bg-md-primary text-md-on-primary rounded-full px-5 py-2 text-sm font-medium tracking-wide shadow-sm hover:bg-md-primary-hover"
+              else
+                "text-md-primary border border-md-primary rounded-full px-5 py-2 text-sm font-medium tracking-wide hover:bg-md-primary-container dark:hover:bg-md-primary-container-dark"
+            button(typ := "button", cls := styled, onClick.mapTo(target) --> panel.writer, label)
+          }
+        ),
+      hint.map(h => p(cls := s"text-sm ${Form.mutedTextCls} max-w-2xl", h)).getOrElse(emptyNode),
+      child <-- panel.signal.map {
+        case Panel.Closed   => emptyNode
+        case Panel.WriteOff => writeOffPanel(r, movements, writeOffBus, panel)
+        case Panel.Unmatch  => unmatchPanel(r, movements, writtenOff, unmatchBus, panel)
+      }
+    )
+
+  // The chosen movement decides which accounts the difference posts between (see
+  // ManualReconciler.writeOff): the adjustment runs between the reconciled account and that
+  // movement's other account.
+  private def writeOffPanel(
+    r:           ReconciliationPayload,
+    movements:   Seq[ReconciliationMovementPayload],
+    writeOffBus: EventBus[(String, String)],
+    panel:       Var[Panel]
+  ): HtmlElement =
+    val movementVar = Var("")
+    val reasonVar   = Var("")
+    div(
+      cls := panelCls,
+      div(cls := "font-medium text-md-on-surface dark:text-white", s"Write off ${r.balance}"),
+      p(
+        cls := s"text-sm ${Form.mutedTextCls}",
+        "Posts the difference as an adjustment against the movement you choose, then closes this reconciliation as Final."
+      ),
+      label(forId := s"wo-movement-${r.id}", cls := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400", "Post against"),
+      select(
+        idAttr := s"wo-movement-${r.id}",
+        cls    := controlCls,
+        onChange.mapToValue --> movementVar,
+        option(value := "", "Choose a movement…"),
+        movements.map(m => option(value := m.id, ReconciliationDetailPage.movementChoiceLabel(m)))
+      ),
+      label(forId := s"wo-reason-${r.id}", cls := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400", "Reason"),
+      input(
+        idAttr      := s"wo-reason-${r.id}",
+        typ         := "text",
+        placeholder := "e.g. bank fee",
+        cls         := controlCls,
+        onInput.mapToValue --> reasonVar
+      ),
+      div(
+        cls := "flex gap-2",
+        button(
+          typ := "button",
+          cls := "bg-md-primary text-md-on-primary rounded-full px-5 py-2 text-sm font-medium tracking-wide disabled:opacity-40 disabled:pointer-events-none",
+          disabled <-- movementVar.signal.combineWith(reasonVar.signal).map((m, reason) => m.isEmpty || reason.trim.isEmpty),
+          onClick.mapToUnit --> Observer[Unit](_ => writeOffBus.emit((movementVar.now(), reasonVar.now().trim))),
+          "Write off"
+        ),
+        Buttons.textButton("Cancel", Observer[Unit](_ => panel.set(Panel.Closed)))
+      )
+    )
+
+  private def unmatchPanel(
+    r:          ReconciliationPayload,
+    movements:  Seq[ReconciliationMovementPayload],
+    writtenOff: Boolean,
+    unmatchBus: EventBus[Unit],
+    panel:      Var[Panel]
+  ): HtmlElement =
+    val n = movements.count(!_.movementType.contains("ManualAdjustment"))
+    div(
+      cls := panelCls,
+      div(cls := "font-medium text-md-on-surface dark:text-white", "Unmatch this reconciliation?"),
+      p(
+        cls := s"text-sm ${Form.mutedTextCls}",
+        s"Voids it and returns its $n movement${if n == 1 then "" else "s"} to the unreconciled pool, so they can be matched again." +
+          (if writtenOff then " The write-off adjustment is reversed." else "") +
+          " Any open mismatch dispute is resolved."
+      ),
+      div(
+        cls := "flex gap-2",
+        button(typ := "button", cls := dangerBtnCls, onClick.mapToUnit --> unmatchBus, "Unmatch"),
+        Buttons.textButton("Cancel", Observer[Unit](_ => panel.set(Panel.Closed)))
+      )
+    )

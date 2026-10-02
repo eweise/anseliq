@@ -112,9 +112,11 @@ object Payload:
       case Rel.ManyToMany => ComRel.ManyToMany
 
   def reconciliationDetailPayloadFromDomain(
-    recon:     Reconciliation,
-    spec:      Option[(ReconciliationSpec, String)], // (spec, its account's name)
-    movements: Seq[ReconciliationMovementPayload]
+    recon:        Reconciliation,
+    spec:         Option[(ReconciliationSpec, String)], // (spec, its account's name)
+    movements:    Seq[ReconciliationMovementPayload],
+    fundFlow:     Option[FundFlowConfig],
+    openDisputes: Seq[DisputePayload]
   ): ReconciliationDetailPayload =
     ReconciliationDetailPayload(
       reconciliation = reconFromDomain(recon),
@@ -124,10 +126,13 @@ object Payload:
           agingLimit   = s.agingLimit,
           relationship = reconRelationshipFromDomain(s.relationship),
           ruleJson     = s.ruleJson,
+          accountId    = s.accountId.toString,
           accountName  = accountName
         )
       },
-      movements = movements
+      movements    = movements,
+      fundFlow     = fundFlow.map(fundFlowPayloadFromDomain),
+      openDisputes = openDisputes
     )
 
   // reconAccountId: the reconciliation spec's account, None for a spec-less Reversed reconciliation.

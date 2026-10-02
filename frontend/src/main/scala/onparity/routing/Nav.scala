@@ -18,7 +18,16 @@ object Nav:
 
   // Same page as toFundFlow — the tab lives in the query string so switching tabs adds a history
   // entry and the back button steps between tabs (see FundFlowPage.tabFromUrl).
-  def toFundFlowTab(tab: String): Unit = push(s"/components/fund-flow?tab=$tab")
+  def toFundFlowTab(tab: String, status: Option[String] = None): Unit = push(fundFlowTabUrl(tab, status))
+
+  // Opens a ledger straight onto one tab — e.g. a reconciliation's breadcrumb going back to that
+  // ledger's Reconciliations tab. `status` pre-filters the Reconciliations tab.
+  def toFundFlow(ff: FundFlowPayload, tab: String, status: Option[String]): Unit =
+    AppState.activeFundFlow.set(Some(ff))
+    push(fundFlowTabUrl(tab, status))
+
+  def fundFlowTabUrl(tab: String, status: Option[String] = None): String =
+    s"/components/fund-flow?tab=$tab" + status.filter(_.nonEmpty).fold("")(s => s"&status=$s")
 
   def toMaintainFundFlow(): Unit =
     push("/components/maintain-fund-flow")
@@ -27,18 +36,6 @@ object Nav:
     accountId match
       case Some(id) => push(s"/components/accounts/$id/maintain")
       case None     => push("/components/accounts/new/maintain")
-
-  def toReconSpecs(accountId: String): Unit =
-    push(s"/components/accounts/$accountId/recon-specs")
-
-  def toMaintainReconSpec(accountId: String, reconSpecId: String = "new"): Unit =
-    push(s"/components/accounts/$accountId/maintain-recon-spec/$reconSpecId")
-
-  def toIngest(accountId: String, reconSpecId: String): Unit =
-    push(s"/components/accounts/$accountId/ingest/$reconSpecId")
-
-  def toReconciliations(accountId: String, reconSpecId: String): Unit =
-    push(s"/components/accounts/$accountId/reconciliations/$reconSpecId")
 
   def toManualMatch(accountId: String, reconSpecId: String): Unit =
     push(s"/components/accounts/$accountId/manual-match/$reconSpecId")
@@ -59,12 +56,6 @@ object Nav:
 
   def toReconciliationDetail(id: String): Unit = push(s"/components/reconciliations/$id")
 
-  // status: a ReconciliationStatus name (e.g. "InProgress") to open the page pre-filtered.
-  def toAccountReconciliations(accountId: String, status: Option[String] = None): Unit =
-    push(accountReconciliationsUrl(accountId, status))
-
-  def accountReconciliationsUrl(accountId: String, status: Option[String]): String =
-    s"/components/accounts/$accountId/recent-reconciliations" + status.fold("")(s => s"?status=$s")
 
   def toMovementDetail(id: String): Unit = push(s"/components/movements/$id")
 
@@ -76,4 +67,6 @@ object Nav:
   def toMaintainUser(userId: String = "new"): Unit =
     push(s"/components/maintain-user/$userId")
 
-  def toFixBadFile(): Unit = push("/components/fix-bad-file")
+  // Opened from a File Inventory row with that file's name filled in (and previewed).
+  def toFixBadFile(fileName: String): Unit =
+    push(s"/components/fix-bad-file?file=${scala.scalajs.js.URIUtils.encodeURIComponent(fileName)}")

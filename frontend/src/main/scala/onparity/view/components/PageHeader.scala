@@ -1,6 +1,8 @@
 package onparity.view.components
 
 import com.raquo.laminar.api.L.*
+import onparity.common.model.FundFlowPayload
+import onparity.routing.Nav
 
 object PageHeader:
   // The outer chrome every full-width content page shares (top padding under the fixed nav,
@@ -51,6 +53,39 @@ object PageHeader:
       span(cls := "text-base leading-none", "←"),
       span("Back")
     )
+
+  // Breadcrumb trail for a detail page, in the same slot as backLink (which it replaces): it says
+  // where the record lives — "Ledgers › Scenario1 › Reconciliations › 3b94d94b" — rather than
+  // depending on how the user happened to arrive, which is all a history-based Back can offer.
+  // Every crumb but the last is a link; the last names the current page.
+  def breadcrumb(crumbs: (String, Option[Observer[Unit]])*): HtmlElement =
+    val linkCls = "hover:text-md-primary dark:hover:text-md-primary transition-colors cursor-pointer"
+    navTag(
+      aria.label := "Breadcrumb",
+      cls        := "absolute -top-6 flex flex-wrap items-center gap-1 text-sm text-md-on-surface-variant dark:text-gray-400",
+      crumbs.zipWithIndex.flatMap { case ((label, onOpen), i) =>
+        val sep  = if i == 0 then None else Some(span(cls := "text-gray-400 dark:text-gray-500", "›"))
+        val item = onOpen match
+          case Some(obs) => button(typ := "button", cls := linkCls, onClick.mapToUnit --> obs, label)
+          case None      => span(cls := "text-md-on-surface dark:text-gray-200", label)
+        sep.toSeq :+ item
+      }
+    )
+
+  // "Ledgers › <ledger> › …trail" for a page that lives inside a ledger. Each ledger-level crumb
+  // after the ledger's own name (e.g. "Reconciliations") is given as the tab it opens. Without a
+  // known ledger (e.g. the page was opened directly) the trail starts at Ledgers.
+  def ledgerBreadcrumb(
+    ff:    Option[FundFlowPayload],
+    tab:   Option[(String, String)], // (label, tab id) — the ledger tab this page belongs under
+    trail: (String, Option[Observer[Unit]])*
+  ): HtmlElement =
+    val ledgers = "Ledgers" -> Some(Observer[Unit](_ => Nav.toFundFlows()))
+    val ledgerCrumbs = ff.toSeq.flatMap { f =>
+      (f.name -> Some(Observer[Unit](_ => Nav.toFundFlow(f, "Overview", None)))) +:
+        tab.toSeq.map((label, id) => label -> Some(Observer[Unit](_ => Nav.toFundFlow(f, id, None))))
+    }
+    breadcrumb((ledgers +: ledgerCrumbs) ++ trail*)
 
   // The one Refresh slot a page whose data can change while the user is looking at it (Jobs,
   // Events, File Inventory today) should use: right-aligned on the title row itself, next to the

@@ -43,47 +43,35 @@ object LeftNav:
       )
     )
 
+  // Grouped by what people come here to do: work the queue, look at a ledger, check on the data
+  // flowing in, or read reports. Fix Bad File lives on File Inventory rows now (it acts on one
+  // file), and the "coming soon" placeholders are gone until those pages exist.
   private def groups(isAdmin: Boolean): Seq[NavGroup] = Seq(
     NavGroup(
-      "Overview",
+      "Work",
       Seq(
-        NavItem("Dashboard", "/components/dashboard", Icons.home)
+        NavItem("Dashboard", "/components/dashboard", Icons.home),
+        NavItem("Exceptions", "/components/exceptions", Icons.document)
       )
     ),
     NavGroup(
-      "Operations",
+      "Ledgers",
+      Seq(NavItem("Ledgers", "/components/fund-flows", Icons.document))
+    ),
+    NavGroup(
+      "Data",
       Seq(
-        NavItem("Ledgers", "/components/fund-flows", Icons.document),
-        NavItem("Exceptions & Disputes", "/components/exceptions", Icons.document),
+        NavItem("File Feeds", "/components/file-feeds", Icons.settings),
         NavItem("File Inventory", "/components/file-inventory", Icons.document),
         NavItem("Jobs", "/components/jobs", Icons.chart),
         NavItem("Events", "/components/events", Icons.document)
       )
     ),
     NavGroup(
-      "Configure",
-      Seq(
-        NavItem("File Feeds", "/components/file-feeds", Icons.settings),
-        NavItem("Recon Rules", "/components/coming-soon/recon-rules", Icons.settings)
-      )
-    ),
-    NavGroup(
       "Insights",
-      Seq(
-        NavItem("Reports & Analytics", "/components/reports", Icons.chart)
-      )
-    ),
-    NavGroup(
-      "Admin",
-      (if isAdmin then
-         Seq(
-           NavItem("Users & Roles", "/components/users", Icons.user),
-           NavItem("Fix Bad File Ingest", "/components/fix-bad-file", Icons.document)
-         )
-       else Seq.empty)
-        :+ NavItem("Settings", "/components/coming-soon/settings", Icons.settings)
+      Seq(NavItem("Reports", "/components/reports", Icons.chart))
     )
-  )
+  ) ++ (if isAdmin then Seq(NavGroup("Admin", Seq(NavItem("Users", "/components/users", Icons.user)))) else Seq.empty)
 
   private def navGroupItems(g: NavGroup): Seq[HtmlElement] =
     li(

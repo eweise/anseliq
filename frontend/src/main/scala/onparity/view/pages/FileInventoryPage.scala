@@ -7,7 +7,8 @@ import onparity.http.ApiClient
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{PageHeader, Table}
+import onparity.routing.Nav
+import onparity.view.components.{Buttons, PageHeader, Table}
 
 object FileInventoryPage:
 
@@ -39,8 +40,12 @@ object FileInventoryPage:
             "Status",
             "Last Processed At",
             "Last Processed Line",
-            "Updated At"
+            "Updated At",
+            ""
           )
+          // Fixing a bad ingest voids and reverses ledger entries, so it's offered to admins only —
+          // the same restriction the page had when it lived in the sidebar's Admin group.
+          val isAdmin = SessionStore.currentUserNow.exists(_.role == "Admin")
           val rows = s.entries.map { entry =>
             Seq(
               span(entry.fileFeedName),
@@ -51,7 +56,10 @@ object FileInventoryPage:
               span(entry.status),
               span(entry.lastProcessedAt.map(ViewHelper.formatDateTime).getOrElse("-")),
               span(entry.lastProcessedLine.map(_.toString).getOrElse("-")),
-              span(entry.updatedAt.map(ViewHelper.formatDateTime).getOrElse("-"))
+              span(entry.updatedAt.map(ViewHelper.formatDateTime).getOrElse("-")),
+              if isAdmin then
+                Buttons.textButton("Fix bad ingest…", Observer[Unit](_ => Nav.toFixBadFile(entry.fileName)))
+              else span()
             )
           }
           Table.create(headers, rows)

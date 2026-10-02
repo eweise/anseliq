@@ -24,7 +24,7 @@ object ExceptionsPage:
     PageHeader.page(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(ds => state.update(_.copy(disputes = ds))),
       onMountCallback(_ => loadBus.emit(())),
-      PageHeader.titleRow(PageHeader.title("Exceptions & Disputes")),
+      PageHeader.titleRow(PageHeader.title("Exceptions")),
       div(
         cls := "w-full px-8",
         child <-- state.signal.map { s =>

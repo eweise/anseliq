@@ -170,3 +170,20 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
           reconRepo.findByAccountID(accountId, 100, Some(ReconciliationStatus.Final)).map(_.id),
           Vector(finalRecon.id)
         )
+
+  test("countByStatusForAccountID counts the account's reconciliations per status"):
+    val reconRepo = ReconciliationRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val data = DataSetup()
+        def recon(status: ReconciliationStatus) =
+          reconRepo.insert(Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, status = status))
+        recon(ReconciliationStatus.Mismatched)
+        recon(ReconciliationStatus.Mismatched)
+        recon(ReconciliationStatus.Final)
+
+        assertEquals(
+          reconRepo.countByStatusForAccountID(data.reconAccount.id),
+          Map(ReconciliationStatus.Mismatched -> 2, ReconciliationStatus.Final -> 1)
+        )
+        assertEquals(reconRepo.countByStatusForAccountID(data.journalAccount.id), Map.empty)

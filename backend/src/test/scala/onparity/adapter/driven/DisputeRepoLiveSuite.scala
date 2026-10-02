@@ -65,3 +65,21 @@ class DisputeRepoLiveSuite extends munit.FunSuite:
 
         assert(amountMismatchDispute.isDefined)
         assert(dataQualityDispute.isDefined, "a different category for the same referenceId is not a duplicate")
+
+  test("findOpenByReferenceId returns every unresolved dispute for the target, across categories"):
+    val disputeRepo = DisputeRepoLive()
+    transact(transactor):
+      rollBackOnly:
+        val referenceId = createID()
+
+        val mismatch = disputeRepo.insertIfNoOpenDispute(amountMismatch(referenceId)).get
+        val dataQuality = disputeRepo
+          .insertIfNoOpenDispute(amountMismatch(referenceId).copy(category = DisputeCategory.DataQuality))
+          .get
+        disputeRepo.update(dataQuality.copy(status = DisputeStatus.Resolved))
+        val duplicate = disputeRepo
+          .insertIfNoOpenDispute(amountMismatch(referenceId).copy(category = DisputeCategory.Duplicate))
+          .get
+        disputeRepo.insertIfNoOpenDispute(amountMismatch(createID())) // another target entirely
+
+        assertEquals(disputeRepo.findOpenByReferenceId(referenceId).map(_.id).toSet, Set(mismatch.id, duplicate.id))

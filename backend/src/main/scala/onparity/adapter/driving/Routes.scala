@@ -211,6 +211,12 @@ class App(using
       val reconciliations = reconRepo.findByAccountID(UUID.fromString(id), limit, statusFilter)
       write(reconciliations.map(Payload.reconFromDomain))
 
+  // Keyed by ReconciliationStatus name ("Mismatched", "InProgress", ...), statuses with none omitted.
+  @cask.route(s"${HttpPath.account}/:id/reconciliation-counts", methods = HttpCmd.GET)
+  def reconciliationCountsByAccount(id: String): String =
+    transact(transactor):
+      write(reconRepo.countByStatusForAccountID(UUID.fromString(id)).map((s, n) => s.toString -> n))
+
   @cask.route(HttpPath.login, methods = HttpCmd.POST)
   def login(request: cask.Request): String =
     val payload = read[LoginRequest](request.text())
@@ -381,12 +387,15 @@ class App(using
     transact(transactor):
       val reconId = UUID.fromString(id)
       val recon   = reconRepo.findById(reconId).ErrIfNotFound("reconciliation", reconId)
-      val spec = recon.specId.map: specId =>
+      val specAndAccount = recon.specId.map: specId =>
         val spec    = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
         val account = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
-        (spec, account.name)
-      val movements = reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
-      write(Payload.reconciliationDetailPayloadFromDomain(recon, spec, movements))
+        (spec, account)
+      val spec         = specAndAccount.map((s, account) => (s, account.name))
+      val fundFlow     = specAndAccount.flatMap((_, account) => fundFlowConfigRepo.findById(account.fundFlowId))
+      val movements    = reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
+      val openDisputes = disputeRepo.findOpenByReferenceId(reconId).map(disputePayloadWithNames)
+      write(Payload.reconciliationDetailPayloadFromDomain(recon, spec, movements, fundFlow, openDisputes))
 
   // A reconciliation's movements as payload rows, each movement's accounts' names looked up once
   // per distinct account rather than once per movement.
@@ -410,7 +419,14 @@ class App(using
       val outAccount   = accountRepo.findById(m.outAccountId).ErrIfNotFound("account", m.outAccountId)
       val inAccount    = accountRepo.findById(m.inAccountId).ErrIfNotFound("account", m.inAccountId)
       val movementSpec = movementSpecRepo.findById(m.movementSpecId).ErrIfNotFound("movement spec", m.movementSpecId)
-      write(Payload.movementDetailPayloadFromDomain(m, outAccount.name, inAccount.name, movementSpec.name))
+      val detail       = Payload.movementDetailPayloadFromDomain(m, outAccount.name, inAccount.name, movementSpec.name)
+      write(
+        detail.copy(
+          reconciliation = m.reconciliationId.flatMap(reconRepo.findById).map(Payload.reconFromDomain),
+          fundFlow       = fundFlowConfigRepo.findById(inAccount.fundFlowId).map(Payload.fundFlowPayloadFromDomain),
+          openDisputes   = disputeRepo.findOpenByReferenceId(m.id).map(disputePayloadWithNames)
+        )
+      )
 
   @cask.route(s"${HttpPath.reconciliation}/:id/unmatch", methods = HttpCmd.POST)
   def unmatchReconciliation(id: String): String =

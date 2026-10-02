@@ -144,6 +144,7 @@ case class ReconciliationSpecSummaryPayload(
   agingLimit:   Int,
   relationship: ReconRelationship,
   ruleJson:     String,
+  accountId:    String,
   accountName:  String
 ) derives ReadWriter
 
@@ -151,7 +152,11 @@ case class ReconciliationDetailPayload(
   reconciliation: ReconciliationPayload,
   // None only for a system-generated Reversed reconciliation, which isn't governed by a real spec.
   spec:      Option[ReconciliationSpecSummaryPayload],
-  movements: Seq[ReconciliationMovementPayload]
+  movements: Seq[ReconciliationMovementPayload],
+  // The ledger the spec's account belongs to, for the page's breadcrumb; None alongside spec.
+  fundFlow: Option[FundFlowPayload] = None,
+  // Unresolved disputes raised against this reconciliation (any category).
+  openDisputes: Seq[DisputePayload] = Seq.empty
 ) derives ReadWriter
 
 case class ManualMatchRequest(
@@ -276,7 +281,13 @@ case class MovementDetailPayload(
   metaData:          Properties,
   movementSpecName:  String,
   // None only for a row that predates this field — see backend's MovementType.
-  movementType: Option[String] = None
+  movementType: Option[String] = None,
+  // The reconciliation this movement belongs to, if it's been reconciled.
+  reconciliation: Option[ReconciliationPayload] = None,
+  // The ledger its accounts belong to, for the page's breadcrumb.
+  fundFlow: Option[FundFlowPayload] = None,
+  // Unresolved disputes raised against this movement.
+  openDisputes: Seq[DisputePayload] = Seq.empty
 ) derives ReadWriter
 
 // See backend's ReconciliationFilter.

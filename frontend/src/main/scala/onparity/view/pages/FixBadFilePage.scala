@@ -16,8 +16,12 @@ object FixBadFilePage:
   )
 
   def apply(): HtmlElement =
+    // Reached from a File Inventory row's "Fix bad ingest…" with ?file=<that file's name>, so the
+    // name is filled in and its preview runs straight away; typing a name by hand still works.
+    val initialFile = Option(new org.scalajs.dom.URLSearchParams(org.scalajs.dom.window.location.search).get("file"))
+      .filter(_.nonEmpty)
     val state       = Var(State())
-    val fileNameVar = Var("")
+    val fileNameVar = Var(initialFile.getOrElse(""))
     val previewBus  = EventBus[String]()
     val fixBus      = EventBus[String]()
 
@@ -36,7 +40,14 @@ object FixBadFilePage:
           SessionStore.token
         )
       }.apiBind(r => state.update(_.copy(result = Some(r), preview = None))),
-      PageHeader.titleRow(PageHeader.title("Fix Bad File Ingest")),
+      initialFile.map(f => EventStream.fromValue(f) --> previewBus.writer).getOrElse(emptyMod),
+      PageHeader.titleRow(
+        PageHeader.breadcrumb(
+          "File Inventory" -> Some(Observer[Unit](_ => onparity.routing.Nav.push("/components/file-inventory"))),
+          "Fix bad ingest" -> None
+        ),
+        PageHeader.title("Fix bad ingest")
+      ),
       div(
         cls := "w-full px-8 max-w-2xl",
         p(
@@ -51,6 +62,7 @@ object FixBadFilePage:
           input(
             typ         := "text",
             placeholder := "file name",
+            value       := fileNameVar.now(),
             cls         := "flex-1 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm dark:bg-gray-800 dark:text-white",
             onInput.mapToValue --> Observer[String](v => fileNameVar.set(v))
           ),

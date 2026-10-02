@@ -1,6 +1,7 @@
 package onparity.view.pages
 
 import com.raquo.laminar.api.L.*
+import frontroute.BrowserNavigation
 import onparity.common.http.HttpPath
 import onparity.common.model.*
 import onparity.http.ApiClient
@@ -15,7 +16,7 @@ import scala.collection.mutable
 
 object FundFlowPage:
 
-  private val tabs = Set("Overview", "Search", "Configuration")
+  private val tabs = Set("Overview", "Reconciliations", "Movements", "Setup")
   private val boxW      = 140
   private val boxH      = 52
   private val colGap    = 100
@@ -33,11 +34,22 @@ object FundFlowPage:
     val ffId      = ff.id.getOrElse("")
     val ffVar     = Var(ff)
     val state     = Var(State())
-    val activeTab = Var(tabFromUrl())
+    val activeTab   = Var(tabFromUrl())
+    val reconStatus = Var(statusFromUrl())
     val selectTab = (tab: String) =>
       if activeTab.now() != tab then
         activeTab.set(tab)
         Nav.toFundFlowTab(tab)
+    // Opens the Reconciliations tab filtered to one status ("" = all), as its own history entry.
+    val openReconciliations = (status: String) =>
+      reconStatus.set(status)
+      if activeTab.now() != "Reconciliations" then activeTab.set("Reconciliations")
+      Nav.toFundFlowTab("Reconciliations", Some(status))
+    // A filter chip on the tab itself: replaces the URL rather than adding history, so Back still
+    // leaves the tab instead of stepping through every chip clicked.
+    val selectReconStatus = (status: String) =>
+      reconStatus.set(status)
+      BrowserNavigation.replaceState(url = Nav.fundFlowTabUrl("Reconciliations", Some(status)), popStateEvent = false)
     val configureReconBus = EventBus[AccountPayload]()
     val manualMatchBus    = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
@@ -47,7 +59,7 @@ object FundFlowPage:
     // edited — re-fetches both lists since either could have changed either way.
     val refreshBus = EventBus[Unit]()
     val closeModal = () => {
-      state.update(_.copy(editingAccountId = None, editingMovementSpec = None))
+      state.update(_.copy(editingAccountId = None, editingMovementSpec = None, editingReconSpec = None, ingesting = false))
       refreshBus.emit(())
     }
 
@@ -87,6 +99,11 @@ object FundFlowPage:
         ApiClient.get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
       }.apiBind(accounts => state.update(_.copy(accounts = accounts))),
       refreshBus.events.flatMapSwitch { _ =>
+        ApiClient.get[FundFlowSummaryViewPayload](HttpPath.url(s"${HttpPath.fundFlow}/$ffId/summary"), SessionStore.token)
+      }.apiBind { summary =>
+        state.update(_.copy(summaries = summary.accounts.flatMap(a => a.account.id.map(_ -> a)).toMap))
+      },
+      refreshBus.events.flatMapSwitch { _ =>
         ApiClient.get[Seq[MovementSpecPayload]](
           HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
           SessionStore.token
@@ -98,6 +115,10 @@ object FundFlowPage:
           .orElse(s.editingMovementSpec.map { case (out, in, id) =>
             Modal(closeModal, MaintainMovementSpecPage(out, in, id, closeModal))
           })
+          .orElse(s.editingReconSpec.map((accountId, specId) =>
+            Modal(closeModal, MaintainReconSpecPage(accountId, specId, closeModal))
+          ))
+          .orElse(Option.when(s.ingesting)(Modal(closeModal, IngestDialog(s.movementSpecs, closeModal))))
       },
       configureReconBus.events.flatMapSwitch { account =>
         ApiClient
@@ -109,7 +130,7 @@ object FundFlowPage:
       } --> {
         case (account, Right(specs)) =>
           val reconSpecId = specs.headOption.flatMap(_.id).getOrElse("new")
-          Nav.toMaintainReconSpec(account.id.get, reconSpecId)
+          state.update(_.copy(selectedAccount = None, editingReconSpec = Some(account.id.get -> reconSpecId)))
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
       // Shortcut straight to Manual Match for an account whose recon spec already exists — skips
@@ -127,7 +148,7 @@ object FundFlowPage:
         case (account, Right(specs)) =>
           specs.headOption.flatMap(_.id) match
             case Some(reconSpecId) => Nav.toManualMatch(account.id.get, reconSpecId)
-            case None              => Nav.toMaintainReconSpec(account.id.get, "new")
+            case None              => state.update(_.copy(editingReconSpec = Some(account.id.get -> "new")))
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
       deleteSpecBus.events.flatMapSwitch { spec =>
@@ -142,41 +163,46 @@ object FundFlowPage:
           AppState.globalError.set(Some(e))
           EventStream.empty
       }.apiBind(specs => state.update(_.copy(movementSpecs = specs))),
+      // flatMapMerge, not flatMapSwitch: "Run reconciliation" emits once per recon account, and
+      // each run has to finish rather than being cancelled by the next account's.
       reconcileBus.events.map { id =>
         state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.InProgress)))
         id
-      }.flatMapSwitch { id =>
+      }.flatMapMerge { id =>
         ApiClient
           .postEmpty[ujson.Value](HttpPath.url(s"${HttpPath.account}/$id/reconcile"), SessionStore.token)
           .map(res => (id, res))
       } --> {
         case (id, Right(_)) =>
           state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.Success)))
+          refreshBus.emit(())
         case (id, Left(e)) =>
           state.update(s => s.copy(reconcileStatuses = s.reconcileStatuses.updated(id, ReconcileStatus.Failed(e))))
       },
       // Back/forward between ?tab= entries. frontroute's pushState also dispatches a synthetic
       // popstate, so this fires on selectTab's own push too — and Airstream signals don't dedupe
-      // equal values, so re-setting the same tab would rebuild it (wiping the Search tab's
+      // equal values, so re-setting the same tab would rebuild it (wiping the Movements tab's
       // pre-filled, already-run search). Only set it when the URL's tab actually differs.
       windowEvents(_.onPopState).map(_ => tabFromUrl()).filter(_ != activeTab.now()) --> activeTab.writer,
+      windowEvents(_.onPopState).map(_ => statusFromUrl()).filter(_ != reconStatus.now()) --> reconStatus.writer,
       PageHeader.titleRow(
-        PageHeader.backLink(Observer[Unit](_ => Nav.toFundFlows())),
-        PageHeader.title(child.text <-- ffVar.signal.map(_.name))
+        PageHeader.breadcrumb("Ledgers" -> Some(Observer[Unit](_ => Nav.toFundFlows())), ff.name -> None),
+        ledgerHeader(ffVar.signal.map(_.name), state, reconcileBus, manualMatchBus)
       ),
       div(
         cls := "w-full border-b border-gray-200 dark:border-gray-700 mb-6",
         div(
           cls := "w-full px-8 flex -mb-px space-x-8",
           tabButton("Overview", "Overview", activeTab.signal, selectTab),
-          tabButton("Search Movements", "Search", activeTab.signal, selectTab),
-          tabButton("Configuration", "Configuration", activeTab.signal, selectTab)
+          tabButton("Reconciliations", "Reconciliations", activeTab.signal, selectTab),
+          tabButton("Movements", "Movements", activeTab.signal, selectTab),
+          tabButton("Setup", "Setup", activeTab.signal, selectTab)
         )
       ),
       div(
         cls := "w-full px-8",
         child <-- activeTab.signal.map {
-          case "Configuration" =>
+          case "Setup" =>
             div(
               cls := "flex flex-col gap-6",
               div(
@@ -202,6 +228,9 @@ object FundFlowPage:
                   Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveFundFlowBus.emit(())))
                 )
               ),
+              child <-- state.signal.map(_.accounts.filter(_.accountType == AccountTypePayload.Recon)).distinct.map {
+                reconAccounts => reconRulesCard(reconAccounts, configureReconBus)
+              },
               div(
                 cls := s"${Card.cls} p-6",
                 div(
@@ -236,18 +265,18 @@ object FundFlowPage:
                       reconciliationCard(
                         account,
                         s.summaries.get(accountId),
-                        // Jumps to the Search Movements tab with the account and "Unreconciled"
+                        // Jumps to the Movements tab with the account and "Unreconciled"
                         // pre-filled and the search already run — see searchMovementsTab's
                         // pendingSearch handling.
                         onUnreconciled = Observer[Unit](_ =>
                           state.update(
                             _.copy(pendingSearch = Some(accountId -> ReconciliationFilterPayload.Unreconciled))
                           )
-                          selectTab("Search")
+                          selectTab("Movements")
                         ),
-                        onReconciliations = Observer[Unit](_ => Nav.toAccountReconciliations(accountId)),
-                        onInProgress      = Observer[Unit](_ => Nav.toAccountReconciliations(accountId, Some("InProgress"))),
-                        onMismatched      = Observer[Unit](_ => Nav.toAccountReconciliations(accountId, Some("Mismatched"))),
+                        onReconciliations = Observer[Unit](_ => openReconciliations("")),
+                        onInProgress      = Observer[Unit](_ => openReconciliations("InProgress")),
+                        onMismatched      = Observer[Unit](_ => openReconciliations("Mismatched")),
                         // Fetches the account's recon spec on click, since the card doesn't
                         // otherwise know its spec id — see manualMatchBus.
                         onManualMatch = Observer[Unit](_ => manualMatchBus.emit(account))
@@ -257,7 +286,13 @@ object FundFlowPage:
                   )
               }
             )
-          case "Search" => searchMovementsTab(ffId, state)
+          case "Reconciliations" =>
+            div(
+              child <-- state.signal.map(_.accounts.filter(_.accountType == AccountTypePayload.Recon)).distinct.map {
+                reconAccounts => LedgerReconciliationsTab(reconAccounts, reconStatus.signal, selectReconStatus)
+              }
+            )
+          case "Movements" => searchMovementsTab(ffId, state)
           case _        => div()
         }
       )
@@ -268,8 +303,19 @@ object FundFlowPage:
   // this page (and its State) mounted.
   private def tabFromUrl(): String =
     Option(new org.scalajs.dom.URLSearchParams(org.scalajs.dom.window.location.search).get("tab"))
+      .map {
+        case "Search"        => "Movements" // the tabs' earlier names, so old links still land
+        case "Configuration" => "Setup"
+        case other           => other
+      }
       .filter(tabs.contains)
       .getOrElse("Overview")
+
+  // The Reconciliations tab's status filter; "" (all) when absent or not a ReconciliationStatus.
+  private def statusFromUrl(): String =
+    Option(new org.scalajs.dom.URLSearchParams(org.scalajs.dom.window.location.search).get("status"))
+      .filter(s => ReconStatus.filters.exists(_._1 == s))
+      .getOrElse("")
 
   // A recon account's cash balance always splits exactly into unreconciled + in progress +
   // mismatched: every Final reconciliation nets to zero (a write-off makes one Final), so whatever
@@ -383,6 +429,98 @@ object FundFlowPage:
     case AccountTypePayload.Recon     => Pill("Recon", Pill.Tone.Accent)
     case AccountTypePayload.Primary   => Pill("Primary", Pill.Tone.Good)
     case AccountTypePayload.Secondary => Pill("Secondary", Pill.Tone.Neutral)
+
+  // Title plus the ledger-wide actions that used to be unreachable or buried: Run reconciliation
+  // (the endpoint and reconcileBus existed but nothing triggered them), Ingest file (only reachable
+  // from deep inside a recon spec's pages) and Manual match.
+  private def ledgerHeader(
+    name:           Signal[String],
+    state:          Var[State],
+    reconcileBus:   EventBus[String],
+    manualMatchBus: EventBus[AccountPayload]
+  ): HtmlElement =
+    val reconAccounts = state.signal.map(_.accounts.filter(_.accountType == AccountTypePayload.Recon))
+    div(
+      cls := "flex flex-wrap items-center justify-between gap-4 mb-6",
+      h2(cls := "text-2xl font-medium text-gray-900 dark:text-white", child.text <-- name),
+      div(
+        cls := "flex flex-wrap items-center gap-2",
+        child <-- state.signal.map(s => runStatusText(s.reconcileStatuses)),
+        child <-- reconAccounts.map(_.nonEmpty).distinct.map { hasRecon =>
+          if !hasRecon then emptyNode
+          else
+            Buttons.linkButton(
+              "Run reconciliation",
+              Observer[Unit](_ =>
+                state.now().accounts.filter(_.accountType == AccountTypePayload.Recon).flatMap(_.id).foreach(reconcileBus.emit)
+              )
+            )
+        },
+        Buttons.textButton("Ingest file", Observer[Unit](_ => state.update(_.copy(ingesting = true)))),
+        child <-- reconAccounts.map(_.headOption).distinct.map {
+          case None          => emptyNode
+          case Some(account) => Buttons.textButton("Manual match", Observer[Unit](_ => manualMatchBus.emit(account)))
+        }
+      )
+    )
+
+  private def runStatusText(statuses: Map[String, ReconcileStatus]): HtmlElement =
+    val failures = statuses.values.collect { case ReconcileStatus.Failed(msg) => msg }
+    val text =
+      if statuses.values.exists(_ == ReconcileStatus.InProgress) then Some("Reconciling…" -> Form.mutedTextCls)
+      else if failures.nonEmpty then Some(s"Reconciliation failed: ${failures.head}" -> "text-md-critical dark:text-md-critical-dark")
+      else if statuses.nonEmpty then Some("Reconciled just now" -> "text-md-good dark:text-md-good-dark")
+      else None
+    text.map((t, tone) => span(cls := s"text-sm $tone mr-2", t)).getOrElse(span())
+
+  // One row per recon account: its rule at a glance, with Edit opening the rule form in a Modal.
+  private def reconRulesCard(reconAccounts: Seq[AccountPayload], configureReconBus: EventBus[AccountPayload]): HtmlElement =
+    div(
+      cls := s"${Card.cls} p-6 flex flex-col gap-4",
+      h3(cls := "font-medium text-md-on-surface dark:text-white", "Reconciliation rules"),
+      if reconAccounts.isEmpty then
+        p(cls := s"text-sm ${Form.mutedTextCls}", "Add a Recon account below, then set up how its movements are matched.")
+      else
+        div(
+          cls := "flex flex-col divide-y divide-md-outline-variant dark:divide-gray-700",
+          reconAccounts.map { account =>
+            val specs = Var(Option.empty[Seq[ReconciliationSpecPayload]])
+            div(
+              cls := "flex flex-wrap items-center justify-between gap-3 py-3",
+              ApiClient
+                .get[Seq[ReconciliationSpecPayload]](
+                  HttpPath.url(s"${HttpPath.account}/${account.id.getOrElse("")}/recon-specs"),
+                  SessionStore.token
+                )
+                .apiBind(ss => specs.set(Some(ss))),
+              div(
+                div(cls := "font-medium text-md-on-surface dark:text-white", account.name),
+                div(
+                  cls := s"text-sm ${Form.mutedTextCls}",
+                  child.text <-- specs.signal.map {
+                    case None => "Loading…"
+                    case Some(ss) =>
+                      ss.headOption.fold("Not set up yet") { spec =>
+                        s"${spec.relationship} · matched on ${ruleText(spec.rule)} · flagged after ${spec.agingLimit} day${if spec.agingLimit == 1 then "" else "s"}"
+                      }
+                  }
+                )
+              ),
+              child <-- specs.signal.map { ss =>
+                val label = if ss.exists(_.nonEmpty) then "Edit rule" else "Set up"
+                Buttons.textButton(label, Observer[Unit](_ => configureReconBus.emit(account)))
+              }
+            )
+          }
+        )
+    )
+
+  // A recon rule as the condition(s) it matches on, e.g. "transaction_id = txn_id".
+  private def ruleText(rule: Rule): String = rule match
+    case AndRule(rules) => rules.map(ruleText).mkString(" and ")
+    case ORRule(rules)  => rules.map(ruleText).mkString(" or ")
+    case NoOpRule       => "no rule yet"
+    case leaf           => RuleMatch(leaf, "").condition
 
   private def tabButton(
     label:     String,
@@ -1005,5 +1143,7 @@ object FundFlowPage:
     // (Nav.toMaintainAccount/toMaintainMovementSpec), so the diagram stays mounted underneath
     // rather than disappearing while the form is open. None = no modal open.
     editingAccountId:    Option[String]                   = None,
-    editingMovementSpec: Option[(String, String, String)] = None // (outAccountId, inAccountId, id)
+    editingMovementSpec: Option[(String, String, String)] = None, // (outAccountId, inAccountId, id)
+    editingReconSpec:    Option[(String, String)]         = None, // (recon accountId, spec id or "new")
+    ingesting:           Boolean                          = false
   )

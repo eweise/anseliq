@@ -16,7 +16,7 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, Card, DetailList, Form, PageHeader, Pill}
+import onparity.view.components.{Buttons, Card, DetailList, Form, PageHeader, Pill, ReconStatus, ReconciliationActions}
 import upickle.default.*
 
 object ExceptionDetailPage:
@@ -31,7 +31,7 @@ object ExceptionDetailPage:
       DisputeStatusPayload.Resolved
     ).map(s => s.toString -> s.toString)
 
-  private def statusTone(status: DisputeStatusPayload): Pill.Tone = status match
+  def statusTone(status: DisputeStatusPayload): Pill.Tone = status match
     case DisputeStatusPayload.New           => Pill.Tone.Accent
     case DisputeStatusPayload.Investigating => Pill.Tone.Warning
     case DisputeStatusPayload.Escalated     => Pill.Tone.Critical
@@ -83,25 +83,39 @@ object ExceptionDetailPage:
         )
         .apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),
-      PageHeader.backLink(Observer[Unit](_ => Nav.push("/components/exceptions"))),
       child <-- state.signal.map {
         case State(None, _) => div()
         case State(Some(d), assignableUsers) =>
+          // A case page rather than another detail page: the workflow (thread, status, assignee)
+          // is the main column, and what the dispute is about is a compact subject card beside
+          // it, with the same actions as that object's own page and a link through to it.
+          val title = s"${d.dispute.category} on ${d.dispute.referenceLabel}"
           div(
-            PageHeader.title(s"Dispute — ${d.dispute.category.toString}"),
-            div(
-              cls := "flex gap-2 mb-4",
-              Pill(d.dispute.status.toString, statusTone(d.dispute.status)),
-              Pill(d.dispute.targetType.toString, Pill.Tone.Neutral)
+            cls := "relative flex flex-col gap-6",
+            PageHeader.breadcrumb(
+              "Exceptions" -> Some(Observer[Unit](_ => Nav.push("/components/exceptions"))),
+              title        -> None
             ),
-            assignmentDetails(d, assignBus),
-            targetDetails(d),
-            if d.reconciliation.isDefined then
-              div(cls := "mb-4", ReconciliationDetailPage.movementsSection(d.reconciliationMovements))
-            else div(),
-            h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "Thread"),
-            div(cls := "flex flex-col gap-3 mb-6").amend(d.comments.map(commentEntry)*),
-            commentForm(statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
+            div(
+              cls := "flex flex-col gap-2",
+              div(
+                cls := "flex flex-wrap items-center gap-3",
+                h2(cls := "text-2xl font-medium text-gray-900 dark:text-white", title),
+                Pill(d.dispute.status.toString, statusTone(d.dispute.status))
+              ),
+              assignmentDetails(d, assignBus)
+            ),
+            div(
+              cls := "grid grid-cols-1 lg:grid-cols-3 gap-6 items-start",
+              div(
+                cls := s"${Card.cls} p-5 lg:col-span-2 min-w-0 flex flex-col gap-4",
+                h3(cls := "font-medium text-md-on-surface dark:text-white", "Thread"),
+                if d.comments.isEmpty then p(cls := s"text-sm ${Form.mutedTextCls}", "No comments yet.")
+                else div(cls := "flex flex-col gap-3").amend(d.comments.map(commentEntry)*),
+                commentForm(statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
+              ),
+              subjectCard(d, Observer[Unit](_ => loadBus.emit(())))
+            )
           )
       }
     )
@@ -110,14 +124,17 @@ object ExceptionDetailPage:
     val myUserId    = SessionStore.currentUserNow.map(_.userId)
     val alreadyMine = myUserId.isDefined && d.dispute.assignedToUserId == myUserId
     div(
-      cls := "flex items-center gap-4 mb-4 text-sm text-md-on-surface-variant dark:text-gray-400",
+      cls := "flex flex-wrap items-center gap-4 text-sm text-md-on-surface-variant dark:text-gray-400",
       span(s"Raised by: ${d.dispute.raisedByName.getOrElse("System")}"),
       span(s"Assigned to: ${d.dispute.assignedToName.getOrElse("Unassigned")}"),
       if alreadyMine then div()
       else Buttons.textButton("Assign to me", Observer[Unit](_ => assignBus.emit(())))
     )
 
-  private def targetDetails(d: DisputeDetailPayload): HtmlElement =
+  // What the dispute is about. For a reconciliation, the same actions as its own page
+  // (ReconciliationActions), so the mismatch can be resolved from here; doing so auto-resolves this
+  // dispute, and the reload shows that.
+  private def subjectCard(d: DisputeDetailPayload, onReconChanged: Observer[Unit]): HtmlElement =
     val disputeRows = Seq(
       "Account"     -> span(d.dispute.accountName),
       "Raised With" -> d.dispute.detail.map(span(_)).getOrElse(DetailList.empty)
@@ -126,10 +143,25 @@ object ExceptionDetailPage:
       case (Some(m), _) => movementRows(m)
       case (_, Some(r)) => reconciliationRows(r)
       case _            => Seq("Target" -> span(cls := "text-md-on-surface-variant dark:text-gray-400", "Not found"))
+    val actions = (d.movement, d.reconciliation) match
+      case (_, Some(r)) =>
+        div(
+          cls := "pt-4 border-t border-md-outline dark:border-gray-700 flex flex-col gap-3",
+          ReconciliationActions(r, d.reconciliationMovements, onReconChanged),
+          div(Buttons.textButton("Open reconciliation →", Observer[Unit](_ => Nav.toReconciliationDetail(r.id))))
+        )
+      case (Some(m), _) =>
+        div(Buttons.textButton("Open movement →", Observer[Unit](_ => Nav.toMovementDetail(m.id))))
+      case _ => emptyNode
     div(
-      cls := s"${Card.cls} p-4 mb-4",
-      h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", d.dispute.targetType.toString),
-      DetailList((disputeRows ++ targetRows)*)
+      cls := s"${Card.cls} p-5 min-w-0 flex flex-col gap-4",
+      div(
+        cls := "flex items-center justify-between gap-2",
+        h3(cls := "font-medium text-md-on-surface dark:text-white", "Subject"),
+        Pill(d.dispute.targetType.toString, Pill.Tone.Neutral)
+      ),
+      DetailList((disputeRows ++ targetRows)*),
+      actions
     )
 
   private def movementRows(m: MovementPayload): Seq[(String, HtmlElement)] =
@@ -143,7 +175,7 @@ object ExceptionDetailPage:
   private def reconciliationRows(r: ReconciliationPayload): Seq[(String, HtmlElement)] =
     Seq(
       "Description"   -> (if r.description.isEmpty then DetailList.empty else span(r.description)),
-      "Status"        -> ReconciliationsPage.statusPill(r),
+      "Status"        -> ReconStatus.pill(r),
       "Balance"       -> span(cls := "tabular-nums", r.balance.toString),
       "Applied Rules" -> ReconciliationDetailPage.appliedRulesView(r.appliedRules),
       "Created At"    -> span(ViewHelper.formatDateTime(r.createdAt)),
