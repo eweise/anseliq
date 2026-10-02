@@ -7,6 +7,7 @@ import onparity.domain.DataSetup
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.model.{
   AccountReconciled,
+  AdjustmentType,
   Dispute,
   DisputeCategory,
   DisputeCommentAdded,
@@ -242,6 +243,10 @@ class ManualReconcilerSuite extends munit.FunSuite:
         val adjustment = manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
 
         assertEquals(adjustment.movementType, Some(MovementType.ManualAdjustment))
+        // Read back, not just the returned value, so the new columns' round-trip is covered too.
+        val stored = data.movementRepo.findById(adjustment.id).get
+        assertEquals(stored.adjustmentType, Some(AdjustmentType.WriteOff))
+        assertEquals(stored.adjustmentNote, Some("bank fee"))
         assertEquals(adjustment.amount, BigDecimal(10))
         assertEquals(adjustment.outAccountId, data.reconAccount.id)
         assertEquals(adjustment.inAccountId, data.reportAccount.id)

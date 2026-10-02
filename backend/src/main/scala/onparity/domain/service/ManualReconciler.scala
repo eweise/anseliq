@@ -163,7 +163,9 @@ class ManualReconciler(using
       metaData = Map(
         "write_off_of_reconciliation_id" -> reconciliationId.toString,
         "write_off_against_movement_id"  -> movementId.toString
-      )
+      ),
+      adjustmentType = AdjustmentType.WriteOff,
+      note           = Some(reason)
     )
     ledger.reconcile(Seq(adjustment), reconciliationId, reconAccountId)
 

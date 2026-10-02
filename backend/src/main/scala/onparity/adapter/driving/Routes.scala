@@ -186,7 +186,8 @@ class App(using
         reconciliation   = Payload.reconciliationFilterToDomain(req.reconciliation),
         createdFrom      = req.createdFrom,
         createdTo        = req.createdTo,
-        movementType     = req.movementType.map(MovementType.valueOf)
+        movementType     = req.movementType.map(MovementType.valueOf),
+        adjustmentType   = req.adjustmentType.map(Payload.adjustmentTypeToDomain)
       )
       val results = movementRepo.search(criteria)
       // Names resolved via the fund flow's full account/movement-spec lists (both already

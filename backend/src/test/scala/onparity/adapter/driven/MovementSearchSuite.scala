@@ -142,6 +142,15 @@ class MovementSearchSuite extends munit.FunSuite:
         Set(m2.id)
       )
 
+      // Adjustment type: m2 is a ManualAdjustment with no adjustmentType yet, so a write-off search
+      // finds nothing until it's marked as one.
+      def writeOffs = searchFor(
+        MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, adjustmentType = Some(AdjustmentType.WriteOff))
+      )
+      assertEquals(writeOffs, Set.empty)
+      transact(transactor)(movementRepo.update(m2.copy(adjustmentType = Some(AdjustmentType.WriteOff))))
+      assertEquals(writeOffs, Set(m2.id))
+
       // Date range: created_at defaults to now() at insert time (no test-controllable clock for
       // this column), so a wide window around "now" should include everything and a window
       // clearly in the past should include nothing — proving the filter is wired up correctly

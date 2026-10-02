@@ -14,7 +14,7 @@ import onparity.http.ApiClient
 import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
-import onparity.view.components.{Buttons, Card, DetailList, Form, PageHeader, Pill, ReconStatus}
+import onparity.view.components.{Buttons, Card, DetailList, Form, MovementLabels, PageHeader, Pill, ReconStatus}
 
 object MovementDetailPage:
 
@@ -48,7 +48,8 @@ object MovementDetailPage:
                 span(cls := "font-mono", ReconciliationDetailPage.shortId(d.id)),
                 span(cls := "ml-3 tabular-nums", d.amount.toString)
               ),
-              d.movementType.map(t => Pill(t, Pill.Tone.Neutral)).getOrElse(emptyNode)
+              d.movementType.map(_ => Pill(MovementLabels.typeLabel(d.movementType, d.adjustmentType), Pill.Tone.Neutral))
+                .getOrElse(emptyNode)
             ),
             raiseDispute(d.id, Observer[Unit](_ => loadBus.emit(()))),
             reconciliationSection(d),
@@ -167,7 +168,8 @@ object MovementDetailPage:
       DetailList(
         "ID"                -> DetailList.mono(d.id),
         "Reference ID"      -> DetailList.mono(d.referenceId),
-        "Type"              -> d.movementType.map(span(_)).getOrElse(DetailList.empty),
+        "Type"              -> span(MovementLabels.typeLabel(d.movementType, d.adjustmentType)),
+        "Adjustment Note"   -> d.adjustmentNote.map(span(_)).getOrElse(DetailList.empty),
         "Amount"            -> span(cls := "tabular-nums", d.amount.toString),
         "Movement Spec"     -> span(d.movementSpecName),
         "Primary Account"   -> accountView(d.inAccountName, d.inAccountBalance),

@@ -14,7 +14,18 @@ import onparity.routing.Nav
 import onparity.state.AppState.apiBind
 import onparity.state.{AppState, SessionStore}
 import onparity.view.ViewHelper
-import onparity.view.components.{Buttons, Card, DetailList, Form, PageHeader, Pill, ReconStatus, ReconciliationActions, Table}
+import onparity.view.components.{
+  Buttons,
+  Card,
+  DetailList,
+  Form,
+  MovementLabels,
+  PageHeader,
+  Pill,
+  ReconStatus,
+  ReconciliationActions,
+  Table
+}
 
 object ReconciliationDetailPage:
 
@@ -211,19 +222,18 @@ object ReconciliationDetailPage:
             ),
             m.direction.map(d => span(d.toString)).getOrElse(DetailList.empty),
             m.otherAccountName.map(span(_)).getOrElse(DetailList.empty),
-            span(movementTypeLabel(m.movementType)),
+            div(
+              span(MovementLabels.typeLabel(m.movementType, m.adjustmentType)),
+              m.adjustmentNote
+                .map(n => div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", n))
+                .getOrElse(emptyNode)
+            ),
             span(m.amount.toString)
           )
         ),
         numCols = Set(4)
       )
     )
-
-  private def movementTypeLabel(movementType: Option[String]): String =
-    movementType match
-      case Some("ManualAdjustment") => "Write-off adjustment"
-      case Some(other)              => other
-      case None                     => "—"
 
   // One-line description of a movement for choosing between them, e.g. "OUT · 90.00 → Report Account".
   def movementChoiceLabel(m: ReconciliationMovementPayload): String =

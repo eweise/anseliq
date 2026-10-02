@@ -189,6 +189,10 @@ create table recon.movement
     -- feedback_no_backfill_until_migration_strategy). Every new write sets it; a null here just
     -- means "predates this column", not "unknown type" in any meaningful sense.
     movement_type       text,
+    -- Set only when movement_type is 'manual_adjustment': why it was posted (see AdjustmentType)
+    -- and the note given with it.
+    adjustment_type     text,
+    adjustment_note     text,
     created_at          timestamptz default CURRENT_TIMESTAMP not null,
     updated_at          timestamptz default CURRENT_TIMESTAMP not null
 );

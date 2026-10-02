@@ -5,6 +5,7 @@ import onparity.common.model.AppliedRules
 import onparity.common.model.model.{ID, Money, Properties, Zero}
 import onparity.domain.model.helper.JSONBProps
 import onparity.domain.model.{
+  AdjustmentType,
   ErrIfNotFound,
   IllegalStateError,
   Movement,
@@ -101,7 +102,9 @@ class Ledger(using
     amount:         Money,
     movementSpecId: ID,
     referenceId:    ID,
-    metaData:       Properties
+    metaData:       Properties,
+    adjustmentType: AdjustmentType,
+    note:           Option[String]
   ): Txn[Movement] =
     if amount <= Zero then throw IllegalStateError(s"adjustment amount must be positive, got $amount")
     val inAccount  = accountRepo.findByIdForUpdate(inAccountId).ErrIfNotFound("In Account", inAccountId)
@@ -123,7 +126,9 @@ class Ledger(using
       amount            = amount,
       metaData          = JSONBProps(metaData),
       movementSpecId    = movementSpecId,
-      movementType      = Some(MovementType.ManualAdjustment)
+      movementType      = Some(MovementType.ManualAdjustment),
+      adjustmentType    = Some(adjustmentType),
+      adjustmentNote    = note
     )
     movementRepo.insert(adjustment)
     adjustment

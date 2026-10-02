@@ -25,5 +25,7 @@ case class MovementSearchCriteria(
   reconciliation:   ReconciliationFilter   = ReconciliationFilter.All,
   createdFrom:      Option[OffsetDateTime] = None,
   createdTo:        Option[OffsetDateTime] = None,
-  movementType:     Option[MovementType]   = None
+  movementType:     Option[MovementType]   = None,
+  // Narrows ManualAdjustment movements to one purpose, e.g. only write-offs.
+  adjustmentType: Option[AdjustmentType] = None
 )

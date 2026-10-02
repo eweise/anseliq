@@ -133,7 +133,10 @@ case class ReconciliationMovementPayload(
   direction: Option[Direction],
   // The movement's account that isn't the reconciled one — where a write-off against it would post.
   otherAccountName: Option[String],
-  movementType:     Option[String]
+  movementType:     Option[String],
+  // See MovementDetailPayload.adjustmentType.
+  adjustmentType: Option[String] = None,
+  adjustmentNote: Option[String] = None
 ) derives ReadWriter
 
 // Distinct from ReconciliationSpecPayload (the maintain-form shape, keyed by accountId and the
@@ -282,6 +285,10 @@ case class MovementDetailPayload(
   movementSpecName:  String,
   // None only for a row that predates this field — see backend's MovementType.
   movementType: Option[String] = None,
+  // Only on a ManualAdjustment: why it was posted ("WriteOff" — see backend's AdjustmentType) and
+  // the note given with it.
+  adjustmentType: Option[String] = None,
+  adjustmentNote: Option[String] = None,
   // The reconciliation this movement belongs to, if it's been reconciled.
   reconciliation: Option[ReconciliationPayload] = None,
   // The ledger its accounts belong to, for the page's breadcrumb.
@@ -305,8 +312,16 @@ case class MovementSearchRequest(
   createdFrom:      Option[OffsetDateTime] = None,
   createdTo:        Option[OffsetDateTime] = None,
   // "Ingestion" | "ManualAdjustment" | "Reversal" — see backend's MovementType.
-  movementType: Option[String] = None
+  movementType: Option[String] = None,
+  adjustmentType: Option[AdjustmentTypePayload] = None
 ) derives ReadWriter
+
+// See backend's AdjustmentType: what a ManualAdjustment movement was posted for.
+enum AdjustmentTypePayload derives ReadWriter:
+  case WriteOff
+
+  def label: String = this match
+    case WriteOff => "Write-off"
 
 // Richer than MovementPayload (which lacks names/metaData) — mirrors MovementDetailPayload's
 // shape but for a list of results rather than a single movement.
@@ -322,7 +337,10 @@ case class MovementSearchResultPayload(
   reconciled:       Boolean,
   createdAt:        OffsetDateTime,
   // None only for a row that predates this field — see backend's MovementType.
-  movementType: Option[String] = None
+  movementType: Option[String] = None,
+  // See MovementDetailPayload.adjustmentType.
+  adjustmentType: Option[String] = None,
+  adjustmentNote: Option[String] = None
 ) derives ReadWriter
 
 case class MovementSpecAndAccounts(

@@ -569,7 +569,10 @@ object FundFlowPage:
           reconciliation  = s.reconciliation,
           createdFrom     = parseDateStart(s.createdFrom),
           createdTo       = parseDateEndExclusive(s.createdTo),
-          movementType    = Option(s.movementType).filter(_.nonEmpty)
+          movementType   = Option(s.movementType).filter(_.nonEmpty),
+          adjustmentType =
+            if s.movementType == "ManualAdjustment" then AdjustmentTypePayload.values.find(_.toString == s.adjustmentType)
+            else None
         )
         ApiClient.post[Seq[MovementSearchResultPayload], MovementSearchRequest](
           HttpPath.url(s"${HttpPath.movements}/search"),
@@ -618,12 +621,31 @@ object FundFlowPage:
             Seq(
               ""                 -> "Any",
               "Ingestion"        -> "Ingestion",
-              "ManualAdjustment" -> "Manual Adjustment",
+              "ManualAdjustment" -> "Manual adjustment",
               "Reversal"         -> "Reversal"
             ),
             searchVar.now().movementType,
-            v => searchVar.update(_.copy(movementType = v))
+            // Leaving Manual adjustment clears any adjustment type, since that filter is hidden
+            // (and meaningless) for every other type.
+            v =>
+              searchVar.update(s =>
+                s.copy(movementType = v, adjustmentType = if v == "ManualAdjustment" then s.adjustmentType else "")
+              )
           ),
+          // What a manual adjustment was posted for (e.g. write-offs). Only manual adjustments have
+          // one, so it's shown only once Type is Manual adjustment — the same reveal-on-select as
+          // the spec-scoped Filename/Properties fields below.
+          child <-- searchVar.signal.map(_.movementType == "ManualAdjustment").distinct.map { isAdjustment =>
+            if !isAdjustment then emptyNode
+            else
+              Form.selectField(
+                "searchAdjustmentType",
+                "Adjustment Type",
+                ("" -> "Any") +: AdjustmentTypePayload.values.toSeq.map(t => t.toString -> t.label),
+                searchVar.now().adjustmentType,
+                v => searchVar.update(_.copy(adjustmentType = v))
+              )
+          },
           // Kept as one unit (its own mini-grid) rather than two separate top-level grid items, so
           // the pair always renders side by side regardless of how the outer 3-column grid wraps.
           div(
@@ -746,7 +768,12 @@ object FundFlowPage:
                     },
                     r.referenceId
                   ),
-                  span(r.movementType.getOrElse("—")),
+                  div(
+                    span(MovementLabels.typeLabel(r.movementType, r.adjustmentType)),
+                    r.adjustmentNote
+                      .map(n => div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", n))
+                      .getOrElse(emptyNode)
+                  ),
                   Pill(
                     if r.reconciled then "Yes" else "No",
                     if r.reconciled then Pill.Tone.Good else Pill.Tone.Neutral
@@ -1120,6 +1147,7 @@ object FundFlowPage:
     createdFrom:        String                                   = "",
     createdTo:          String                                   = "",
     movementType:       String                                   = "",
+    adjustmentType:     String                                   = "",
     results:            Option[Seq[MovementSearchResultPayload]] = None,
     searchError:        Option[String]                           = None
   )

@@ -9,9 +9,17 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum MovementType derives DbCodec:
-  // ManualAdjustment: a correction entry posted by Ledger.recordAdjustment (currently only for
-  // ManualReconciler.writeOff), not ingested from a file.
+  // ManualAdjustment: a correction entry posted by Ledger.recordAdjustment, not ingested from a
+  // file. Why it was posted is its adjustmentType (see AdjustmentType below), not implied by this.
   case Ingestion, ManualAdjustment, Reversal
+
+// Why a ManualAdjustment movement was posted. MovementType says how a movement entered the ledger;
+// this says what an adjustment is for, so a new kind of adjustment doesn't get mistaken for an
+// existing one. WriteOff: posted by ManualReconciler.writeOff to close a reconciliation's
+// difference.
+@Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
+enum AdjustmentType derives DbCodec:
+  case WriteOff
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Movement(
@@ -33,6 +41,10 @@ case class Movement(
   // on every reversal ever created, past and future; switching that check to movementType would
   // silently stop excluding pre-existing reversal rows that have no movementType set).
   movementType:         Option[MovementType]   = None,
+  // Set only on a ManualAdjustment: what it's for, and the note the person gave when posting it
+  // (e.g. a write-off's "bank fee"), so the movement explains itself without its reconciliation.
+  adjustmentType: Option[AdjustmentType] = None,
+  adjustmentNote: Option[String]         = None,
   var createdAt:        Option[OffsetDateTime] = None,
   var updatedAt:        Option[OffsetDateTime] = None
 ) derives DbCodec:

@@ -151,7 +151,9 @@ object Payload:
       amount           = m.amount,
       direction        = direction,
       otherAccountName = otherAccountId.map(accountName),
-      movementType     = m.movementType.map(_.toString)
+      movementType     = m.movementType.map(_.toString),
+      adjustmentType   = m.adjustmentType.map(_.toString),
+      adjustmentNote   = m.adjustmentNote
     )
 
   def reconFromDomain(recon: Reconciliation): ReconciliationPayload =
@@ -252,7 +254,9 @@ object Payload:
       metaData         = m.metaData.props,
       reconciled       = m.reconciliationId.nonEmpty,
       createdAt        = m.createdAt.get,
-      movementType     = m.movementType.map(_.toString)
+      movementType     = m.movementType.map(_.toString),
+      adjustmentType   = m.adjustmentType.map(_.toString),
+      adjustmentNote   = m.adjustmentNote
     )
 
   def parseTestResultPayloadFromDomain(r: ParseTestResult): ParseTestResultPayload =
@@ -280,8 +284,13 @@ object Payload:
       properties        = m.properties.props,
       metaData          = m.metaData.props,
       movementSpecName  = movementSpecName,
-      movementType      = m.movementType.map(_.toString)
+      movementType      = m.movementType.map(_.toString),
+      adjustmentType    = m.adjustmentType.map(_.toString),
+      adjustmentNote    = m.adjustmentNote
     )
+
+  def adjustmentTypeToDomain(p: AdjustmentTypePayload): AdjustmentType = p match
+    case AdjustmentTypePayload.WriteOff => AdjustmentType.WriteOff
 
   def accountTypeToDomain(p: AccountTypePayload): AccountType = p match
     case AccountTypePayload.Primary   => AccountType.Primary
