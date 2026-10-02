@@ -13,5 +13,8 @@ trait DisputeRepo extends DomainRepo[Dispute, Dispute]:
 
   def findOpenByReferenceIdAndCategory(referenceId: ID, category: DisputeCategory)(using DbCon): Option[Dispute]
 
+  // Every dispute of one category against one target, any status, oldest first.
+  def findByReferenceIdAndCategory(referenceId: ID, category: DisputeCategory)(using DbCon): Vector[Dispute]
+
   // Every non-resolved dispute against one target, any category, oldest first.
   def findOpenByReferenceId(referenceId: ID)(using DbCon): Vector[Dispute]

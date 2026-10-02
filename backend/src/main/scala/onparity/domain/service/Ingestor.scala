@@ -46,8 +46,7 @@ class Ingestor(using
   val eventStore:         EventStore,
   val fileInventoryRepo:  FileInventoryRepo,
   val fileSourceFactory:  FileSourceFactory,
-  val disputeRepo:        DisputeRepo,
-  val disputeCommentRepo: DisputeCommentRepo,
+  val disputeService:     DisputeService,
   val clock:              ClockService,
   val transactor:         Transactor
 ):
@@ -265,19 +264,7 @@ class Ingestor(using
       s"${unroutedRows.size} row(s) in '${fileFeed.name}' matched no configured MovementSpec." +
         (if valuesSummary.nonEmpty then s" Unmatched value(s): $valuesSummary" else "")
 
-    val dispute = Dispute(
-      referenceId    = fileFeed.id,
-      targetType     = DisputeTarget.FileFeed,
-      category       = DisputeCategory.UnroutedRecord,
-      detail         = Some(detail),
-      raisedByUserId = None,
-      createdAt      = Some(clock.now),
-      updatedAt      = Some(clock.now)
-    )
-    disputeRepo
-      .insertIfNoOpenDispute(dispute)
-      .foreach: raised =>
-        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
+    disputeService.raiseSystemDispute(fileFeed.id, DisputeTarget.FileFeed, DisputeCategory.UnroutedRecord, detail)
 
   // Raised once ingestion stops because a file's parse-error count crossed fileFeed.maxParseErrors
   // (see the .map step in ingestResumable above) — a signal the file has a general parsing problem
@@ -297,19 +284,7 @@ class Ingestor(using
         s"configured cutoff (${fileFeed.maxParseErrors.get})." +
         (if sampleSummary.nonEmpty then s" Sample error(s): $sampleSummary" else "")
 
-    val dispute = Dispute(
-      referenceId    = fileFeed.id,
-      targetType     = DisputeTarget.FileFeed,
-      category       = DisputeCategory.ExcessiveParseErrors,
-      detail         = Some(detail),
-      raisedByUserId = None, // system-raised, no human actor
-      createdAt      = Some(clock.now),
-      updatedAt      = Some(clock.now)
-    )
-    disputeRepo
-      .insertIfNoOpenDispute(dispute)
-      .foreach: raised =>
-        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
+    disputeService.raiseSystemDispute(fileFeed.id, DisputeTarget.FileFeed, DisputeCategory.ExcessiveParseErrors, detail)
 
   /**
    * Lets a user try a feed's parser config against a real sample file before wiring up real
@@ -401,49 +376,24 @@ class Ingestor(using
         if clock.now.isAfter(since.plusHours(cadenceHours)) then raiseFileMissingDispute(fileFeed, cadenceHours, since)
         else resolveFileMissingDispute(fileFeed)
 
-  // insertIfNoOpenDispute keeps repeated scans idempotent: reruns of this feed, or a feed that's
-  // still overdue on a later cycle, must not raise a second dispute for the same gap.
+  // raiseSystemDispute is idempotent, so repeated scans don't stack disputes: a rerun of this feed,
+  // or a feed that's still overdue on a later cycle, leaves the one open dispute as it is.
   private def raiseFileMissingDispute(fileFeed: FileFeed, cadenceHours: Int, since: OffsetDateTime): Txn[Unit] =
-    val dispute = Dispute(
-      referenceId    = fileFeed.id,
-      targetType     = DisputeTarget.FileFeed,
-      category       = DisputeCategory.FileMissing,
-      detail         = Some(s"No new file detected for '${fileFeed.name}' since $since (expected every $cadenceHours hours)"),
-      raisedByUserId = None, // system-raised, no human actor
-      createdAt      = Some(clock.now),
-      updatedAt      = Some(clock.now)
+    disputeService.raiseSystemDispute(
+      fileFeed.id,
+      DisputeTarget.FileFeed,
+      DisputeCategory.FileMissing,
+      s"No new file detected for '${fileFeed.name}' since $since (expected every $cadenceHours hours)"
     )
-    disputeRepo
-      .insertIfNoOpenDispute(dispute)
-      .foreach: raised =>
-        eventStore.publishEvent(DisputeRaised(disputeID = raised.id))
 
   // The mirror image of raiseFileMissingDispute: once a file shows up within cadence again, any
-  // open FileMissing dispute for this feed is stale and should close itself, the same way a human
-  // resolving a dispute would (status change + an explanatory comment), not just be forgotten.
+  // open FileMissing dispute for this feed is stale and resolves itself.
   private def resolveFileMissingDispute(fileFeed: FileFeed): Txn[Unit] =
-    disputeRepo
-      .findOpenByReferenceIdAndCategory(fileFeed.id, DisputeCategory.FileMissing)
-      .foreach: dispute =>
-        dispute.status    = DisputeStatus.Resolved
-        dispute.updatedAt = Some(clock.now)
-        disputeRepo.update(dispute)
-        eventStore.publishEvent(
-          DisputeStatusChanged(disputeID = dispute.id, newStatus = DisputeStatus.Resolved.toString)
-        )
-
-        // insert, not insertReturning: a pgjdbc quirk misreads a nullable uuid column on readback
-        // (see DisputeService.raise's own comment) — DisputeComment now has one
-        // (newAssignedToUserId). Every field here is already fully populated, so returning it
-        // directly is exactly equivalent to a successful readback.
-        val comment = DisputeComment(
-          disputeId = dispute.id,
-          body      = Some(s"Auto-resolved: a new file was detected for '${fileFeed.name}'."),
-          newStatus = Some(DisputeStatus.Resolved),
-          createdAt = Some(clock.now)
-        )
-        disputeCommentRepo.insert(comment)
-        eventStore.publishEvent(DisputeCommentAdded(disputeID = dispute.id, commentID = comment.id))
+    disputeService.resolveAutomatically(
+      fileFeed.id,
+      DisputeCategory.FileMissing,
+      s"Auto-resolved: a new file was detected for '${fileFeed.name}'."
+    )
 
   def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
     fileInventoryRepo

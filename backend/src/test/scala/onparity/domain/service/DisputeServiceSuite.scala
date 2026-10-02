@@ -21,6 +21,7 @@ import onparity.testing.rollBackOnly
 
 import java.util.UUID
 import javax.sql.DataSource
+import onparity.testing.TestDisputeService.given
 
 class DisputeServiceSuite extends munit.FunSuite:
   given transactor: Transactor   = Transactor(dataSource)
@@ -361,3 +362,89 @@ class DisputeServiceSuite extends munit.FunSuite:
         val user = testUser()
         intercept[NotFoundError]:
           disputeService.addComment(UUID.randomUUID(), body = None, newStatus = None, newAssignedToUserId = Some(user.id))
+
+  // Resolving an AmountMismatch by hand would hide a reconciliation that's still Mismatched; only a
+  // write-off, unmatch or late completion may resolve it (see DisputeCategory.automaticResolution).
+  test("addComment rejects resolving an AmountMismatch by hand but still allows other status changes"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+        val disputeService   = DisputeService()
+
+        val inMovement  = createMovement(data.journalToRecon, 300)
+        val outMovement = createMovement(data.reportToRecon, 100)
+        val recon =
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "mismatch")
+        val dispute =
+          data.disputeRepo.findOpenByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch).get
+
+        intercept[IllegalArgumentError]:
+          disputeService.addComment(dispute.id, Some("looks fine"), Some(DisputeStatus.Resolved))
+        assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.New)
+
+        disputeService.addComment(dispute.id, None, Some(DisputeStatus.Investigating))
+        assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Investigating)
+
+  // Once the system has resolved an AmountMismatch (here by the write-off), nothing would ever
+  // resolve it again, so a person can't reopen it; undoing the write-off (unmatch) is the way back.
+  test("addComment rejects reopening an AmountMismatch the system resolved, but still allows comments"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+        val disputeService   = DisputeService()
+
+        val inMovement  = createMovement(data.journalToRecon, 300)
+        val outMovement = createMovement(data.reportToRecon, 100)
+        val recon =
+          manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "mismatch")
+        val dispute =
+          data.disputeRepo.findOpenByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch).get
+        manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
+        assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Resolved)
+
+        intercept[IllegalArgumentError]:
+          disputeService.addComment(dispute.id, Some("reopening"), Some(DisputeStatus.New))
+        assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Resolved)
+
+        disputeService.addComment(dispute.id, Some("written off as the monthly bank fee"), None)
+        assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Resolved)
+
+  test("addComment rejects assigning a resolved dispute, but allows assigning in the entry that reopens it"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val user     = testUser()
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+        disputeService.addComment(dispute.id, Some("not a duplicate"), Some(DisputeStatus.Resolved))
+
+        intercept[IllegalArgumentError]:
+          disputeService.addComment(dispute.id, body = None, newStatus = None, newAssignedToUserId = Some(user.id))
+        assertEquals(data.disputeRepo.findById(dispute.id).get.assignedToUserId, None)
+
+        disputeService.addComment(dispute.id, None, Some(DisputeStatus.Investigating), Some(user.id))
+        val reopened = data.disputeRepo.findById(dispute.id).get
+        assertEquals(reopened.status, DisputeStatus.Investigating)
+        assertEquals(reopened.assignedToUserId, Some(user.id))
+
+  test("addComment rejects resolving and assigning in the same entry"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val disputeService = DisputeService()
+
+        val user     = testUser()
+        val movement = createMovement(data.journalToRecon, 100)
+        val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
+
+        intercept[IllegalArgumentError]:
+          disputeService.addComment(dispute.id, Some("done"), Some(DisputeStatus.Resolved), Some(user.id))
+        assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.New)

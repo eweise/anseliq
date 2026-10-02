@@ -10,6 +10,7 @@ import onparity.domain.model.helper.JSONBProps
 import onparity.domain.port.driven.*
 
 import javax.sql.DataSource
+import onparity.testing.TestDisputeService.given
 
 class ReconcileAccountResumableSuite extends munit.FunSuite:
   given transactor: Transactor = Transactor(dataSource)

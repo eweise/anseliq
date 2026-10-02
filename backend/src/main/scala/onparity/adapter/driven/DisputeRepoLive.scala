@@ -18,6 +18,14 @@ class DisputeRepoLive extends Repo[Dispute, Dispute, UUID] with DisputeRepo:
       RETURNING ${d.all}
     """.query[Dispute].run().headOption
 
+  def findByReferenceIdAndCategory(referenceId: ID, category: DisputeCategory)(using DbCon): Vector[Dispute] =
+    sql"""
+      SELECT ${d.all}
+      FROM $d
+      WHERE reference_id = $referenceId AND category = $category
+      ORDER BY created_at
+    """.query[Dispute].run()
+
   def findOpenByReferenceId(referenceId: ID)(using DbCon): Vector[Dispute] =
     sql"""
       SELECT ${d.all}

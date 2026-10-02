@@ -29,6 +29,7 @@ import onparity.domain.port.driven.{DisputeRepo, JobRepo, Txn}
 import onparity.testing.rollBackOnly
 
 import javax.sql.DataSource
+import onparity.testing.TestDisputeService.given
 
 class ManualReconcilerSuite extends munit.FunSuite:
   given transactor: Transactor   = Transactor(dataSource)
@@ -314,7 +315,21 @@ class ManualReconcilerSuite extends munit.FunSuite:
 
         assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Resolved)
 
-  test("unmatch after writeOff reverses the adjustment instead of returning it to the unreconciled pool"):
+  test("unmatch refuses a written-off reconciliation"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
+        manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
+
+        intercept[IllegalStateError]:
+          manualReconciler.unmatch(recon.id)
+        assertEquals(data.reconRepo.findById(recon.id).get.status, ReconciliationStatus.Final)
+
+  test("reverseWriteOff reverses the adjustment, keeps the match, and puts the reconciliation back to Mismatched"):
     transact(transactor):
       rollBackOnly:
         given data: DataSetup = DataSetup()
@@ -325,18 +340,83 @@ class ManualReconcilerSuite extends munit.FunSuite:
         val reconBeforeWriteOff              = data.accountRepo.findById(data.reconAccount.id).get
         val adjustment                       = manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
 
-        manualReconciler.unmatch(recon.id)
+        manualReconciler.reverseWriteOff(recon.id, "fee was refunded")
 
-        assertEquals(data.movementRepo.findById(inMovement.id).get.reconciliationId, None)
-        assertEquals(data.movementRepo.findById(outMovement.id).get.reconciliationId, None)
-        val adjustmentAfter = data.movementRepo.findById(adjustment.id).get
-        val reversedVia     = adjustmentAfter.reconciliationId.flatMap(data.reconRepo.findById)
+        val reverted = data.reconRepo.findById(recon.id).get
+        assertEquals(reverted.status, ReconciliationStatus.Mismatched)
+        assertEquals(reverted.balance, BigDecimal(10)) // in 100 - out 90, as before the write-off
+        assertEquals(reverted.adjustmentReason, None)
+
+        // The match is kept; only the adjustment leaves it, linked to its own reversal instead.
+        assertEquals(data.movementRepo.findById(inMovement.id).get.reconciliationId, Some(recon.id))
+        assertEquals(data.movementRepo.findById(outMovement.id).get.reconciliationId, Some(recon.id))
+        val reversedVia = data.movementRepo.findById(adjustment.id).get.reconciliationId.flatMap(data.reconRepo.findById)
         assertEquals(reversedVia.map(_.status), Some(ReconciliationStatus.Reversed))
 
-        // adjustment + its reversal net to nothing; the original pair's match is undone as usual.
+        // Balances are back to where the mismatch left them.
         val reconAfter = data.accountRepo.findById(data.reconAccount.id).get
         assertEquals(reconAfter.balance, reconBeforeWriteOff.balance)
-        assertEquals(reconAfter.reconciledBalance, reconBeforeWriteOff.reconciledBalance - 10)
+        assertEquals(reconAfter.reconciledBalance, reconBeforeWriteOff.reconciledBalance)
+
+        // A new open dispute (the write-off resolved the first), carrying the reason.
+        val dispute = data.disputeRepo.findOpenByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch)
+        assert(dispute.exists(_.detail.exists(_.contains("fee was refunded"))))
+
+        // The two threads link to each other, so either leads to the other.
+        val all      = data.disputeRepo.findByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch)
+        val earlier  = all.find(_.status == DisputeStatus.Resolved).get
+        val later    = dispute.get
+        def linksFrom(d: Dispute) = data.disputeCommentRepo.findByDisputeId(d.id).flatMap(_.relatedDisputeId)
+        assertEquals(linksFrom(earlier), Vector(later.id))
+        assertEquals(linksFrom(later), Vector(earlier.id))
+
+        // And now it can be unmatched like any other mismatch.
+        manualReconciler.unmatch(recon.id)
+        assertEquals(data.reconRepo.findById(recon.id).get.status, ReconciliationStatus.Voided)
+
+  // Regression: every write-off of a reconciliation used to get the same adjustment reference id,
+  // so a second write-off's adjustment was silently dropped by the insert's ON CONFLICT DO NOTHING
+  // after the account balances had already moved — and the second reverse then found nothing.
+  test("a reconciliation can be written off and reversed more than once, with balances back where they started"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
+        val before                  = data.accountRepo.findById(data.reconAccount.id).get
+
+        manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
+        manualReconciler.reverseWriteOff(recon.id, "fee was refunded")
+        val second = manualReconciler.writeOff(recon.id, outMovement.id, "bank fee after all")
+
+        assert(data.movementRepo.findById(second.id).isDefined, "the second write-off's adjustment must be stored")
+        assert(data.movementRepo.findByReconciliationID(recon.id).exists(_.id == second.id))
+
+        manualReconciler.reverseWriteOff(recon.id, "refunded again")
+
+        val reverted = data.reconRepo.findById(recon.id).get
+        assertEquals(reverted.status, ReconciliationStatus.Mismatched)
+        assertEquals(reverted.balance, BigDecimal(10))
+        val after = data.accountRepo.findById(data.reconAccount.id).get
+        assertEquals(after.balance, before.balance)
+        assertEquals(after.reconciledBalance, before.reconciledBalance)
+
+  test("reverseWriteOff rejects a reconciliation that wasn't written off, and a blank reason"):
+    transact(transactor):
+      rollBackOnly:
+        given data: DataSetup = DataSetup()
+        import data.given
+        val manualReconciler = ManualReconciler()
+
+        val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
+        intercept[IllegalStateError]:
+          manualReconciler.reverseWriteOff(recon.id, "nothing to reverse")
+
+        manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
+        intercept[IllegalArgumentError]:
+          manualReconciler.reverseWriteOff(recon.id, "  ")
 
   test("writeOff on a Final reconciliation errors"):
     transact(transactor):
@@ -442,18 +522,9 @@ class ManualReconcilerSuite extends munit.FunSuite:
           Seq(outMovement.id),
           "wrong amount field"
         )
-        // Simulates the AmountMismatch dispute InMemoryReconciler.streamMergeJoin would have raised
-        // for this InProgress mismatch — matchMovements itself doesn't raise disputes.
-        data.disputeRepo.insertIfNoOpenDispute(
-          Dispute(
-            referenceId = recon.id,
-            targetType  = DisputeTarget.Reconciliation,
-            category    = DisputeCategory.AmountMismatch,
-            detail      = Some(s"Balance mismatch of ${recon.balance}"),
-            createdAt   = Some(clockSvc.now),
-            updatedAt   = Some(clockSvc.now)
-          )
-        )
+        // The match is unbalanced under the spec's OneToOne rule, so matchMovements has already
+        // made it Mismatched and raised its AmountMismatch dispute.
+        assertEquals(recon.status, ReconciliationStatus.Mismatched)
         // Same file, but never reconciled — should be found but left alone (nothing to unreconcile).
         createMovementForFile(data.journalToRecon, 5)
 

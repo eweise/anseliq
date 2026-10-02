@@ -1,7 +1,6 @@
 package onparity.domain.service
 
 import com.augustnagro.magnum.{Transactor, transact}
-import com.fasterxml.uuid.Generators
 import onparity.common.model.AppliedRules
 import onparity.common.model.model.{ID, Money, Zero}
 import onparity.domain.model.*
@@ -22,8 +21,7 @@ class ManualReconciler(using
   val movementRepo:       MovementRepo,
   val reconRepo:          ReconciliationRepo,
   val reconSpecRepo:      ReconciliationSpecRepo,
-  val disputeRepo:        DisputeRepo,
-  val disputeCommentRepo: DisputeCommentRepo,
+  val disputeService:     DisputeService,
   val eventStore:         EventStore,
   val clock:              ClockService,
   val transactor:         Transactor
@@ -82,14 +80,32 @@ class ManualReconciler(using
     ledger.reconcile(inMovements ++ outMovements, reconciliation.id, reconSpec.accountId)
 
     if status == ReconciliationStatus.Mismatched then
-      AmountMismatchDisputes.raise(reconciliation.id, s"Balance mismatch of $balance")
+      disputeService.raiseSystemDispute(
+        reconciliation.id,
+        DisputeTarget.Reconciliation,
+        DisputeCategory.AmountMismatch,
+        s"Balance mismatch of $balance"
+      )
 
     eventStore.publishEvent(ReconciliationManuallyMatched(reconciliationID = reconciliation.id))
 
     reconciliation
 
-  def unmatch(reconciliationId: ID): Txn[Unit] =
+  /**
+   * A person undoing a match. A written-off reconciliation can't be unmatched this way: a write-off
+   * is a deliberate ledger entry, and undoing it is its own admin-only action (reverseWriteOff),
+   * after which the reconciliation is Mismatched again and can be unmatched like any other.
+   */
+  def unmatch(reconciliationId: ID): Txn[Unit] = voidReconciliation(reconciliationId, allowWrittenOff = false)
+
+  // allowWrittenOff: only the bad-file correction (bulkUnreconcileByFile) voids a written-off
+  // reconciliation directly — there the movements' amounts were wrong, so the write-off was too.
+  private def voidReconciliation(reconciliationId: ID, allowWrittenOff: Boolean): Txn[Unit] =
     val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
+    if !allowWrittenOff && isWrittenOff(reconciliation) then
+      throw IllegalStateError(
+        s"reconciliation $reconciliationId was written off; reverse the write-off before unmatching it"
+      )
     if reconciliation.status == ReconciliationStatus.Voided then
       throw IllegalStateError(s"reconciliation $reconciliationId is already voided")
     // A Reversed reconciliation permanently links a movement to its Ledger.reverseMovement
@@ -113,9 +129,74 @@ class ManualReconciler(using
     reconciliation.status = ReconciliationStatus.Voided
     reconRepo.update(reconciliation)
 
-    AmountMismatchDisputes.resolveOpen(reconciliationId, s"Auto-resolved: reconciliation $reconciliationId was voided.")
+    disputeService.resolveAutomatically(
+      reconciliationId,
+      DisputeCategory.AmountMismatch,
+      s"Auto-resolved: reconciliation $reconciliationId was voided."
+    )
 
     eventStore.publishEvent(ReconciliationVoided(reconciliationID = reconciliationId))
+
+  private def isWrittenOff(r: Reconciliation): Boolean =
+    r.status == ReconciliationStatus.Final && r.adjustmentReason.exists(_.nonEmpty)
+
+  /**
+   * Undoes a write-off that shouldn't have happened (posted against the wrong movement, or the
+   * "missing" money later turned up). Admin-only at the route, and a reason is required. Unlike
+   * unmatch, the match itself is kept: the write-off adjustment is taken out of the reconciliation
+   * and reversed (Ledger.reverseMovement, so the original entry and its correction both stay on the
+   * books), the difference comes back, and the reconciliation is Mismatched again with a new
+   * AmountMismatch dispute. From there it can be written off correctly, unmatched, or — for
+   * OneToMany — completed by a late movement.
+   */
+  def reverseWriteOff(reconciliationId: ID, reason: String, reversedByUserId: Option[ID] = None): Txn[Reconciliation] =
+    val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
+    if !isWrittenOff(reconciliation) then
+      throw IllegalStateError(s"reconciliation $reconciliationId hasn't been written off")
+    if reason.isBlank then throw IllegalArgumentError("reason", "required to reverse a write-off")
+
+    val specId    = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
+    val reconSpec = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
+    val movements = movementRepo.findByReconciliationID(reconciliationId)
+    val (adjustments, matched) = movements.partition(_.movementType.contains(MovementType.ManualAdjustment))
+    if adjustments.isEmpty then
+      throw IllegalStateError(s"reconciliation $reconciliationId has no write-off adjustment to reverse")
+
+    ledger.unreconcile(adjustments, reconSpec.accountId)
+    adjustments.foreach(ledger.reverseMovement)
+
+    // Same balance rule as matching (in-spec amounts − out-spec amounts), over the movements that
+    // were actually matched — i.e. the difference the write-off had closed.
+    def total(specId: ID) = matched.filter(_.movementSpecId == specId).map(_.amount).sum
+    val balance = total(reconSpec.inMovementSpecId) - total(reconSpec.outMovementSpecId)
+
+    reconciliation.balance          = balance
+    reconciliation.status           = ReconciliationStatus.Mismatched
+    reconciliation.adjustmentReason = None
+    reconciliation.updatedAt        = Some(clock.now)
+    reconRepo.update(reconciliation)
+
+    // The write-off resolved this reconciliation's AmountMismatch dispute; the mismatch is back,
+    // so a new one is raised, and the two threads are linked so either leads to the other.
+    val resolvedByWriteOff = disputeService.latestResolved(reconciliationId, DisputeCategory.AmountMismatch)
+    val reraised = disputeService.raiseSystemDispute(
+      reconciliationId,
+      DisputeTarget.Reconciliation,
+      DisputeCategory.AmountMismatch,
+      s"Write-off reversed ($reason). Balance mismatch of $balance"
+    )
+    val by = reversedByUserId.flatMap(disputeService.displayName).fold("")(name => s" by $name")
+    for earlier <- resolvedByWriteOff; later <- reraised do
+      disputeService.crossLink(
+        earlier,
+        later,
+        earlierNote = s"The write-off was reversed$by ($reason). The mismatch is open again under a new dispute.",
+        laterNote   = s"Raised because the write-off was reversed$by ($reason). The earlier dispute was resolved by that write-off."
+      )
+    eventStore.publishEvent(
+      ReconciliationWriteOffReversed(reconciliationID = reconciliationId, reason = reason, reversedByUserId = reversedByUserId)
+    )
+    reconciliation
 
   /**
    * Closes a Mismatched (or still-InProgress OneToMany) reconciliation by posting its whole
@@ -159,7 +240,10 @@ class ManualReconciler(using
       outAccountId   = outAccountId,
       amount         = difference.abs,
       movementSpecId = against.movementSpecId,
-      referenceId    = Generators.nameBasedGenerator().generate(s"write-off of reconciliation $reconciliationId"),
+      // A fresh id per write-off, not one derived from the reconciliation: a reconciliation can be
+      // written off again after a reversal, and a repeated id would collide with the first
+      // adjustment. Retrying the same write-off is already ruled out by the status check above.
+      referenceId    = createID(),
       metaData = Map(
         "write_off_of_reconciliation_id" -> reconciliationId.toString,
         "write_off_against_movement_id"  -> movementId.toString
@@ -174,8 +258,9 @@ class ManualReconciler(using
     reconciliation.status           = ReconciliationStatus.Final
     reconRepo.update(reconciliation)
 
-    AmountMismatchDisputes.resolveOpen(
+    disputeService.resolveAutomatically(
       reconciliationId,
+      DisputeCategory.AmountMismatch,
       s"Auto-resolved: reconciliation $reconciliationId was written off ($reason)."
     )
 
@@ -213,7 +298,7 @@ class ManualReconciler(using
       .grouped(batchSize)
       .foreach: batch =>
         transact(transactor):
-          batch.foreach(id => unmatch(id))
+          batch.foreach(id => voidReconciliation(id, allowWrittenOff = true))
 
     BulkUnreconcileResult(movementsFound = movementCount, reconciliationsVoided = reconciliationIds.size)
 

@@ -11,6 +11,7 @@ import onparity.domain.port.driven.*
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8
 import javax.sql.DataSource
+import onparity.testing.TestDisputeService.given
 
 class IngestResumableSuite extends munit.FunSuite:
   given transactor: Transactor = Transactor(dataSource)

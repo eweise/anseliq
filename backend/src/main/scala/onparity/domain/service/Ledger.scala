@@ -107,6 +107,11 @@ class Ledger(using
     note:           Option[String]
   ): Txn[Movement] =
     if amount <= Zero then throw IllegalStateError(s"adjustment amount must be positive, got $amount")
+    // Checked before any balance moves: movementRepo.insert silently skips a duplicate
+    // reference_id (ON CONFLICT DO NOTHING), which would otherwise leave the balances updated with
+    // no movement behind them.
+    if movementRepo.findExistingReferenceIds(Seq(referenceId)).nonEmpty then
+      throw IllegalStateError(s"an adjustment with reference id $referenceId already exists")
     val inAccount  = accountRepo.findByIdForUpdate(inAccountId).ErrIfNotFound("In Account", inAccountId)
     val outAccount = accountRepo.findByIdForUpdate(outAccountId).ErrIfNotFound("Out Account", outAccountId)
 

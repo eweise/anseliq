@@ -24,6 +24,7 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import java.net.URI
 import java.util.UUID
 import javax.sql.DataSource
+import onparity.testing.TestDisputeService.given
 
 class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
 

@@ -45,8 +45,7 @@ class InMemoryReconciler(using
   val clock:              ClockService,
   val transactor:         Transactor,
   val jobRepo:            JobRepo,
-  val disputeRepo:        DisputeRepo,
-  val disputeCommentRepo: DisputeCommentRepo,
+  val disputeService:     DisputeService,
   val dataSource:         DataSource
 ):
 
@@ -160,8 +159,10 @@ class InMemoryReconciler(using
         recon.status    = ReconciliationStatus.Mismatched
         recon.updatedAt = Some(now)
         reconRepo.update(recon)
-        AmountMismatchDisputes.raise(
+        disputeService.raiseSystemDispute(
           recon.id,
+          DisputeTarget.Reconciliation,
+          DisputeCategory.AmountMismatch,
           s"Balance mismatch of ${recon.balance}, unresolved after ${reconSpec.agingLimit} day(s)"
         )
       }
@@ -354,7 +355,13 @@ class InMemoryReconciler(using
 
             reconciliations
               .filter(_.status == ReconciliationStatus.Mismatched)
-              .foreach(recon => AmountMismatchDisputes.raise(recon.id, s"Balance mismatch of ${recon.balance}"))
+              .foreach: recon =>
+                disputeService.raiseSystemDispute(
+                  recon.id,
+                  DisputeTarget.Reconciliation,
+                  DisputeCategory.AmountMismatch,
+                  s"Balance mismatch of ${recon.balance}"
+                )
 
             jobId.foreach: id =>
               val job                = jobRepo.findById(id).ErrIfNotFound("Job", id)
@@ -508,8 +515,9 @@ class InMemoryReconciler(using
           recon.updatedAt = Some(clock.now)
           if newBalance == Zero then
             recon.status = ReconciliationStatus.Final
-            AmountMismatchDisputes.resolveOpen(
+            disputeService.resolveAutomatically(
               recon.id,
+              DisputeCategory.AmountMismatch,
               s"Auto-resolved: late movements brought reconciliation ${recon.id} into balance."
             )
           reconRepo.update(recon)

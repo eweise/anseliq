@@ -4,6 +4,7 @@ import com.typesafe.config.ConfigFactory
 import onparity.app.AppEnv
 import onparity.domain.fixture.ControlTimeIngestor
 import onparity.domain.service.{ClockServiceLive, Ingestor}
+import onparity.testing.TestDisputeService.given
 
 object ControlTimeMain:
   def main(args: Array[String]): Unit =

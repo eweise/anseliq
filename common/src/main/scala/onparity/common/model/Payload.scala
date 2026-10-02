@@ -172,6 +172,8 @@ case class ManualMatchRequest(
 // between — see ManualReconciler.writeOff.
 case class WriteOffRequest(reason: String, movementId: String) derives ReadWriter
 
+case class ReverseWriteOffRequest(reason: String) derives ReadWriter
+
 case class BadFilePreviewRequest(fileSourceEntry: String) derives ReadWriter
 
 case class BadFilePreviewPayload(
@@ -381,7 +383,13 @@ case class DisputePayload(
   raisedByUserId:   Option[String] = None,
   raisedByName:     Option[String] = None,
   assignedToUserId: Option[String] = None,
-  assignedToName:   Option[String] = None
+  assignedToName:   Option[String] = None,
+  // Set when a person can't resolve it by hand: what resolves it instead (see backend's
+  // DisputeCategory.automaticResolution).
+  automaticResolution: Option[String] = None,
+  // For the same categories once resolved: why it can't be reopened and what to do instead (see
+  // backend's DisputeCategory.insteadOfReopening).
+  insteadOfReopening: Option[String] = None
 ) derives ReadWriter
 
 case class DisputeCommentPayload(
@@ -389,7 +397,9 @@ case class DisputeCommentPayload(
   body:              Option[String],
   newStatus:         Option[DisputeStatusPayload],
   newAssignedToName: Option[String],
-  createdAt:         OffsetDateTime
+  createdAt:         OffsetDateTime,
+  // Another dispute this entry links to (see backend's DisputeComment.relatedDisputeId).
+  relatedDisputeId: Option[String] = None
 ) derives ReadWriter
 
 case class DisputeDetailPayload(

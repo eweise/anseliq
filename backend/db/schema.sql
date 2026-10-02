@@ -169,6 +169,8 @@ create table recon.dispute_comment
     body                    text,
     new_status              text,
     new_assigned_to_user_id uuid REFERENCES recon.app_user (id),
+    -- Another dispute this entry links to (see DisputeComment.relatedDisputeId).
+    related_dispute_id      uuid REFERENCES recon.dispute (id) ON DELETE SET NULL,
     created_at              timestamptz default CURRENT_TIMESTAMP not null
 );
 

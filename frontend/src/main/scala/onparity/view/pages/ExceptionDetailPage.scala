@@ -23,13 +23,16 @@ object ExceptionDetailPage:
 
   case class State(detail: Option[DisputeDetailPayload] = None, assignableUsers: Seq[UserPayload] = Seq.empty)
 
-  private val statusOptions: Seq[(String, String)] =
+  // Resolved is left out for a dispute the system resolves itself (automaticResolution is set):
+  // marking it resolved by hand wouldn't fix the underlying problem, and the backend rejects it.
+  private def statusOptions(d: DisputeDetailPayload): Seq[(String, String)] =
     ("", "No change") +: Seq(
       DisputeStatusPayload.New,
       DisputeStatusPayload.Investigating,
       DisputeStatusPayload.Escalated,
       DisputeStatusPayload.Resolved
-    ).map(s => s.toString -> s.toString)
+    ).filterNot(s => s == DisputeStatusPayload.Resolved && d.dispute.automaticResolution.isDefined)
+      .map(s => s.toString -> s.toString)
 
   def statusTone(status: DisputeStatusPayload): Pill.Tone = status match
     case DisputeStatusPayload.New           => Pill.Tone.Accent
@@ -112,7 +115,7 @@ object ExceptionDetailPage:
                 h3(cls := "font-medium text-md-on-surface dark:text-white", "Thread"),
                 if d.comments.isEmpty then p(cls := s"text-sm ${Form.mutedTextCls}", "No comments yet.")
                 else div(cls := "flex flex-col gap-3").amend(d.comments.map(commentEntry)*),
-                commentForm(statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
+                commentForm(d, statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
               ),
               subjectCard(d, Observer[Unit](_ => loadBus.emit(())))
             )
@@ -127,7 +130,8 @@ object ExceptionDetailPage:
       cls := "flex flex-wrap items-center gap-4 text-sm text-md-on-surface-variant dark:text-gray-400",
       span(s"Raised by: ${d.dispute.raisedByName.getOrElse("System")}"),
       span(s"Assigned to: ${d.dispute.assignedToName.getOrElse("Unassigned")}"),
-      if alreadyMine then div()
+      // A resolved dispute can't be assigned (the backend rejects it): there's no work left to own.
+      if alreadyMine || d.dispute.status == DisputeStatusPayload.Resolved then div()
       else Buttons.textButton("Assign to me", Observer[Unit](_ => assignBus.emit(())))
     )
 
@@ -190,10 +194,19 @@ object ExceptionDetailPage:
         .map(name => Pill(s"→ Assigned to $name", Pill.Tone.Accent))
         .getOrElse(div()),
       c.body.map(b => div(cls := "text-sm mt-1 text-md-on-surface dark:text-gray-200", b)).getOrElse(div()),
+      c.relatedDisputeId
+        .map(id =>
+          Buttons.textButton(
+            s"Open dispute ${ReconciliationDetailPage.shortId(id)} →",
+            Observer[Unit](_ => Nav.toExceptionDetail(id))
+          )
+        )
+        .getOrElse(emptyNode),
       div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mt-1", ViewHelper.formatDateTime(c.createdAt))
     )
 
   private def commentForm(
+    d:               DisputeDetailPayload,
     statusVar:       Var[String],
     assigneeVar:     Var[String],
     bodyVar:         Var[String],
@@ -205,24 +218,50 @@ object ExceptionDetailPage:
       ("", "No change") +: assignableUsers.map(u => u.id.getOrElse("") -> s"${u.firstName} ${u.lastName}")
     div(
       cls := "border-t border-md-outline pt-4",
-      Form.selectField(
-        "newStatus",
-        "Change status",
-        statusOptions,
-        "",
-        v =>
-          statusVar.set(v)
-          validationError.set(None)
-      ),
-      Form.selectField(
-        "newAssignee",
-        "Assign to",
-        assigneeOptions,
-        "",
-        v =>
-          assigneeVar.set(v)
-          validationError.set(None)
-      ),
+      // For a category the system resolves itself (automaticResolution set), the backend rejects
+      // any manual move into or out of Resolved: while open, Resolved is left out of the options;
+      // once resolved, there's no status to change at all, so the dropdown is replaced by a note
+      // on what to do instead. Comments and reassignment still work either way.
+      (d.dispute.automaticResolution, d.dispute.status) match
+        case (Some(_), DisputeStatusPayload.Resolved) =>
+          p(
+            cls := s"mb-5 text-sm ${Form.mutedTextCls}",
+            "Resolved automatically, so it can't be reopened. " + d.dispute.insteadOfReopening.getOrElse("")
+          )
+        case (auto, _) =>
+          div(
+            Form.selectField(
+              "newStatus",
+              "Change status",
+              statusOptions(d),
+              "",
+              v =>
+                statusVar.set(v)
+                validationError.set(None)
+            ),
+            auto
+              .map(how => p(cls := s"-mt-3 mb-5 text-xs ${Form.mutedTextCls}", s"This can't be resolved by hand. $how"))
+              .getOrElse(emptyNode)
+          )
+      ,
+      // Only offered when the dispute will be open after this entry: it's open now and isn't being
+      // resolved, or it's resolved and this entry reopens it. A resolved dispute can't be assigned.
+      child <-- statusVar.signal.map { chosen =>
+        val statusAfter = DisputeStatusPayload.values.find(_.toString == chosen).getOrElse(d.dispute.status)
+        if statusAfter == DisputeStatusPayload.Resolved then
+          assigneeVar.set("")
+          emptyNode
+        else
+          Form.selectField(
+            "newAssignee",
+            "Assign to",
+            assigneeOptions,
+            "",
+            v =>
+              assigneeVar.set(v)
+              validationError.set(None)
+          )
+      },
       div(
         cls := "mb-1",
         input(

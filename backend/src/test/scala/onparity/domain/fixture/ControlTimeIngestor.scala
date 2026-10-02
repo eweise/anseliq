@@ -4,7 +4,7 @@ import com.augustnagro.magnum.Transactor
 import onparity.common.model.model.ID
 import onparity.domain.model.{FileInventory, FileSourceEntry}
 import onparity.domain.port.driven.*
-import onparity.domain.service.{ClockService, EventStore, Ingestor, Ledger}
+import onparity.domain.service.{ClockService, DisputeService, EventStore, Ingestor, Ledger}
 
 // Not `val`-marked: Ingestor already exposes each of these as an inherited given member (it takes
 // the identical `using val` clause itself), so redeclaring them as members here would need
@@ -19,8 +19,7 @@ class ControlTimeIngestor(using
   eventStore:         EventStore,
   fileInventoryRepo:  FileInventoryRepo,
   fileSourceFactory:  FileSourceFactory,
-  disputeRepo:        DisputeRepo,
-  disputeCommentRepo: DisputeCommentRepo,
+  disputeService:     DisputeService,
   clock:              ClockService,
   transactor:         Transactor
 ) extends Ingestor:

@@ -13,6 +13,7 @@ import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 import javax.sql.DataSource
+import onparity.testing.TestDisputeService.given
 
 class IngestorSuite extends munit.FunSuite:
   given transactor: Transactor = Transactor(dataSource)

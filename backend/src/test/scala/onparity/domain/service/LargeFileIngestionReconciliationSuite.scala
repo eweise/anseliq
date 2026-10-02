@@ -10,6 +10,7 @@ import onparity.domain.port.driven.*
 
 import java.util.UUID
 import javax.sql.DataSource
+import onparity.testing.TestDisputeService.given
 
 // Excluded from the normal `sbt test` cycle in build.sbt — ingests and reconciles two
 // 5,000,000-row files. Historically took on the order of hours, dominated by

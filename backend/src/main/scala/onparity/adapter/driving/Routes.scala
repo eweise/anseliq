@@ -442,6 +442,14 @@ class App(using
       manualReconciler.writeOff(UUID.fromString(id), UUID.fromString(payload.movementId), payload.reason)
     write("written-off")
 
+  @cask.route(s"${HttpPath.reconciliation}/:id/reverse-write-off", methods = HttpCmd.POST)
+  def reverseWriteOff(id: String, request: cask.Request)(currentUser: JwtHelper.UserClaim): String =
+    requireAdmin(currentUser)
+    val payload = read[ReverseWriteOffRequest](request.text())
+    transact(transactor):
+      manualReconciler.reverseWriteOff(UUID.fromString(id), payload.reason, Some(UUID.fromString(currentUser.userId)))
+    write("write-off-reversed")
+
   @cask.route(s"${HttpPath.movements}/bad-file-preview", methods = HttpCmd.POST)
   def previewBadFile(request: cask.Request): String =
     val payload = read[BadFilePreviewRequest](request.text())

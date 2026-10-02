@@ -358,7 +358,9 @@ object Payload:
       raisedByUserId   = dispute.raisedByUserId.map(_.toString),
       raisedByName     = raisedByName,
       assignedToUserId = dispute.assignedToUserId.map(_.toString),
-      assignedToName   = assignedToName
+      assignedToName   = assignedToName,
+      automaticResolution = dispute.category.automaticResolution,
+      insteadOfReopening  = dispute.category.insteadOfReopening
     )
 
   def disputeTargetFromDomain(d: DisputeTarget): DisputeTargetPayload = d match
@@ -389,7 +391,8 @@ object Payload:
       body              = c.body,
       newStatus         = c.newStatus.map(disputeStatusFromDomain),
       newAssignedToName = newAssignedToName,
-      createdAt         = c.createdAt.get
+      createdAt         = c.createdAt.get,
+      relatedDisputeId  = c.relatedDisputeId.map(_.toString)
     )
 
   def reportsSummaryPayloadFromDomain(r: ReportsSummaryReport): ReportsSummaryPayload =
