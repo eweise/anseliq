@@ -31,3 +31,6 @@ project/metals.sbt
 
 .worktrees
 backend/db/snapshot.dump
+
+# website
+website/node_modules

@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AnselIQ — Reconciliation that explains itself</title>
+    <meta
+      name="description"
+      content="AnselIQ matches processor, bank and internal ledger data automatically, and when something doesn't tie out, shows you the difference, the movements behind it, and how to resolve it."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@600;700;800&display=swap"
+    />
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-paper-100 focus:px-3 focus:py-2">Skip to content</a>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 border-b border-ink-700/60 bg-ink/90 backdrop-blur">
+      <nav class="container-page flex h-16 items-center justify-between gap-6" aria-label="Main">
+        <a href="#top" class="flex items-center gap-2.5 text-paper-100" aria-label="AnselIQ home">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#212830" />
+            <circle cx="16" cy="16" r="9" fill="none" stroke="#9aa4ae" stroke-width="2" />
+            <circle cx="16" cy="16" r="3.5" fill="#e8992f" />
+          </svg>
+          <span class="font-display text-lg font-bold tracking-tight">Ansel<span class="text-safelight">IQ</span></span>
+        </a>
+        <div class="hidden items-center gap-8 text-sm text-ink-200 md:flex">
+          <a href="#how" class="hover:text-paper-100">How it works</a>
+          <a href="#features" class="hover:text-paper-100">Capabilities</a>
+          <a href="#early-access" class="hover:text-paper-100">Early access</a>
+        </div>
+        <a href="#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section id="top" class="relative overflow-hidden bg-ink text-paper-100">
+        <div class="container-page relative grid items-center gap-14 pb-20 pt-16 lg:grid-cols-[1.05fr_1fr] lg:pb-28 lg:pt-24">
+          <div class="flex flex-col gap-7">
+            <p class="eyebrow text-safelight">Reconciliation for payments teams</p>
+            <h1 class="text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+              Know exactly why your books <span class="relative inline-block whitespace-nowrap">don't balance.<svg class="mark pencil-amber -bottom-2 left-0 h-3 w-full" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 3.5C50 2 125 4.6 198 2.8" /><path pathLength="1" d="M6 9.4C70 8 138 10.4 195 8.6" /></svg></span>
+            </h1>
+            <p class="max-w-prose text-lg leading-relaxed text-ink-200">
+              AnselIQ matches processor, bank and internal ledger data automatically. When something
+              doesn't tie out, it shows you the difference, the movements behind it, and the fix, with
+              every step recorded.
+            </p>
+            <div class="flex flex-wrap items-center gap-3">
+              <a href="#early-access" class="btn-primary">Request early access</a>
+              <a href="#how" class="btn-ghost border-ink-600 text-paper-100 hover:border-ink-400">See how it works</a>
+            </div>
+            <p class="text-sm text-ink-300">Now onboarding a small group of design partners.</p>
+          </div>
+
+          <!-- Product recreation: the balance breakdown -->
+          <figure class="screen" aria-label="AnselIQ balance breakdown for a settlement account">
+            <div class="screen-bar">
+              <span class="screen-dot"></span><span class="screen-dot"></span><span class="screen-dot"></span>
+              <span class="ml-3 font-mono text-[11px] text-ink-400">Ledgers › Card settlements › Overview</span>
+            </div>
+            <div class="flex flex-col gap-6 p-6">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-display font-semibold">Settlement clearing</span>
+                    <span class="pill bg-safelight/15 text-safelight">Recon</span>
+                  </div>
+                  <p class="eyebrow mt-4 text-ink-400">Cash balance</p>
+                  <p class="figure relative mt-1 inline-block text-4xl font-medium">$1,284.50<svg class="mark pencil-amber -bottom-2.5 left-0 h-3 w-full" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 3.5C50 2 125 4.6 198 2.8" /><path pathLength="1" d="M6 9.4C70 8 138 10.4 195 8.6" /></svg></p>
+                </div>
+                <span class="hidden rounded-full border border-ink-600 px-3 py-1 text-xs text-ink-200 sm:inline">Run reconciliation</span>
+              </div>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div class="rounded-lg bg-ink-700 p-3.5">
+                  <p class="eyebrow text-ink-400">Unreconciled</p>
+                  <p class="figure relative mt-1 inline-block pr-7 text-lg">$1,940.00<svg class="mark pencil-amber right-0 top-1 h-4 w-5" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg></p>
+                  <p class="text-xs text-ink-300">14 movements</p>
+                </div>
+                <div class="rounded-lg bg-ink-700 p-3.5">
+                  <p class="eyebrow text-ink-400">In progress</p>
+                  <p class="figure relative mt-1 inline-block pr-7 text-lg">-$15.50<svg class="mark pencil-amber right-0 top-1 h-4 w-5" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg></p>
+                  <p class="text-xs text-ink-300">5 reconciliations</p>
+                </div>
+                <div class="rounded-lg bg-ink-700 p-3.5">
+                  <p class="eyebrow text-status-mismatched">Mismatched</p>
+                  <p class="figure relative mt-1 inline-block text-lg">-$640.00<svg class="mark pencil-red -inset-x-3 -inset-y-2.5 h-[calc(100%+1.25rem)] w-[calc(100%+1.5rem)]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></p>
+                  <p class="text-xs text-ink-300">4 reconciliations</p>
+                </div>
+              </div>
+              <p class="border-t border-ink-700 pt-4 text-xs text-ink-300">
+                Cash balance = unreconciled + in progress + mismatched. Final reconciliations net to zero.
+              </p>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <!-- Problem -->
+      <section class="border-b border-paper-300 bg-paper">
+        <div class="container-page grid gap-10 py-20 lg:grid-cols-[1fr_2fr]">
+          <div>
+            <p class="eyebrow text-safelight-deep">The problem</p>
+            <h2 class="mt-3 text-3xl font-bold tracking-tight">Reconciliation breaks quietly.</h2>
+          </div>
+          <div class="grid gap-8 sm:grid-cols-3">
+            <div>
+              <h3 class="text-base font-semibold">A balance with no explanation</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                The clearing account is off by a few hundred dollars and nobody can say which payouts,
+                fees or deposits make up the gap.
+              </p>
+            </div>
+            <div>
+              <h3 class="text-base font-semibold">Exceptions without context</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                A mismatch lands in a spreadsheet or a ticket, separated from the transactions that caused
+                it and from whoever is meant to fix it.
+              </p>
+            </div>
+            <div>
+              <h3 class="text-base font-semibold">Fixes with no trail</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Write-offs and corrections get edited in place, so months later no one can show what
+                changed, when, or why.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section id="how" class="bg-paper-100 scroll-mt-16">
+        <div class="container-page py-24">
+          <div class="max-w-2xl">
+            <p class="eyebrow text-safelight-deep">How it works</p>
+            <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">From raw files to a balance you can explain.</h2>
+          </div>
+          <ol class="mt-14 grid gap-px overflow-hidden rounded-2xl border border-paper-300 bg-paper-300 sm:grid-cols-2 lg:grid-cols-4">
+            <li class="flex flex-col gap-3 bg-paper-100 p-7">
+              <span class="figure relative inline-flex h-9 w-12 items-center justify-center text-sm text-safelight-deep">01<svg class="mark pencil-amber-deep inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>
+              <h3 class="text-lg font-semibold">Ingest every source</h3>
+              <p class="text-sm leading-relaxed text-ink-400">
+                File feeds pick up processor, bank and internal ledger files as they land in S3, and
+                parse CSV, BAI2 and JSON into movements on a double-entry ledger.
+              </p>
+            </li>
+            <li class="flex flex-col gap-3 bg-paper-100 p-7">
+              <span class="figure relative inline-flex h-9 w-12 items-center justify-center text-sm text-safelight-deep">02<svg class="mark pencil-amber-deep inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>
+              <h3 class="text-lg font-semibold">Match with rules</h3>
+              <p class="text-sm leading-relaxed text-ink-400">
+                Define how two sides relate, one-to-one or one-to-many, and which attributes and dates
+                must agree, including offsets like "settles two days later."
+              </p>
+            </li>
+            <li class="flex flex-col gap-3 bg-paper-100 p-7">
+              <span class="figure relative inline-flex h-9 w-12 items-center justify-center text-sm text-safelight-deep">03<svg class="mark pencil-amber-deep inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>
+              <h3 class="text-lg font-semibold">Explain every difference</h3>
+              <p class="text-sm leading-relaxed text-ink-400">
+                Every balance breaks down into unreconciled, in-progress and mismatched amounts, and each
+                mismatch shows what came in, what went out, and what it matched on.
+              </p>
+            </li>
+            <li class="flex flex-col gap-3 bg-paper-100 p-7">
+              <span class="figure relative inline-flex h-9 w-12 items-center justify-center text-sm text-safelight-deep">04<svg class="mark pencil-amber-deep inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>
+              <h3 class="text-lg font-semibold">Resolve with a record</h3>
+              <p class="text-sm leading-relaxed text-ink-400">
+                Write off, unmatch or wait for the missing movement. Each fix posts a ledger entry, closes
+                its exception automatically, and can itself be reversed.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Product detail: why it doesn't balance -->
+      <section class="bg-ink text-paper-100">
+        <div class="container-page grid items-center gap-14 py-24 lg:grid-cols-2">
+          <div class="flex flex-col gap-5">
+            <p class="eyebrow text-safelight">Mismatches, explained</p>
+            <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">The answer is on the screen, not in a spreadsheet.</h2>
+            <p class="max-w-prose leading-relaxed text-ink-200">
+              When a payout and its bank deposit don't agree, AnselIQ shows the two totals, the
+              difference, and the exact value they were matched on. The exception that tracks it sits
+              beside the movements, with the actions to resolve it.
+            </p>
+            <ul class="flex flex-col gap-3 text-sm text-ink-200">
+              <li class="flex gap-3"><span class="text-safelight" aria-hidden="true">—</span>Exceptions are raised automatically when something mismatches or a file goes missing.</li>
+              <li class="flex gap-3"><span class="text-safelight" aria-hidden="true">—</span>They close themselves when the underlying problem is fixed, so the queue never lies.</li>
+              <li class="flex gap-3"><span class="text-safelight" aria-hidden="true">—</span>Assignment, status and discussion live on the exception's own thread.</li>
+            </ul>
+          </div>
+
+          <figure class="screen" aria-label="AnselIQ reconciliation detail for a mismatched payout">
+            <div class="screen-bar">
+              <span class="screen-dot"></span><span class="screen-dot"></span><span class="screen-dot"></span>
+              <span class="ml-3 font-mono text-[11px] text-ink-400">Card settlements › Reconciliations › 3b94d94b</span>
+            </div>
+            <div class="flex flex-col gap-5 p-6">
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="font-display text-lg font-semibold">Reconciliation <span class="font-mono">3b94d94b</span></span>
+                <span class="pill bg-status-mismatched/15 text-status-mismatched">Mismatched</span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <span class="rounded-full bg-safelight px-4 py-1.5 text-xs font-semibold text-ink">Write off…</span>
+                <span class="rounded-full border border-safelight/60 px-4 py-1.5 text-xs font-semibold text-safelight">Unmatch</span>
+              </div>
+              <div class="rounded-lg bg-ink-700 p-4">
+                <p class="text-sm font-semibold">Why it doesn't balance</p>
+                <div class="mt-3 grid grid-cols-3 gap-3">
+                  <div><p class="eyebrow text-ink-400">In</p><p class="figure relative mt-1 inline-block pr-6">$5,000.00<svg class="mark pencil-amber right-0 top-0.5 h-3.5 w-4" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg></p></div>
+                  <div><p class="eyebrow text-ink-400">Out</p><p class="figure relative mt-1 inline-block pr-6">$5,031.20<svg class="mark pencil-amber right-0 top-0.5 h-3.5 w-4" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg></p></div>
+                  <div><p class="eyebrow text-ink-400">Difference</p><p class="figure relative mt-1 inline-block text-status-mismatched">-$31.20<svg class="mark pencil-red -inset-x-3 -inset-y-2.5 h-[calc(100%+1.25rem)] w-[calc(100%+1.5rem)]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></p></div>
+                </div>
+                <p class="eyebrow mt-4 text-ink-400">Matched on</p>
+                <p class="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <code class="font-mono text-ink-300">payout_id = bank_reference</code>
+                  <span class="text-ink-400" aria-hidden="true">→</span>
+                  <span class="relative rounded bg-safelight/15 px-2 py-0.5 font-mono text-safelight">po_9f3a2c71<svg class="mark pencil-amber -right-6 -top-1 h-4 w-5" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg></span>
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 rounded-lg border border-ink-700 p-3 text-xs">
+                <span class="font-semibold">AmountMismatch</span>
+                <span class="pill bg-status-progress/20 text-[#8fb0e0]">Investigating</span>
+                <span class="text-ink-300">Assigned to Dana R.</span>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <!-- Capabilities -->
+      <section id="features" class="bg-paper scroll-mt-16">
+        <div class="container-page py-24">
+          <div class="max-w-2xl">
+            <p class="eyebrow text-safelight-deep">Capabilities</p>
+            <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Built around how money actually moves.</h2>
+          </div>
+          <div class="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>One-to-one and one-to-many</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Match a payout to its deposit, or one settlement to many card transactions. Partial groups
+                wait for the rest to arrive, then get flagged once they've aged past your limit.
+              </p>
+            </div>
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Rules on any attribute</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Combine string and date attributes from each side, with constants and date offsets, and
+                see which values each reconciliation was matched on.
+              </p>
+            </div>
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>File feeds with a test bench</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Configure CSV, BAI2 or JSON parsing, try it against a sample file before going live, and
+                get an exception when an expected file doesn't arrive.
+              </p>
+            </div>
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Built for volume</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Ingestion and reconciliation run in resumable batches, so a large file or a long backlog
+                picks up where it left off instead of starting over.
+              </p>
+            </div>
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Corrections, never edits</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Bad ingests are reversed, not deleted. Write-offs post adjustment entries, and reversing
+                one posts another, so the ledger always shows what happened.
+              </p>
+            </div>
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Exceptions that close themselves</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Mismatches and missing files resolve automatically when the real fix happens. People
+                handle the judgment calls, with assignment and a discussion thread.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Early access -->
+      <section id="early-access" class="bg-ink text-paper-100 scroll-mt-16">
+        <div class="container-page grid gap-14 py-24 lg:grid-cols-[1fr_1.15fr]">
+          <div class="flex flex-col gap-5">
+            <p class="eyebrow text-safelight">Early access</p>
+            <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Become a design partner.</h2>
+            <p class="max-w-prose leading-relaxed text-ink-200">
+              We're onboarding a small number of payments teams to shape AnselIQ with us. Design partners
+              get hands-on onboarding, a direct line to the people building it, and a say in what comes
+              next.
+            </p>
+            <ul class="mt-2 flex flex-col gap-3 text-sm text-ink-200">
+              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">1<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>Tell us what you reconcile and where it hurts.</li>
+              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">2<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>We walk through AnselIQ against a sample of your files.</li>
+              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">3<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>If it's a fit, we set up your feeds and rules together.</li>
+            </ul>
+          </div>
+
+          <form id="early-access-form" class="flex flex-col gap-5 rounded-2xl bg-paper-100 p-6 text-ink sm:p-8" novalidate>
+            <div class="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label for="name" class="field-label">Name</label>
+                <input id="name" name="name" type="text" autocomplete="name" required class="field-input" />
+              </div>
+              <div>
+                <label for="email" class="field-label">Work email</label>
+                <input id="email" name="email" type="email" autocomplete="email" required class="field-input" />
+              </div>
+              <div>
+                <label for="company" class="field-label">Company</label>
+                <input id="company" name="company" type="text" autocomplete="organization" required class="field-input" />
+              </div>
+              <div>
+                <label for="volume" class="field-label">Monthly transaction volume</label>
+                <select id="volume" name="monthly_volume" class="field-input">
+                  <option value="">Choose a range</option>
+                  <option>Under 100k</option>
+                  <option>100k – 1M</option>
+                  <option>1M – 10M</option>
+                  <option>Over 10M</option>
+                </select>
+              </div>
+            </div>
+            <fieldset>
+              <legend class="field-label">What do you reconcile?</legend>
+              <div class="mt-1 grid gap-2 sm:grid-cols-2">
+                <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Payment processor" class="h-4 w-4 accent-safelight-deep" />Payment processor</label>
+                <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Bank statements" class="h-4 w-4 accent-safelight-deep" />Bank statements</label>
+                <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Internal ledger" class="h-4 w-4 accent-safelight-deep" />Internal ledger</label>
+                <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Card network" class="h-4 w-4 accent-safelight-deep" />Card network</label>
+              </div>
+            </fieldset>
+            <div>
+              <label for="pain" class="field-label">What's hardest about reconciliation today?</label>
+              <textarea id="pain" name="biggest_pain" rows="3" class="field-input" placeholder="e.g. Payout fees make our clearing account drift and we chase it every month-end."></textarea>
+            </div>
+            <!-- Formspree's spam honeypot: real people never fill this in. -->
+            <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+            <div class="flex flex-wrap items-center gap-4">
+              <button type="submit" class="btn-primary disabled:opacity-60">Request early access</button>
+              <p id="form-status" class="text-sm" role="status" aria-live="polite"></p>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-ink-700 bg-ink-900 text-ink-300">
+      <div class="container-page flex flex-col gap-4 py-10 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span class="font-display font-bold text-paper-100">Ansel<span class="text-safelight">IQ</span></span>
+        <p>© <span id="year">2026</span> AnselIQ. Reconciliation that explains itself.</p>
+      </div>
+    </footer>
+  </body>
+</html>

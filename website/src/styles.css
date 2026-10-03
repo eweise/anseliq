@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-paper font-sans text-ink;
+  }
+  h1, h2, h3 {
+    @apply font-display;
+    text-wrap: balance;
+  }
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-safelight;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.14em];
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-safelight px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-[#f2ab48];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 text-sm font-semibold transition-colors;
+  }
+  .figure {
+    @apply font-mono tabular-nums;
+  }
+  /* Product-screen recreations (not screenshots): framed like an app window. */
+  .screen {
+    @apply overflow-hidden rounded-xl border border-ink-600 bg-ink-800 shadow-2xl shadow-black/40;
+  }
+  .screen-bar {
+    @apply flex items-center gap-1.5 border-b border-ink-700 px-4 py-2.5;
+  }
+  .screen-dot {
+    @apply h-2 w-2 rounded-full bg-ink-600;
+  }
+  .pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold;
+  }
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-ink;
+  }
+  .field-input {
+    @apply w-full rounded-lg border border-paper-300 bg-paper-100 px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-400 focus:border-safelight focus:outline-none focus:ring-2 focus:ring-safelight/30;
+  }
+}
+
+/* Tick-and-tie marks: the hand-drawn annotations auditors put on statements (ticks for verified
+   figures, circles for exceptions, a double rule under a total). Drawn as inline SVG strokes over
+   the page; each path uses pathLength="1" so the draw-on animation works regardless of its size. */
+@layer components {
+  .mark {
+    @apply pointer-events-none absolute overflow-visible;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  /* No vector-effect: non-scaling-stroke here — it would measure the dash pattern in screen
+     pixels instead of the normalized pathLength, so a stretched mark would only partly draw. */
+  .mark path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+  /* Same strokes, laid out inline (e.g. a tick before a heading) rather than over something. */
+  .mark-inline {
+    @apply pointer-events-none inline-block shrink-0 overflow-visible;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .mark-inline path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+  .pencil-amber { @apply text-safelight; }
+  .pencil-amber-deep { @apply text-safelight-deep; }
+  .pencil-red { color: #e0604f; }
+}
+
+/* Visible at rest; main.js adds .is-drawing as a mark first scrolls into view, which redraws it. */
+@media (prefers-reduced-motion: no-preference) {
+  .is-drawing path {
+    animation: draw-mark 0.7s cubic-bezier(0.3, 0.6, 0.4, 1) both;
+  }
+  .is-drawing path:nth-of-type(2) {
+    animation-delay: 0.18s;
+  }
+}
+@keyframes draw-mark {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
