@@ -1,7 +1,7 @@
 {
-  "name": "tyrian-flowbite",
+  "name": "anseliq-frontend",
   "version": "0.1.0",
-  "description": "Tyrian + Flowbite ^^",
+  "description": "AnselIQ web app",
   "main": "postcss.config.js",
   "scripts": {
     "dev": "vite",

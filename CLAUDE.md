@@ -1,4 +1,4 @@
-# OnParity — Project-wide Rules
+# AnselIQ — Project-wide Rules
 
 Rules here apply to all modules: backend, common, and frontend.
 

@@ -4,7 +4,7 @@ import sbt.Keys.libraryDependencies
 
 lazy val scala3Version  = "3.8.1"
 lazy val upickleVersion = "4.4.2"
-ThisBuild / organization := "onparity"
+ThisBuild / organization := "anseliq"
 ThisBuild / scalaVersion := scala3Version
 
 lazy val root = (project in file("."))
@@ -38,7 +38,7 @@ lazy val frontend = (project in file("frontend"))
     dockerExposedPorts    := Seq(80),
     dockerRepository      := Some(DockerSettings.repository),
     dockerAlias := DockerAlias
-      .apply(dockerRepository.value, None, "onparity", dockerAlias.value.tag.map(t => "frontend-" + t)),
+      .apply(dockerRepository.value, None, "anseliq", dockerAlias.value.tag.map(t => "frontend-" + t)),
     DockerSettings.x86ArchSetting,
     Docker / defaultLinuxInstallLocation := "/usr/share/nginx/html",
     dockerCommands := dockerCommands.value.filter {
@@ -140,24 +140,24 @@ lazy val backend = (project in file("backend"))
     // a meaningful cost.
     Test / parallelExecution := false,
     // DataSetupScenario1 seeds real, committed data into the local dev DB (no rollBackOnly) and is meant
-    // to be run explicitly (sbt "testOnly onparity.testing.DataSetupScenario1"), not as part of the
+    // to be run explicitly (sbt "testOnly anseliq.testing.DataSetupScenario1"), not as part of the
     // regular suite where it would pollute state for every other test. LargeFileIngestionReconciliationSuite
     // ingests and reconciles two 5,000,000-row files, which takes on the order of hours given Reconciler's
     // current per-row matching loop, and is likewise meant to be run explicitly
-    // (sbt "testOnly onparity.domain.service.LargeFileIngestionReconciliationSuite"). Both are scoped to
+    // (sbt "testOnly anseliq.domain.service.LargeFileIngestionReconciliationSuite"). Both are scoped to
     // the `test` task only (not `testOnly`/`testQuick`) so explicit invocation still works.
     Test / test / testOptions += Tests.Filter(name =>
-      name != "onparity.testing.DataSetupScenario1" &&
-        name != "onparity.domain.service.LargeFileIngestionReconciliationSuite"
+      name != "anseliq.testing.DataSetupScenario1" &&
+        name != "anseliq.domain.service.LargeFileIngestionReconciliationSuite"
     ),
-    mainClass := Some("onparity.app.Main")
+    mainClass := Some("anseliq.app.Main")
   )
   .settings(
     dockerBaseImage    := "openjdk:17-slim",
     dockerExposedPorts := Seq(8080),
     dockerRepository   := Some(DockerSettings.repository),
     dockerAlias := DockerAlias
-      .apply(dockerRepository.value, None, "onparity", dockerAlias.value.tag.map(t => "backend-" + t)),
+      .apply(dockerRepository.value, None, "anseliq", dockerAlias.value.tag.map(t => "backend-" + t)),
     DockerSettings.x86ArchSetting
   )
   .dependsOn(common.jvm)
@@ -186,5 +186,5 @@ lazy val common = (crossProject(JVMPlatform, JSPlatform)
         Environtments.backendBaseUrl()
       }
     ),
-    buildInfoPackage := "onparity.common"
+    buildInfoPackage := "anseliq.common"
   )

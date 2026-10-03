@@ -1,6 +1,6 @@
-# OnParity Model Class Diagram
+# AnselIQ Model Class Diagram
 
-## onparity.model (Shared Models)
+## anseliq.model (Shared Models)
 
 ```mermaid
 classDiagram
@@ -23,7 +23,7 @@ classDiagram
     }
 ```
 
-## onparity.domain.model (Domain Models)
+## anseliq.domain.model (Domain Models)
 
 ```mermaid
 classDiagram
