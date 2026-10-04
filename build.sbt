@@ -109,16 +109,13 @@ lazy val backend = (project in file("backend"))
     libraryDependencies ++= Seq(
       "ch.qos.logback"              % "logback-classic"     % Dependencies.LogbackClassic,
       "net.logstash.logback"        % "logstash-logback-encoder" % Dependencies.LogstashEncoder,
-      "org.fusesource.jansi"        % "jansi"               % Dependencies.Jansi,
       "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.5",
       "com.fasterxml.uuid"          % "java-uuid-generator" % "5.2.0",
       "com.softwaremill.ox"        %% "core"                % "1.0.3",
-      "org.javamoney"               % "moneta"              % "1.4.5" pomOnly (),
       "org.scalatest"              %% "scalatest"           % Dependencies.Scalatest % Test,
       "com.augustnagro"            %% "magnum"              % "2.0.0-M3",
       "org.postgresql"              % "postgresql"          % "42.7.4",
       "org.scalamock"              %% "scalamock"           % "6.0.0"                % Test,
-      "org.flywaydb"                % "flyway-core"         % "10.20.0",
       "com.augustnagro"            %% "magnumpg"            % "2.0.0-M3",
       "com.typesafe"                % "config"              % "1.4.3",
       "com.lihaoyi"                %% "cask"                % "0.10.2",
@@ -153,7 +150,7 @@ lazy val backend = (project in file("backend"))
     mainClass := Some("anseliq.app.Main")
   )
   .settings(
-    dockerBaseImage    := "openjdk:17-slim",
+    dockerBaseImage    := "eclipse-temurin:25-jre",
     dockerExposedPorts := Seq(8080),
     dockerRepository   := Some(DockerSettings.repository),
     dockerAlias := DockerAlias

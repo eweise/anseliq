@@ -99,4 +99,12 @@ To connect to your database from outside the cluster execute the following comma
 
 sbt assembly
 
+# Website
+You run two commands in website/:
+
+cd website
+npm install      # first time only
+npm run build
+
+That produces website/dist/, and that folder is what you upload. I ran both: the build succeeded and your Formspree ID is in the built JavaScript. dist/ now holds index.html, favicon.svg and two files in assets/.
 
