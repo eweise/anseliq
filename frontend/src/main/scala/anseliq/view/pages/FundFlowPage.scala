@@ -1111,30 +1111,52 @@ object FundFlowPage:
       swatch("--acct-role-secondary", "Secondary Account")
     )
 
+  // Lays accounts out left to right as Primary -> Recon -> Secondary, in one horizontal band per
+  // recon account holding the accounts linked to it, so each relationship reads straight across.
+  // (Sorting every column by name independently criss-crossed the lines as soon as a ledger had
+  // more than one recon account.) An account linked to several recon accounts sits in the first
+  // one's band; accounts with no recon link go in a final band.
   private def computePositions(
     accounts:      Seq[AccountPayload],
     movementSpecs: Seq[MovementSpecPayload]
   ): Map[String, (Int, Int)] =
-    val columnOf = mutable.Map[String, Int]()
-    val allInIds = movementSpecs.map(_.inAccountId).toSet
-    accounts.foreach(a => a.id.foreach(id => if !allInIds.contains(id) then columnOf(id) = 0))
-    var changed = true
-    while changed do
-      changed = false
-      movementSpecs.foreach { ms =>
-        val newInCol = columnOf.getOrElse(ms.outAccountId, 0) + 1
-        if newInCol > columnOf.getOrElse(ms.inAccountId, -1) then
-          columnOf(ms.inAccountId) = newInCol
-          changed                  = true
+    def roleColumn(a: AccountPayload): Int = a.accountType match
+      case AccountTypePayload.Primary   => 0
+      case AccountTypePayload.Recon     => 1
+      case AccountTypePayload.Secondary => 2
+    // Drops columns no account uses, so e.g. a ledger without Primary accounts doesn't start with a gap.
+    val usedColumns = accounts.map(roleColumn).distinct.sorted
+    val byId        = accounts.flatMap(a => a.id.map(_ -> a)).toMap
+    val linkedIds = movementSpecs
+      .flatMap(ms => Seq(ms.outAccountId -> ms.inAccountId, ms.inAccountId -> ms.outAccountId))
+      .groupMap(_._1)(_._2)
+    val placed  = mutable.Set[String]()
+    val posOf   = mutable.Map[String, (Int, Int)]()
+    var bandTop = 0 // in rows
+    def placeBand(band: Seq[AccountPayload]): Unit =
+      val byColumn = band.groupBy(roleColumn)
+      val height   = byColumn.values.map(_.size).maxOption.getOrElse(0)
+      byColumn.foreach { (col, accs) =>
+        // Centres a shorter column (typically the lone recon account) against the band's tallest.
+        val offset = (height - accs.size) * rowStride / 2
+        accs.zipWithIndex.foreach { (acc, i) =>
+          acc.id.foreach { id =>
+            placed += id
+            posOf(id) = (margin + usedColumns.indexOf(col) * colStride, margin + (bandTop + i) * rowStride + offset)
+          }
+        }
       }
-    accounts.foreach(a => a.id.foreach(id => if !columnOf.contains(id) then columnOf(id) = 0))
-    val byColumn = accounts.groupBy(a => columnOf.getOrElse(a.id.getOrElse(""), 0))
-    val posOf    = mutable.Map[String, (Int, Int)]()
-    byColumn.foreach { (col, accs) =>
-      accs.sortBy(_.name).zipWithIndex.foreach { (acc, row) =>
-        acc.id.foreach(id => posOf(id) = (margin + col * colStride, margin + row * rowStride))
-      }
+      bandTop += height
+    accounts.filter(_.accountType == AccountTypePayload.Recon).sortBy(_.name).foreach { recon =>
+      val partners = recon.id.toSeq
+        .flatMap(id => linkedIds.getOrElse(id, Nil))
+        .distinct
+        .filterNot(placed.contains)
+        .flatMap(byId.get)
+        .sortBy(_.name)
+      placeBand(recon +: partners)
     }
+    placeBand(accounts.filter(_.id.exists(id => !placed.contains(id))).sortBy(_.name))
     posOf.toMap
 
   case class SearchState(
