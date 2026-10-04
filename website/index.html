@@ -6,7 +6,7 @@
     <title>AnselIQ — Reconciliation that explains itself</title>
     <meta
       name="description"
-      content="AnselIQ matches processor, bank and internal ledger data automatically, and when something doesn't tie out, shows you the difference, the movements behind it, and how to resolve it."
+      content="AnselIQ matches processor, bank, card clearing and internal ledger data automatically, at the volume payments teams actually run, and when something doesn't tie out, shows you the difference, the movements behind it, and how to resolve it."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -45,14 +45,14 @@
       <section id="top" class="relative overflow-hidden bg-ink text-paper-100">
         <div class="container-page relative grid items-center gap-14 pb-20 pt-16 lg:grid-cols-[1.05fr_1fr] lg:pb-28 lg:pt-24">
           <div class="flex flex-col gap-7">
-            <p class="eyebrow text-safelight">Reconciliation for payments teams</p>
+            <p class="eyebrow text-safelight">Reconciliation for payments teams, at scale</p>
             <h1 class="text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
               Know exactly why your books <span class="relative inline-block whitespace-nowrap">don't balance.<svg class="mark pencil-amber -bottom-2 left-0 h-3 w-full" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M2 3.5C50 2 125 4.6 198 2.8" /><path pathLength="1" d="M6 9.4C70 8 138 10.4 195 8.6" /></svg></span>
             </h1>
             <p class="max-w-prose text-lg leading-relaxed text-ink-200">
-              AnselIQ matches processor, bank and internal ledger data automatically. When something
-              doesn't tie out, it shows you the difference, the movements behind it, and the fix, with
-              every step recorded.
+              AnselIQ matches processor, bank, card clearing and internal ledger data automatically,
+              down to every record, millions of them in minutes. When something doesn't tie out, it shows you the
+              difference, the movements behind it, and the fix, with every step recorded.
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <a href="#early-access" class="btn-primary">Request early access</a>
@@ -62,16 +62,16 @@
           </div>
 
           <!-- Product recreation: the balance breakdown -->
-          <figure class="screen" aria-label="AnselIQ balance breakdown for a settlement account">
+          <figure class="screen" aria-label="AnselIQ balance breakdown for a card clearing account">
             <div class="screen-bar">
               <span class="screen-dot"></span><span class="screen-dot"></span><span class="screen-dot"></span>
-              <span class="ml-3 font-mono text-[11px] text-ink-400">Ledgers › Card settlements › Overview</span>
+              <span class="ml-3 font-mono text-[11px] text-ink-400">Ledgers › Card clearing › Overview</span>
             </div>
             <div class="flex flex-col gap-6 p-6">
               <div class="flex items-start justify-between gap-4">
                 <div>
                   <div class="flex items-center gap-2">
-                    <span class="font-display font-semibold">Settlement clearing</span>
+                    <span class="font-display font-semibold">Clearing suspense</span>
                     <span class="pill bg-safelight/15 text-safelight">Recon</span>
                   </div>
                   <p class="eyebrow mt-4 text-ink-400">Cash balance</p>
@@ -149,15 +149,15 @@
               <span class="figure relative inline-flex h-9 w-12 items-center justify-center text-sm text-safelight-deep">01<svg class="mark pencil-amber-deep inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>
               <h3 class="text-lg font-semibold">Ingest every source</h3>
               <p class="text-sm leading-relaxed text-ink-400">
-                File feeds pick up processor, bank and internal ledger files as they land in S3, and
-                parse CSV, BAI2 and JSON into movements on a double-entry ledger.
+                Processor, bank, card clearing and internal ledger files are picked up automatically as
+                they arrive, in CSV, BAI2 or JSON, and recorded on a double-entry ledger.
               </p>
             </li>
             <li class="flex flex-col gap-3 bg-paper-100 p-7">
               <span class="figure relative inline-flex h-9 w-12 items-center justify-center text-sm text-safelight-deep">02<svg class="mark pencil-amber-deep inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>
               <h3 class="text-lg font-semibold">Match with rules</h3>
               <p class="text-sm leading-relaxed text-ink-400">
-                Define how two sides relate, one-to-one or one-to-many, and which attributes and dates
+                Define how two sides relate, one-to-one or one-to-many, and which fields and dates
                 must agree, including offsets like "settles two days later."
               </p>
             </li>
@@ -202,7 +202,7 @@
           <figure class="screen" aria-label="AnselIQ reconciliation detail for a mismatched payout">
             <div class="screen-bar">
               <span class="screen-dot"></span><span class="screen-dot"></span><span class="screen-dot"></span>
-              <span class="ml-3 font-mono text-[11px] text-ink-400">Card settlements › Reconciliations › 3b94d94b</span>
+              <span class="ml-3 font-mono text-[11px] text-ink-400">Card clearing › Reconciliations › 3b94d94b</span>
             </div>
             <div class="flex flex-col gap-5 p-6">
               <div class="flex flex-wrap items-center gap-3">
@@ -248,35 +248,36 @@
             <div>
               <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>One-to-one and one-to-many</h3>
               <p class="mt-2 text-sm leading-relaxed text-ink-400">
-                Match a payout to its deposit, or one settlement to many card transactions. Partial groups
-                wait for the rest to arrive, then get flagged once they've aged past your limit.
+                Match a payout to its bank deposit, or a settlement total to the thousands of card
+                clearing records behind it. Partial groups wait for the rest to arrive, then get flagged
+                once they've aged past your limit.
               </p>
             </div>
             <div>
-              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Rules on any attribute</h3>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Rules on any field</h3>
               <p class="mt-2 text-sm leading-relaxed text-ink-400">
-                Combine string and date attributes from each side, with constants and date offsets, and
-                see which values each reconciliation was matched on.
+                Match on IDs, references and dates from either side, with fixed values and date windows,
+                and see exactly which values each reconciliation was matched on.
               </p>
             </div>
             <div>
               <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>File feeds with a test bench</h3>
               <p class="mt-2 text-sm leading-relaxed text-ink-400">
-                Configure CSV, BAI2 or JSON parsing, try it against a sample file before going live, and
+                Set up a CSV, BAI2 or JSON feed, try it against a sample file before going live, and
                 get an exception when an expected file doesn't arrive.
               </p>
             </div>
             <div>
-              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Built for volume</h3>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Built for scale</h3>
               <p class="mt-2 text-sm leading-relaxed text-ink-400">
-                Ingestion and reconciliation run in resumable batches, so a large file or a long backlog
-                picks up where it left off instead of starting over.
+                Card clearing files run to millions of records, and AnselIQ reconciles millions of them in
+                minutes. If a run is interrupted, it picks up where it left off instead of starting over.
               </p>
             </div>
             <div>
               <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Corrections, never edits</h3>
               <p class="mt-2 text-sm leading-relaxed text-ink-400">
-                Bad ingests are reversed, not deleted. Write-offs post adjustment entries, and reversing
+                A bad file is reversed, not deleted. Write-offs post adjustment entries, and reversing
                 one posts another, so the ledger always shows what happened.
               </p>
             </div>
@@ -340,7 +341,7 @@
                 <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Payment processor" class="h-4 w-4 accent-safelight-deep" />Payment processor</label>
                 <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Bank statements" class="h-4 w-4 accent-safelight-deep" />Bank statements</label>
                 <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Internal ledger" class="h-4 w-4 accent-safelight-deep" />Internal ledger</label>
-                <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Card network" class="h-4 w-4 accent-safelight-deep" />Card network</label>
+                <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="sources" value="Card clearing" class="h-4 w-4 accent-safelight-deep" />Card clearing</label>
               </div>
             </fieldset>
             <div>
