@@ -1,0 +1,114 @@
+package anseliq.view.pages
+
+import com.raquo.laminar.api.L.*
+import anseliq.common.http.HttpPath
+import anseliq.common.model.*
+import anseliq.http.ApiClient
+import anseliq.state.AppState.apiBind
+import anseliq.state.SessionStore
+import anseliq.view.ViewHelper
+import anseliq.view.components.{Form, PageHeader, Table}
+import upickle.default.*
+
+object EventsPage:
+
+  private val eventTypeOptions: Seq[(String, String)] = Seq(
+    "MoneyMovementsIngested" -> "MoneyMovementsIngested",
+    "AccountReconciled"      -> "AccountReconciled",
+    "NewFileDetected"        -> "NewFileDetected"
+  )
+
+  def apply(): HtmlElement =
+    val state    = Var(State())
+    val fetchBus = EventBus[String]()
+
+    PageHeader.page(
+      EventStream
+        .merge(
+          EventStream.fromValue(state.now().selectedEventType, emitOnce = true),
+          fetchBus.events
+        )
+        .flatMapSwitch { eventType =>
+          ApiClient.get[Seq[EventPayload]](
+            HttpPath.url(s"${HttpPath.events}/$eventType"),
+            SessionStore.token
+          )
+        }
+        .apiBind(events => state.update(_.copy(events = events))),
+      PageHeader.titleRow(
+        cls := "flex items-center justify-between",
+        PageHeader.title("Events"),
+        PageHeader.refreshButton(Observer[Unit](_ => fetchBus.emit(state.now().selectedEventType)))
+      ),
+      div(
+        cls := "w-full px-8",
+        div(
+          cls := "mb-6 flex items-end gap-3",
+          div(
+            cls := "max-w-xs",
+            Form.selectField(
+              "event-type-select",
+              "Event Type",
+              eventTypeOptions,
+              state.now().selectedEventType,
+              v =>
+                state.update(s => s.copy(selectedEventType = v, events = Seq.empty))
+                fetchBus.emit(v)
+            )
+          )
+        ),
+        child <-- state.signal.map { s =>
+          val extraHeaders = s.selectedEventType match
+            case "MoneyMovementsIngested" =>
+              Seq(
+                "Movement Spec Name",
+                "File Name",
+                "Record Count",
+                "Ingestion Time (s)",
+                "Last Processed Line",
+                "Movement Spec ID"
+              )
+            case "AccountReconciled" => Seq("Account ID")
+            case "NewFileDetected" =>
+              Seq(
+                "File Inventory ID",
+                "Path",
+                "Source"
+              )
+            case _ => Seq("ID")
+          val headers = Seq("Status", "Retries", "Error", "Created At") ++ extraHeaders
+          val rows = s.events.map { event =>
+            Seq(
+              span(event.status),
+              span(event.retryCount.toString),
+              span(event.errorMessage.getOrElse("-")),
+              span(event.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"))
+            ) ++ extraCells(event)
+          }
+          Table.create(headers, rows)
+        }
+      )
+    )
+
+  private def extraCells(event: EventPayload): Seq[HtmlElement] = event match
+    case e: MoneyMovementsIngestedPayload =>
+      Seq(
+        span(e.movementSpecName),
+        span(e.fileName),
+        span(e.recordCount.toString),
+        span(e.ingestionTimeSeconds.toString),
+        span(e.lastProcessedLine.map(_.toString).getOrElse("-")),
+        span(e.movementSpecID)
+      )
+    case e: AccountReconciledPayload => Seq(span(e.accountID))
+    case e: NewFileDetectedPayload =>
+      Seq(
+        span(e.fileInventoryID),
+        span(e.filePath),
+        span(e.fileSource)
+      )
+
+  case class State(
+    selectedEventType: String            = "MoneyMovementsIngested",
+    events:            Seq[EventPayload] = Seq.empty
+  )
