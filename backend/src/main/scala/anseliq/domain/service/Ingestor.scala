@@ -38,7 +38,7 @@ enum BatchDecision:
 
 private case object IngestionStopped extends RuntimeException
 
-class Ingestor(using
+class Ingestor(
   val ledger:             Ledger,
   val movementRepo:       MovementRepo,
   val movementSpecRepo:   MovementSpecRepo,

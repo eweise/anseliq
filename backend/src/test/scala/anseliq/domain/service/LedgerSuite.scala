@@ -1,29 +1,26 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.common.model.AppliedRules
-import anseliq.adapter.driven.DbDataSource
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.testing.rollBackOnly
 
 import java.util.concurrent.{ConcurrentLinkedQueue, CyclicBarrier}
-import javax.sql.DataSource
 import scala.jdk.CollectionConverters.*
 
 class LedgerSuite extends munit.FunSuite:
-  given transactor: Transactor = Transactor(dataSource)
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  private val app = TestAppContainer()
 
   def assertBalanceInvariant(reconciled: BigDecimal, unreconciled: BigDecimal, balance: BigDecimal): Unit =
     assertEquals(reconciled + unreconciled, balance, "reconciledBalance + unreconciledBalance must equal balance")
 
   test("recordMovements updates account balances and keeps reconciled + unreconciled equal to balance"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
         data.ledger.recordMovements(
           data.journalToRecon,
           Seq(
@@ -54,10 +51,10 @@ class LedgerSuite extends munit.FunSuite:
         )
 
   test("markReconciled moves an amount from unreconciled to reconciled without changing balance"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
         data.ledger.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
@@ -72,10 +69,10 @@ class LedgerSuite extends munit.FunSuite:
         assertBalanceInvariant(reconAccount.reconciledBalance, reconAccount.unreconciledBalance, reconAccount.balance)
 
   test("markUnreconciled reverses a prior markReconciled by the same amount"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
         data.ledger.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
@@ -91,10 +88,10 @@ class LedgerSuite extends munit.FunSuite:
         assertBalanceInvariant(reconAccount.reconciledBalance, reconAccount.unreconciledBalance, reconAccount.balance)
 
   test("reconcile links matched movements to a reconciliation and shifts balance from unreconciled to reconciled"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
 
         data.ledger.recordMovements(
           data.journalToRecon,
@@ -116,10 +113,10 @@ class LedgerSuite extends munit.FunSuite:
         assertBalanceInvariant(reconAccount.reconciledBalance, reconAccount.unreconciledBalance, reconAccount.balance)
 
   test("unreconcile clears the reconciliation link and reverses the balance shift"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
 
         data.ledger.recordMovements(
           data.journalToRecon,
@@ -147,10 +144,10 @@ class LedgerSuite extends munit.FunSuite:
     // referenceIds) get recorded twice. The Movement rows are already deduped via
     // ON CONFLICT(reference_id) DO NOTHING, but that alone doesn't stop the balance delta from
     // being applied twice unless recordMovements itself excludes already-recorded referenceIds.
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
         val requests = Seq(
           MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
           MovementRequest(amount = -30, referenceId = createID(), properties = Map())
@@ -178,10 +175,10 @@ class LedgerSuite extends munit.FunSuite:
         )
 
   test("recordMovements applies only the new requests when a batch partially overlaps an already-recorded one"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
         val alreadyRecorded = MovementRequest(amount = 100, referenceId = createID(), properties = Map())
         val brandNew        = MovementRequest(amount = 25, referenceId = createID(), properties = Map())
 
@@ -201,7 +198,7 @@ class LedgerSuite extends munit.FunSuite:
     // reordering, both callers could pass the (unlocked) existence check before either inserted,
     // and both would apply the balance delta — the second caller's insert would silently no-op via
     // ON CONFLICT, but its account update would not.
-    val data = transact(transactor)(DataSetup())
+    val data = transact(app.transactor)(DataSetup(app))
 
     val requests = Seq(
       MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
@@ -214,7 +211,7 @@ class LedgerSuite extends munit.FunSuite:
     def race(): Unit =
       try
         barrier.await()
-        transact(transactor)(data.ledger.recordMovements(data.journalToRecon, requests))
+        transact(app.transactor)(data.ledger.recordMovements(data.journalToRecon, requests))
       catch case ex: Throwable => errors.add(ex)
 
     val t1 = Thread(() => race())
@@ -227,23 +224,23 @@ class LedgerSuite extends munit.FunSuite:
     try
       assert(errors.isEmpty, s"recordMovements must not surface the race as an error: ${errors.asScala.toList}")
 
-      val reconAccount = transact(transactor)(data.accountRepo.findById(data.reconAccount.id).get)
+      val reconAccount = transact(app.transactor)(data.accountRepo.findById(data.reconAccount.id).get)
       assertEquals(reconAccount.balance, BigDecimal(70), "the batch must be applied exactly once despite the race")
 
-      val movements = transact(transactor)(data.movementRepo.findByAccount(data.reconAccount.id))
+      val movements = transact(app.transactor)(data.movementRepo.findByAccount(data.reconAccount.id))
       assertEquals(movements.size, 2, "no duplicate movement rows despite the race")
     finally
-      transact(transactor):
+      transact(app.transactor):
         // reconciliation_spec's FK to account isn't ON DELETE CASCADE, so it must go first;
         // fund_flow_config's cascade then takes care of the accounts/movement specs/movements.
         data.reconSpecRepo.deleteById(data.reconSpec.id)
         data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
 
   test("recordMovements with a negative amount swaps the in/out accounts"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
         data.ledger.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = -40, referenceId = createID(), properties = Map()))

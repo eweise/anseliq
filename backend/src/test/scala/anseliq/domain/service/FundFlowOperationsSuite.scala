@@ -1,30 +1,19 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
-import anseliq.adapter.driven.*
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.common.model.MovementSpecPayload
 import anseliq.domain.DataSetup
-import anseliq.domain.port.driven.*
 import anseliq.testing.rollBackOnly
 
-import javax.sql.DataSource
-
 class FundFlowOperationsSuite extends munit.FunSuite:
-  given transactor:        Transactor             = Transactor(dataSource)
-  given dataSource:        DataSource             = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given movementSpecRepo:  MovementSpecRepo       = MovementSpecRepoLive()
-  given fileFeedRepo:      FileFeedRepo           = FileFeedRepoLive()
-  given accountRepo:       AccountRepo            = AccountRepoLive()
-  given fundFlowConfigRepo: FundFlowConfigRepo    = FundFlowConfigRepoLive()
-  given movementRepo:      MovementRepo           = MovementRepoLive()
-  given reconSpecRepo:     ReconciliationSpecRepo = ReconciliationSpecRepoLive()
+  private val app = TestAppContainer()
 
   test("createMovementSpec succeeds linking a Primary account to a Recon account"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val data       = DataSetup()
-        val operations = FundFlowOperations()
+        val data       = DataSetup(app)
+        val operations = app.fundFlowOperations
         val spec = operations.createMovementSpec(
           MovementSpecPayload(
             name         = "report to recon",
@@ -36,10 +25,10 @@ class FundFlowOperationsSuite extends munit.FunSuite:
         assert(spec.id.isDefined)
 
   test("createMovementSpec succeeds linking a Secondary account to a Recon account"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val data       = DataSetup()
-        val operations = FundFlowOperations()
+        val data       = DataSetup(app)
+        val operations = app.fundFlowOperations
         val spec = operations.createMovementSpec(
           MovementSpecPayload(
             name         = "journal to recon",
@@ -51,10 +40,10 @@ class FundFlowOperationsSuite extends munit.FunSuite:
         assert(spec.id.isDefined)
 
   test("createMovementSpec rejects linking a Primary account directly to a Secondary account"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val data       = DataSetup()
-        val operations = FundFlowOperations()
+        val data       = DataSetup(app)
+        val operations = app.fundFlowOperations
         intercept[IllegalArgumentException]:
           operations.createMovementSpec(
             MovementSpecPayload(
@@ -66,10 +55,10 @@ class FundFlowOperationsSuite extends munit.FunSuite:
           )
 
   test("createMovementSpec rejects linking two Recon accounts together"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val data       = DataSetup()
-        val operations = FundFlowOperations()
+        val data       = DataSetup(app)
+        val operations = app.fundFlowOperations
         val otherRecon = anseliq.domain.model.Account(
           name        = "other-recon",
           fundFlowId  = data.fundFlowConfig.id,

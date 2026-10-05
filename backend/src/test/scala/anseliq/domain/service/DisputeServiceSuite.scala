@@ -1,8 +1,7 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
-import anseliq.adapter.driven.{DbDataSource, EventRepoLive, JobRepoLive, UserRepoLive}
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.model.{
@@ -16,23 +15,15 @@ import anseliq.domain.model.{
   User,
   UserRole
 }
-import anseliq.domain.port.driven.{JobRepo, Txn, UserRepo}
+import anseliq.domain.port.driven.Txn
 import anseliq.testing.rollBackOnly
 
 import java.util.UUID
-import javax.sql.DataSource
-import anseliq.testing.TestDisputeService.given
 
 class DisputeServiceSuite extends munit.FunSuite:
-  given transactor: Transactor   = Transactor(dataSource)
-  given dataSource: DataSource   = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given clockSvc:   ClockService = ClockServiceLive()
-  given eventRepo: EventRepoLive()
-  given eventStore: EventStore = EventStore()
-  given jobRepo:    JobRepo    = JobRepoLive()
-  given userRepo:   UserRepo   = UserRepoLive()
+  private val app = TestAppContainer()
 
-  private def testUser(role: UserRole = UserRole.Analyst)(using UserRepo, com.augustnagro.magnum.DbCon): User =
+  private def testUser(role: UserRole = UserRole.Analyst)(using com.augustnagro.magnum.DbCon): User =
     val user = User(
       email        = s"${UUID.randomUUID()}@example.com",
       passwordHash = "hash",
@@ -40,7 +31,7 @@ class DisputeServiceSuite extends munit.FunSuite:
       lastName     = "Analyst",
       role         = role
     )
-    userRepo.insert(user)
+    app.userRepo.insert(user)
     user
 
   def createMovement(movementSpec: MovementSpec, amount: BigDecimal)(using data: DataSetup): Txn[Movement] =
@@ -55,11 +46,11 @@ class DisputeServiceSuite extends munit.FunSuite:
     m
 
   test("raise on a Movement creates a New dispute"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
 
@@ -81,12 +72,12 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(persisted.referenceId, movement.id)
 
   test("raise on a Reconciliation creates a New dispute"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
-        val disputeService   = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
+        val disputeService   = app.disputeService
 
         // Balanced, so matchMovements leaves it Final without raising its own AmountMismatch
         // dispute — an unbalanced match would already have one open, and this would conflict.
@@ -103,11 +94,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(dispute.detail, None)
 
   test("raise rejects a category that isn't valid for the given target"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
 
@@ -117,21 +108,21 @@ class DisputeServiceSuite extends munit.FunSuite:
           disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.AmountMismatch, None)
 
   test("raise on a nonexistent Movement errors"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         intercept[NotFoundError]:
           disputeService.raise(java.util.UUID.randomUUID(), DisputeTarget.Movement, DisputeCategory.DataQuality, None)
 
   test("raise on a nonexistent Reconciliation errors"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         intercept[NotFoundError]:
           disputeService.raise(
@@ -142,11 +133,11 @@ class DisputeServiceSuite extends munit.FunSuite:
           )
 
   test("addComment to Resolved without a body errors"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -155,11 +146,11 @@ class DisputeServiceSuite extends munit.FunSuite:
           disputeService.addComment(dispute.id, None, Some(DisputeStatus.Resolved))
 
   test("addComment to Resolved with a body succeeds and updates the dispute's status"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -177,11 +168,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(updated.status, DisputeStatus.Resolved)
 
   test("addComment to a non-Resolved status does not require a body"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -195,11 +186,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(updated.status, DisputeStatus.Investigating)
 
   test("addComment can reopen a Resolved dispute"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -211,11 +202,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(reopened.status, DisputeStatus.Investigating)
 
   test("addComment with no status change requires a body"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -224,11 +215,11 @@ class DisputeServiceSuite extends munit.FunSuite:
           disputeService.addComment(dispute.id, None, None)
 
   test("addComment with no status change and a body just adds a comment, leaving status unchanged"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -242,11 +233,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(unchanged.status, DisputeStatus.New)
 
   test("comments are returned in chronological order"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -259,11 +250,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(thread.map(_.body), Vector(Some("first"), Some("second"), Some("third")))
 
   test("raise with raisedByUserId persists the actor who raised it"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val user     = testUser()
         val movement = createMovement(data.journalToRecon, 100)
@@ -281,11 +272,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(persisted.raisedByUserId, Some(user.id))
 
   test("raise with no raisedByUserId leaves it unset (system-raised)"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
         val dispute  = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
@@ -293,18 +284,18 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(dispute.raisedByUserId, None)
 
   test("addComment with newAssignedToUserId sets assignedToUserId, bumps updatedAt, and logs it on the thread"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val user              = testUser()
         val movement          = createMovement(data.journalToRecon, 100)
         val dispute           = disputeService.raise(movement.id, DisputeTarget.Movement, DisputeCategory.Duplicate, None)
         val originalUpdatedAt = dispute.updatedAt
 
-        clockSvc.addHours(1)
+        app.clock.addHours(1)
         val comment =
           disputeService.addComment(dispute.id, body = None, newStatus = None, newAssignedToUserId = Some(user.id))
 
@@ -315,11 +306,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assert(persisted.updatedAt.exists(ua => originalUpdatedAt.exists(oua => ua.isAfter(oua))))
 
   test("addComment can assign with a message in the same entry"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val user     = testUser()
         val movement = createMovement(data.journalToRecon, 100)
@@ -336,11 +327,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(comment.body, Some("please take a look"))
 
   test("addComment rejects assigning a dispute to a Viewer"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val viewer   = testUser(role = UserRole.Viewer)
         val movement = createMovement(data.journalToRecon, 100)
@@ -353,11 +344,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(persisted.assignedToUserId, None)
 
   test("addComment with newAssignedToUserId on a non-existent dispute throws NotFoundError"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val user = testUser()
         intercept[NotFoundError]:
@@ -366,12 +357,12 @@ class DisputeServiceSuite extends munit.FunSuite:
   // Resolving an AmountMismatch by hand would hide a reconciliation that's still Mismatched; only a
   // write-off, unmatch or late completion may resolve it (see DisputeCategory.automaticResolution).
   test("addComment rejects resolving an AmountMismatch by hand but still allows other status changes"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
-        val disputeService   = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
+        val disputeService   = app.disputeService
 
         val inMovement  = createMovement(data.journalToRecon, 300)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -390,12 +381,12 @@ class DisputeServiceSuite extends munit.FunSuite:
   // Once the system has resolved an AmountMismatch (here by the write-off), nothing would ever
   // resolve it again, so a person can't reopen it; undoing the write-off (unmatch) is the way back.
   test("addComment rejects reopening an AmountMismatch the system resolved, but still allows comments"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
-        val disputeService   = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
+        val disputeService   = app.disputeService
 
         val inMovement  = createMovement(data.journalToRecon, 300)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -414,11 +405,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Resolved)
 
   test("addComment rejects assigning a resolved dispute, but allows assigning in the entry that reopens it"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val user     = testUser()
         val movement = createMovement(data.journalToRecon, 100)
@@ -435,11 +426,11 @@ class DisputeServiceSuite extends munit.FunSuite:
         assertEquals(reopened.assignedToUserId, Some(user.id))
 
   test("addComment rejects resolving and assigning in the same entry"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val disputeService = DisputeService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val disputeService = app.disputeService
 
         val user     = testUser()
         val movement = createMovement(data.journalToRecon, 100)

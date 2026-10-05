@@ -1,20 +1,30 @@
 package anseliq.domain
 
 import com.augustnagro.magnum.DbTx
-import anseliq.adapter.driven.*
+import anseliq.adapter.config.AppContainer
 import anseliq.common.model.*
 import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
-import anseliq.domain.port.driven.*
-import anseliq.domain.service.{ClockService, ClockServiceLive, FundFlowCache, FundFlowOperations, Ledger}
 
 import java.util.UUID
 
-// clockService: given-resolution is tried first (so a caller's own ClockService given, if any, is
-// what's actually used), falling back to the default only when the caller has none — a plain
-// class-body `given` here would instead re-export via `import data.given`, competing with (and
-// sometimes losing an ambiguity error to) a caller's own ClockService given of the same type.
-class DataSetup(using dbTx: DbTx, clockService: ClockService = ClockServiceLive()) {
+// Inserts a fresh fund flow (accounts, feeds, movement specs, recon spec) through the given app's
+// repos. Those repos and the app's ledger are re-exported, so tests can keep writing
+// `data.movementRepo` / `data.ledger` and get the same instances, and clock, as the rest of `app`.
+class DataSetup(val app: AppContainer)(using dbTx: DbTx) {
+  export app.{
+    accountRepo,
+    disputeCommentRepo,
+    disputeRepo,
+    fileFeedRepo,
+    fundFlowConfigRepo,
+    ledger,
+    movementRepo,
+    movementSpecRepo,
+    reconRepo,
+    reconSpecRepo
+  }
+
   dbTx.connection.getMetaData
   val reconAccountName   = "recon"
   val unreconAccountName = "unrecon"
@@ -72,7 +82,6 @@ class DataSetup(using dbTx: DbTx, clockService: ClockService = ClockServiceLive(
   )
 
   fundFlowConfigRepo.insert(fundFlowConfig)
-  val fundFlowOperations = FundFlowOperations()
   var reconSpec: ReconciliationSpec = ReconciliationSpec(
     accountId         = reconAccount.id,
     ruleJson          = upickle.write(rule),
@@ -80,34 +89,11 @@ class DataSetup(using dbTx: DbTx, clockService: ClockService = ClockServiceLive(
     outMovementSpecId = reportToRecon.id
   )
   accountRepo.insert(reconAccount)
-
-  given movementRepo: MovementRepo = MovementRepoLive()
   accountRepo.insert(journalAccount)
-
-  given movementSpecRepo: MovementSpecRepo = MovementSpecRepoLive()
   accountRepo.insert(reportAccount)
-
-  given fileFeedRepo: FileFeedRepo = FileFeedRepoLive()
   fileFeedRepo.insert(journalToReconFeed)
   fileFeedRepo.insert(reportToReconFeed)
-
-  given reconSpecRepo: ReconciliationSpecRepo = ReconciliationSpecRepoLive()
   movementSpecRepo.insert(journalToRecon)
-
-  given reconRepo: ReconciliationRepo = ReconciliationRepoLive()
-
-  given disputeRepo: DisputeRepo = DisputeRepoLive()
-
-  given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
   movementSpecRepo.insert(reportToRecon)
-
-  given accountRepo: AccountRepo = AccountRepoLive()
-
-  given ledger: Ledger = Ledger()
-
-  given fundFlowCache: FundFlowCache = FundFlowCache(fundFlowConfigRepo)
-
-  given fundFlowConfigRepo: FundFlowConfigRepo = FundFlowConfigRepoLive()
   reconSpecRepo.insert(reconSpec)
-
 }

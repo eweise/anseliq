@@ -1,20 +1,16 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{DbCon, Transactor, transact}
-import com.typesafe.config.ConfigFactory
-import anseliq.adapter.driven.{DbDataSource, UserRepoLive}
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.{DbCon, transact}
 import anseliq.domain.model.{User, UserRole}
-import anseliq.domain.port.driven.UserRepo
 import anseliq.testing.rollBackOnly
 
 import java.util.UUID
-import javax.sql.DataSource
 
 class AuthServiceSuite extends munit.FunSuite:
-  given transactor: Transactor = Transactor(dataSource)
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given userRepo:   UserRepo   = UserRepoLive()
-  given jwtSecret:  JwtSecret  = JwtSecret("test-secret-not-used-in-prod")
+  private val app = new TestAppContainer {
+    override lazy val jwtSecret: JwtSecret = JwtSecret("test-secret-not-used-in-prod")
+  }
 
   private def activeUser(role: UserRole = UserRole.Viewer, active: Boolean = true)(using DbCon): User =
     val user = User(
@@ -25,52 +21,52 @@ class AuthServiceSuite extends munit.FunSuite:
       role         = role,
       active       = active
     )
-    userRepo.insert(user)
+    app.userRepo.insert(user)
     user
 
   test("login succeeds with the correct email and password, returning a valid JWT"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
         val user        = activeUser(UserRole.Analyst)
-        val authService = AuthService()
+        val authService = app.authService
 
         val Right(token) = authService.login(user.email, "correct-password"): @unchecked
 
-        val decoded = anseliq.common.util.JwtHelper.decode(token, jwtSecret.value)
+        val decoded = anseliq.common.util.JwtHelper.decode(token, app.jwtSecret.value)
         assertEquals(decoded.map(_.userId), Right(user.id.toString))
         assertEquals(decoded.map(_.email), Right(user.email))
         assertEquals(decoded.map(_.role), Right("Analyst"))
 
   test("login is case-insensitive on email"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
         val user        = activeUser()
-        val authService = AuthService()
+        val authService = app.authService
 
         val result = authService.login(user.email.toUpperCase, "correct-password")
         assert(result.isRight)
 
   test("login fails with the wrong password"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
         val user        = activeUser()
-        val authService = AuthService()
+        val authService = app.authService
 
         assertEquals(authService.login(user.email, "wrong-password"), Left("Invalid email or password"))
 
   test("login fails for an email that doesn't exist"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val authService = AuthService()
+        val authService = app.authService
         assertEquals(
           authService.login(s"${UUID.randomUUID()}@example.com", "whatever"),
           Left("Invalid email or password")
         )
 
   test("login fails for a deactivated user, even with the correct password"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
         val user        = activeUser(active = false)
-        val authService = AuthService()
+        val authService = app.authService
 
         assertEquals(authService.login(user.email, "correct-password"), Left("Invalid email or password"))

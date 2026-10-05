@@ -9,7 +9,7 @@ import anseliq.domain.port.driven.{EventRepo, Txn}
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
-class EventStore(using eventRepo: EventRepo, clock: ClockService, dataSource: DataSource) extends StrictLogging:
+class EventStore(eventRepo: EventRepo, clock: ClockService, dataSource: DataSource) extends StrictLogging:
 
   def publishEvent(event: Event): Txn[Unit] =
     val eventState = EventState.newEventState(event)

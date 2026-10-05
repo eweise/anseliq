@@ -1,15 +1,13 @@
 package anseliq.testing
 
-import com.typesafe.config.ConfigFactory
 import anseliq.app.AppEnv
 import anseliq.domain.fixture.ControlTimeIngestor
-import anseliq.domain.service.{ClockServiceLive, Ingestor}
-import anseliq.testing.TestDisputeService.given
+import anseliq.domain.service.Ingestor
 
 object ControlTimeMain:
   def main(args: Array[String]): Unit =
-    val clock = ClockServiceLive()
-    clock.addHours(0)
-    val appEnv = new AppEnv(config = ConfigFactory.load("test-application.conf"), clock = clock):
-      override protected def buildIngestor: Ingestor = ControlTimeIngestor()
-    appEnv.run(args)
+    val app = new TestAppContainer {
+      override lazy val ingestor: Ingestor = ControlTimeIngestor(this)
+    }
+    app.clock.addHours(0)
+    AppEnv(app).run(args)

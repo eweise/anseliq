@@ -1,5 +1,6 @@
 package anseliq.app
 
+import anseliq.adapter.config.AppContainer
 import com.augustnagro.magnum.*
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
@@ -20,58 +21,12 @@ import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
 /**
- * Wires every driven-side adapter behind a `given`, with production adapters as defaults. A caller
- * that needs a fake adapter (e.g. a test entry point that shouldn't hit real S3) builds its own
- * `AppEnv` overriding just that constructor parameter, instead of hand-duplicating this entire
- * wiring block the way EndToEndSuite historically did.
+ * Runs the background jobs and HTTP server against an AppContainer, the production wiring by
+ * default. A caller that needs a different service (e.g. a test entry point that shouldn't hit real
+ * S3) passes its own AppContainer overriding just that service.
  */
-class AppEnv(
-  config:            Config            = ConfigFactory.load("application.conf"),
-  clock:             ClockService      = ClockServiceLive(),
-  fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
-):
+class AppEnv(val app: AppContainer = new AppContainer {}):
   private val logger = Logger(getClass.getName)
-
-  given dataSource: DataSource = DbDataSource.create(config)
-  given transactor: Transactor = Transactor(dataSource = dataSource)
-  given ClockService      = clock
-  given FileSourceFactory = fileSourceFactory
-
-  given jobRepo:            JobRepo                = JobRepoLive()
-  given jobManager:         JobManager             = JobManager()
-  given fundFlowConfigRepo: FundFlowConfigRepo     = FundFlowConfigRepoLive()
-  given reconRepo:          ReconciliationRepo     = ReconciliationRepoLive()
-  given movementSpecRepo:   MovementSpecRepo       = MovementSpecRepoLive()
-  given fileFeedRepo:       FileFeedRepo           = FileFeedRepoLive()
-  given reconSpecRepo:      ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-  given accountRepo:        AccountRepo            = AccountRepoLive()
-  given movementRepo:       MovementRepo           = MovementRepoLive()
-  given eventRepo:          EventRepo              = EventRepoLive()
-  given fundFlowOperations: FundFlowOperations     = FundFlowOperations()
-  given eventStore:         EventStore             = EventStore()
-  given fileInventoryRepo:  FileInventoryRepo      = FileInventoryRepoLive()
-  given ledger:             Ledger                 = Ledger()
-  given disputeRepo:        DisputeRepo            = DisputeRepoLive()
-  given disputeCommentRepo: DisputeCommentRepo     = DisputeCommentRepoLive()
-  given userRepo:           UserRepo               = UserRepoLive()
-  given disputeService:     DisputeService         = DisputeService()
-  given reconciler:         InMemoryReconciler     = InMemoryReconciler()
-  given manualReconciler:   ManualReconciler       = ManualReconciler()
-  given dailySnapshotRepo:  DailySnapshotRepo      = DailySnapshotRepoLive()
-  given reportingService:   ReportingService       = ReportingService()
-  given userService:        UserService            = UserService()
-  given jwtSecret:          JwtSecret              = JwtSecret(config.getString("jwt.secret"))
-  given authService:        AuthService            = AuthService()
-
-  // Ingestor isn't a plain constructor parameter like fileSourceFactory/clock because its default
-  // (Ingestor()) itself needs ~10 sibling givens (ledger, movementRepo, ...) declared above — a
-  // constructor parameter's default value can't see those (it's evaluated before this instance
-  // exists). Overriding this hook in an anonymous AppEnv subclass instead works because the
-  // override body runs with those givens already inherited and in scope, e.g.:
-  //   new AppEnv(...):
-  //     override protected def buildIngestor: Ingestor = ControlTimeIngestor()
-  protected def buildIngestor: Ingestor = Ingestor()
-  given ingestor:              Ingestor = buildIngestor
 
   /** Starts every background job fork plus the HTTP server, and blocks until shutdown. */
   def run(args: Array[String]): Unit =
@@ -79,7 +34,7 @@ class AppEnv(
 
     // set the hours on the clock ahead if arg is present
     args.headOption.foreach: hour =>
-      clock.addHours(hour.toInt)
+      app.clock.addHours(hour.toInt)
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdownLatch.countDown()))
 
@@ -91,30 +46,30 @@ class AppEnv(
        */
       fork:
         try
-          jobManager.pollForJob(JobType.Reconciliation, 1) { job =>
+          app.jobManager.pollForJob(JobType.Reconciliation, 1) { job =>
             LogContext.withContext("job" -> "reconciliation", "job_id" -> job.id):
               try
-                val account = transact(Transactor(dataSource = dataSource)):
-                  accountRepo
+                val account = transact(Transactor(dataSource = app.dataSource)):
+                  app.accountRepo
                     .findById(job.referenceId)
                     .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
 
                 logger.debug("found account", kv("account_id", account.id))
-                val reconcilationResult = reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
+                val reconcilationResult = app.reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
 
-                transact(Transactor(dataSource = dataSource)):
+                transact(Transactor(dataSource = app.dataSource)):
                   val jobInfo = ReconciliationInfo(
                     accountId                   = account.id.toString,
                     accountName                 = account.name,
                     reconciliationsCreatedCount = reconcilationResult.totalCount,
                     processingTimeSeconds       = reconcilationResult.processingTimeSeconds
                   )
-                  jobManager.completeJob(job.id, jobInfo)
+                  app.jobManager.completeJob(job.id, jobInfo)
               catch
                 case ex: Exception =>
                   logger.error("reconciliation job failed", kv("job_id", job.id), ex)
-                  transact(Transactor(dataSource = dataSource)):
-                    jobManager.markJobInError(job.id, ex)
+                  transact(Transactor(dataSource = app.dataSource)):
+                    app.jobManager.markJobInError(job.id, ex)
           }
         catch
           case ex: Exception =>
@@ -125,12 +80,12 @@ class AppEnv(
        */
       fork:
         try
-          eventStore.consumeEvent(classOf[NewFileDetected], 1, 10): event =>
+          app.eventStore.consumeEvent(classOf[NewFileDetected], 1, 10): event =>
             logger.info(s"found NewFileDetected event: $event")
-            val fileInventory = fileInventoryRepo
+            val fileInventory = app.fileInventoryRepo
               .findById(event.fileInventoryID)
               .ErrIfNotFound("FileInventory", event.fileInventoryID)
-            jobManager.submitJob(Ingestion, fileInventory.id)
+            app.jobManager.submitJob(Ingestion, fileInventory.id)
         catch
           case ex: Exception =>
             logger.error("failed eventStore.consumeEvent", ex)
@@ -141,11 +96,11 @@ class AppEnv(
        */
       fork:
         try
-          jobManager.pollForJob(JobType.Ingestion, 1): job =>
+          app.jobManager.pollForJob(JobType.Ingestion, 1): job =>
             try
-              val results = ingestor.ingestFileFromInventory(job.referenceId)
-              transact(Transactor(dataSource = dataSource)):
-                jobManager.completeJob(
+              val results = app.ingestor.ingestFileFromInventory(job.referenceId)
+              transact(Transactor(dataSource = app.dataSource)):
+                app.jobManager.completeJob(
                   job.id,
                   IngestionInfo( // fixme. should remove these info objects and use events instead
                     numberOfRecordsIngested = results.recordCount,
@@ -155,8 +110,8 @@ class AppEnv(
             catch
               case ex: Exception =>
                 logger.error("failed ingestion job", kv("err", ex.getMessage), kv("job.id", job.referenceId))
-                transact(Transactor(dataSource = dataSource)):
-                  jobManager.markJobInError(job.id, ex)
+                transact(Transactor(dataSource = app.dataSource)):
+                  app.jobManager.markJobInError(job.id, ex)
         catch
           case ex: Exception =>
             logger.error("failed poll for Ingestion job", ex)
@@ -165,18 +120,18 @@ class AppEnv(
        * Create Reconciliation Events: Listens for Ingestion and publishes Reconciliation jobs
        */
       fork:
-        eventStore.consumeEvent(classOf[MoneyMovementsIngested], 1, 10) { event =>
+        app.eventStore.consumeEvent(classOf[MoneyMovementsIngested], 1, 10) { event =>
           logger.info(s"found ingestion job $event")
-          val movementSpec = movementSpecRepo
+          val movementSpec = app.movementSpecRepo
             .findById(event.movementSpecID)
             .ErrIfNotFound("movementSpec", event.movementSpecID)
 
-          transact(Transactor(dataSource = dataSource)):
-            if (accountRepo.findById(movementSpec.inAccountId).exists(_.accountType == AccountType.Recon)) then
-              jobManager.submitJob(JobType.Reconciliation, movementSpec.inAccountId)
+          transact(Transactor(dataSource = app.dataSource)):
+            if (app.accountRepo.findById(movementSpec.inAccountId).exists(_.accountType == AccountType.Recon)) then
+              app.jobManager.submitJob(JobType.Reconciliation, movementSpec.inAccountId)
 
-            if (accountRepo.findById(movementSpec.outAccountId).exists(_.accountType == AccountType.Recon)) then
-              jobManager.submitJob(JobType.Reconciliation, movementSpec.outAccountId)
+            if (app.accountRepo.findById(movementSpec.outAccountId).exists(_.accountType == AccountType.Recon)) then
+              app.jobManager.submitJob(JobType.Reconciliation, movementSpec.outAccountId)
         }
 
       /**
@@ -186,8 +141,8 @@ class AppEnv(
         val fileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
         repeat(Schedule.fixedInterval(1.minute)) {
           try
-            transact(Transactor(dataSource = dataSource)):
-              jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
+            transact(Transactor(dataSource = app.dataSource)):
+              app.jobManager.submitJob(JobType.CreateFileInventory, fileInventoryScanId)
           catch
             case ex: Exception =>
               logger.error(s"Error submitting CreateFileInventory job, will retry in 1m", ex)
@@ -198,24 +153,24 @@ class AppEnv(
        */
       fork:
         try
-          jobManager.pollForJob(JobType.CreateFileInventory, 60): job =>
+          app.jobManager.pollForJob(JobType.CreateFileInventory, 60): job =>
             try
-              transact(Transactor(dataSource = dataSource)):
+              transact(Transactor(dataSource = app.dataSource)):
                 var filesQueued = 0
 
-                fileFeedRepo.findAll.foreach: feed =>
-                  ingestor.checkForMissingFile(feed)
-                  val fileSource = fileSourceFactory.createFileSource(feed.dataSourceConfig().connectionConfig)
-                  val newFiles   = ingestor.detectAndQueue(feed.id, fileSource)
+                app.fileFeedRepo.findAll.foreach: feed =>
+                  app.ingestor.checkForMissingFile(feed)
+                  val fileSource = app.fileSourceFactory.createFileSource(feed.dataSourceConfig().connectionConfig)
+                  val newFiles   = app.ingestor.detectAndQueue(feed.id, fileSource)
                   logger.info(s"File inventory scan: queued ${newFiles.size} new S3 files")
                   filesQueued += newFiles.size
 
-                jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = filesQueued))
+                app.jobManager.completeJob(job.id, FileInventoryInfo(filesQueued = filesQueued))
             catch
               case ex: Exception =>
                 logger.error("CreateFileInventory job failed", kv("job_id", job.id), ex)
-                transact(Transactor(dataSource = dataSource)):
-                  jobManager.markJobInError(job.id, ex)
+                transact(Transactor(dataSource = app.dataSource)):
+                  app.jobManager.markJobInError(job.id, ex)
         catch
           case ex: Exception =>
             logger.error("failed poll for CreateFileInventory job", ex)
@@ -230,8 +185,8 @@ class AppEnv(
         val reconStatsScanId = UUID.fromString("00000000-0000-0000-0000-000000000002")
         repeat(Schedule.fixedInterval(1.minute)) {
           try
-            transact(Transactor(dataSource = dataSource)):
-              jobManager.submitJob(JobType.GenerateReconStats, reconStatsScanId)
+            transact(Transactor(dataSource = app.dataSource)):
+              app.jobManager.submitJob(JobType.GenerateReconStats, reconStatsScanId)
           catch
             case ex: Exception =>
               logger.error(s"Error submitting GenerateReconStats job, will retry in 1m", ex)
@@ -242,17 +197,17 @@ class AppEnv(
        */
       fork:
         try
-          jobManager.pollForJob(JobType.GenerateReconStats, 60): job =>
+          app.jobManager.pollForJob(JobType.GenerateReconStats, 60): job =>
             try
-              transact(Transactor(dataSource = dataSource)):
+              transact(Transactor(dataSource = app.dataSource)):
                 val beginTime = System.currentTimeMillis()
-                val count     = reportingService.computeAndStoreDailySnapshots()
+                val count     = app.reportingService.computeAndStoreDailySnapshots()
 
-                val staleMismatchCount = reconSpecRepo.findAll.map(reconciler.raiseStaleMismatchDisputes).sum
+                val staleMismatchCount = app.reconSpecRepo.findAll.map(app.reconciler.raiseStaleMismatchDisputes).sum
                 if staleMismatchCount > 0 then
                   logger.info(s"raised $staleMismatchCount stale OneToMany AmountMismatch dispute(s)")
 
-                jobManager.completeJob(
+                app.jobManager.completeJob(
                   job.id,
                   ReconStatsInfo(
                     fundFlowsSnapshotted  = count,
@@ -262,11 +217,36 @@ class AppEnv(
             catch
               case ex: Exception =>
                 logger.error("GenerateReconStats job failed", kv("job_id", job.id), ex)
-                transact(Transactor(dataSource = dataSource)):
-                  jobManager.markJobInError(job.id, ex)
+                transact(Transactor(dataSource = app.dataSource)):
+                  app.jobManager.markJobInError(job.id, ex)
         catch
           case ex: Exception =>
             logger.error("failed poll for GenerateReconStats job", ex)
 
-      new App().main(args)
+      new HttpAPI(
+        dataSource         = app.dataSource,
+        accountRepo        = app.accountRepo,
+        reconRepo          = app.reconRepo,
+        fundFlowConfigRepo = app.fundFlowConfigRepo,
+        movementSpecRepo   = app.movementSpecRepo,
+        fileFeedRepo       = app.fileFeedRepo,
+        movementRepo       = app.movementRepo,
+        fundFlowOperations = app.fundFlowOperations,
+        jobManager         = app.jobManager,
+        ingestor           = app.ingestor,
+        reconciler         = app.reconciler,
+        manualReconciler   = app.manualReconciler,
+        jobRepo            = app.jobRepo,
+        reconSpecRepo      = app.reconSpecRepo,
+        eventRepo          = app.eventRepo,
+        disputeRepo        = app.disputeRepo,
+        disputeCommentRepo = app.disputeCommentRepo,
+        disputeService     = app.disputeService,
+        reportingService   = app.reportingService,
+        fileInventoryRepo  = app.fileInventoryRepo,
+        userRepo           = app.userRepo,
+        userService        = app.userService,
+        authService        = app.authService,
+        jwtSecret          = app.jwtSecret
+      ).main(args)
       shutdownLatch.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled

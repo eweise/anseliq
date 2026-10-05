@@ -23,7 +23,7 @@ case class MovementRequest(
   metaData:    Properties = Map()
 )
 
-class Ledger(using
+class Ledger(
   movementRepo: MovementRepo,
   accountRepo:  AccountRepo,
   reconRepo:    ReconciliationRepo,
@@ -93,8 +93,9 @@ class Ledger(using
    * balance/unreconciledBalance effect recordMovements applies to an ingested movement — so a
    * correction shows up on the books as a real, auditable entry rather than an out-of-band edit to
    * an account's balance. Used by ManualReconciler.writeOff. Unlike recordMovements there's no
-   * referenceId dedupe here: callers pass a referenceId deterministic for what they're adjusting, so
-   * a duplicate attempt fails on movement.reference_id's UNIQUE constraint instead of double-posting.
+   * referenceId dedupe here: callers pass a referenceId deterministic for what they're adjusting,
+   * so a duplicate attempt fails on movement.reference_id's UNIQUE constraint instead of
+   * double-posting.
    */
   def recordAdjustment(
     inAccountId:    ID,
@@ -174,9 +175,11 @@ class Ledger(using
 
   def isReversal(movement: Movement): Boolean = movement.metaData.props.contains(reversalOfKey)
 
-  /** If movement is a reversal, the id of the movement it reverses — lets a caller (e.g. a preview
-    * that already has a whole file's movements in hand) figure out which originals have already
-    * been reversed without a per-movement findExistingReferenceIds round-trip. */
+  /**
+   * If movement is a reversal, the id of the movement it reverses — lets a caller (e.g. a preview
+   * that already has a whole file's movements in hand) figure out which originals have already been
+   * reversed without a per-movement findExistingReferenceIds round-trip.
+   */
   def reversalTargetId(movement: Movement): Option[ID] =
     movement.metaData.props.get(reversalOfKey).map(java.util.UUID.fromString)
 
@@ -214,8 +217,10 @@ class Ledger(using
     val reversalReferenceId = Generators.nameBasedGenerator().generate(s"reversal of ${movement.id}")
     if movementRepo.findExistingReferenceIds(Seq(reversalReferenceId)).nonEmpty then None
     else
-      val originalIn  = accountRepo.findByIdForUpdate(movement.inAccountId).ErrIfNotFound("Account", movement.inAccountId)
-      val originalOut = accountRepo.findByIdForUpdate(movement.outAccountId).ErrIfNotFound("Account", movement.outAccountId)
+      val originalIn =
+        accountRepo.findByIdForUpdate(movement.inAccountId).ErrIfNotFound("Account", movement.inAccountId)
+      val originalOut =
+        accountRepo.findByIdForUpdate(movement.outAccountId).ErrIfNotFound("Account", movement.outAccountId)
 
       originalIn.balance -= movement.amount
       originalIn.unreconciledBalance -= movement.amount

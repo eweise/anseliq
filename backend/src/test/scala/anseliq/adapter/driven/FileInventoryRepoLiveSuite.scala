@@ -1,24 +1,21 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.{FileInventory, FileInventoryStatus, InMemoryFileSourceEntry}
 import anseliq.testing.rollBackOnly
 
 import java.time.OffsetDateTime
-import javax.sql.DataSource
 
 class FileInventoryRepoLiveSuite extends munit.FunSuite:
-  given transactor: Transactor = Transactor(dataSource)
-
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  private val app = TestAppContainer()
 
   test("lastProcessedLine and PROCESSING status round-trip through the database"):
-    val fileInventoryRepo = FileInventoryRepoLive()
-    transact(transactor):
+    val fileInventoryRepo = app.fileInventoryRepo
+    transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data = DataSetup(app)
         val fileInventory = FileInventory(
           fileFeedId          = data.journalToReconFeed.id,
           sourceSystem        = "S3",
@@ -43,10 +40,10 @@ class FileInventoryRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.lastProcessedLine, Some(249L))
 
   test("findAllWithFileFeedName joins in the owning file feed's name"):
-    val fileInventoryRepo = FileInventoryRepoLive()
-    transact(transactor):
+    val fileInventoryRepo = app.fileInventoryRepo
+    transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data = DataSetup(app)
         data.fileFeedRepo.update(data.journalToReconFeed.copy(name = "Journal Import"))
         val fileInventory = FileInventory(
           fileFeedId          = data.journalToReconFeed.id,

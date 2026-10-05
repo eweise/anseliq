@@ -7,7 +7,7 @@ import anseliq.domain.port.driven.{Txn, UserRepo}
 // Deliberately does not check the caller's role/permission itself — matches every other service
 // in this app (e.g. DisputeService), where authorization is the route's responsibility, not the
 // service's. The route layer checks currentUser.role before calling into these Admin-only actions.
-class UserService(using userRepo: UserRepo, clock: ClockService):
+class UserService(userRepo: UserRepo, clock: ClockService):
 
   private val minPasswordLength = 8
 

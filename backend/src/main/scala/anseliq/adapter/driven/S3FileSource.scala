@@ -3,6 +3,7 @@ package anseliq.adapter.driven
 import anseliq.common.model.{ConnectionConfig, S3ConnectionConfig}
 import anseliq.domain.model.{FileSourceEntry, S3FileSourceEntry}
 import anseliq.domain.port.driven.{FileSource, FileSourceFactory}
+import com.typesafe.config.Config
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, ListObjectsV2Request}
@@ -13,14 +14,19 @@ import java.net.URI
 import java.time.ZoneOffset
 import scala.jdk.CollectionConverters.*
 
-class S3FileSourceFactory extends FileSourceFactory:
+class S3FileSourceFactory(
+  region:   String = "",
+  endpoint: String = "",
+  username: String = "",
+  password: String = ""
+) extends FileSourceFactory:
   val s3Client: S3Client =
     S3Client
       .builder()
-      .region(Region.US_EAST_1)
-      .endpointOverride(URI.create("http://localhost:4566")) // fixme needs config
+      .region(Region.of(region))
+      .endpointOverride(URI.create(endpoint)) // fixme needs config
       .credentialsProvider(
-        StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")) // fixme remove
+        StaticCredentialsProvider.create(AwsBasicCredentials.create(username, password)) // fixme remove
       )
       .serviceConfiguration(S3Configuration.builder().pathStyleAccessEnabled(true).build())
       .build()

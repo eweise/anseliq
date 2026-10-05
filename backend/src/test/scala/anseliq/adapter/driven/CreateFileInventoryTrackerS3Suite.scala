@@ -1,7 +1,7 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.{
@@ -9,10 +9,8 @@ import anseliq.domain.model.{
   FileInventory,
   FileInventoryStatus,
   MoneyMovementsIngested,
-  MovementSpec,
   S3FileSourceEntry
 }
-import anseliq.domain.port.driven.*
 import anseliq.domain.service.*
 import anseliq.testing.rollBackOnly
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
@@ -23,10 +21,9 @@ import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.net.URI
 import java.util.UUID
-import javax.sql.DataSource
-import anseliq.testing.TestDisputeService.given
 
 class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
+  private val app = TestAppContainer()
 
   lazy val s3Client: S3Client = S3Client
     .builder()
@@ -39,21 +36,6 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     .build()
   val localstackEndpoint = URI.create("http://localhost:4566")
   val bucket             = "file-inventory-test"
-
-  given clockService:       ClockService       = ClockServiceLive()
-  given transactor:         Transactor         = Transactor(dataSource)
-  given dataSource:         DataSource         = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given eventRepo:          EventRepo          = EventRepoLive()
-  given eventStore:         EventStore         = EventStore()
-  given movementRepo:       MovementRepo       = MovementRepoLive()
-  given accountRepo:        AccountRepo        = AccountRepoLive()
-  given movementSpecRepo:   MovementSpecRepo   = MovementSpecRepoLive()
-  given fileFeedRepo:       FileFeedRepo       = FileFeedRepoLive()
-  given reconRepo:          ReconciliationRepo = ReconciliationRepoLive()
-  given ledger:             Ledger             = Ledger()
-  given fileInventoryRepo:  FileInventoryRepo  = FileInventoryRepoLive()
-  given disputeRepo:        DisputeRepo        = DisputeRepoLive()
-  given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
 
   override def beforeAll(): Unit =
     s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
@@ -75,16 +57,14 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
       RequestBody.fromString(content)
     )
 
-  given fileSourceFactory: S3FileSourceFactory()
-
   test("detectAndQueue queues all S3 files not yet in inventory"):
     put("reports/jan.csv")
     put("reports/feb.csv")
     put("reports/mar.csv")
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
         val movementSpecID = UUID.randomUUID()
-        val ingestor       = Ingestor()
+        val ingestor       = app.ingestor
         val source         = S3FileSource(S3ConnectionConfig(bucket, "reports/"), s3Client)
         val result         = ingestor.detectAndQueue(movementSpecID, source)
         assertEquals(result.size, 3, s"results from movementSpecID ${movementSpecID}")
@@ -102,10 +82,10 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   test("detectAndQueue is idempotent — second run skips already-queued files"):
     put("idempotency/a.csv")
     put("idempotency/b.csv")
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
 
-        val ingestor = Ingestor()
+        val ingestor = app.ingestor
         val source   = S3FileSource(S3ConnectionConfig(bucket, "idempotency/"), s3Client)
         val first    = ingestor.detectAndQueue(UUID.randomUUID(), source)
         val second   = ingestor.detectAndQueue(UUID.randomUUID(), source)
@@ -114,10 +94,10 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
 
   test("detectAndQueue picks up newly added S3 files on subsequent runs"):
     put("incremental/existing.csv")
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
         val movementSpecID = UUID.randomUUID()
-        val ingestor       = Ingestor()
+        val ingestor       = app.ingestor
         val source         = S3FileSource(S3ConnectionConfig(bucket, "incremental/"), s3Client)
         val first          = ingestor.detectAndQueue(movementSpecID, source)
         assertEquals(first.size, 1)
@@ -136,7 +116,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
             amountField       = Some(1)
           ),
           // ingestFileFromInventory (unlike ingest/ingestResumable called directly) actually calls
-          // fileSourceFactory.createFileSource(connectionConfig) to fetch the file, and
+          // app.fileSourceFactory.createFileSource(connectionConfig) to fetch the file, and
           // DataSourceConfig.connectionConfig defaults to S3ConnectionConfig("", "") (empty bucket) —
           // must point at the real test bucket or the fetch fails against a nonexistent bucket.
           connectionConfig = S3ConnectionConfig(bucket, "resume-test/")
@@ -147,33 +127,33 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
   test("ingestFileFromInventory resumes from the persisted checkpoint and marks COMPLETED only once finished"):
     put("resume-test/journal.csv", "1,10\n2,20\n3,30\n4,40\n5,50")
 
-    val data = transact(transactor)(DataSetup())
+    val data = transact(app.transactor)(DataSetup(app))
     val feed = csvFeed()
 
-    transact(transactor):
-      fileFeedRepo.insert(feed)
-      movementSpecRepo.update(data.journalToRecon.copy(fileFeedId = feed.id))
+    transact(app.transactor):
+      app.fileFeedRepo.insert(feed)
+      app.movementSpecRepo.update(data.journalToRecon.copy(fileFeedId = feed.id))
 
     val s3Entry = S3FileSourceEntry(
       bucket         = bucket,
       key            = "resume-test/journal.csv",
       fileSizeBytes  = 0L,
-      lastModifiedAt = clockService.now
+      lastModifiedAt = app.clock.now
     )
     val fileInventory = FileInventory(
       fileFeedId          = feed.id,
       sourceSystem        = "S3",
       fileSourceEntryJson = upickle.write(s3Entry),
       fileSizeBytes       = 0L,
-      lastModifiedAt      = clockService.now,
+      lastModifiedAt      = app.clock.now,
       status              = FileInventoryStatus.QUEUED,
       lastProcessedAt     = None,
       updatedAt           = None
     )
-    transact(transactor)(fileInventoryRepo.insert(fileInventory))
+    transact(app.transactor)(app.fileInventoryRepo.insert(fileInventory))
 
     try
-      val ingestor = Ingestor()
+      val ingestor = app.ingestor
 
       val first = ingestor.ingestFileFromInventory(
         fileInventory.id,
@@ -184,7 +164,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
       assertEquals(first.completed, false)
       assertEquals(first.recordCount, 4)
 
-      val afterFirst = transact(transactor)(fileInventoryRepo.findById(fileInventory.id).get)
+      val afterFirst = transact(app.transactor)(app.fileInventoryRepo.findById(fileInventory.id).get)
       assertEquals(afterFirst.status, FileInventoryStatus.PROCESSING)
       assertEquals(afterFirst.lastProcessedLine, Some(3L))
 
@@ -192,19 +172,19 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
       assertEquals(second.completed, true)
       assertEquals(second.recordCount, 1, "only the previously-uncommitted 5th row")
 
-      val afterSecond = transact(transactor)(fileInventoryRepo.findById(fileInventory.id).get)
+      val afterSecond = transact(app.transactor)(app.fileInventoryRepo.findById(fileInventory.id).get)
       assertEquals(afterSecond.status, FileInventoryStatus.COMPLETED)
 
-      val allMovements = transact(transactor)(movementRepo.findByAccount(data.reconAccount.id))
+      val allMovements = transact(app.transactor)(app.movementRepo.findByAccount(data.reconAccount.id))
       assertEquals(allMovements.size, 5)
       assertEquals(allMovements.map(_.amount).sum, BigDecimal(10 + 20 + 30 + 40 + 50))
     finally
-      transact(transactor):
+      transact(app.transactor):
         val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
-        eventRepo
+        app.eventRepo
           .findByEventType("MoneyMovementsIngested")
           .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
-          .foreach(es => eventRepo.deleteById(es.id))
-        fileInventoryRepo.deleteById(fileInventory.id)
+          .foreach(es => app.eventRepo.deleteById(es.id))
+        app.fileInventoryRepo.deleteById(fileInventory.id)
         data.reconSpecRepo.deleteById(data.reconSpec.id)
         data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)

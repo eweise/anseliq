@@ -34,7 +34,7 @@ case class ReconciliationResumableResult(
 
 private case object ReconciliationStopped extends RuntimeException
 
-class InMemoryReconciler(using
+class InMemoryReconciler(
   val ledger:             Ledger,
   val movementRepo:       MovementRepo,
   val reconSpecRepo:      ReconciliationSpecRepo,
@@ -140,11 +140,11 @@ class InMemoryReconciler(using
    * agingLimit (the same field ReportingService's aging/overdue calculation uses), it's no longer
    * "still waiting": it becomes Mismatched and gets an AmountMismatch dispute, the same as a
    * OneToOne pair that mismatches immediately. It isn't closed off, though —
-   * completeOpenReconciliations still tops up Mismatched OneToMany groups, so a late
-   * movement that closes the gap takes it to Final and auto-resolves the dispute. Meant to be
-   * polled periodically per reconSpec, the same way Ingestor.checkForMissingFile is polled
-   * periodically per movementSpec. A no-op for every other relationship, since only OneToMany
-   * groups are ever left InProgress. Returns the number of reconciliations newly flagged.
+   * completeOpenReconciliations still tops up Mismatched OneToMany groups, so a late movement that
+   * closes the gap takes it to Final and auto-resolves the dispute. Meant to be polled periodically
+   * per reconSpec, the same way Ingestor.checkForMissingFile is polled periodically per
+   * movementSpec. A no-op for every other relationship, since only OneToMany groups are ever left
+   * InProgress. Returns the number of reconciliations newly flagged.
    */
   def raiseStaleMismatchDisputes(reconSpec: ReconciliationSpec): Txn[Int] =
     if reconSpec.relationship != OneToMany then 0
@@ -289,13 +289,13 @@ class InMemoryReconciler(using
    * raiseStaleMismatchDisputes).
    */
   private def streamMergeJoin(
-    reconSpec:              ReconciliationSpec,
-    accountId:              ID,
-    startCheckpoint:        ReconciliationCheckpoint,
-    batchSize:              Int,
-    jobId:                  Option[ID],
-    allCheckpoints:         Map[ID, ReconciliationCheckpoint],
-    onBatchComplete:        SpecBatchProgress => BatchDecision
+    reconSpec:       ReconciliationSpec,
+    accountId:       ID,
+    startCheckpoint: ReconciliationCheckpoint,
+    batchSize:       Int,
+    jobId:           Option[ID],
+    allCheckpoints:  Map[ID, ReconciliationCheckpoint],
+    onBatchComplete: SpecBatchProgress => BatchDecision
   )(
     formGroup:        (MergeCursor, MergeCursor) => Option[(Vector[Movement], Vector[Movement])],
     toReconciliation: (Vector[Movement], Vector[Movement], OffsetDateTime) => Reconciliation

@@ -1,24 +1,16 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.testing.rollBackOnly
 
-import javax.sql.DataSource
-
 class ReconciliationSpecRepoLiveSuite extends munit.FunSuite:
-
-  var transactor: Transactor = null
-  var dataSource: DataSource = null
-
-  override def beforeAll(): Unit =
-    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-    transactor = Transactor(dataSource)
+  private val app = TestAppContainer()
 
   test("Find by Account"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val data            = DataSetup()
+        val data            = DataSetup(app)
         val foundReconSpecs = data.reconSpecRepo.findByAccountID(data.reconAccount.id)
         assert(foundReconSpecs.nonEmpty)

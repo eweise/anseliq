@@ -1,9 +1,8 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import ox.*
-import anseliq.adapter.driven.{DbDataSource, JobRepoLive}
 import anseliq.common.model.ReconciliationInfo
 import anseliq.domain.model.JobStatus.InProgress
 import anseliq.domain.model.JobType.Reconciliation
@@ -15,11 +14,11 @@ import java.util.concurrent.{ConcurrentLinkedQueue, CyclicBarrier}
 import scala.jdk.CollectionConverters.*
 
 class JobManagerSuite extends munit.FunSuite:
-  private val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  private val transactor: Transactor = Transactor(dataSource)
-  private val clock      = ClockServiceLive()
-  private val jobRepo    = JobRepoLive()
-  private val jobManager = JobManager(using jobRepo, clock, dataSource)
+  private val app        = TestAppContainer()
+  private val transactor = app.transactor
+  private val clock      = app.clock
+  private val jobRepo    = app.jobRepo
+  private val jobManager = app.jobManager
 
   test("submit and complete job"):
     transact(transactor):

@@ -1,8 +1,7 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
-import anseliq.adapter.driven.{DbDataSource, DisputeRepoLive, EventRepoLive, JobRepoLive}
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.model.{
@@ -13,7 +12,6 @@ import anseliq.domain.model.{
   DisputeCommentAdded,
   DisputeStatus,
   DisputeStatusChanged,
-  DisputeTarget,
   IllegalArgumentError,
   IllegalStateError,
   Movement,
@@ -25,20 +23,11 @@ import anseliq.domain.model.{
   Relationship,
   createID
 }
-import anseliq.domain.port.driven.{DisputeRepo, JobRepo, Txn}
+import anseliq.domain.port.driven.Txn
 import anseliq.testing.rollBackOnly
 
-import javax.sql.DataSource
-import anseliq.testing.TestDisputeService.given
-
 class ManualReconcilerSuite extends munit.FunSuite:
-  given transactor: Transactor   = Transactor(dataSource)
-  given dataSource: DataSource   = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given clockSvc:   ClockService = ClockServiceLive()
-  given eventRepo: EventRepoLive()
-  given eventStore:  EventStore  = EventStore()
-  given jobRepo:     JobRepo     = JobRepoLive()
-  given disputeRepo: DisputeRepo = DisputeRepoLive()
+  private val app = TestAppContainer()
 
   def createMovement(movementSpec: MovementSpec, amount: BigDecimal)(using data: DataSetup): Txn[Movement] =
     val m = Movement(
@@ -52,11 +41,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
     m
 
   test("matchMovements with equal totals creates a Final reconciliation and links both movements"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -89,11 +78,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(account.unreconciledBalance, BigDecimal(0))
 
   test("matchMovements with unequal totals under a OneToOne spec is Mismatched and raises an AmountMismatch dispute"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement   = createMovement(data.journalToRecon, 300)
         val outMovement1 = createMovement(data.reportToRecon, 100)
@@ -117,11 +106,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
   // Under OneToMany more of the "many" side can still arrive later, so an unbalanced manual group
   // is left InProgress with no dispute — the same as an automatic OneToMany group.
   test("matchMovements with unequal totals under a OneToMany spec stays InProgress with no dispute"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
         data.reconSpecRepo.update(data.reconSpec.copy(relationship = Relationship.OneToMany))
 
         val inMovement  = createMovement(data.journalToRecon, 300)
@@ -133,11 +122,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(data.disputeRepo.findOpenByReferenceIdAndCategory(recon.id, DisputeCategory.AmountMismatch), None)
 
   test("matchMovements rejects a movement that is already reconciled"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -149,11 +138,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(anotherOut.id), "second match")
 
   test("matchMovements rejects a movement from the wrong movement spec"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val wrongSpecMovement = createMovement(data.reportToRecon, 100) // belongs to outMovementSpecId, passed as "in"
         val outMovement       = createMovement(data.reportToRecon, 100)
@@ -162,11 +151,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.matchMovements(data.reconSpec.id, Seq(wrongSpecMovement.id), Seq(outMovement.id), "bad spec")
 
   test("matchMovements rejects an empty selection on either side"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement = createMovement(data.journalToRecon, 100)
 
@@ -174,11 +163,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(), "no out movements")
 
   test("unmatch reverses account balances and returns movements to unreconciled"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 60)
@@ -203,11 +192,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(afterUnmatch.unreconciledBalance, BigDecimal(0))
 
   test("unmatch on an already-voided reconciliation errors"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -231,11 +220,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
     (inMovement, outMovement, recon)
 
   test("writeOff against the out-movement posts the difference to that movement's other account and closes the reconciliation"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
         val reconBefore             = data.accountRepo.findById(data.reconAccount.id).get
@@ -268,11 +257,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(reportAfter.balance, reportBefore.balance + 10)
 
   test("writeOff against the in-movement posts the difference to that movement's other account instead"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (inMovement, _, recon) = mismatchedRecon(manualReconciler)
         val journalBefore          = data.accountRepo.findById(data.journalAccount.id).get
@@ -287,11 +276,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(data.reconRepo.findById(recon.id).get.balance, BigDecimal(0))
 
   test("writeOff rejects a movement that isn't part of the reconciliation"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (_, _, recon) = mismatchedRecon(manualReconciler)
         val unrelated     = createMovement(data.reportToRecon, 5)
@@ -300,11 +289,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.writeOff(recon.id, unrelated.id, "wrong movement")
 
   test("writeOff auto-resolves the reconciliation's open AmountMismatch dispute"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
         // Raised by matchMovements itself, since the match left it Mismatched.
@@ -316,11 +305,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(data.disputeRepo.findById(dispute.id).get.status, DisputeStatus.Resolved)
 
   test("unmatch refuses a written-off reconciliation"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
         manualReconciler.writeOff(recon.id, outMovement.id, "bank fee")
@@ -330,11 +319,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(data.reconRepo.findById(recon.id).get.status, ReconciliationStatus.Final)
 
   test("reverseWriteOff reverses the adjustment, keeps the match, and puts the reconciliation back to Mismatched"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (inMovement, outMovement, recon) = mismatchedRecon(manualReconciler)
         val reconBeforeWriteOff              = data.accountRepo.findById(data.reconAccount.id).get
@@ -378,11 +367,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
   // so a second write-off's adjustment was silently dropped by the insert's ON CONFLICT DO NOTHING
   // after the account balances had already moved — and the second reverse then found nothing.
   test("a reconciliation can be written off and reversed more than once, with balances back where they started"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
         val before                  = data.accountRepo.findById(data.reconAccount.id).get
@@ -404,11 +393,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(after.reconciledBalance, before.reconciledBalance)
 
   test("reverseWriteOff rejects a reconciliation that wasn't written off, and a blank reason"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val (_, outMovement, recon) = mismatchedRecon(manualReconciler)
         intercept[IllegalStateError]:
@@ -419,11 +408,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.reverseWriteOff(recon.id, "  ")
 
   test("writeOff on a Final reconciliation errors"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -435,11 +424,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.writeOff(recon.id, outMovement.id, "should not work")
 
   test("writeOff on a Voided reconciliation errors"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -455,12 +444,12 @@ class ManualReconcilerSuite extends munit.FunSuite:
     // suite's tests, which call ManualReconciler methods directly within a rollBackOnly wrapper), so
     // it can't see this test's setup unless that setup is committed for real. Same real-commit +
     // explicit-teardown pattern as ReconcileAccountResumableSuite.
-    given data: DataSetup = transact(transactor)(DataSetup())
-    import data.given
-    val manualReconciler    = ManualReconciler()
-    val automaticReconciler = InMemoryReconciler()
+    val data = transact(app.transactor)(DataSetup(app))
+    given DataSetup = data
+    val manualReconciler    = app.manualReconciler
+    val automaticReconciler = app.reconciler
     try
-      val recon = transact(transactor):
+      val recon = transact(app.transactor):
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 90)
         val recon =
@@ -473,15 +462,15 @@ class ManualReconcilerSuite extends munit.FunSuite:
 
       automaticReconciler.reconcileAccountResumable(data.reconAccount.id)
 
-      val stillClosed = transact(transactor)(data.reconRepo.findById(recon.id).get)
+      val stillClosed = transact(app.transactor)(data.reconRepo.findById(recon.id).get)
       assertEquals(stillClosed.status, ReconciliationStatus.Final)
       assertEquals(stillClosed.balance, BigDecimal(0))
     finally
-      transact(transactor):
-        eventRepo
+      transact(app.transactor):
+        app.eventRepo
           .findByEventType("AccountReconciled")
           .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == data.reconAccount.id).getOrElse(false))
-          .foreach(es => eventRepo.deleteById(es.id))
+          .foreach(es => app.eventRepo.deleteById(es.id))
         // matchMovements raises an AmountMismatch dispute for the unbalanced match (writeOff then
         // resolves it), so it has to go too — otherwise it's left committed, pointing at a
         // reconciliation that no longer exists, and the Exceptions page 404s looking it up.
@@ -495,9 +484,9 @@ class ManualReconcilerSuite extends munit.FunSuite:
   test("bulkUnreconcileByFile voids reconciliations and resolves dangling disputes for movements from one file"):
     // bulkUnreconcileByFile commits its own transactions internally (same reason as
     // reconcileAccountResumable above), so setup needs to be committed for real too.
-    given data: DataSetup = transact(transactor)(DataSetup())
-    import data.given
-    val manualReconciler = ManualReconciler()
+    val data = transact(app.transactor)(DataSetup(app))
+    given DataSetup = data
+    val manualReconciler = app.manualReconciler
     val fileSourceEntry  = s"bad-amount-field-${java.util.UUID.randomUUID()}"
 
     def createMovementForFile(spec: MovementSpec, amount: BigDecimal): Txn[Movement] =
@@ -513,7 +502,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
       m
 
     try
-      transact(transactor):
+      transact(app.transactor):
         val inMovement  = createMovementForFile(data.journalToRecon, 100)
         val outMovement = createMovementForFile(data.reportToRecon, 90)
         val recon = manualReconciler.matchMovements(
@@ -532,7 +521,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
       assertEquals(result.movementsFound, 3)
       assertEquals(result.reconciliationsVoided, 1)
 
-      val (recons, movements, dispute, account) = transact(transactor):
+      val (recons, movements, dispute, account) = transact(app.transactor):
         val recons  = data.reconRepo.findByReconSpecID(data.reconSpec.id)
         val reconIds = recons.map(_.id).toSet
         (
@@ -554,24 +543,24 @@ class ManualReconcilerSuite extends munit.FunSuite:
       )
       assertEquals(account.reconciledBalance, BigDecimal(0), "the +10 residual should be reversed back out")
     finally
-      transact(transactor):
+      transact(app.transactor):
         val recons     = data.reconRepo.findByReconSpecID(data.reconSpec.id)
         val reconIds   = recons.map(_.id).toSet
         val disputes   = data.disputeRepo.findAll.filter(d => reconIds.contains(d.referenceId))
         val disputeIds = disputes.map(_.id).toSet
 
-        eventRepo
+        app.eventRepo
           .findByEventType("ReconciliationVoided")
           .filter(es => scala.util.Try(reconIds.contains(es.event[ReconciliationVoided].reconciliationID)).getOrElse(false))
-          .foreach(es => eventRepo.deleteById(es.id))
-        eventRepo
+          .foreach(es => app.eventRepo.deleteById(es.id))
+        app.eventRepo
           .findByEventType("DisputeStatusChanged")
           .filter(es => scala.util.Try(disputeIds.contains(es.event[DisputeStatusChanged].disputeID)).getOrElse(false))
-          .foreach(es => eventRepo.deleteById(es.id))
-        eventRepo
+          .foreach(es => app.eventRepo.deleteById(es.id))
+        app.eventRepo
           .findByEventType("DisputeCommentAdded")
           .filter(es => scala.util.Try(disputeIds.contains(es.event[DisputeCommentAdded].disputeID)).getOrElse(false))
-          .foreach(es => eventRepo.deleteById(es.id))
+          .foreach(es => app.eventRepo.deleteById(es.id))
 
         disputes.foreach(d => data.disputeRepo.deleteById(d.id)) // cascades: its comments
         recons.foreach(r => data.reconRepo.deleteById(r.id))
@@ -579,11 +568,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
         data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id) // cascades: accounts -> movements
 
   test("reverseMovement refuses a movement that is still reconciled"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        val manualReconciler = ManualReconciler()
+        val data = DataSetup(app)
+        given DataSetup = data
+        val manualReconciler = app.manualReconciler
 
         val inMovement  = createMovement(data.journalToRecon, 100)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -594,10 +583,10 @@ class ManualReconcilerSuite extends munit.FunSuite:
           data.ledger.reverseMovement(stillReconciled)
 
   test("reverseMovement refuses to reverse an already-reversed movement"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
+        val data = DataSetup(app)
+        given DataSetup = data
 
         val m        = createMovement(data.journalToRecon, 100)
         val reversal = data.ledger.reverseMovement(m).get
@@ -607,15 +596,15 @@ class ManualReconcilerSuite extends munit.FunSuite:
   test("reverseMovementsByFile posts reversing entries, nets accounts back, and never touches the originals"):
     // reverseMovementsByFile commits its own transactions internally, same reason as
     // bulkUnreconcileByFile above, so setup needs to be committed for real too.
-    given data: DataSetup = transact(transactor)(DataSetup())
-    import data.given
-    val manualReconciler = ManualReconciler()
+    val data = transact(app.transactor)(DataSetup(app))
+    given DataSetup = data
+    val manualReconciler = app.manualReconciler
     val fileSourceEntry  = s"bad-amount-field-${java.util.UUID.randomUUID()}"
 
     try
-      val balanceBefore = transact(transactor)(data.accountRepo.findById(data.reconAccount.id).get)
+      val balanceBefore = transact(app.transactor)(data.accountRepo.findById(data.reconAccount.id).get)
 
-      transact(transactor):
+      transact(app.transactor):
         data.ledger.recordMovements(
           data.journalToRecon,
           Seq(
@@ -632,11 +621,11 @@ class ManualReconcilerSuite extends munit.FunSuite:
       assertEquals(result.movementsReversed, 1)
       assertEquals(result.movementsSkippedStillReconciled, 0)
 
-      val balanceAfter = transact(transactor)(data.accountRepo.findById(data.reconAccount.id).get)
+      val balanceAfter = transact(app.transactor)(data.accountRepo.findById(data.reconAccount.id).get)
       assertEquals(balanceAfter.balance, balanceBefore.balance, "reversal should net the balance back to pre-ingest")
       assertEquals(balanceAfter.unreconciledBalance, balanceBefore.unreconciledBalance)
 
-      val movements = transact(transactor)(data.movementRepo.findByFileSourceEntry(fileSourceEntry))
+      val movements = transact(app.transactor)(data.movementRepo.findByFileSourceEntry(fileSourceEntry))
       assertEquals(movements.size, 2, "original + reversal — the original is never deleted")
       val original = movements.find(m => !data.ledger.isReversal(m)).get
       val reversal = movements.find(data.ledger.isReversal).get
@@ -654,6 +643,6 @@ class ManualReconcilerSuite extends munit.FunSuite:
       assertEquals(retry.movementsReversed, 0)
       assertEquals(retry.movementsSkippedStillReconciled, 0)
     finally
-      transact(transactor):
+      transact(app.transactor):
         data.reconSpecRepo.deleteById(data.reconSpec.id)
         data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id) // cascades: accounts -> movements

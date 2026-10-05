@@ -9,7 +9,7 @@ import anseliq.domain.port.driven.{Txn, UserRepo}
 // ambiguity against some other, unrelated `given String` a future feature might introduce.
 case class JwtSecret(value: String)
 
-class AuthService(using userRepo: UserRepo, jwtSecret: JwtSecret):
+class AuthService(userRepo: UserRepo, jwtSecret: JwtSecret):
 
   // Same generic failure message whether the email doesn't exist, the account is deactivated, or
   // the password is wrong — deliberately not distinguishing which, so a failed login doesn't leak

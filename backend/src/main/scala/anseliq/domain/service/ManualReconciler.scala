@@ -16,7 +16,7 @@ case class BadFilePreview(
 )
 case class FixBadFileResult(unreconcile: BulkUnreconcileResult, reversal: BulkReversalResult)
 
-class ManualReconciler(using
+class ManualReconciler(
   val ledger:             Ledger,
   val movementRepo:       MovementRepo,
   val reconRepo:          ReconciliationRepo,

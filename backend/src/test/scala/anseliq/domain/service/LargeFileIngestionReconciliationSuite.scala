@@ -1,16 +1,12 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
-import anseliq.adapter.driven.*
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.common.model.{CSVParserConfig, DataSourceConfig}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
-import anseliq.domain.port.driven.*
 
 import java.util.UUID
-import javax.sql.DataSource
-import anseliq.testing.TestDisputeService.given
 
 // Excluded from the normal `sbt test` cycle in build.sbt — ingests and reconciles two
 // 5,000,000-row files. Historically took on the order of hours, dominated by
@@ -22,44 +18,10 @@ import anseliq.testing.TestDisputeService.given
 // currently commented out. Run explicitly with:
 //   sbt "backend/testOnly anseliq.domain.service.LargeFileIngestionReconciliationSuite"
 class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
+  private val app = TestAppContainer()
+
   override def munitIgnore = true
-  given transactor: Transactor =
-    Transactor(dataSource)
-//    Transactor(dataSource, SqlLogger.logSlowQueries(FiniteDuration(5, TimeUnit.SECONDS)), _ => ())
-
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-
-  given clockService: ClockService = ClockServiceLive()
-
-  given eventRepo: EventRepo = EventRepoLive()
-
-  given eventStore: EventStore = EventStore()
-
-  given movementRepo: MovementRepo = MovementRepoLive()
-
-  given accountRepo: AccountRepo = AccountRepoLive()
-
-  given movementSpecRepo: MovementSpecRepo = MovementSpecRepoLive()
-
-  given fileFeedRepo: FileFeedRepo = FileFeedRepoLive()
-
-  given fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
-
-  given fileSourceFactory: FileSourceFactory = S3FileSourceFactory()
-
-  given reconSpecRepo: ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-
-  given reconRepo: ReconciliationRepo = ReconciliationRepoLive()
-
-  given ledger: Ledger = Ledger()
-
-  given fundFlowConfigRepo: FundFlowConfigRepo = FundFlowConfigRepoLive()
-
-  given jobRepo: JobRepo = JobRepoLive()
-
-  given disputeRepo: DisputeRepo = DisputeRepoLive()
-
-  given disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
+//    Transactor(app.dataSource, SqlLogger.logSlowQueries(FiniteDuration(5, TimeUnit.SECONDS)), _ => ())
 
   private def csvFeed(): FileFeed =
     FileFeed(
@@ -75,8 +37,8 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
     )
 
   test("ingesting and reconciling two 5,000,000-row files nets the recon account to zero"):
-    val ingestor = Ingestor()
-    val data     = transact(transactor)(DataSetup())
+    val ingestor = app.ingestor
+    val data     = transact(app.transactor)(DataSetup(app))
 //    try
 //    val journalSpec = csvSpec(data.journalToRecon)
 //    val reportSpec  = csvSpec(data.reportToRecon)
@@ -89,25 +51,25 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 //    try ingestor.ingestResumable(reportSpec, InMemoryFileSourceEntry("report-large"), reportStream)
 //    finally reportStream.close()
 
-    val reconciler     = InMemoryReconciler()
+    val reconciler     = app.reconciler
     val reconAccountId = UUID.fromString("00000000-007b-7c70-a4b1-6eb83731ebd5")
-    transact(transactor)(reconciler.reconcileAccountResumable(reconAccountId))
+    transact(app.transactor)(reconciler.reconcileAccountResumable(reconAccountId))
 
-    val reconAccountAfter = transact(transactor)(accountRepo.findById(reconAccountId).get)
+    val reconAccountAfter = transact(app.transactor)(app.accountRepo.findById(reconAccountId).get)
     assertEquals(reconAccountAfter.balance, BigDecimal(0), "reconAccount.balance")
     assertEquals(reconAccountAfter.unreconciledBalance, BigDecimal(0), "reconAccount.unreconciledBalance")
     assertEquals(
-      transact(transactor)(movementRepo.countUnreconciledByAccount(reconAccountId)),
+      transact(app.transactor)(app.movementRepo.countUnreconciledByAccount(reconAccountId)),
       0,
       "movements left unreconciled on the recon account"
     )
 //    finally
-//      transact(transactor):
+//      transact(app.transactor):
 //        val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
-//        eventRepo
+//        app.eventRepo
 //          .findByEventType("MoneyMovementsIngested")
 //          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
-//          .foreach(es => eventRepo.deleteById(es.id))
+//          .foreach(es => app.eventRepo.deleteById(es.id))
 //        // reconciliation.spec_id -> reconciliation_spec has no ON DELETE CASCADE, so any
 //        // reconciliations reconcileAccount created must go before the spec they reference.
 //        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))

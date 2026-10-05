@@ -1,17 +1,14 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.model.{createID, Dispute, DisputeCategory, DisputeStatus, DisputeTarget}
 import anseliq.testing.rollBackOnly
 
 import java.time.OffsetDateTime
-import javax.sql.DataSource
 
 class DisputeRepoLiveSuite extends munit.FunSuite:
-  given transactor: Transactor = Transactor(dataSource)
-
-  given dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  private val app = TestAppContainer()
 
   private def amountMismatch(referenceId: anseliq.common.model.model.ID): Dispute =
     val now = OffsetDateTime.now()
@@ -25,8 +22,8 @@ class DisputeRepoLiveSuite extends munit.FunSuite:
     )
 
   test("insertIfNoOpenDispute inserts the first time and no-ops on a duplicate open dispute"):
-    val disputeRepo = DisputeRepoLive()
-    transact(transactor):
+    val disputeRepo = app.disputeRepo
+    transact(app.transactor):
       rollBackOnly:
         val referenceId = createID()
 
@@ -39,8 +36,8 @@ class DisputeRepoLiveSuite extends munit.FunSuite:
         assertEquals(disputeRepo.findAll.count(_.referenceId == referenceId), 1)
 
   test("insertIfNoOpenDispute allows a fresh dispute once the prior one for the same pair is resolved"):
-    val disputeRepo = DisputeRepoLive()
-    transact(transactor):
+    val disputeRepo = app.disputeRepo
+    transact(app.transactor):
       rollBackOnly:
         val referenceId = createID()
 
@@ -53,8 +50,8 @@ class DisputeRepoLiveSuite extends munit.FunSuite:
         assertEquals(disputeRepo.findAll.count(_.referenceId == referenceId), 2)
 
   test("insertIfNoOpenDispute allows different categories for the same referenceId"):
-    val disputeRepo = DisputeRepoLive()
-    transact(transactor):
+    val disputeRepo = app.disputeRepo
+    transact(app.transactor):
       rollBackOnly:
         val referenceId = createID()
 
@@ -67,8 +64,8 @@ class DisputeRepoLiveSuite extends munit.FunSuite:
         assert(dataQualityDispute.isDefined, "a different category for the same referenceId is not a duplicate")
 
   test("findOpenByReferenceId returns every unresolved dispute for the target, across categories"):
-    val disputeRepo = DisputeRepoLive()
-    transact(transactor):
+    val disputeRepo = app.disputeRepo
+    transact(app.transactor):
       rollBackOnly:
         val referenceId = createID()
 

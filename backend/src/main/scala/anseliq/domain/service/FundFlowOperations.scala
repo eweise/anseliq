@@ -17,7 +17,7 @@ import upickle.default.write as upickleWrite
 
 import java.util.UUID
 
-class FundFlowOperations(using
+class FundFlowOperations(
   val fundFlowConfigRepo: FundFlowConfigRepo,
   val accountRepo:        AccountRepo,
   val movementRepo:       MovementRepo,

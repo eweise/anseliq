@@ -1,8 +1,7 @@
 package anseliq
 
+import anseliq.testing.TestAppContainer
 import com.augustnagro.magnum.transact
-import com.typesafe.config.ConfigFactory
-import anseliq.app.AppEnv
 import anseliq.common.model.*
 import anseliq.common.model.Interval.Day
 import anseliq.common.model.model.ID
@@ -14,10 +13,9 @@ import java.nio.charset.StandardCharsets.UTF_8
 
 class EndToEndSuite extends munit.FunSuite {
 
-  // Reuses Main's exact adapter wiring instead of hand-duplicating it here, so this suite can't
-  // drift out of sync with production wiring the way it previously did.
-  private val env = AppEnv(config = ConfigFactory.load("test-application.conf"))
-  export env.given
+  // Reuses Main's exact wiring (AppContainer) instead of hand-duplicating it here, so this suite
+  // can't drift out of sync with production wiring the way it previously did.
+  private val app = TestAppContainer()
 
   // ingestResumable (unlike the now-deleted Ingestor.ingest) commits its own batches in their own
   // transactions rather than participating in the caller's, so these tests can no longer rely on
@@ -31,24 +29,24 @@ class EndToEndSuite extends munit.FunSuite {
     movementSpecs:  Seq[MovementSpec],
     reconAccountId: ID
   ): Unit =
-    transact(transactor):
-      reconRepo.findByReconSpecID(reconSpec.id).foreach(r => reconRepo.deleteById(r.id))
-      reconSpecRepo.deleteById(reconSpec.id)
+    transact(app.transactor):
+      app.reconRepo.findByReconSpecID(reconSpec.id).foreach(r => app.reconRepo.deleteById(r.id))
+      app.reconSpecRepo.deleteById(reconSpec.id)
       // .event[T] deserializes the stored JSON payload, which can fail for events published by an
       // older, incompatible version of the case class (e.g. a real event from a long-running server
       // process using different code) — those aren't this test's events, so skip rather than crash.
-      eventRepo
+      app.eventRepo
         .findByEventType("AccountReconciled")
         .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == reconAccountId).getOrElse(false))
-        .foreach(es => eventRepo.deleteById(es.id))
+        .foreach(es => app.eventRepo.deleteById(es.id))
       val movementSpecIds = movementSpecs.map(_.id).toSet
-      eventRepo
+      app.eventRepo
         .findByEventType("MoneyMovementsIngested")
         .filter(es =>
           scala.util.Try(movementSpecIds.contains(es.event[MoneyMovementsIngested].movementSpecID)).getOrElse(false)
         )
-        .foreach(es => eventRepo.deleteById(es.id))
-      fundFlowConfigRepo.deleteById(fundFlowConfig.id)
+        .foreach(es => app.eventRepo.deleteById(es.id))
+      app.fundFlowConfigRepo.deleteById(fundFlowConfig.id)
 
   test("1 to 1 attribute test") {
     val journalFile1 =
@@ -77,18 +75,18 @@ class EndToEndSuite extends munit.FunSuite {
       reportToRecon,
       reconSpec
     ) =
-      transact(transactor):
+      transact(app.transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
-        fundFlowConfigRepo.insert(fundFlowConfig)
+        app.fundFlowConfigRepo.insert(fundFlowConfig)
 
         val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
-        accountRepo.insert(reconAccount)
+        app.accountRepo.insert(reconAccount)
 
         val journalAccount = Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
-        accountRepo.insert(journalAccount)
+        app.accountRepo.insert(journalAccount)
 
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
-        accountRepo.insert(reportAccount)
+        app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
@@ -106,13 +104,13 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        fileFeedRepo.insert(journalFeed)
+        app.fileFeedRepo.insert(journalFeed)
         val journalToRecon = MovementSpec(
           inAccountId  = reconAccount.id,
           outAccountId = journalAccount.id,
           fileFeedId   = journalFeed.id
         )
-        movementSpecRepo.insert(journalToRecon)
+        app.movementSpecRepo.insert(journalToRecon)
 
         val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
@@ -129,13 +127,13 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        fileFeedRepo.insert(reportFeed)
+        app.fileFeedRepo.insert(reportFeed)
         val reportToRecon = MovementSpec(
           outAccountId = reconAccount.id,
           inAccountId  = reportAccount.id,
           fileFeedId   = reportFeed.id
         )
-        movementSpecRepo.insert(reportToRecon)
+        app.movementSpecRepo.insert(reportToRecon)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           accountId         = reconAccount.id,
@@ -148,7 +146,7 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        reconSpecRepo.insert(reconSpec)
+        app.reconSpecRepo.insert(reconSpec)
 
         (
           fundFlowConfig,
@@ -164,13 +162,13 @@ class EndToEndSuite extends munit.FunSuite {
 
     try
       // Ingest some files
-      ingestor.ingestResumable(
+      app.ingestor.ingestResumable(
         fileFeed        = reportFeed,
         movementSpecs   = Seq(reportToRecon),
         fileSourceEntry = InMemoryFileSourceEntry("report"),
         is              = ByteArrayInputStream(reportFile1.getBytes(UTF_8))
       )
-      ingestor.ingestResumable(
+      app.ingestor.ingestResumable(
         fileFeed        = journalFeed,
         movementSpecs   = Seq(journalToRecon),
         fileSourceEntry = InMemoryFileSourceEntry("journal"),
@@ -178,19 +176,19 @@ class EndToEndSuite extends munit.FunSuite {
       )
 
       // Reconcile the data
-      reconciler.reconcileAccountResumable(reconAccount.id)
+      app.reconciler.reconcileAccountResumable(reconAccount.id)
 
-      transact(transactor):
-        val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
+      transact(app.transactor):
+        val unreconciledReconAccounts = app.movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
 
-        val unreconciledJournalAccounts = movementRepo.findUnReconciledByAccount(journalAccount.id)
+        val unreconciledJournalAccounts = app.movementRepo.findUnReconciledByAccount(journalAccount.id)
         assertEquals(unreconciledJournalAccounts.length, 1)
 
-        val unreconciledReports = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        val unreconciledReports = app.movementRepo.findUnReconciledByAccount(reportAccount.id)
         assertEquals(unreconciledReports.length, 0)
 
-        val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
+        val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
     finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
@@ -221,18 +219,18 @@ class EndToEndSuite extends munit.FunSuite {
       reportToRecon,
       reconSpec
     ) =
-      transact(transactor):
+      transact(app.transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
-        fundFlowConfigRepo.insert(fundFlowConfig)
+        app.fundFlowConfigRepo.insert(fundFlowConfig)
 
         val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
-        accountRepo.insert(reconAccount)
+        app.accountRepo.insert(reconAccount)
 
         val journalAccount = Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
-        accountRepo.insert(journalAccount)
+        app.accountRepo.insert(journalAccount)
 
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
-        accountRepo.insert(reportAccount)
+        app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
@@ -250,13 +248,13 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        fileFeedRepo.insert(journalFeed)
+        app.fileFeedRepo.insert(journalFeed)
         val journalToRecon = MovementSpec(
           inAccountId  = reconAccount.id,
           outAccountId = journalAccount.id,
           fileFeedId   = journalFeed.id
         )
-        movementSpecRepo.insert(journalToRecon)
+        app.movementSpecRepo.insert(journalToRecon)
 
         val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
@@ -273,13 +271,13 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        fileFeedRepo.insert(reportFeed)
+        app.fileFeedRepo.insert(reportFeed)
         val reportToRecon = MovementSpec(
           outAccountId = reconAccount.id,
           inAccountId  = reportAccount.id,
           fileFeedId   = reportFeed.id
         )
-        movementSpecRepo.insert(reportToRecon)
+        app.movementSpecRepo.insert(reportToRecon)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           accountId         = reconAccount.id,
@@ -301,7 +299,7 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        reconSpecRepo.insert(reconSpec)
+        app.reconSpecRepo.insert(reconSpec)
 
         (
           fundFlowConfig,
@@ -317,13 +315,13 @@ class EndToEndSuite extends munit.FunSuite {
 
     try
       // Ingest some files
-      ingestor.ingestResumable(
+      app.ingestor.ingestResumable(
         fileFeed        = reportFeed,
         movementSpecs   = Seq(reportToRecon),
         fileSourceEntry = InMemoryFileSourceEntry("report"),
         is              = ByteArrayInputStream(reportFile1.getBytes(UTF_8))
       )
-      ingestor.ingestResumable(
+      app.ingestor.ingestResumable(
         fileFeed        = journalFeed,
         movementSpecs   = Seq(journalToRecon),
         fileSourceEntry = InMemoryFileSourceEntry("journal"),
@@ -331,19 +329,19 @@ class EndToEndSuite extends munit.FunSuite {
       )
 
       // Reconcile the data
-      reconciler.reconcileAccountResumable(reconAccount.id)
+      app.reconciler.reconcileAccountResumable(reconAccount.id)
 
-      transact(transactor):
-        val unreconciledReconAccounts = movementRepo.findUnReconciledByAccount(reconAccount.id)
+      transact(app.transactor):
+        val unreconciledReconAccounts = app.movementRepo.findUnReconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
 
-        val unreconciledJournalAccounts = movementRepo.findUnReconciledByAccount(journalAccount.id)
+        val unreconciledJournalAccounts = app.movementRepo.findUnReconciledByAccount(journalAccount.id)
         assertEquals(unreconciledJournalAccounts.length, 1)
 
-        val unreconciledReports = movementRepo.findUnReconciledByAccount(reportAccount.id)
+        val unreconciledReports = app.movementRepo.findUnReconciledByAccount(reportAccount.id)
         assertEquals(unreconciledReports.length, 0)
 
-        val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
+        val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
     finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
@@ -374,18 +372,18 @@ class EndToEndSuite extends munit.FunSuite {
       reconToReport,
       reconSpec
     ) =
-      transact(transactor):
+      transact(app.transactor):
         val fundFlowConfig = FundFlowConfig(name = createID().toString)
-        fundFlowConfigRepo.insert(fundFlowConfig)
+        app.fundFlowConfigRepo.insert(fundFlowConfig)
 
         val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
-        accountRepo.insert(reconAccount)
+        app.accountRepo.insert(reconAccount)
 
         val journalAccount = Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
-        accountRepo.insert(journalAccount)
+        app.accountRepo.insert(journalAccount)
 
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
-        accountRepo.insert(reportAccount)
+        app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
@@ -402,13 +400,13 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        fileFeedRepo.insert(journalFeed)
+        app.fileFeedRepo.insert(journalFeed)
         val journalToRecon = MovementSpec(
           inAccountId  = reconAccount.id,
           outAccountId = journalAccount.id,
           fileFeedId   = journalFeed.id
         )
-        movementSpecRepo.insert(journalToRecon)
+        app.movementSpecRepo.insert(journalToRecon)
 
         val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
@@ -426,13 +424,13 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        fileFeedRepo.insert(reportFeed)
+        app.fileFeedRepo.insert(reportFeed)
         val reconToReport = MovementSpec(
           outAccountId = reconAccount.id,
           inAccountId  = reportAccount.id,
           fileFeedId   = reportFeed.id
         )
-        movementSpecRepo.insert(reconToReport)
+        app.movementSpecRepo.insert(reconToReport)
 
         val reconSpec: ReconciliationSpec = ReconciliationSpec(
           accountId         = reconAccount.id,
@@ -454,7 +452,7 @@ class EndToEndSuite extends munit.FunSuite {
             )
           )
         )
-        reconSpecRepo.insert(reconSpec)
+        app.reconSpecRepo.insert(reconSpec)
 
         (
           fundFlowConfig,
@@ -470,13 +468,13 @@ class EndToEndSuite extends munit.FunSuite {
 
     try
       // Ingest some files
-      ingestor.ingestResumable(
+      app.ingestor.ingestResumable(
         fileFeed        = reportFeed,
         movementSpecs   = Seq(reconToReport),
         fileSourceEntry = InMemoryFileSourceEntry("report"),
         is              = ByteArrayInputStream(reportFile.getBytes(UTF_8))
       )
-      ingestor.ingestResumable(
+      app.ingestor.ingestResumable(
         fileFeed        = journalFeed,
         movementSpecs   = Seq(journalToRecon),
         fileSourceEntry = InMemoryFileSourceEntry("journal"),
@@ -484,18 +482,18 @@ class EndToEndSuite extends munit.FunSuite {
       )
 
       // Reconcile the data
-      reconciler.reconcileAccountResumable(reconAccount.id)
+      app.reconciler.reconcileAccountResumable(reconAccount.id)
 
-      transact(transactor):
-        val updateReconAccount = accountRepo.findById(reconAccount.id).get
+      transact(app.transactor):
+        val updateReconAccount = app.accountRepo.findById(reconAccount.id).get
         assertEquals(updateReconAccount.balance, BigDecimal(250), "reconAccount.balance 250")
-        // Scoped to this test's own reconSpec: reconRepo.findAll would pick up every other
+        // Scoped to this test's own reconSpec: app.reconRepo.findAll would pick up every other
         // reconciliation ever committed against this shared dev database.
-        val reconciliations = reconRepo.findByReconSpecID(reconSpec.id)
+        val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.size, 1, "recon size = 1")
 
         // add up movement from reconcilation. See if the amount matches
-        val reconciledMovements = movementRepo.findByReconciliationID(reconciliations.head.id)
+        val reconciledMovements = app.movementRepo.findByReconciliationID(reconciliations.head.id)
         assertEquals(reconciledMovements.size, 3)
         // all movement amounts should add up to 0
         val totalAmount = reconciledMovements.foldLeft(BigDecimal(0))((accum, movement) =>
@@ -505,7 +503,7 @@ class EndToEndSuite extends munit.FunSuite {
         )
         assertEquals(totalAmount, BigDecimal(0))
 
-        val unreconciled = movementRepo.findUnReconciledByAccount(reconAccount.id);
+        val unreconciled = app.movementRepo.findUnReconciledByAccount(reconAccount.id);
         assertEquals(unreconciled.size, 2)
         val u1 = unreconciled.find(m =>
           m.props.getOrElse("record_date", "") == "2025-03-05"

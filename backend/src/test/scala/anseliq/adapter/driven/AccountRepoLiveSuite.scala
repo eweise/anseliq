@@ -1,32 +1,24 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.testing.rollBackOnly
 
-import javax.sql.DataSource
-
 class AccountRepoLiveSuite extends munit.FunSuite:
-
-  var transactor: Transactor = null
-  var dataSource: DataSource = null
-
-  override def beforeAll(): Unit =
-    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-    transactor = Transactor(dataSource)
+  private val app = TestAppContainer()
 
   test("findByIdForUpdate succeeds"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val data   = DataSetup()
+        val data   = DataSetup(app)
         val result = data.accountRepo.findByIdForUpdate(data.reconAccount.id)
         assert(result.isDefined)
 
   test("accountType round-trips through the database"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup()
+        val data = DataSetup(app)
         val account = anseliq.domain.model.Account(
           name        = "standalone",
           fundFlowId  = data.fundFlowConfig.id,

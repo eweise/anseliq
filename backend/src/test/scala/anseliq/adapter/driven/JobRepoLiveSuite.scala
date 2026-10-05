@@ -1,28 +1,22 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.{Job, JobStatus, JobType}
 import anseliq.domain.model.JobType.Ingestion
 import anseliq.testing.rollBackOnly
 
 import java.util.UUID
-import javax.sql.DataSource
 
 class JobRepoLiveSuite extends munit.FunSuite:
-  var transactor: Transactor = null
-  var dataSource: DataSource = null
-
-  override def beforeAll(): Unit =
-    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-    transactor = Transactor(dataSource)
+  private val app = TestAppContainer()
 
   test("insertAndfindByID"):
-    val jobRepo = JobRepoLive()
-    transact(transactor):
+    val jobRepo = app.jobRepo
+    transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup()
+        val data        = DataSetup(app)
         val referenceId = UUID.randomUUID()
         val job         = Job(jobType = Ingestion, referenceId = referenceId)
 
@@ -37,8 +31,8 @@ class JobRepoLiveSuite extends munit.FunSuite:
         assert(foundJobsByType.exists(_.id == job.id))
 
   test("progressJson round-trips through the database"):
-    val jobRepo = JobRepoLive()
-    transact(transactor):
+    val jobRepo = app.jobRepo
+    transact(app.transactor):
       rollBackOnly:
         val job = Job(
           referenceId = UUID.randomUUID(),

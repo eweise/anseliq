@@ -13,7 +13,7 @@ import anseliq.domain.port.driven.{JobRepo, Txn}
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
-class JobManager(using jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) extends StrictLogging:
+class JobManager(jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) extends StrictLogging:
   private val UniqueViolationSqlState = "23505"
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =

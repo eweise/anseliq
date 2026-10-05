@@ -1,35 +1,28 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.domain.service.FundFlowCache
 import anseliq.testing.rollBackOnly
-import upickle.default.*
 
 import java.util.UUID
-import javax.sql.DataSource
 
 class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
-  var transactor: Transactor = null
-  var dataSource: DataSource = null
-
-  override def beforeAll(): Unit =
-    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-    transactor = Transactor(dataSource)
+  private val app = TestAppContainer()
 
   test("Create Fund Flow Config"):
-    transact(transactor):
+    transact(app.transactor):
       rollBackOnly:
-        val fundFlowRepo = FundFlowConfigRepoLive()
-        val data         = DataSetup()
+        val fundFlowRepo = app.fundFlowConfigRepo
+        val data         = DataSetup(app)
         val cache        = FundFlowCache(fundFlowRepo)
         cache.init()
 
   test("findById returns inserted fund flow config"):
-    val fundFlowRepo = FundFlowConfigRepoLive()
-    transact(transactor):
+    val fundFlowRepo = app.fundFlowConfigRepo
+    transact(app.transactor):
       rollBackOnly:
         val config = FundFlowConfig(
           name = UUID.randomUUID().toString
@@ -41,15 +34,15 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.get.name, config.name)
 
   test("findById returns None for non-existent id"):
-    val fundFlowRepo = FundFlowConfigRepoLive()
-    transact(transactor):
+    val fundFlowRepo = app.fundFlowConfigRepo
+    transact(app.transactor):
       rollBackOnly:
         val found = fundFlowRepo.findById(UUID.randomUUID())
         assert(found.isEmpty)
 
   test("update modifies fund flow config"):
-    val fundFlowRepo = FundFlowConfigRepoLive()
-    transact(transactor):
+    val fundFlowRepo = app.fundFlowConfigRepo
+    transact(app.transactor):
       rollBackOnly:
         val config = FundFlowConfig(
           name = "original-name"
@@ -63,8 +56,8 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.get.name, "updated-name")
 
   test("delete removes fund flow config"):
-    val fundFlowRepo = FundFlowConfigRepoLive()
-    transact(transactor):
+    val fundFlowRepo = app.fundFlowConfigRepo
+    transact(app.transactor):
       rollBackOnly:
         val config = FundFlowConfig(
           name = UUID.randomUUID().toString
@@ -77,8 +70,8 @@ class FundFlowSpecRepoLiveSuite extends munit.FunSuite:
         assert(found.isEmpty)
 
   test("findAll returns all fund flow configs"):
-    val fundFlowRepo = FundFlowConfigRepoLive()
-    transact(transactor):
+    val fundFlowRepo = app.fundFlowConfigRepo
+    transact(app.transactor):
       rollBackOnly:
         val initialCount = fundFlowRepo.findAll.size
 

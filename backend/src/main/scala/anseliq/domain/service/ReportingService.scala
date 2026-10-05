@@ -7,7 +7,7 @@ import anseliq.domain.port.driven.*
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-class ReportingService(using
+class ReportingService(
   accountRepo:        AccountRepo,
   disputeRepo:        DisputeRepo,
   movementRepo:       MovementRepo,

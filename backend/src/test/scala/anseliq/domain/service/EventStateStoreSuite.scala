@@ -1,20 +1,18 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{DbTx, Transactor, transact}
-import com.typesafe.config.ConfigFactory
-import anseliq.adapter.driven.{DbDataSource, EventRepoLive}
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.{DbTx, transact}
 import anseliq.domain.model.*
 import anseliq.testing.rollBackOnly
 
 import java.util.UUID
-import javax.sql.DataSource
 
 class EventStateStoreSuite extends munit.FunSuite:
-  private val dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  private val transactor: Transactor = Transactor(dataSource)
-  private val clock      = ClockServiceLive()
-  private val eventRepo  = EventRepoLive()
-  private val eventStore = EventStore(using eventRepo, clock, dataSource)
+  private val app        = TestAppContainer()
+  private val transactor = app.transactor
+  private val clock      = app.clock
+  private val eventRepo  = app.eventRepo
+  private val eventStore = app.eventStore
 
   // getNextPendingEvent picks the globally oldest Pending/Error row of a given event type (a real
   // job-queue query, not scoped to this test) — see EventRepoLive.getNextPendingEvent. On this

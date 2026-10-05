@@ -1,28 +1,26 @@
 package anseliq.domain.fixture
 
-import com.augustnagro.magnum.Transactor
+import anseliq.adapter.config.AppContainer
 import anseliq.common.model.model.ID
 import anseliq.domain.model.{FileInventory, FileSourceEntry}
 import anseliq.domain.port.driven.*
-import anseliq.domain.service.{ClockService, DisputeService, EventStore, Ingestor, Ledger}
+import anseliq.domain.service.Ingestor
 
-// Not `val`-marked: Ingestor already exposes each of these as an inherited given member (it takes
-// the identical `using val` clause itself), so redeclaring them as members here would need
-// `override` to shadow the inherited one. Plain `using` parameters still satisfy Ingestor's own
-// constructor implicitly and are still referenceable by name (e.g. `clock` below) within this
-// class's body — they just aren't re-exposed as ControlTimeIngestor's own members.
-class ControlTimeIngestor(using
-  ledger:             Ledger,
-  movementRepo:       MovementRepo,
-  movementSpecRepo:   MovementSpecRepo,
-  fileFeedRepo:       FileFeedRepo,
-  eventStore:         EventStore,
-  fileInventoryRepo:  FileInventoryRepo,
-  fileSourceFactory:  FileSourceFactory,
-  disputeService:     DisputeService,
-  clock:              ClockService,
-  transactor:         Transactor
-) extends Ingestor:
+// An Ingestor wired from `app` that stamps each new file's lastModifiedAt with app's clock, so a
+// test (or ControlTimeMain) that moves the clock forward controls when files appear to have landed.
+class ControlTimeIngestor(app: AppContainer)
+    extends Ingestor(
+      ledger            = app.ledger,
+      movementRepo      = app.movementRepo,
+      movementSpecRepo  = app.movementSpecRepo,
+      fileFeedRepo      = app.fileFeedRepo,
+      eventStore        = app.eventStore,
+      fileInventoryRepo = app.fileInventoryRepo,
+      fileSourceFactory = app.fileSourceFactory,
+      disputeService    = app.disputeService,
+      clock             = app.clock,
+      transactor        = app.transactor
+    ):
 
   override def createFileInventory(fileFeedID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory =
     val fi      = super.createFileInventory(fileFeedID, source, newFile)

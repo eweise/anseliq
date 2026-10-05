@@ -1,20 +1,14 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.model.*
 import anseliq.testing.rollBackOnly
 
 import java.util.UUID
-import javax.sql.DataSource
 
 class UserRepoLiveSuite extends munit.FunSuite:
-  var transactor: Transactor = null
-  var dataSource: DataSource = null
-
-  override def beforeAll(): Unit =
-    dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-    transactor = Transactor(dataSource)
+  private val app = TestAppContainer()
 
   private def newUser(role: UserRole = UserRole.Viewer): User =
     User(
@@ -26,8 +20,8 @@ class UserRepoLiveSuite extends munit.FunSuite:
     )
 
   test("findById returns inserted user"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val user = newUser(UserRole.Admin)
         userRepo.insert(user)
@@ -39,15 +33,15 @@ class UserRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.get.active, true)
 
   test("findById returns None for non-existent id"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val found = userRepo.findById(UUID.randomUUID())
         assert(found.isEmpty)
 
   test("findByEmail finds a user by exact email match"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val user = newUser()
         userRepo.insert(user)
@@ -57,15 +51,15 @@ class UserRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.get.id, user.id)
 
   test("findByEmail returns None for an email that doesn't exist"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val found = userRepo.findByEmail(s"${UUID.randomUUID()}@example.com")
         assert(found.isEmpty)
 
   test("update modifies a user"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val user = newUser(UserRole.Viewer)
         userRepo.insert(user)
@@ -78,8 +72,8 @@ class UserRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.get.active, false)
 
   test("delete removes a user"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val user = newUser()
         userRepo.insert(user)
@@ -90,8 +84,8 @@ class UserRepoLiveSuite extends munit.FunSuite:
         assert(found.isEmpty)
 
   test("findAll returns all users, including every UserRole"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val initialCount = userRepo.findAll.size
 
@@ -102,8 +96,8 @@ class UserRepoLiveSuite extends munit.FunSuite:
         assertEquals(userRepo.findAll.size, initialCount + 3)
 
   test("email uniqueness is enforced at the database level"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val user = newUser()
         userRepo.insert(user)
@@ -115,8 +109,8 @@ class UserRepoLiveSuite extends munit.FunSuite:
   // case names for storage/lookup ("Admin" -> "admin"), so a raw-SQL seed value must be lowercase
   // to round-trip; this regression-tests that the seed row in schema.sql matches.
   test("the schema.sql-seeded admin user is readable and has the Admin role"):
-    val userRepo = UserRepoLive()
-    transact(transactor):
+    val userRepo = app.userRepo
+    transact(app.transactor):
       rollBackOnly:
         val found = userRepo.findByEmail("admin@onparity.local")
         assert(found.isDefined)

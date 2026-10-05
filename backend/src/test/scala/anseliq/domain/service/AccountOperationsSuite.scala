@@ -1,39 +1,20 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
-import anseliq.adapter.driven.*
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
-import anseliq.domain.port.driven.{
-  AccountRepo,
-  FileFeedRepo,
-  FundFlowConfigRepo,
-  MovementRepo,
-  MovementSpecRepo,
-  ReconciliationSpecRepo
-}
-import anseliq.domain.service.FundFlowOperations
 import anseliq.testing
 
 class AccountOperationsSuite extends munit.FunSuite:
-  val dataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
+  private val app = TestAppContainer()
 
-  val transactor: Transactor = Transactor(dataSource)
-
-  given FundFlowConfigRepo     = FundFlowConfigRepoLive()
-  given AccountRepo            = AccountRepoLive()
-  given MovementRepo           = MovementRepoLive()
-  given MovementSpecRepo       = MovementSpecRepoLive()
-  given FileFeedRepo           = FileFeedRepoLive()
-  given ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-
-  val fundFlowOperations = FundFlowOperations()
+  val fundFlowOperations = app.fundFlowOperations
 
   test("Post Amount balances"):
-    transact(transactor):
+    transact(app.transactor):
       testing.rollBackOnly:
-        val dataSetup  = DataSetup()
+        val dataSetup  = DataSetup(app)
         val properties = Map("key" -> "123")
 
         fundFlowOperations.postAmount(

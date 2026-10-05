@@ -1,23 +1,15 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
-import com.typesafe.config.ConfigFactory
+import com.augustnagro.magnum.transact
 import anseliq.common.model.AppliedRules
-import anseliq.adapter.driven.{DailySnapshotRepoLive, DbDataSource}
 import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
-import anseliq.domain.port.driven.{DailySnapshotRepo, Txn}
-import anseliq.testing.rollBackOnly
-
-import javax.sql.DataSource
+import anseliq.domain.port.driven.Txn
+import anseliq.testing.{TestAppContainer, rollBackOnly}
 
 class ReportingServiceSuite extends munit.FunSuite:
-  given transactor:        Transactor        = Transactor(dataSource)
-  given dataSource:        DataSource        = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  given dailySnapshotRepo: DailySnapshotRepo = DailySnapshotRepoLive()
-
   def createMovement(inAccountId: ID, outAccountId: ID, movementSpecId: ID, amount: BigDecimal)(using
     data: DataSetup
   ): Txn[Movement] =
@@ -43,12 +35,13 @@ class ReportingServiceSuite extends munit.FunSuite:
     aged
 
   test("matchRates: computes reconciledBalance/balance*100, excludes zero-balance accounts from the ratio"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         data.accountRepo.update(data.reconAccount.copy(balance = 300, reconciledBalance = 100))
         val zeroBalance = Account(
@@ -67,12 +60,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(zero.balanceCoveragePercent, None)
 
   test("matchRates: computes reconciledMovementCount/totalMovementCount*100 (the real match rate)"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         val spec = data.journalToRecon
         val m1   = createMovement(spec.inAccountId, spec.outAccountId, spec.id, 100)
@@ -93,12 +87,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(account.matchRatePercent, Some(BigDecimal("50.00")))
 
   test("matchRates: only includes Recon-typed accounts"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         val result = service.summary(None)
 
@@ -107,12 +102,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assert(!result.matchRates.exists(_.accountId == data.reportAccount.id))
 
   test("exceptions: groups open disputes by category and status, excludes Resolved"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         val m =
           createMovement(data.journalToRecon.inAccountId, data.journalToRecon.outAccountId, data.journalToRecon.id, 100)
@@ -158,12 +154,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(result.exceptions.byStatus.get("Resolved"), None)
 
   test("aging: assigns unreconciled movements to fixed day buckets at each boundary"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         val spec = data.journalToRecon
 
@@ -184,12 +181,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(buckets("15+"), 1)
 
   test("aging: overdueCount respects the account's agingLimit; an account with no recon spec is skipped, not thrown"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         data.reconSpecRepo.update(data.reconSpec.copy(agingLimit = 5))
         val spec = data.journalToRecon
@@ -221,12 +219,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(result.aging.overdueCount, 1)
 
   test("summary(fundFlowId) scopes matchRates and aging to that fund flow's accounts only"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
@@ -248,12 +247,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assert(unscoped.matchRates.exists(_.accountId == otherAccount.id))
 
   test("summary with an unknown fundFlowId throws NotFoundError"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         intercept[NotFoundError]:
           service.summary(Some(java.util.UUID.randomUUID()))
@@ -351,12 +351,13 @@ class ReportingServiceSuite extends munit.FunSuite:
     assertEquals(points.head.avgBalanceCoveragePercent, Some(BigDecimal("80.00")))
 
   test("computeAndStoreDailySnapshots: is idempotent within the same day and matches summary()'s own numbers"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         data.accountRepo.update(data.reconAccount.copy(balance = 300, reconciledBalance = 150))
 
@@ -364,7 +365,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         service.computeAndStoreDailySnapshots() // second run same day must overwrite, not duplicate
 
         val today = clock.now.toLocalDate
-        val rows  = dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today)
+        val rows  = app.dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today)
         assertEquals(rows.size, 1, "idempotent upsert: exactly one row for this fund flow today")
 
         val expected = service.summary(Some(data.fundFlowConfig.id))
@@ -374,12 +375,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(rows.head.overdueCount, expected.aging.overdueCount)
 
   test("computeAndStoreDailySnapshots + trend: builds a multi-day trend as balances change across simulated days"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         data.accountRepo.update(
           data.reconAccount.copy(balance = 100, reconciledBalance = 25)
@@ -401,12 +403,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         assertEquals(byDate(day2).avgBalanceCoveragePercent, Some(BigDecimal("75.00")))
 
   test("computeAndStoreDailySnapshots: a fund flow isn't due until its dailyCutoffHours, then becomes due"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         // Anchor to a known hour-of-day (00:xx) first, so the +1h/+3h steps below land at
         // deterministic, non-wrapping hours regardless of the real wall-clock time this test
@@ -424,24 +427,25 @@ class ReportingServiceSuite extends munit.FunSuite:
         clock.addHours(1) // ~01:xx — before the 3am cutoff
         service.computeAndStoreDailySnapshots()
         assert(
-          !dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
+          !app.dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
           "not due yet: before this fund flow's cutoff hour"
         )
 
         clock.addHours(3) // ~04:xx — past the 3am cutoff
         service.computeAndStoreDailySnapshots()
         assert(
-          dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
+          app.dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
           "due now: past this fund flow's cutoff hour"
         )
 
   test("computeAndStoreDailySnapshots: a fund flow already snapshotted today is skipped on a later poll"):
-    transact(transactor):
+    val app = TestAppContainer()
+    transact(app.transactor):
       rollBackOnly:
-        given data: DataSetup = DataSetup()
-        import data.given
-        given clock: ClockService = ClockServiceLive()
-        val service = ReportingService()
+        val data = DataSetup(app)
+        given DataSetup = data
+        given clock: ClockService = app.clock
+        val service = app.reportingService
 
         data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
@@ -450,11 +454,11 @@ class ReportingServiceSuite extends munit.FunSuite:
         // of an exact 1/0 count — robust to any other fund flow in the database also being due.
         service.computeAndStoreDailySnapshots()
         val today = clock.now.toLocalDate
-        assert(dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, today), "first poll today: due")
-        val afterFirstPoll = dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
+        assert(app.dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, today), "first poll today: due")
+        val afterFirstPoll = app.dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
 
         service.computeAndStoreDailySnapshots() // a later poll the same day
-        val afterSecondPoll = dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
+        val afterSecondPoll = app.dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
         assertEquals(
           afterSecondPoll,
           afterFirstPoll,

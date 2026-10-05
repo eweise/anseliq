@@ -4,7 +4,7 @@ import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
 
-class DisputeService(using
+class DisputeService(
   disputeRepo:      DisputeRepo,
   commentRepo:      DisputeCommentRepo,
   movementRepo:     MovementRepo,
@@ -54,8 +54,8 @@ class DisputeService(using
     dispute
 
   /**
-   * A dispute the system raises on its own (no human actor): an AmountMismatch when a reconciliation
-   * becomes Mismatched, or a FileFeed problem found during ingestion. Idempotent via
+   * A dispute the system raises on its own (no human actor): an AmountMismatch when a
+   * reconciliation becomes Mismatched, or a FileFeed problem found during ingestion. Idempotent via
    * insertIfNoOpenDispute — a repeat raise for a (target, category) that already has an open
    * dispute (a re-run, a later aging check, a feed still overdue next cycle) is a no-op returning
    * None. Same category/target check as `raise`; the target's existence isn't re-checked, since
@@ -115,12 +115,15 @@ class DisputeService(using
   // The most recently created resolved dispute of this category on a target, e.g. the one a
   // write-off resolved, so a later re-raise can link back to it.
   def latestResolved(referenceId: ID, category: DisputeCategory): Txn[Option[Dispute]] =
-    disputeRepo.findByReferenceIdAndCategory(referenceId, category).filter(_.status == DisputeStatus.Resolved).lastOption
+    disputeRepo
+      .findByReferenceIdAndCategory(referenceId, category)
+      .filter(_.status == DisputeStatus.Resolved)
+      .lastOption
 
   /**
    * Connects two disputes about the same problem with a comment on each thread linking to the other
-   * — e.g. the dispute a write-off resolved, and the new one raised when that write-off is
-   * reversed — so someone reading either thread can follow the story to the other.
+   * — e.g. the dispute a write-off resolved, and the new one raised when that write-off is reversed
+   * — so someone reading either thread can follow the story to the other.
    */
   def crossLink(earlier: Dispute, later: Dispute, earlierNote: String, laterNote: String): Txn[Unit] =
     Seq(earlier -> (later, earlierNote), later -> (earlier, laterNote)).foreach { case (onDispute, (other, note)) =>
