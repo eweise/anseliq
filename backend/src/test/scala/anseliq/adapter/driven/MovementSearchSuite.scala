@@ -1,22 +1,18 @@
 package anseliq.adapter.driven
 
-import anseliq.adapter.config.AppContainer
-import com.augustnagro.magnum.transact
-import com.typesafe.config.ConfigFactory
 import anseliq.common.model.AppliedRules
 import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 
 import java.time.OffsetDateTime
-import javax.sql.DataSource
 
 class MovementSearchSuite extends munit.FunSuite:
 
-  val app = new AppContainer{
-    override lazy val dataSource: DataSource = DbDataSource.create(ConfigFactory.load("test-application.conf"))
-  }
+  val app = TestAppContainer()
 
   private def teardown(data: DataSetup): Unit =
     transact(app.transactor):
