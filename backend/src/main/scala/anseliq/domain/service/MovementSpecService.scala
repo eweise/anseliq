@@ -1,29 +1,15 @@
 package anseliq.domain.service
 
-import anseliq.adapter.driving.Payload
 import anseliq.common.model.model.ID
-import anseliq.common.model.*
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
-import upickle.default.write as upickleWrite
-
-import java.util.UUID
 
 class MovementSpecService(movementSpecRepo: MovementSpecRepo, accountRepo: AccountRepo):
 
-  def createMovementSpec(payload: MovementSpecPayload): Txn[MovementSpecPayload] =
-    val inAccountId  = UUID.fromString(payload.inAccountId)
-    val outAccountId = UUID.fromString(payload.outAccountId)
-    validateAccountLink(inAccountId, outAccountId)
-    val spec = MovementSpec(
-      name              = payload.name,
-      inAccountId       = inAccountId,
-      outAccountId      = outAccountId,
-      fileFeedId        = UUID.fromString(payload.fileFeedId),
-      routingFilterJson = payload.routingFilter.map(upickleWrite(_))
-    )
+  def createMovementSpec(spec: MovementSpec): Txn[MovementSpec] =
+    validateAccountLink(spec.inAccountId, spec.outAccountId)
     movementSpecRepo.insert(spec)
-    Payload.movementSpecPayloadFromDomain(spec)
+    spec
 
   // A link is only ever valid between one Recon account and one Primary-or-Secondary account —
   // never Recon-to-Recon, and never Primary-to-Secondary. Which side (in/out) the Recon account
@@ -37,23 +23,26 @@ class MovementSpecService(movementSpecRepo: MovementSpecRepo, accountRepo: Accou
         "A movement spec must link exactly one Recon account with one Primary or Secondary account"
       )
 
-  def updateMovementSpec(idStr: String, payload: MovementSpecPayload): Txn[MovementSpecPayload] =
-    val id           = UUID.fromString(idStr)
-    val inAccountId  = UUID.fromString(payload.inAccountId)
-    val outAccountId = UUID.fromString(payload.outAccountId)
+  def updateMovementSpec(
+    id:                ID,
+    name:              String,
+    inAccountId:       ID,
+    outAccountId:      ID,
+    fileFeedId:        ID,
+    routingFilterJson: Option[String]
+  ): Txn[MovementSpec] =
     validateAccountLink(inAccountId, outAccountId)
-    var existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
-    existing = existing.copy(
-      name              = payload.name,
+    val existing = movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
+    val updated = existing.copy(
+      name              = name,
       inAccountId       = inAccountId,
       outAccountId      = outAccountId,
-      fileFeedId        = UUID.fromString(payload.fileFeedId),
-      routingFilterJson = payload.routingFilter.map(upickleWrite(_))
+      fileFeedId        = fileFeedId,
+      routingFilterJson = routingFilterJson
     )
-    movementSpecRepo.update(existing)
-    Payload.movementSpecPayloadFromDomain(existing)
+    movementSpecRepo.update(updated)
+    updated
 
-  def deleteMovementSpec(idStr: String): Txn[Unit] =
-    val id = UUID.fromString(idStr)
+  def deleteMovementSpec(id: ID): Txn[Unit] =
     movementSpecRepo.findById(id).ErrIfNotFound("movement spec", id)
     movementSpecRepo.deleteById(id)

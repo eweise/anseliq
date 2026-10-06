@@ -1,6 +1,5 @@
 package anseliq.adapter.driven
 
-import anseliq.common.model.FileFeedPayload
 import anseliq.domain.model.*
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
@@ -90,13 +89,15 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
   test("FileFeed expectedCadenceHours round-trips through FileFeedService create/update and the DB"):
     transact(app.transactor):
       rollBackOnly:
-        val created = app.fileFeedService.createFileFeed(FileFeedPayload(expectedCadenceHours = Some(24)))
+        val created = app.fileFeedService.createFileFeed(FileFeed(expectedCadenceHours = Some(24)))
         assertEquals(created.expectedCadenceHours, Some(24))
-        assertEquals(app.fileFeedRepo.findById(UUID.fromString(created.id.get)).get.expectedCadenceHours, Some(24))
+        assertEquals(app.fileFeedRepo.findById(created.id).get.expectedCadenceHours, Some(24))
 
         val updated = app.fileFeedService.updateFileFeed(
-          created.id.get,
-          created.copy(expectedCadenceHours = None)
+          created.id,
+          name                 = created.name,
+          dataSourceJson       = created.dataSourceJson,
+          expectedCadenceHours = None
         )
         assertEquals(updated.expectedCadenceHours, None)
-        assertEquals(app.fileFeedRepo.findById(UUID.fromString(created.id.get)).get.expectedCadenceHours, None)
+        assertEquals(app.fileFeedRepo.findById(created.id).get.expectedCadenceHours, None)

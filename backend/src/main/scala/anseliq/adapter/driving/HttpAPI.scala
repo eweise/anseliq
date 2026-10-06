@@ -5,6 +5,7 @@ import anseliq.common.model.*
 import anseliq.common.model.model.{ID, Zero}
 import anseliq.common.util.JwtHelper
 import anseliq.domain.model.*
+import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.port.driven.*
 import anseliq.domain.service.*
 import com.augustnagro.magnum.*
@@ -132,13 +133,15 @@ class HttpAPI(
   def createFundFlow(request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())
     transact(transactor):
-      write(fundFlowService.createFundFlow(payload))
+      write(Payload.fundFlowPayloadFromDomain(fundFlowService.createFundFlow(Payload.fundFlowPayloadToDomain(payload))))
 
   @cask.route(s"${HttpPath.fundFlow}/:id", methods = HttpCmd.PUT)
   def updateFundFlow(id: String, request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())
+    val ffID    = UUID.fromString(payload.id.get)
     transact(transactor):
-      write(fundFlowService.updateFundFlow(payload))
+      val updated = fundFlowService.updateFundFlow(ffID, payload.name, payload.dailyCutoffHours)
+      write(Payload.fundFlowPayloadFromDomain(updated))
 
   // methods = Seq("get"), not HttpCmd.GET: updateAccount (PUT, below) shares this same path and
   // already registers "options" there via HttpCmd.PUT — cask allows only one "options" registration
@@ -152,13 +155,21 @@ class HttpAPI(
   def createAccount(request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      write(accountService.createAccount(accountRequest))
+      write(Payload.accountPayloadFromDomain(accountService.createAccount(Payload.accountPayloadToDomain(accountRequest))))
 
   @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)
   def updateAccount(id: String, request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
+    if id.trim == "" then throw IllegalArgumentException("Account ID is required")
+    val accountID = UUID.fromString(id)
     transact(transactor):
-      write(accountService.updateAccount(id, accountRequest))
+      val updated = accountService.updateAccount(
+        accountID,
+        name        = accountRequest.name,
+        accountType = Payload.accountTypeToDomain(accountRequest.accountType),
+        properties  = JSONBProps(accountRequest.properties)
+      )
+      write(Payload.accountPayloadFromDomain(updated))
 
   // MovementSpec
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/movement-specs", methods = HttpCmd.GET)
@@ -302,14 +313,21 @@ class HttpAPI(
     val payload = read[FileFeedPayload](request.text())
     validateDataSourceConfig(payload)
     transact(transactor):
-      write(fileFeedService.createFileFeed(payload))
+      write(Payload.fileFeedPayloadFromDomain(fileFeedService.createFileFeed(Payload.fileFeedPayloadToDomain(payload))))
 
   @cask.route(s"${HttpPath.fileFeed}/:id", methods = HttpCmd.PUT)
   def updateFileFeed(id: String, request: cask.Request): String =
     val payload = read[FileFeedPayload](request.text())
     validateDataSourceConfig(payload)
+    val feedID = UUID.fromString(id)
     transact(transactor):
-      write(fileFeedService.updateFileFeed(id, payload))
+      val updated = fileFeedService.updateFileFeed(
+        feedID,
+        name                 = payload.name,
+        dataSourceJson       = Payload.dataSourceJson(payload),
+        expectedCadenceHours = payload.expectedCadenceHours
+      )
+      write(Payload.fileFeedPayloadFromDomain(updated))
 
   // Re-checks the same rules the frontend validates inline (DataSourceConfig.validate, in common)
   // as a safety net against a bypassed or buggy frontend — not the primary UX for catching mistakes.
@@ -331,7 +349,7 @@ class HttpAPI(
   @cask.delete(s"${HttpPath.fileFeed}/:id")
   def deleteFileFeed(id: String): String =
     transact(transactor):
-      fileFeedService.deleteFileFeed(id)
+      fileFeedService.deleteFileFeed(UUID.fromString(id))
     write("deleted")
 
   // MovementSpec
@@ -339,18 +357,28 @@ class HttpAPI(
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
     transact(transactor):
-      write(movementSpecService.createMovementSpec(payload))
+      val created = movementSpecService.createMovementSpec(Payload.movementSpecPayloadToDomain(payload))
+      write(Payload.movementSpecPayloadFromDomain(created))
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
+    val specID = UUID.fromString(id)
     transact(transactor):
-      write(movementSpecService.updateMovementSpec(id, payload))
+      val updated = movementSpecService.updateMovementSpec(
+        specID,
+        name              = payload.name,
+        inAccountId       = UUID.fromString(payload.inAccountId),
+        outAccountId      = UUID.fromString(payload.outAccountId),
+        fileFeedId        = UUID.fromString(payload.fileFeedId),
+        routingFilterJson = Payload.routingFilterJson(payload)
+      )
+      write(Payload.movementSpecPayloadFromDomain(updated))
 
   @cask.delete(s"${HttpPath.movementSpec}/:id")
   def deleteMovementSpec(id: String): String =
     transact(transactor):
-      movementSpecService.deleteMovementSpec(id)
+      movementSpecService.deleteMovementSpec(UUID.fromString(id))
     write("deleted")
 
   @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
@@ -642,18 +670,27 @@ class HttpAPI(
   def createReconSpec(request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
-      write(reconSpecService.createReconSpec(payload))
+      write(Payload.reconSpecPayloadFromDomain(reconSpecService.createReconSpec(Payload.reconSpecPayloadToDomain(payload))))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
   def updateReconSpec(id: String, request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
+    val specID = UUID.fromString(id)
     transact(transactor):
-      write(reconSpecService.updateReconSpec(id, payload))
+      val updated = reconSpecService.updateReconSpec(
+        specID,
+        agingLimit        = payload.agingLimit,
+        relationship      = Payload.reconRelationshipToDomain(payload.relationship),
+        inMovementSpecId  = UUID.fromString(payload.inMovementSpecId),
+        outMovementSpecId = UUID.fromString(payload.outMovementSpecId),
+        ruleJson          = upickle.write(payload.rule)
+      )
+      write(Payload.reconSpecPayloadFromDomain(updated))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = Seq("delete"))
   def deleteReconSpec(id: String): String =
     transact(transactor):
-      reconSpecService.deleteReconSpec(id)
+      reconSpecService.deleteReconSpec(UUID.fromString(id))
     write("deleted")
 
   @cask.get("/account/:id/movements")

@@ -1,23 +1,17 @@
 package anseliq.domain.service
 
-import anseliq.adapter.driving.Payload
-import anseliq.common.model.*
+import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
 
-import java.util.UUID
-
 class FundFlowService(fundFlowConfigRepo: FundFlowConfigRepo):
 
-  def createFundFlow(payload: FundFlowPayload): Txn[FundFlowPayload] =
-    val fundFlow = Payload.fundFlowPayloadToDomain(payload)
+  def createFundFlow(fundFlow: FundFlowConfig): Txn[FundFlowConfig] =
     fundFlowConfigRepo.insert(fundFlow)
-    Payload.fundFlowPayloadFromDomain(fundFlow)
+    fundFlow
 
-  def updateFundFlow(payload: FundFlowPayload): Txn[FundFlowPayload] =
-    if payload.id.isEmpty then IllegalArgumentException("Fund flow ID is required")
-    val ffID       = UUID.fromString(payload.id.get)
-    var existingFF = fundFlowConfigRepo.findById(ffID).ErrIfNotFound("fund flow", ffID)
-    existingFF = existingFF.copy(name = payload.name, dailyCutoffHours = payload.dailyCutoffHours)
-    fundFlowConfigRepo.update(existingFF)
-    Payload.fundFlowPayloadFromDomain(existingFF)
+  def updateFundFlow(id: ID, name: String, dailyCutoffHours: Int): Txn[FundFlowConfig] =
+    val existing = fundFlowConfigRepo.findById(id).ErrIfNotFound("fund flow", id)
+    val updated  = existing.copy(name = name, dailyCutoffHours = dailyCutoffHours)
+    fundFlowConfigRepo.update(updated)
+    updated

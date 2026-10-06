@@ -1,7 +1,7 @@
 package anseliq.domain.service
 
-import anseliq.common.model.MovementSpecPayload
 import anseliq.domain.DataSetup
+import anseliq.domain.model.MovementSpec
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
 
@@ -13,28 +13,28 @@ class MovementSpecServiceSuite extends munit.FunSuite:
       rollBackOnly:
         val data = DataSetup(app)
         val spec = app.movementSpecService.createMovementSpec(
-          MovementSpecPayload(
+          MovementSpec(
             name         = "report to recon",
-            outAccountId = data.reconAccount.id.toString,
-            inAccountId  = data.reportAccount.id.toString,
-            fileFeedId   = data.reportToReconFeed.id.toString
+            outAccountId = data.reconAccount.id,
+            inAccountId  = data.reportAccount.id,
+            fileFeedId   = data.reportToReconFeed.id
           )
         )
-        assert(spec.id.isDefined)
+        assert(app.movementSpecRepo.findById(spec.id).isDefined)
 
   test("createMovementSpec succeeds linking a Secondary account to a Recon account"):
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
         val spec = app.movementSpecService.createMovementSpec(
-          MovementSpecPayload(
+          MovementSpec(
             name         = "journal to recon",
-            outAccountId = data.journalAccount.id.toString,
-            inAccountId  = data.reconAccount.id.toString,
-            fileFeedId   = data.journalToReconFeed.id.toString
+            outAccountId = data.journalAccount.id,
+            inAccountId  = data.reconAccount.id,
+            fileFeedId   = data.journalToReconFeed.id
           )
         )
-        assert(spec.id.isDefined)
+        assert(app.movementSpecRepo.findById(spec.id).isDefined)
 
   test("createMovementSpec rejects linking a Primary account directly to a Secondary account"):
     transact(app.transactor):
@@ -42,11 +42,11 @@ class MovementSpecServiceSuite extends munit.FunSuite:
         val data = DataSetup(app)
         intercept[IllegalArgumentException]:
           app.movementSpecService.createMovementSpec(
-            MovementSpecPayload(
+            MovementSpec(
               name         = "primary to secondary",
-              outAccountId = data.journalAccount.id.toString,
-              inAccountId  = data.reportAccount.id.toString,
-              fileFeedId   = data.journalToReconFeed.id.toString
+              outAccountId = data.journalAccount.id,
+              inAccountId  = data.reportAccount.id,
+              fileFeedId   = data.journalToReconFeed.id
             )
           )
 
@@ -62,10 +62,10 @@ class MovementSpecServiceSuite extends munit.FunSuite:
         data.accountRepo.insert(otherRecon)
         intercept[IllegalArgumentException]:
           app.movementSpecService.createMovementSpec(
-            MovementSpecPayload(
+            MovementSpec(
               name         = "recon to recon",
-              outAccountId = data.reconAccount.id.toString,
-              inAccountId  = otherRecon.id.toString,
-              fileFeedId   = data.journalToReconFeed.id.toString
+              outAccountId = data.reconAccount.id,
+              inAccountId  = otherRecon.id,
+              fileFeedId   = data.journalToReconFeed.id
             )
           )

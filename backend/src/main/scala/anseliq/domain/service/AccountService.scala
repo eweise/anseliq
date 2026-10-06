@@ -1,37 +1,21 @@
 package anseliq.domain.service
 
-import anseliq.adapter.driving.Payload
 import anseliq.common.model.model.{ID, Money, Properties}
-import anseliq.common.model.*
 import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.port.driven.*
 
-import java.util.UUID
-
 class AccountService(accountRepo: AccountRepo, movementRepo: MovementRepo):
 
-  def createAccount(payload: AccountPayload): Txn[AccountPayload] =
-    val newAccount = Account(
-      name        = payload.name,
-      fundFlowId  = UUID.fromString(payload.fundFlowId),
-      accountType = Payload.accountTypeToDomain(payload.accountType),
-      properties  = JSONBProps(payload.properties)
-    )
-    accountRepo.insert(newAccount)
-    Payload.accountPayloadFromDomain(newAccount)
+  def createAccount(account: Account): Txn[Account] =
+    accountRepo.insert(account)
+    account
 
-  def updateAccount(idStr: String, payload: AccountPayload): Txn[AccountPayload] =
-    if idStr.trim == "" then throw IllegalArgumentException("Account ID is required")
-    val accountID       = UUID.fromString(idStr)
-    var existingAccount = accountRepo.findById(accountID).ErrIfNotFound("account", accountID)
-    existingAccount = existingAccount.copy(
-      name        = payload.name,
-      accountType = Payload.accountTypeToDomain(payload.accountType),
-      properties  = JSONBProps(payload.properties)
-    )
-    accountRepo.update(existingAccount)
-    Payload.accountPayloadFromDomain(existingAccount)
+  def updateAccount(id: ID, name: String, accountType: AccountType, properties: JSONBProps): Txn[Account] =
+    val existing = accountRepo.findById(id).ErrIfNotFound("account", id)
+    val updated  = existing.copy(name = name, accountType = accountType, properties = properties)
+    accountRepo.update(updated)
+    updated
 
   def postAmount(
     movementSpec: MovementSpec,

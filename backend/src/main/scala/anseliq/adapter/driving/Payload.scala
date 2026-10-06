@@ -4,7 +4,8 @@ import anseliq.common.model.model.ID
 import anseliq.common.model.{Direction as ComDirection, ReconRelationship as ComRel, *}
 import anseliq.domain.model.{Relationship as Rel, *}
 import anseliq.domain.service.{BadFilePreview, FixBadFileResult, ParseTestResult}
-import upickle.default.read as upickleRead
+import anseliq.domain.model.helper.JSONBProps
+import upickle.default.{read as upickleRead, write as upickleWrite}
 
 import java.util.UUID
 
@@ -46,6 +47,14 @@ object Payload:
       dailyCutoffHours = ff.dailyCutoffHours
     )
 
+  def accountPayloadToDomain(payload: AccountPayload): Account =
+    Account(
+      name        = payload.name,
+      fundFlowId  = UUID.fromString(payload.fundFlowId),
+      accountType = accountTypeToDomain(payload.accountType),
+      properties  = JSONBProps(payload.properties)
+    )
+
   def accountPayloadFromDomain(account: Account): AccountPayload =
     AccountPayload(
       fundFlowId          = account.fundFlowId.toString,
@@ -70,6 +79,18 @@ object Payload:
       active    = user.active
     )
 
+  def movementSpecPayloadToDomain(payload: MovementSpecPayload): MovementSpec =
+    MovementSpec(
+      name              = payload.name,
+      inAccountId       = UUID.fromString(payload.inAccountId),
+      outAccountId      = UUID.fromString(payload.outAccountId),
+      fileFeedId        = UUID.fromString(payload.fileFeedId),
+      routingFilterJson = routingFilterJson(payload)
+    )
+
+  def routingFilterJson(payload: MovementSpecPayload): Option[String] =
+    payload.routingFilter.map(upickleWrite(_))
+
   def movementSpecPayloadFromDomain(spec: MovementSpec): MovementSpecPayload =
     MovementSpecPayload(
       id            = Some(spec.id.toString),
@@ -79,6 +100,16 @@ object Payload:
       fileFeedId    = spec.fileFeedId.toString,
       routingFilter = spec.routingFilter()
     )
+
+  def fileFeedPayloadToDomain(payload: FileFeedPayload): FileFeed =
+    FileFeed(
+      name                 = payload.name,
+      dataSourceJson       = dataSourceJson(payload),
+      expectedCadenceHours = payload.expectedCadenceHours
+    )
+
+  def dataSourceJson(payload: FileFeedPayload): String =
+    payload.dataSourceConfig.map(upickleWrite(_)).getOrElse("")
 
   def fileFeedPayloadFromDomain(feed: FileFeed): FileFeedPayload =
     FileFeedPayload(
@@ -93,6 +124,17 @@ object Payload:
       case ComRel.OneToOne   => Rel.OneToOne
       case ComRel.OneToMany  => Rel.OneToMany
       case ComRel.ManyToMany => Rel.ManyToMany
+
+  def reconSpecPayloadToDomain(payload: ReconciliationSpecPayload): ReconciliationSpec =
+    ReconciliationSpec(
+      accountId =
+        UUID.fromString(payload.accountId.getOrElse(throw IllegalArgumentException("Account ID is required"))),
+      agingLimit        = payload.agingLimit,
+      relationship      = reconRelationshipToDomain(payload.relationship),
+      inMovementSpecId  = UUID.fromString(payload.inMovementSpecId),
+      outMovementSpecId = UUID.fromString(payload.outMovementSpecId),
+      ruleJson          = upickleWrite(payload.rule)
+    )
 
   def reconSpecPayloadFromDomain(spec: ReconciliationSpec): ReconciliationSpecPayload =
     ReconciliationSpecPayload(
