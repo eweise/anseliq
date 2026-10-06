@@ -45,14 +45,11 @@ trait AppContainer:
   lazy val accountRepo:        AccountRepo            = AccountRepoLive()
   lazy val movementRepo:       MovementRepo           = MovementRepoLive()
   lazy val eventRepo:          EventRepo              = EventRepoLive()
-  lazy val fundFlowOperations: FundFlowOperations = FundFlowOperations(
-    fundFlowConfigRepo = fundFlowConfigRepo,
-    accountRepo        = accountRepo,
-    movementRepo       = movementRepo,
-    movementSpecRepo   = movementSpecRepo,
-    fileFeedRepo       = fileFeedRepo,
-    reconSpecRepo      = reconSpecRepo
-  )
+  lazy val fundFlowService:     FundFlowService     = FundFlowService(fundFlowConfigRepo)
+  lazy val accountService:      AccountService      = AccountService(accountRepo, movementRepo)
+  lazy val movementSpecService: MovementSpecService = MovementSpecService(movementSpecRepo, accountRepo)
+  lazy val fileFeedService:  FileFeedService  = FileFeedService(fileFeedRepo)
+  lazy val reconSpecService: ReconSpecService = ReconSpecService(reconSpecRepo)
   lazy val eventStore:        EventStore        = EventStore(eventRepo, clock, dataSource)
   lazy val fileInventoryRepo: FileInventoryRepo = FileInventoryRepoLive()
   lazy val ledger: Ledger =

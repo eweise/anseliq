@@ -11,7 +11,7 @@ class DataSetupScenario1 extends munit.FunSuite:
 
   test("Setup data for a complete Fund flow scenario"):
     transact(app.transactor):
-      val fundFlowConfig = app.fundFlowOperations.createFundFlow(
+      val fundFlowConfig = app.fundFlowService.createFundFlow(
         FundFlowPayload(
           name             = s"Scenario1-${UUID.randomUUID()}",
           dailyCutoffHours = 0
@@ -19,21 +19,21 @@ class DataSetupScenario1 extends munit.FunSuite:
       )
 
       val journalAccount =
-        app.fundFlowOperations.createAccount(
+        app.accountService.createAccount(
           AccountPayload(name = "Journal", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
         )
 
       val reconAccount =
-        app.fundFlowOperations.createAccount(
+        app.accountService.createAccount(
           AccountPayload(name = "Recon", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Recon)
         )
 
-      val bankAccount = app.fundFlowOperations.createAccount(
+      val bankAccount = app.accountService.createAccount(
         AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Primary)
       )
 
       // tmp_journal.csv: record_date, transaction_id, amount, description (header row present)
-      val journalFeed = app.fundFlowOperations.createFileFeed(
+      val journalFeed = app.fileFeedService.createFileFeed(
         FileFeedPayload(
           expectedCadenceHours = Some(24),
           name                 = "Journal Feed",
@@ -53,7 +53,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
       )
       val journalToRecon =
-        app.fundFlowOperations.createMovementSpec(
+        app.movementSpecService.createMovementSpec(
           MovementSpecPayload(
             name         = "Journal to Recon",
             outAccountId = journalAccount.id.get,
@@ -62,7 +62,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           )
         )
 
-      val bankFeed = app.fundFlowOperations.createFileFeed(
+      val bankFeed = app.fileFeedService.createFileFeed(
         FileFeedPayload(
           expectedCadenceHours = Some(24),
           name                 = "Bank Feed",
@@ -81,7 +81,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           )
         )
       )
-      val reconToBank = app.fundFlowOperations.createMovementSpec(
+      val reconToBank = app.movementSpecService.createMovementSpec(
         MovementSpecPayload(
           name         = "Recon to Bank",
           outAccountId = reconAccount.id.get,
@@ -90,7 +90,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
       )
 
-      val reconSpec = app.fundFlowOperations.createReconSpec(
+      val reconSpec = app.reconSpecService.createReconSpec(
         ReconciliationSpecPayload(
           accountId         = reconAccount.id,
           inMovementSpecId  = journalToRecon.id.get,
@@ -105,7 +105,7 @@ class DataSetupScenario1 extends munit.FunSuite:
 
   test("Setup For many to one with multiple accounts using BAI"):
     transact(app.transactor):
-      val fundFlowConfig = app.fundFlowOperations.createFundFlow(
+      val fundFlowConfig = app.fundFlowService.createFundFlow(
         FundFlowPayload(
           name             = s"Scenario1-${UUID.randomUUID()}",
           dailyCutoffHours = 0
@@ -113,21 +113,21 @@ class DataSetupScenario1 extends munit.FunSuite:
       )
 
       val visa =
-        app.fundFlowOperations.createAccount(
+        app.accountService.createAccount(
           AccountPayload(name = "Visa", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
         )
 
       val reconAccount =
-        app.fundFlowOperations.createAccount(
+        app.accountService.createAccount(
           AccountPayload(name = "BAI Recon", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Recon)
         )
 
-      val bankAccount = app.fundFlowOperations.createAccount(
+      val bankAccount = app.accountService.createAccount(
         AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Primary)
       )
 
       // A single BAI2 feed covers visa's account activity; reconToBank stays on its own CSV feed.
-      val baiFeed = app.fundFlowOperations.createFileFeed(
+      val baiFeed = app.fileFeedService.createFileFeed(
         FileFeedPayload(
           expectedCadenceHours = Some(24),
           name                 = "BAI Feed",
@@ -140,7 +140,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
       )
       val journalToRecon =
-        app.fundFlowOperations.createMovementSpec(
+        app.movementSpecService.createMovementSpec(
           MovementSpecPayload(
             name          = "Journal to Recon",
             outAccountId  = visa.id.get,
@@ -150,7 +150,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           )
         )
 
-      val bankFeed = app.fundFlowOperations.createFileFeed(
+      val bankFeed = app.fileFeedService.createFileFeed(
         FileFeedPayload(
           expectedCadenceHours = Some(24),
           name                 = "Bank Feed",
@@ -169,7 +169,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           )
         )
       )
-      val reconToBank = app.fundFlowOperations.createMovementSpec(
+      val reconToBank = app.movementSpecService.createMovementSpec(
         MovementSpecPayload(
           name         = "Recon to Bank",
           outAccountId = reconAccount.id.get,
@@ -178,7 +178,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
       )
 
-      val reconSpec = app.fundFlowOperations.createReconSpec(
+      val reconSpec = app.reconSpecService.createReconSpec(
         ReconciliationSpecPayload(
           accountId         = reconAccount.id,
           inMovementSpecId  = journalToRecon.id.get,

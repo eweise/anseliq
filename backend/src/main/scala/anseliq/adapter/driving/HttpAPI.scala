@@ -29,7 +29,11 @@ class HttpAPI(
               movementSpecRepo:   MovementSpecRepo,
               fileFeedRepo:       FileFeedRepo,
               movementRepo:       MovementRepo,
-              fundFlowOperations: FundFlowOperations,
+              fundFlowService:     FundFlowService,
+              accountService:      AccountService,
+              movementSpecService: MovementSpecService,
+              fileFeedService:    FileFeedService,
+              reconSpecService:   ReconSpecService,
               jobManager:         JobManager,
               ingestor:           Ingestor,
               reconciler:         InMemoryReconciler,
@@ -128,13 +132,13 @@ class HttpAPI(
   def createFundFlow(request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.createFundFlow(payload))
+      write(fundFlowService.createFundFlow(payload))
 
   @cask.route(s"${HttpPath.fundFlow}/:id", methods = HttpCmd.PUT)
   def updateFundFlow(id: String, request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.updateFundFlow(payload))
+      write(fundFlowService.updateFundFlow(payload))
 
   // methods = Seq("get"), not HttpCmd.GET: updateAccount (PUT, below) shares this same path and
   // already registers "options" there via HttpCmd.PUT — cask allows only one "options" registration
@@ -148,13 +152,13 @@ class HttpAPI(
   def createAccount(request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.createAccount(accountRequest))
+      write(accountService.createAccount(accountRequest))
 
   @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)
   def updateAccount(id: String, request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.updateAccount(id, accountRequest))
+      write(accountService.updateAccount(id, accountRequest))
 
   // MovementSpec
   @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/movement-specs", methods = HttpCmd.GET)
@@ -298,14 +302,14 @@ class HttpAPI(
     val payload = read[FileFeedPayload](request.text())
     validateDataSourceConfig(payload)
     transact(transactor):
-      write(fundFlowOperations.createFileFeed(payload))
+      write(fileFeedService.createFileFeed(payload))
 
   @cask.route(s"${HttpPath.fileFeed}/:id", methods = HttpCmd.PUT)
   def updateFileFeed(id: String, request: cask.Request): String =
     val payload = read[FileFeedPayload](request.text())
     validateDataSourceConfig(payload)
     transact(transactor):
-      write(fundFlowOperations.updateFileFeed(id, payload))
+      write(fileFeedService.updateFileFeed(id, payload))
 
   // Re-checks the same rules the frontend validates inline (DataSourceConfig.validate, in common)
   // as a safety net against a bypassed or buggy frontend — not the primary UX for catching mistakes.
@@ -327,7 +331,7 @@ class HttpAPI(
   @cask.delete(s"${HttpPath.fileFeed}/:id")
   def deleteFileFeed(id: String): String =
     transact(transactor):
-      fundFlowOperations.deleteFileFeed(id)
+      fileFeedService.deleteFileFeed(id)
     write("deleted")
 
   // MovementSpec
@@ -335,18 +339,18 @@ class HttpAPI(
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.createMovementSpec(payload))
+      write(movementSpecService.createMovementSpec(payload))
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.updateMovementSpec(id, payload))
+      write(movementSpecService.updateMovementSpec(id, payload))
 
   @cask.delete(s"${HttpPath.movementSpec}/:id")
   def deleteMovementSpec(id: String): String =
     transact(transactor):
-      fundFlowOperations.deleteMovementSpec(id)
+      movementSpecService.deleteMovementSpec(id)
     write("deleted")
 
   @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
@@ -638,18 +642,18 @@ class HttpAPI(
   def createReconSpec(request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.createReconSpec(payload))
+      write(reconSpecService.createReconSpec(payload))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
   def updateReconSpec(id: String, request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
-      write(fundFlowOperations.updateReconSpec(id, payload))
+      write(reconSpecService.updateReconSpec(id, payload))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = Seq("delete"))
   def deleteReconSpec(id: String): String =
     transact(transactor):
-      fundFlowOperations.deleteReconSpec(id)
+      reconSpecService.deleteReconSpec(id)
     write("deleted")
 
   @cask.get("/account/:id/movements")

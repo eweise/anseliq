@@ -135,19 +135,18 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     finally teardown(data)
 
   test("multiple matched OneToOne pairs zero out account balance, leaving only unmatched movements unreconciled"):
-    // Exercises reconcileAccountResumable through FundFlowOperations.postAmount (not raw
+    // Exercises reconcileAccountResumable through AccountService.postAmount (not raw
     // app.movementRepo.insert), so account.balance/reconciledBalance/unreconciledBalance are populated
     // the same way production ingestion populates them, across three separate matched pairs in one
     // run plus leftover unmatched movements from a second run.
     val data = transact(app.transactor)(DataSetup(app))
-    val ops = app.fundFlowOperations
     try
       transact(app.transactor):
         for _ <- 1 to 3
         do
           val key = createID().toString
-          ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> key))
-          ops.postAmount(data.reportToRecon, 1000, referenceID  = createID(), Map("id" -> key))
+          app.accountService.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> key))
+          app.accountService.postAmount(data.reportToRecon, 1000, referenceID  = createID(), Map("id" -> key))
 
       val reconciler = app.reconciler
       val result1    = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -164,8 +163,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       transact(app.transactor):
         for _ <- 1 to 2
-        do ops.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
-        ops.postAmount(data.reportToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
+        do app.accountService.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
+        app.accountService.postAmount(data.reportToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
 
       val result2 = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
       assertEquals(
@@ -281,13 +280,12 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
   test("OneToMany groups multiple out-movements against one in-movement, including a group spanning a page boundary"):
     val data                    = transact(app.transactor)(DataSetup(app))
     val (inSpec, outSpec, spec) = oneToManySpec(data)
-    val ops = app.fundFlowOperations
     try
       transact(app.transactor):
         // one in-movement worth 100, matched by three out-movements (40 + 40 + 20) all sharing groupId "g1"
-        ops.postAmount(inSpec, 100, referenceID = createID(), Map("groupId" -> "g1"))
+        app.accountService.postAmount(inSpec, 100, referenceID = createID(), Map("groupId" -> "g1"))
         for amount <- Seq(BigDecimal(40), BigDecimal(40), BigDecimal(20))
-        do ops.postAmount(outSpec, amount, referenceID = createID(), Map("groupId" -> "g1"))
+        do app.accountService.postAmount(outSpec, amount, referenceID = createID(), Map("groupId" -> "g1"))
 
       val reconciler = app.reconciler
       // pageSize forced small enough that the 3-row out-group can't fit in one page fetch,
@@ -327,12 +325,11 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     // out-movement worth 100, all sharing groupId "g1".
     val data                    = transact(app.transactor)(DataSetup(app))
     val (inSpec, outSpec, spec) = oneToManySpec(data)
-    val ops = app.fundFlowOperations
     try
       transact(app.transactor):
         for amount <- Seq(BigDecimal(40), BigDecimal(40), BigDecimal(20))
-        do ops.postAmount(inSpec, amount, referenceID = createID(), Map("groupId" -> "g1"))
-        ops.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g1"))
+        do app.accountService.postAmount(inSpec, amount, referenceID = createID(), Map("groupId" -> "g1"))
+        app.accountService.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g1"))
 
       val reconciler = app.reconciler
       val result     = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -364,16 +361,15 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     // First run: one out-movement of 100 matches a single in-movement of only 60 so far — should sit
     // InProgress with balance (in - out) = -40. Second run: another in-movement (40) arrives on the
     // same key, closing the balance to 0 without creating a second reconciliation. Movements are
-    // posted through FundFlowOperations.postAmount (not raw app.movementRepo.insert) specifically so the
+    // posted through AccountService.postAmount (not raw app.movementRepo.insert) specifically so the
     // account's balance/reconciledBalance/unreconciledBalance are populated the same way production
     // ingestion populates them, letting the assertions below verify the app.ledger side effects for real.
     val data                    = transact(app.transactor)(DataSetup(app))
     val (inSpec, outSpec, spec) = oneToManySpec(data)
-    val ops = app.fundFlowOperations
     try
       transact(app.transactor):
-        ops.postAmount(inSpec, 60, referenceID   = createID(), Map("groupId" -> "g2"))
-        ops.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g2"))
+        app.accountService.postAmount(inSpec, 60, referenceID   = createID(), Map("groupId" -> "g2"))
+        app.accountService.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g2"))
 
       val reconciler = app.reconciler
       val result1    = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -400,7 +396,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assert(disputesAfterFirstRun.isEmpty, "a fresh OneToMany InProgress reconciliation must not auto-raise a dispute")
 
       transact(app.transactor):
-        ops.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g2"))
+        app.accountService.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g2"))
 
       val result2 = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
       assertEquals(result2.reconciliationSpecInsertCount(spec.id), 0, "no new reconciliation, existing one topped up")
@@ -431,11 +427,10 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     val clock                   = app.clock
     val data                    = transact(app.transactor)(DataSetup(app))
     val (inSpec, outSpec, spec) = oneToManySpec(data, agingLimit = 2)
-    val ops = app.fundFlowOperations
     try
       transact(app.transactor):
-        ops.postAmount(inSpec, 60, referenceID   = createID(), Map("groupId" -> "g3"))
-        ops.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g3"))
+        app.accountService.postAmount(inSpec, 60, referenceID   = createID(), Map("groupId" -> "g3"))
+        app.accountService.postAmount(outSpec, 100, referenceID = createID(), Map("groupId" -> "g3"))
 
       val reconciler = app.reconciler
       reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -471,7 +466,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       // Mismatched isn't terminal for OneToMany: the missing 40 turning up late still completes
       // the group, which moves it to Final and auto-resolves the dispute it had been carrying.
       transact(app.transactor):
-        ops.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g3"))
+        app.accountService.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g3"))
       reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
 
       val completed = transact(app.transactor)(data.reconRepo.findById(recon.id)).get
@@ -533,16 +528,15 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
   test("a rule with a constant on one side only matches in-movements whose field equals that constant"):
     val data                    = transact(app.transactor)(DataSetup(app))
     val (inSpec, outSpec, spec) = constantMatchSpec(data)
-    val ops = app.fundFlowOperations
     try
       transact(app.transactor):
         // matches: this in-movement's real "id" equals the constant the out side is pinned to.
-        ops.postAmount(inSpec, 100, referenceID = createID(), Map("id" -> "12345"))
+        app.accountService.postAmount(inSpec, 100, referenceID = createID(), Map("id" -> "12345"))
         // the out-movement's own "id" is irrelevant — its side of the rule never looks at it.
-        ops.postAmount(outSpec, 100, referenceID = createID(), Map("id" -> "unused"))
+        app.accountService.postAmount(outSpec, 100, referenceID = createID(), Map("id" -> "unused"))
         // does not match: this in-movement's "id" differs from the constant, so it has no pairing
         // out-movement to match against.
-        ops.postAmount(inSpec, 50, referenceID = createID(), Map("id" -> "999"))
+        app.accountService.postAmount(inSpec, 50, referenceID = createID(), Map("id" -> "999"))
 
       val reconciler = app.reconciler
       val result     = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -577,7 +571,6 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       inMovementSpecId  = inSpec.id,
       outMovementSpecId = outSpec.id
     )
-    val ops = app.fundFlowOperations
     try
       transact(app.transactor):
         app.fileFeedRepo.insert(inFeed)
@@ -585,8 +578,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         app.movementSpecRepo.insert(inSpec)
         app.movementSpecRepo.insert(outSpec)
         data.reconSpecRepo.insert(spec)
-        ops.postAmount(inSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "txnDate" -> "2026-09-01"))
-        ops.postAmount(outSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "settleDate" -> "2026-09-03"))
+        app.accountService.postAmount(inSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "txnDate" -> "2026-09-01"))
+        app.accountService.postAmount(outSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "settleDate" -> "2026-09-03"))
 
       app.reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
 

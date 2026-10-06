@@ -87,16 +87,14 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         assertEquals(app.movementSpecRepo.findByFileFeedId(sharedFeed.id).size, 2)
         assertEquals(app.movementSpecRepo.findByFileFeedId(unusedFeed.id).size, 0)
 
-  test("FileFeed expectedCadenceHours round-trips through FundFlowOperations create/update and the DB"):
+  test("FileFeed expectedCadenceHours round-trips through FileFeedService create/update and the DB"):
     transact(app.transactor):
       rollBackOnly:
-        val fundFlowOperations = app.fundFlowOperations
-
-        val created = fundFlowOperations.createFileFeed(FileFeedPayload(expectedCadenceHours = Some(24)))
+        val created = app.fileFeedService.createFileFeed(FileFeedPayload(expectedCadenceHours = Some(24)))
         assertEquals(created.expectedCadenceHours, Some(24))
         assertEquals(app.fileFeedRepo.findById(UUID.fromString(created.id.get)).get.expectedCadenceHours, Some(24))
 
-        val updated = fundFlowOperations.updateFileFeed(
+        val updated = app.fileFeedService.updateFileFeed(
           created.id.get,
           created.copy(expectedCadenceHours = None)
         )

@@ -6,10 +6,8 @@ import anseliq.testing
 import anseliq.testing.TestAppContainer
 import com.augustnagro.magnum.transact
 
-class AccountOperationsSuite extends munit.FunSuite:
+class AccountServiceSuite extends munit.FunSuite:
   private val app = TestAppContainer()
-
-  val fundFlowOperations = app.fundFlowOperations
 
   test("Post Amount balances"):
     transact(app.transactor):
@@ -17,7 +15,7 @@ class AccountOperationsSuite extends munit.FunSuite:
         val dataSetup  = DataSetup(app)
         val properties = Map("key" -> "123")
 
-        fundFlowOperations.postAmount(
+        app.accountService.postAmount(
           movementSpec = dataSetup.journalToRecon,
           amount       = 100,
           referenceID  = createID(),
@@ -29,7 +27,7 @@ class AccountOperationsSuite extends munit.FunSuite:
         // make sure the non clearing accounts balance
         assertEquals(BigDecimal(0), fundFlowAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))
 
-        fundFlowOperations.postAmount(
+        app.accountService.postAmount(
           movementSpec = dataSetup.reportToRecon,
           amount       = 100,
           referenceID  = createID(),
