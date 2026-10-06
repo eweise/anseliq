@@ -12,7 +12,7 @@ class DataSetupScenario1 extends munit.FunSuite:
   private val app = TestAppContainer()
 
   // The scenario is written in payload terms, as the UI would send it, so each step goes through
-  // the same Payload conversions HttpAPI uses on either side of the service call.
+  // the same Payload conversions the HTTP routes use on either side of the service call.
   private def createFundFlow(p: FundFlowPayload): Txn[FundFlowPayload] =
     Payload.fundFlowPayloadFromDomain(app.fundFlowService.createFundFlow(Payload.fundFlowPayloadToDomain(p)))
   private def createAccount(p: AccountPayload): Txn[AccountPayload] =

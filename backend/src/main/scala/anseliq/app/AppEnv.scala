@@ -1,23 +1,18 @@
 package anseliq.app
 
 import anseliq.adapter.config.AppContainer
-import anseliq.adapter.driven.*
 import anseliq.adapter.driving.*
 import anseliq.common.model.*
 import anseliq.domain.model.*
 import anseliq.domain.model.JobType.Ingestion
-import anseliq.domain.port.driven.*
-import anseliq.domain.service.*
 import anseliq.util.LogContext
 import com.augustnagro.magnum.*
-import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
 import net.logstash.logback.argument.StructuredArguments.kv
 import ox.*
 import ox.scheduling.{Schedule, repeat}
 
 import java.util.UUID
-import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt
 
 /**
@@ -223,34 +218,5 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
           case ex: Exception =>
             logger.error("failed poll for GenerateReconStats job", ex)
 
-      new HttpAPI(
-        dataSource         = app.dataSource,
-        accountRepo        = app.accountRepo,
-        reconRepo          = app.reconRepo,
-        fundFlowConfigRepo = app.fundFlowConfigRepo,
-        movementSpecRepo   = app.movementSpecRepo,
-        fileFeedRepo       = app.fileFeedRepo,
-        movementRepo       = app.movementRepo,
-        fundFlowService     = app.fundFlowService,
-        accountService      = app.accountService,
-        movementSpecService = app.movementSpecService,
-        fileFeedService    = app.fileFeedService,
-        reconSpecService   = app.reconSpecService,
-        jobManager         = app.jobManager,
-        ingestor           = app.ingestor,
-        reconciler         = app.reconciler,
-        manualReconciler   = app.manualReconciler,
-        jobRepo            = app.jobRepo,
-        reconSpecRepo      = app.reconSpecRepo,
-        eventRepo          = app.eventRepo,
-        disputeRepo        = app.disputeRepo,
-        disputeCommentRepo = app.disputeCommentRepo,
-        disputeService     = app.disputeService,
-        reportingService   = app.reportingService,
-        fileInventoryRepo  = app.fileInventoryRepo,
-        userRepo           = app.userRepo,
-        userService        = app.userService,
-        authService        = app.authService,
-        jwtSecret          = app.jwtSecret
-      ).main(args)
+      HttpServer(app).main(args)
       shutdownLatch.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled

@@ -1,0 +1,56 @@
+package anseliq.adapter.driving
+
+import anseliq.common.http.HttpPath
+import anseliq.common.model.*
+import anseliq.domain.model.*
+import anseliq.domain.port.driven.*
+import anseliq.domain.service.*
+import com.augustnagro.magnum.*
+import upickle.default.*
+
+import java.util.UUID
+
+class MovementSpecRoutes(
+  transactor:          Transactor,
+  movementSpecRepo:    MovementSpecRepo,
+  movementSpecService: MovementSpecService
+) extends ApiRoutes:
+
+  // MovementSpec
+  @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/movement-specs", methods = HttpCmd.GET)
+  def movementSpecsByFundFlowID(fundFlowID: String): String =
+    transact(transactor):
+      val specs   = movementSpecRepo.findByFundFlowId(UUID.fromString(fundFlowID))
+      val payload = specs.map(Payload.movementSpecPayloadFromDomain)
+      write(payload)
+
+  // MovementSpec
+  @cask.route(s"${HttpPath.movementSpec}", methods = HttpCmd.POST)
+  def createMovementSpec(request: cask.Request): String =
+    val payload = read[MovementSpecPayload](request.text())
+    transact(transactor):
+      val created = movementSpecService.createMovementSpec(Payload.movementSpecPayloadToDomain(payload))
+      write(Payload.movementSpecPayloadFromDomain(created))
+
+  @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
+  def updateMovementSpec(id: String, request: cask.Request): String =
+    val payload = read[MovementSpecPayload](request.text())
+    val specID = UUID.fromString(id)
+    transact(transactor):
+      val updated = movementSpecService.updateMovementSpec(
+        specID,
+        name              = payload.name,
+        inAccountId       = UUID.fromString(payload.inAccountId),
+        outAccountId      = UUID.fromString(payload.outAccountId),
+        fileFeedId        = UUID.fromString(payload.fileFeedId),
+        routingFilterJson = Payload.routingFilterJson(payload)
+      )
+      write(Payload.movementSpecPayloadFromDomain(updated))
+
+  @cask.delete(s"${HttpPath.movementSpec}/:id")
+  def deleteMovementSpec(id: String): String =
+    transact(transactor):
+      movementSpecService.deleteMovementSpec(UUID.fromString(id))
+    write("deleted")
+
+  initialize()
