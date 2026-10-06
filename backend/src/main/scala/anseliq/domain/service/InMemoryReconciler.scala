@@ -34,6 +34,26 @@ case class ReconciliationResumableResult(
 
 private case object ReconciliationStopped extends RuntimeException
 
+object InMemoryReconciler:
+  // Supports StringAttributeMatchRule/DateAttributeMatchRule, singly or ANDed together via
+  // AndRule (each sub-rule contributes one attribute to a composite key, in rule order — the
+  // in-side and out-side lists are always built from the same AndRule traversal, so they pair up
+  // correctly). OrRule and any other Rule are unsupported: Left with why, rather than silently
+  // comparing the wrong thing. ReconSpecService checks this too, so an unrunnable rule is
+  // rejected when it's saved instead of failing every reconciliation run.
+  def leafMatchRules(rule: Rule): Either[String, Seq[StringAttributeMatchRule | DateAttributeMatchRule]] =
+    rule match
+      case s: StringAttributeMatchRule => Right(Seq(s))
+      case d: DateAttributeMatchRule   => Right(Seq(d))
+      case AndRule(rules) =>
+        rules.foldLeft[Either[String, Seq[StringAttributeMatchRule | DateAttributeMatchRule]]](Right(Seq.empty)) {
+          (acc, r) => acc.flatMap(leaves => leafMatchRules(r).map(leaves ++ _))
+        }
+      case other =>
+        Left(
+          s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them; got ${other.getClass.getSimpleName}"
+        )
+
 class InMemoryReconciler(
   val ledger:             Ledger,
   val movementRepo:       MovementRepo,
@@ -168,20 +188,8 @@ class InMemoryReconciler(
       }
       stale.size
 
-  // Supports StringAttributeMatchRule/DateAttributeMatchRule, singly or ANDed together via
-  // AndRule (each sub-rule contributes one attribute to a composite key, in rule order — the
-  // in-side and out-side lists below are always built from the same AndRule traversal, so they
-  // pair up correctly). OrRule and any other Rule are unsupported and throw clearly rather than
-  // silently comparing the wrong thing.
   private def leafMatchRules(rule: Rule): Seq[StringAttributeMatchRule | DateAttributeMatchRule] =
-    rule match
-      case s: StringAttributeMatchRule => Seq(s)
-      case d: DateAttributeMatchRule   => Seq(d)
-      case AndRule(rules) => rules.flatMap(leafMatchRules)
-      case other =>
-        throw UnsupportedOperationException(
-          s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them; got ${other.getClass.getSimpleName}"
-        )
+    InMemoryReconciler.leafMatchRules(rule).fold(msg => throw UnsupportedOperationException(msg), identity)
 
   private def matchKeyAttributes(rule: Rule, direction: Direction): Seq[StringAttribute | DateAttribute] =
     leafMatchRules(rule).map {

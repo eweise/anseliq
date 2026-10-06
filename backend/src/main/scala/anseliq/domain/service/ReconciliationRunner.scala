@@ -20,7 +20,11 @@ class ReconciliationRunner(
   transactor:  Transactor
 ) extends StrictLogging:
 
-  /** Submits a Reconciliation job for the account, marks it InProgress, and runs it now. */
+  /**
+   * Submits a Reconciliation job for the account, marks it InProgress, and runs it now. A failed
+   * run marks the job in error, as the background poller does, rather than leaving it InProgress
+   * for good, and then rethrows so the caller still sees the failure.
+   */
   def reconcileNow(accountId: ID): Unit =
     val jobId = transact(transactor):
       accountRepo.findById(accountId).getOrElse(throw NotFoundError(s"Account $accountId not found"))
@@ -28,7 +32,12 @@ class ReconciliationRunner(
       val job   = jobRepo.findById(jobId).ErrIfNotFound("Job", jobId)
       jobRepo.update(job.copy(jobStatus = JobStatus.InProgress))
       jobId
-    runJob(accountId, jobId)
+    try runJob(accountId, jobId)
+    catch
+      case ex: Exception =>
+        logger.error("reconciliation job failed", kv("job_id", jobId), ex)
+        transact(transactor)(jobManager.markJobInError(jobId, ex))
+        throw ex
 
   /** Reconciles the account under an existing job and records the result as that job's info. */
   def runJob(accountId: ID, jobId: ID): Unit =

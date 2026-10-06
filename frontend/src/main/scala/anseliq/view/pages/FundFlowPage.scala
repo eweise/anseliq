@@ -187,7 +187,7 @@ object FundFlowPage:
       windowEvents(_.onPopState).map(_ => statusFromUrl()).filter(_ != reconStatus.now()) --> reconStatus.writer,
       PageHeader.titleRow(
         PageHeader.breadcrumb("Ledgers" -> Some(Observer[Unit](_ => Nav.toFundFlows())), ff.name -> None),
-        ledgerHeader(ffVar.signal.map(_.name), state, reconcileBus, manualMatchBus)
+        ledgerHeader(ffVar.signal.map(_.name), state, reconcileBus)
       ),
       div(
         cls := "w-full border-b border-gray-200 dark:border-gray-700 mb-6",
@@ -431,13 +431,14 @@ object FundFlowPage:
     case AccountTypePayload.Secondary => Pill("Secondary", Pill.Tone.Neutral)
 
   // Title plus the ledger-wide actions that used to be unreachable or buried: Run reconciliation
-  // (the endpoint and reconcileBus existed but nothing triggered them), Ingest file (only reachable
-  // from deep inside a recon spec's pages) and Manual match.
+  // (the endpoint and reconcileBus existed but nothing triggered them) and Ingest file (only
+  // reachable from deep inside a recon spec's pages). Manual match is deliberately not here: it's
+  // per recon account, so it lives on each account's Overview card and Setup diagram menu — a
+  // ledger-wide button had to guess an account, and picked the first even when that one had no rule.
   private def ledgerHeader(
-    name:           Signal[String],
-    state:          Var[State],
-    reconcileBus:   EventBus[String],
-    manualMatchBus: EventBus[AccountPayload]
+    name:         Signal[String],
+    state:        Var[State],
+    reconcileBus: EventBus[String]
   ): HtmlElement =
     val reconAccounts = state.signal.map(_.accounts.filter(_.accountType == AccountTypePayload.Recon))
     div(
@@ -456,11 +457,7 @@ object FundFlowPage:
               )
             )
         },
-        Buttons.textButton("Ingest file", Observer[Unit](_ => state.update(_.copy(ingesting = true)))),
-        child <-- reconAccounts.map(_.headOption).distinct.map {
-          case None          => emptyNode
-          case Some(account) => Buttons.textButton("Manual match", Observer[Unit](_ => manualMatchBus.emit(account)))
-        }
+        Buttons.textButton("Ingest file", Observer[Unit](_ => state.update(_.copy(ingesting = true))))
       )
     )
 
