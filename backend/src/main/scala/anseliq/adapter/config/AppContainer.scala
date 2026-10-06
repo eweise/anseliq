@@ -1,30 +1,13 @@
 package anseliq.adapter.config
 
-import anseliq.adapter.driven.S3FileSourceFactory
-import anseliq.domain.service.ClockServiceLive
-import com.augustnagro.magnum.Transactor
-import com.typesafe.config.{Config, ConfigFactory}
-import com.augustnagro.magnum.*
-import com.typesafe.config.{Config, ConfigFactory}
-import com.typesafe.scalalogging.Logger
-import net.logstash.logback.argument.StructuredArguments.kv
 import anseliq.adapter.driven.*
-import anseliq.adapter.driving.*
-import anseliq.common.model.*
-import anseliq.domain.model.*
-import anseliq.domain.model.JobType.Ingestion
 import anseliq.domain.port.driven.*
 import anseliq.domain.service.*
-import anseliq.util.LogContext
-import ox.*
-import ox.scheduling.{Schedule, repeat}
-
-import java.util.UUID
-import javax.sql.DataSource
-import scala.concurrent.duration.DurationInt
-
-import javax.sql.DataSource
+import com.augustnagro.magnum.Transactor
+import com.typesafe.config.{Config, ConfigFactory}
 import org.postgresql.ds.PGSimpleDataSource
+
+import javax.sql.DataSource
 
 trait AppContainer:
   lazy val config: Config = ConfigFactory.load("application.conf")

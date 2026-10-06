@@ -1,9 +1,8 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.domain.model.{IllegalArgumentError, NotFoundError, UserRole, createID}
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 import java.util.UUID
 

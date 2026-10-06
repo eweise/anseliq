@@ -1,18 +1,11 @@
 package anseliq.adapter.driven
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
 import anseliq.domain.DataSetup
-import anseliq.domain.model.{
-  FileFeed,
-  FileInventory,
-  FileInventoryStatus,
-  MoneyMovementsIngested,
-  S3FileSourceEntry
-}
+import anseliq.domain.model.*
 import anseliq.domain.service.*
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.regions.Region

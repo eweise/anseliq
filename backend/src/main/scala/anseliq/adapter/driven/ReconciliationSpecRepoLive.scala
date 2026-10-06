@@ -1,10 +1,10 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Repo, sql}
 import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.ReconciliationSpec
 import anseliq.domain.port.driven.{ReconciliationSpecRepo, Txn}
+import com.augustnagro.magnum.{Repo, sql}
 
 import java.util.UUID
 

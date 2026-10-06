@@ -1,7 +1,7 @@
 package anseliq.adapter.driving
 
-import anseliq.common.model.{Direction as ComDirection, ReconRelationship as ComRel, *}
 import anseliq.common.model.model.ID
+import anseliq.common.model.{Direction as ComDirection, ReconRelationship as ComRel, *}
 import anseliq.domain.model.{Relationship as Rel, *}
 import anseliq.domain.service.{BadFilePreview, FixBadFileResult, ParseTestResult}
 import upickle.default.read as upickleRead

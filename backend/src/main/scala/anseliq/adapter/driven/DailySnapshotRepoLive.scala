@@ -1,9 +1,9 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{DbCon, Repo, sql}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.DailySnapshot
 import anseliq.domain.port.driven.{DailySnapshotRepo, Txn}
+import com.augustnagro.magnum.{DbCon, Repo, sql}
 
 import java.time.LocalDate
 import java.util.UUID

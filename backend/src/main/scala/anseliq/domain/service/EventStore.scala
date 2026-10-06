@@ -1,10 +1,10 @@
 package anseliq.domain.service
 
+import anseliq.domain.model.{Event, EventState, EventStatus, NonRetryableError}
+import anseliq.domain.port.driven.{EventRepo, Txn}
 import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.scalalogging.StrictLogging
 import ox.scheduling.{Schedule, repeat}
-import anseliq.domain.model.{Event, EventState, EventStatus, NonRetryableError}
-import anseliq.domain.port.driven.{EventRepo, Txn}
 
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt

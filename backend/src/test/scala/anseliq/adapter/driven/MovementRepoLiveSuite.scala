@@ -1,13 +1,12 @@
 package anseliq.adapter.driven
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.common.model.model.ID
 import anseliq.common.model.{AndRule, AppliedRules, StringAttribute, StringAttributeMatchRule}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.model.{DBError, Movement, Reconciliation, createID}
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 class MovementRepoLiveSuite extends munit.FunSuite:
   private val app = TestAppContainer()

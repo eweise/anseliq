@@ -1,8 +1,5 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{DbTx, Transactor, transact}
-import com.typesafe.scalalogging.Logger
-import net.logstash.logback.argument.StructuredArguments.kv
 import anseliq.common.model.*
 import anseliq.common.model.Direction.{IN, OUT}
 import anseliq.common.model.model.{ID, Money, Zero}
@@ -10,6 +7,9 @@ import anseliq.domain.model.*
 import anseliq.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
 import anseliq.domain.port.driven.*
 import anseliq.util.{LogContext, PerfLogger}
+import com.augustnagro.magnum.{DbTx, Transactor, transact}
+import com.typesafe.scalalogging.Logger
+import net.logstash.logback.argument.StructuredArguments.kv
 
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, OffsetDateTime}

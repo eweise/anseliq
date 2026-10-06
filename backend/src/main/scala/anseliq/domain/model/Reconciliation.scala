@@ -1,10 +1,10 @@
 package anseliq.domain.model
 
-import com.augustnagro.magnum.*
 import anseliq.common.model.AppliedRules
 import anseliq.common.model.model.{ID, Money}
 import anseliq.domain.model.ReconciliationStatus.Final
 import anseliq.domain.model.helper.upickleJsonBDbCodec
+import com.augustnagro.magnum.*
 
 import java.time.OffsetDateTime
 import java.util.UUID

@@ -1,8 +1,8 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Repo, sql}
 import anseliq.domain.model.{EventState, EventStatus}
 import anseliq.domain.port.driven.{EventRepo, Txn}
+import com.augustnagro.magnum.{Repo, sql}
 
 import java.util.UUID
 

@@ -1,12 +1,12 @@
 package anseliq
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.common.model.*
 import anseliq.common.model.Interval.Day
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.model.Relationship.OneToMany
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8

@@ -1,22 +1,11 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.helper.JSONBProps
-import anseliq.domain.model.{
-  DisputeCategory,
-  DisputeStatus,
-  DisputeTarget,
-  IllegalArgumentError,
-  Movement,
-  MovementSpec,
-  NotFoundError,
-  User,
-  UserRole
-}
+import anseliq.domain.model.*
 import anseliq.domain.port.driven.Txn
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 import java.util.UUID
 

@@ -1,7 +1,7 @@
 package anseliq.domain.model
 
-import com.augustnagro.magnum.*
 import anseliq.common.model.model.ID
+import com.augustnagro.magnum.*
 
 import java.time.{LocalDate, OffsetDateTime}
 import java.util.UUID

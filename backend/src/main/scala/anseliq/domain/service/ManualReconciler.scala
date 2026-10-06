@@ -1,10 +1,10 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{Transactor, transact}
 import anseliq.common.model.AppliedRules
 import anseliq.common.model.model.{ID, Money, Zero}
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
+import com.augustnagro.magnum.{Transactor, transact}
 
 case class BulkUnreconcileResult(movementsFound: Int, reconciliationsVoided: Int)
 case class BulkReversalResult(movementsReversed: Int, movementsSkippedStillReconciled: Int)

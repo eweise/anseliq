@@ -1,18 +1,12 @@
 package anseliq.domain.service
 
-import com.typesafe.scalalogging.StrictLogging
 import anseliq.adapter.driving.Payload
 import anseliq.common.model.model.{ID, Money, Properties}
-import anseliq.common.model.{
-  AccountPayload,
-  FileFeedPayload,
-  FundFlowPayload,
-  MovementSpecPayload,
-  ReconciliationSpecPayload
-}
+import anseliq.common.model.*
 import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.port.driven.*
+import com.typesafe.scalalogging.StrictLogging
 import upickle.default.write as upickleWrite
 
 import java.util.UUID

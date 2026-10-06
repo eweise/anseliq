@@ -1,10 +1,10 @@
 package anseliq.domain.model.helper
 
+import anseliq.common.model.model.Properties
 import com.augustnagro.magnum.pg.json.JsonBDbCodec
 import io.circe.parser.decode as circeDecode
 import io.circe.syntax.*
 import io.circe.{Codec, Decoder, Encoder}
-import anseliq.common.model.model.Properties
 
 trait CirceJsonBDbCodec[A] extends JsonBDbCodec[A]
 

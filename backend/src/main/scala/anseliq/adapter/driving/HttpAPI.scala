@@ -1,7 +1,5 @@
 package anseliq.adapter.driving
 
-import com.augustnagro.magnum.*
-import com.typesafe.scalalogging.StrictLogging
 import anseliq.common.http.HttpPath
 import anseliq.common.model.*
 import anseliq.common.model.model.{ID, Zero}
@@ -9,6 +7,8 @@ import anseliq.common.util.JwtHelper
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
 import anseliq.domain.service.*
+import com.augustnagro.magnum.*
+import com.typesafe.scalalogging.StrictLogging
 import upickle.default.*
 
 import java.util.UUID

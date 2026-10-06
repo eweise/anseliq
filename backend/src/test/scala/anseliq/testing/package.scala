@@ -1,7 +1,7 @@
 package anseliq
 
-import com.augustnagro.magnum.DbTx
 import anseliq.domain.port.driven.Txn
+import com.augustnagro.magnum.DbTx
 
 package object testing:
 

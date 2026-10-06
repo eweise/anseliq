@@ -1,11 +1,10 @@
 package anseliq.adapter.driven
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
-import anseliq.domain.model.{Job, JobStatus, JobType}
 import anseliq.domain.model.JobType.Ingestion
-import anseliq.testing.rollBackOnly
+import anseliq.domain.model.{Job, JobStatus, JobType}
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 import java.util.UUID
 

@@ -1,9 +1,9 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{Repo, sql}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.{Job, JobStatus, JobType}
 import anseliq.domain.port.driven.{JobRepo, Txn}
+import com.augustnagro.magnum.{Repo, sql}
 
 import java.util.UUID
 

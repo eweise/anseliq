@@ -1,10 +1,10 @@
 package anseliq.domain
 
-import com.augustnagro.magnum.DbTx
 import anseliq.adapter.config.AppContainer
 import anseliq.common.model.*
 import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
+import com.augustnagro.magnum.DbTx
 
 import java.util.UUID
 

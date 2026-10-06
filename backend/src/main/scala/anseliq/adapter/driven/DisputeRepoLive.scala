@@ -1,9 +1,9 @@
 package anseliq.adapter.driven
 
-import com.augustnagro.magnum.{DbCon, Repo, sql}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.{Dispute, DisputeCategory}
 import anseliq.domain.port.driven.DisputeRepo
+import com.augustnagro.magnum.{DbCon, Repo, sql}
 
 import java.util.UUID
 

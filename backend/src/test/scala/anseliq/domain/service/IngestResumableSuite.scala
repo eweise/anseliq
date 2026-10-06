@@ -1,10 +1,10 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.common.model.{CSVParserConfig, DataSourceConfig, RoutingFilter}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets.UTF_8

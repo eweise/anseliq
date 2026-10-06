@@ -1,12 +1,11 @@
 package anseliq.adapter.driven
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.common.model.{AppliedRules, RuleMatch, StringAttribute, StringAttributeMatchRule}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.model.{Movement, MovementSpec, Reconciliation, ReconciliationStatus}
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 import java.util.UUID
 

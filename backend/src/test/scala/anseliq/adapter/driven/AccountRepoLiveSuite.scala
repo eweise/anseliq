@@ -1,9 +1,8 @@
 package anseliq.adapter.driven
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 class AccountRepoLiveSuite extends munit.FunSuite:
   private val app = TestAppContainer()

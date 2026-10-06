@@ -1,9 +1,8 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.{DbCon, transact}
 import anseliq.domain.model.{User, UserRole}
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.{DbCon, transact}
 
 import java.util.UUID
 

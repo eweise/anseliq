@@ -1,10 +1,6 @@
 package anseliq.app
 
 import anseliq.adapter.config.AppContainer
-import com.augustnagro.magnum.*
-import com.typesafe.config.{Config, ConfigFactory}
-import com.typesafe.scalalogging.Logger
-import net.logstash.logback.argument.StructuredArguments.kv
 import anseliq.adapter.driven.*
 import anseliq.adapter.driving.*
 import anseliq.common.model.*
@@ -13,6 +9,10 @@ import anseliq.domain.model.JobType.Ingestion
 import anseliq.domain.port.driven.*
 import anseliq.domain.service.*
 import anseliq.util.LogContext
+import com.augustnagro.magnum.*
+import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.Logger
+import net.logstash.logback.argument.StructuredArguments.kv
 import ox.*
 import ox.scheduling.{Schedule, repeat}
 

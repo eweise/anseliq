@@ -1,8 +1,8 @@
 package anseliq.domain.port.driven
 
-import com.augustnagro.magnum.DbCon
 import anseliq.common.model.model.ID
 import anseliq.domain.model.FileInventory
+import com.augustnagro.magnum.DbCon
 
 trait FileInventoryRepo extends DomainRepo[FileInventory, FileInventory]:
   def findBySourceSystem(sourceSystem: String)(using DbCon): Set[FileInventory]

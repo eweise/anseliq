@@ -1,8 +1,8 @@
 package anseliq.domain.port.driven
 
-import com.augustnagro.magnum.DbCon
 import anseliq.common.model.model.ID
 import anseliq.domain.model.{Dispute, DisputeCategory}
+import com.augustnagro.magnum.DbCon
 
 trait DisputeRepo extends DomainRepo[Dispute, Dispute]:
   /**

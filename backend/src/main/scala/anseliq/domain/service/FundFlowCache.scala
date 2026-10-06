@@ -1,9 +1,9 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.DbCon
 import anseliq.common.model.model.ID
 import anseliq.domain.model.FundFlowConfig
 import anseliq.domain.port.driven.FundFlowConfigRepo
+import com.augustnagro.magnum.DbCon
 
 class FundFlowCache(fundFlowConfigRepo: FundFlowConfigRepo):
   private var configsByName: Map[String, FundFlowConfig] = Map.empty

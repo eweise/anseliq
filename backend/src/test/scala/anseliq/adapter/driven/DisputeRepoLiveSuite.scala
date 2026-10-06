@@ -1,9 +1,8 @@
 package anseliq.adapter.driven
 
-import anseliq.testing.TestAppContainer
+import anseliq.domain.model.*
+import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
-import anseliq.domain.model.{createID, Dispute, DisputeCategory, DisputeStatus, DisputeTarget}
-import anseliq.testing.rollBackOnly
 
 import java.time.OffsetDateTime
 

@@ -1,8 +1,8 @@
 package anseliq.domain.model
 
-import com.augustnagro.magnum.*
 import anseliq.common.model.model.{ID, Money}
 import anseliq.domain.model.helper.JSONBProps
+import com.augustnagro.magnum.*
 
 import java.time.OffsetDateTime
 import java.util.UUID

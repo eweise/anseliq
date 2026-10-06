@@ -1,13 +1,13 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.{DbTx, Transactor, transact}
-import com.fasterxml.uuid.Generators
-import com.typesafe.scalalogging.Logger
-import net.logstash.logback.argument.StructuredArguments.kv
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.model.FileInventoryStatus.COMPLETED
 import anseliq.domain.port.driven.*
+import com.augustnagro.magnum.{DbTx, Transactor, transact}
+import com.fasterxml.uuid.Generators
+import com.typesafe.scalalogging.Logger
+import net.logstash.logback.argument.StructuredArguments.kv
 import ox.flow.Flow
 
 import java.io.InputStream

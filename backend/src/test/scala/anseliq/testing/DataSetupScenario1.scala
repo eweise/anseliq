@@ -1,8 +1,8 @@
 package anseliq.testing
 
-import com.augustnagro.magnum.transact
 import anseliq.common.model.*
 import anseliq.common.model.ReconRelationship.{OneToMany, OneToOne}
+import com.augustnagro.magnum.transact
 
 import java.util.UUID
 

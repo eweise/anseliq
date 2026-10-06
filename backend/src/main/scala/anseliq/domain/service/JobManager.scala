@@ -1,14 +1,14 @@
 package anseliq.domain.service
 
+import anseliq.common.model.model.ID
+import anseliq.common.model.*
+import anseliq.domain.model.*
+import anseliq.domain.model.JobStatus.{Complete, InProgress, Submitted}
+import anseliq.domain.port.driven.{JobRepo, Txn}
 import com.augustnagro.magnum.{DbCon, Transactor, transact}
 import com.typesafe.scalalogging.StrictLogging
 import org.postgresql.util.PSQLException
 import ox.scheduling.{Schedule, repeat}
-import anseliq.common.model.model.ID
-import anseliq.common.model.{FileInventoryInfo, IngestionInfo, JobInfo, ReconStatsInfo, ReconciliationInfo}
-import anseliq.domain.model.*
-import anseliq.domain.model.JobStatus.{Complete, InProgress, Submitted}
-import anseliq.domain.port.driven.{JobRepo, Txn}
 
 import javax.sql.DataSource
 import scala.concurrent.duration.DurationInt

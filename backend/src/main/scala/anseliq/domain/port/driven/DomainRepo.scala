@@ -1,7 +1,7 @@
 package anseliq.domain.port.driven
 
-import com.augustnagro.magnum.{BatchUpdateResult, DbCon}
 import anseliq.common.model.model.ID
+import com.augustnagro.magnum.{BatchUpdateResult, DbCon}
 
 trait DomainRepo[E, EC] {
   def count(using DbCon): Long

@@ -1,10 +1,10 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.testing
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 
 class AccountOperationsSuite extends munit.FunSuite:
   private val app = TestAppContainer()

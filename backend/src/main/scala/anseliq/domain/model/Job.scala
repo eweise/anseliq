@@ -1,9 +1,9 @@
 package anseliq.domain.model
 
-import com.augustnagro.magnum.*
 import anseliq.common.model.JobInfo
 import anseliq.common.model.model.ID
 import anseliq.domain.model.JobStatus.Submitted
+import com.augustnagro.magnum.*
 import ujson.Arr.from
 
 import java.time.OffsetDateTime

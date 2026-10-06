@@ -1,6 +1,5 @@
 package anseliq.domain.service
 
-import com.augustnagro.magnum.transact
 import anseliq.common.model.AppliedRules
 import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
@@ -8,6 +7,7 @@ import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.port.driven.Txn
 import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 class ReportingServiceSuite extends munit.FunSuite:
   def createMovement(inAccountId: ID, outAccountId: ID, movementSpecId: ID, amount: BigDecimal)(using

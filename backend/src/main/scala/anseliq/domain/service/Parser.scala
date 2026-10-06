@@ -1,17 +1,9 @@
 package anseliq.domain.service
 
-import com.jayway.jsonpath.{Configuration, JsonPath, Option as JsonPathOption}
 import anseliq.common.model.model.Properties
-import anseliq.common.model.{
-  BAIField,
-  BAIParserConfig,
-  CSVParserConfig,
-  FixedWidthField,
-  FixedWidthParserConfig,
-  JSONParserConfig,
-  ParserConfig
-}
+import anseliq.common.model.*
 import anseliq.domain.model.NonRetryableError
+import com.jayway.jsonpath.{Configuration, JsonPath, Option as JsonPathOption}
 
 import scala.util.Try
 

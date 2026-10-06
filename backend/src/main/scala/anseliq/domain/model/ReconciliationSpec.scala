@@ -1,9 +1,9 @@
 package anseliq.domain.model
 
-import com.augustnagro.magnum.*
 import anseliq.common.model.Rule
 import anseliq.common.model.model.ID
 import anseliq.domain.model.Relationship.OneToOne
+import com.augustnagro.magnum.*
 
 import java.time.OffsetDateTime
 import java.util.UUID

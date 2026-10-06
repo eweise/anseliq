@@ -1,12 +1,12 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.common.model.*
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.port.driven.*
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
 
 class ReconcileAccountResumableSuite extends munit.FunSuite:
   private val app = TestAppContainer()

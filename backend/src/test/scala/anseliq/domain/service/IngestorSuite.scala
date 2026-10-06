@@ -1,12 +1,11 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.common.model.{CSVParserConfig, DataSourceConfig}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 import java.io.InputStream
 import java.util.UUID

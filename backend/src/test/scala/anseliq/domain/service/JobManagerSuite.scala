@@ -1,13 +1,13 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
-import ox.*
 import anseliq.common.model.ReconciliationInfo
 import anseliq.domain.model.JobStatus.InProgress
 import anseliq.domain.model.JobType.Reconciliation
 import anseliq.domain.model.{IllegalArgumentError, IllegalStateError, JobType}
 import anseliq.testing
+import anseliq.testing.TestAppContainer
+import com.augustnagro.magnum.transact
+import ox.*
 
 import java.util.UUID
 import java.util.concurrent.{ConcurrentLinkedQueue, CyclicBarrier}

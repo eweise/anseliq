@@ -1,30 +1,11 @@
 package anseliq.domain.service
 
-import anseliq.testing.TestAppContainer
-import com.augustnagro.magnum.transact
 import anseliq.domain.DataSetup
 import anseliq.domain.model.helper.JSONBProps
-import anseliq.domain.model.{
-  AccountReconciled,
-  AdjustmentType,
-  Dispute,
-  DisputeCategory,
-  DisputeCommentAdded,
-  DisputeStatus,
-  DisputeStatusChanged,
-  IllegalArgumentError,
-  IllegalStateError,
-  Movement,
-  MovementSpec,
-  MovementType,
-  Reconciliation,
-  ReconciliationStatus,
-  ReconciliationVoided,
-  Relationship,
-  createID
-}
+import anseliq.domain.model.*
 import anseliq.domain.port.driven.Txn
-import anseliq.testing.rollBackOnly
+import anseliq.testing.{TestAppContainer, rollBackOnly}
+import com.augustnagro.magnum.transact
 
 class ManualReconcilerSuite extends munit.FunSuite:
   private val app = TestAppContainer()
