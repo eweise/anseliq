@@ -13,6 +13,8 @@ import anseliq.adapter.config.AppContainer
 class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
   private val transactor = app.transactor
   private val views = ViewAssembler(
+    fundFlowConfigRepo = app.fundFlowConfigRepo,
+    disputeRepo        = app.disputeRepo,
     accountRepo        = app.accountRepo,
     movementRepo       = app.movementRepo,
     reconRepo          = app.reconRepo,
@@ -54,28 +56,17 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
       reconSpecService = app.reconSpecService
     ),
     ReconciliationRoutes(
-      transactor         = transactor,
-      views              = views,
-      fundFlowConfigRepo = app.fundFlowConfigRepo,
-      accountRepo        = app.accountRepo,
-      reconRepo          = app.reconRepo,
-      reconSpecRepo      = app.reconSpecRepo,
-      disputeRepo        = app.disputeRepo,
-      jobRepo            = app.jobRepo,
-      jobManager         = app.jobManager,
-      reconciler         = app.reconciler,
-      manualReconciler   = app.manualReconciler
+      transactor           = transactor,
+      views                = views,
+      reconRepo            = app.reconRepo,
+      reconciliationRunner = app.reconciliationRunner,
+      manualReconciler     = app.manualReconciler
     ),
     MovementRoutes(
-      transactor         = transactor,
-      views              = views,
-      fundFlowConfigRepo = app.fundFlowConfigRepo,
-      accountRepo        = app.accountRepo,
-      movementRepo       = app.movementRepo,
-      reconRepo          = app.reconRepo,
-      movementSpecRepo   = app.movementSpecRepo,
-      disputeRepo        = app.disputeRepo,
-      manualReconciler   = app.manualReconciler
+      transactor       = transactor,
+      views            = views,
+      movementRepo     = app.movementRepo,
+      manualReconciler = app.manualReconciler
     ),
     DisputeRoutes(
       transactor     = transactor,

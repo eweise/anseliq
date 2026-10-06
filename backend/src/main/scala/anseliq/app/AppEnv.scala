@@ -43,23 +43,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
         try
           app.jobManager.pollForJob(JobType.Reconciliation, 1) { job =>
             LogContext.withContext("job" -> "reconciliation", "job_id" -> job.id):
-              try
-                val account = transact(Transactor(dataSource = app.dataSource)):
-                  app.accountRepo
-                    .findById(job.referenceId)
-                    .getOrElse(throw NotFoundError(s"Account ${job.referenceId} not found"))
-
-                logger.debug("found account", kv("account_id", account.id))
-                val reconcilationResult = app.reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
-
-                transact(Transactor(dataSource = app.dataSource)):
-                  val jobInfo = ReconciliationInfo(
-                    accountId                   = account.id.toString,
-                    accountName                 = account.name,
-                    reconciliationsCreatedCount = reconcilationResult.totalCount,
-                    processingTimeSeconds       = reconcilationResult.processingTimeSeconds
-                  )
-                  app.jobManager.completeJob(job.id, jobInfo)
+              try app.reconciliationRunner.runJob(job.referenceId, job.id)
               catch
                 case ex: Exception =>
                   logger.error("reconciliation job failed", kv("job_id", job.id), ex)

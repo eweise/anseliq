@@ -87,6 +87,13 @@ trait AppContainer:
     disputeService     = disputeService,
     dataSource         = dataSource
   )
+  lazy val reconciliationRunner: ReconciliationRunner = ReconciliationRunner(
+    accountRepo = accountRepo,
+    jobRepo     = jobRepo,
+    jobManager  = jobManager,
+    reconciler  = reconciler,
+    transactor  = transactor
+  )
   lazy val manualReconciler: ManualReconciler = ManualReconciler(
     ledger         = ledger,
     movementRepo   = movementRepo,

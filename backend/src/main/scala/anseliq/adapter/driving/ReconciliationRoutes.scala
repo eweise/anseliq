@@ -13,17 +13,11 @@ import upickle.default.*
 import java.util.UUID
 
 class ReconciliationRoutes(
-  transactor:         Transactor,
-  views:              ViewAssembler,
-  fundFlowConfigRepo: FundFlowConfigRepo,
-  accountRepo:        AccountRepo,
-  reconRepo:          ReconciliationRepo,
-  reconSpecRepo:      ReconciliationSpecRepo,
-  disputeRepo:        DisputeRepo,
-  jobRepo:            JobRepo,
-  jobManager:         JobManager,
-  reconciler:         InMemoryReconciler,
-  manualReconciler:   ManualReconciler
+  transactor:           Transactor,
+  views:                ViewAssembler,
+  reconRepo:            ReconciliationRepo,
+  reconciliationRunner: ReconciliationRunner,
+  manualReconciler:     ManualReconciler
 ) extends ApiRoutes:
 
   @cask.route(s"${HttpPath.reconSpec}/:reconSpecID/reconciliations", methods = HttpCmd.GET)
@@ -52,24 +46,7 @@ class ReconciliationRoutes(
 
   @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
   def reoncileAccount(id: String, request: cask.Request): String =
-    val accountId = UUID.fromString(id)
-    val (account, job) = transact(transactor):
-      val account = accountRepo.findById(accountId).getOrElse(throw NotFoundError(s"Account $id not found"))
-      val jobId   = jobManager.submitJob(JobType.Reconciliation, accountId)
-      val job     = jobRepo.findById(jobId).ErrIfNotFound("Job", jobId)
-      jobRepo.update(job.copy(jobStatus = JobStatus.InProgress))
-      (account, job)
-
-    val reconcilationResult = reconciler.reconcileAccountResumable(account.id, jobId = Some(job.id))
-
-    transact(transactor):
-      val jobInfo = ReconciliationInfo(
-        accountId                   = account.id.toString,
-        accountName                 = account.name,
-        reconciliationsCreatedCount = reconcilationResult.totalCount,
-        processingTimeSeconds       = reconcilationResult.processingTimeSeconds
-      )
-      jobManager.completeJob(job.id, jobInfo)
+    reconciliationRunner.reconcileNow(UUID.fromString(id))
     write("reconciled")
 
   @cask.route(s"${HttpPath.reconSpec}/:id/manual-match", methods = HttpCmd.POST)
@@ -87,17 +64,7 @@ class ReconciliationRoutes(
   @cask.route(s"${HttpPath.reconciliation}/:id", methods = HttpCmd.GET)
   def getReconciliationDetail(id: String): String =
     transact(transactor):
-      val reconId = UUID.fromString(id)
-      val recon   = reconRepo.findById(reconId).ErrIfNotFound("reconciliation", reconId)
-      val specAndAccount = recon.specId.map: specId =>
-        val spec    = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
-        val account = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
-        (spec, account)
-      val spec         = specAndAccount.map((s, account) => (s, account.name))
-      val fundFlow     = specAndAccount.flatMap((_, account) => fundFlowConfigRepo.findById(account.fundFlowId))
-      val movements    = views.reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
-      val openDisputes = disputeRepo.findOpenByReferenceId(reconId).map(views.disputePayloadWithNames)
-      write(Payload.reconciliationDetailPayloadFromDomain(recon, spec, movements, fundFlow, openDisputes))
+      write(views.reconciliationDetail(UUID.fromString(id)))
 
   @cask.route(s"${HttpPath.reconciliation}/:id/unmatch", methods = HttpCmd.POST)
   def unmatchReconciliation(id: String): String =

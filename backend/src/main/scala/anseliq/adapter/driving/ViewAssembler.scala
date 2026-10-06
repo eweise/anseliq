@@ -7,9 +7,12 @@ import anseliq.domain.port.driven.*
 
 import java.util.UUID
 
-// Builds the composite payloads more than one route class returns: a dispute with the names of
-// whatever it points at, a dispute's detail view, and a reconciliation's movements.
+// Builds the composite read-only payloads that join several repos: reconciliation, movement and
+// dispute detail views, movement search results with names, and a dispute with the names of
+// whatever it points at. Route classes call these instead of reaching into the repos themselves.
 class ViewAssembler(
+  fundFlowConfigRepo: FundFlowConfigRepo,
+  disputeRepo:        DisputeRepo,
   accountRepo:        AccountRepo,
   movementRepo:       MovementRepo,
   reconRepo:          ReconciliationRepo,
@@ -20,9 +23,46 @@ class ViewAssembler(
   userRepo:           UserRepo
 ):
 
+  def reconciliationDetail(reconId: ID): Txn[ReconciliationDetailPayload] =
+    val recon = reconRepo.findById(reconId).ErrIfNotFound("reconciliation", reconId)
+    val specAndAccount = recon.specId.map: specId =>
+      val spec    = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
+      val account = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
+      (spec, account)
+    val spec         = specAndAccount.map((s, account) => (s, account.name))
+    val fundFlow     = specAndAccount.flatMap((_, account) => fundFlowConfigRepo.findById(account.fundFlowId))
+    val movements    = reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
+    val openDisputes = disputeRepo.findOpenByReferenceId(reconId).map(disputePayloadWithNames)
+    Payload.reconciliationDetailPayloadFromDomain(recon, spec, movements, fundFlow, openDisputes)
+
+  def movementDetail(movementId: ID): Txn[MovementDetailPayload] =
+    val m            = movementRepo.findById(movementId).ErrIfNotFound("movement", movementId)
+    val outAccount   = accountRepo.findById(m.outAccountId).ErrIfNotFound("account", m.outAccountId)
+    val inAccount    = accountRepo.findById(m.inAccountId).ErrIfNotFound("account", m.inAccountId)
+    val movementSpec = movementSpecRepo.findById(m.movementSpecId).ErrIfNotFound("movement spec", m.movementSpecId)
+    val detail       = Payload.movementDetailPayloadFromDomain(m, outAccount.name, inAccount.name, movementSpec.name)
+    detail.copy(
+      reconciliation = m.reconciliationId.flatMap(reconRepo.findById).map(Payload.reconFromDomain),
+      fundFlow       = fundFlowConfigRepo.findById(inAccount.fundFlowId).map(Payload.fundFlowPayloadFromDomain),
+      openDisputes   = disputeRepo.findOpenByReferenceId(m.id).map(disputePayloadWithNames)
+    )
+
+  def movementSearchResults(criteria: MovementSearchCriteria): Txn[Seq[MovementSearchResultPayload]] =
+    val results = movementRepo.search(criteria)
+    // Names resolved via the fund flow's full account/movement-spec lists (both already
+    // fund-flow-scoped, cheap fetches) rather than accountRepo.findAllById/
+    // movementSpecRepo.findAllById on just the ids referenced by results — Magnum's default
+    // findAllById binds a Postgres array parameter via JDBC's createArrayOf, which throws
+    // ("Unable to find server array type for provided name OTHER") for a UUID id column against
+    // this pgjdbc version. Fetching the whole fund flow's accounts/specs sidesteps that
+    // entirely and is simpler than working around the array-binding bug.
+    val accountNames = accountRepo.findByFundFlow(criteria.fundFlowId).map(a => a.id -> a.name).toMap
+    val movSpecNames = movementSpecRepo.findByFundFlowId(criteria.fundFlowId).map(s => s.id -> s.name).toMap
+    results.map(m => Payload.movementSearchResultPayloadFromDomain(m, accountNames, movSpecNames))
+
   // A reconciliation's movements as payload rows, each movement's accounts' names looked up once
   // per distinct account rather than once per movement.
-  def reconciliationMovementPayloads(
+  private def reconciliationMovementPayloads(
     recon:          Reconciliation,
     reconAccountId: Option[ID]
   ): Txn[Seq[ReconciliationMovementPayload]] =
