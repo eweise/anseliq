@@ -36,7 +36,7 @@ case class ReconciliationVoided(id: ID = UUID.randomUUID(), reconciliationID: ID
 case class ReconciliationWrittenOff(id: ID = UUID.randomUUID(), reconciliationID: ID, reason: String) extends Event
 
 case class ReconciliationWriteOffReversed(
-  id:               ID = UUID.randomUUID(),
+  id:               ID         = UUID.randomUUID(),
   reconciliationID: ID,
   reason:           String,
   reversedByUserId: Option[ID] = None

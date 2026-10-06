@@ -20,7 +20,9 @@ class DataSetupScenario1 extends munit.FunSuite:
   private def createFileFeed(p: FileFeedPayload): Txn[FileFeedPayload] =
     Payload.fileFeedPayloadFromDomain(app.fileFeedService.createFileFeed(Payload.fileFeedPayloadToDomain(p)))
   private def createMovementSpec(p: MovementSpecPayload): Txn[MovementSpecPayload] =
-    Payload.movementSpecPayloadFromDomain(app.movementSpecService.createMovementSpec(Payload.movementSpecPayloadToDomain(p)))
+    Payload.movementSpecPayloadFromDomain(
+      app.movementSpecService.createMovementSpec(Payload.movementSpecPayloadToDomain(p))
+    )
   private def createReconSpec(p: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
     Payload.reconSpecPayloadFromDomain(app.reconSpecService.createReconSpec(Payload.reconSpecPayloadToDomain(p)))
 
@@ -35,7 +37,11 @@ class DataSetupScenario1 extends munit.FunSuite:
 
       val journalAccount =
         createAccount(
-          AccountPayload(name = "Journal", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
+          AccountPayload(
+            name        = "Journal",
+            fundFlowId  = fundFlowConfig.id.get,
+            accountType = AccountTypePayload.Secondary
+          )
         )
 
       val reconAccount =

@@ -8,10 +8,10 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class DailySnapshot(
-  @Id id:                    ID                     = createID(),
-  fundFlowId:                ID,
-  snapshotDate:              LocalDate,
-  matchRatesJson:            String                 = "[]",
+  @Id id:         ID     = createID(),
+  fundFlowId:     ID,
+  snapshotDate:   LocalDate,
+  matchRatesJson: String = "[]",
   // Renamed in place from avgMatchRatePercent (same physical column, ALTER TABLE RENAME COLUMN) —
   // must stay in this exact position, not reordered, to match the column's physical position.
   avgBalanceCoveragePercent: Option[BigDecimal]     = None,
@@ -28,9 +28,9 @@ case class DailySnapshot(
   var updatedAt:             Option[OffsetDateTime] = None,
   // Must stay last: ALTER TABLE appends new columns physically, and Magnum maps DbCodec fields
   // positionally, so a new field has to be added at the end of the case class to match.
-  avgMatchRatePercent:      Option[BigDecimal] = None,
-  reconciledMovementCount:  Int                = 0,
-  totalMovementCount:       Int                = 0
+  avgMatchRatePercent:     Option[BigDecimal] = None,
+  reconciledMovementCount: Int                = 0,
+  totalMovementCount:      Int                = 0
 ) derives DbCodec
 
 object DailySnapshot:

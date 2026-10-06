@@ -21,11 +21,11 @@ case class MovementSearchCriteria(
   // asking the user to type it every search is redundant; a single filename fragment matched
   // anywhere in the stored value (which usually falls within the key/path portion) is what they
   // actually want to search by.
-  fileSourceQuery:  Option[String]         = None,
-  reconciliation:   ReconciliationFilter   = ReconciliationFilter.All,
-  createdFrom:      Option[OffsetDateTime] = None,
-  createdTo:        Option[OffsetDateTime] = None,
-  movementType:     Option[MovementType]   = None,
+  fileSourceQuery: Option[String]         = None,
+  reconciliation:  ReconciliationFilter   = ReconciliationFilter.All,
+  createdFrom:     Option[OffsetDateTime] = None,
+  createdTo:       Option[OffsetDateTime] = None,
+  movementType:    Option[MovementType]   = None,
   // Narrows ManualAdjustment movements to one purpose, e.g. only write-offs.
   adjustmentType: Option[AdjustmentType] = None
 )

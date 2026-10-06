@@ -5,17 +5,19 @@ import anseliq.common.model.model.{ID, Money}
 import java.time.{LocalDate, OffsetDateTime}
 
 case class MatchRateReport(
-  accountId:               ID,
-  accountName:             String,
-  balance:                 Money,
-  reconciledBalance:       Money,
-  balanceCoveragePercent:  Option[BigDecimal], // reconciledBalance/balance*100 — None when balance == 0.
+  accountId:              ID,
+  accountName:            String,
+  balance:                Money,
+  reconciledBalance:      Money,
+  balanceCoveragePercent: Option[BigDecimal], // reconciledBalance/balance*100 — None when balance == 0.
   // balance is a running net position that shrinks as things settle while reconciledBalance only
   // ever grows, so this can legitimately exceed 100% — it's not a rate of anything, just a $
   // coverage ratio. matchRatePercent below is the real, count-based match rate.
   reconciledMovementCount: Int,
   totalMovementCount:      Int,
-  matchRatePercent:        Option[BigDecimal] // reconciledMovementCount/totalMovementCount*100 — None when totalMovementCount == 0
+  matchRatePercent: Option[
+    BigDecimal
+  ] // reconciledMovementCount/totalMovementCount*100 — None when totalMovementCount == 0
 )
 
 case class ExceptionBreakdownReport(

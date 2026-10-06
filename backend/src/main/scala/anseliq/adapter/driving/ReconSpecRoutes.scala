@@ -29,12 +29,14 @@ class ReconSpecRoutes(
   def createReconSpec(request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
-      write(Payload.reconSpecPayloadFromDomain(reconSpecService.createReconSpec(Payload.reconSpecPayloadToDomain(payload))))
+      write(
+        Payload.reconSpecPayloadFromDomain(reconSpecService.createReconSpec(Payload.reconSpecPayloadToDomain(payload)))
+      )
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
   def updateReconSpec(id: String, request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
-    val specID = UUID.fromString(id)
+    val specID  = UUID.fromString(id)
     transact(transactor):
       val updated = reconSpecService.updateReconSpec(
         specID,

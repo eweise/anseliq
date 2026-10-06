@@ -25,13 +25,13 @@ enum DisputeCategory derives DbCodec:
  */
 extension (category: DisputeCategory)
   def validTargets: Set[DisputeTarget] = category match
-    case DisputeCategory.AmountMismatch     => Set(DisputeTarget.Reconciliation)
-    case DisputeCategory.MissingCounterpart => Set(DisputeTarget.Movement)
-    case DisputeCategory.Duplicate          => Set(DisputeTarget.Movement)
-    case DisputeCategory.TimingDifference   => Set(DisputeTarget.Movement)
-    case DisputeCategory.DataQuality        => Set(DisputeTarget.Movement)
-    case DisputeCategory.FileMissing        => Set(DisputeTarget.FileFeed)
-    case DisputeCategory.UnroutedRecord     => Set(DisputeTarget.FileFeed)
+    case DisputeCategory.AmountMismatch       => Set(DisputeTarget.Reconciliation)
+    case DisputeCategory.MissingCounterpart   => Set(DisputeTarget.Movement)
+    case DisputeCategory.Duplicate            => Set(DisputeTarget.Movement)
+    case DisputeCategory.TimingDifference     => Set(DisputeTarget.Movement)
+    case DisputeCategory.DataQuality          => Set(DisputeTarget.Movement)
+    case DisputeCategory.FileMissing          => Set(DisputeTarget.FileFeed)
+    case DisputeCategory.UnroutedRecord       => Set(DisputeTarget.FileFeed)
     case DisputeCategory.ExcessiveParseErrors => Set(DisputeTarget.FileFeed)
 
   /**
@@ -40,8 +40,8 @@ extension (category: DisputeCategory)
    * resolving the dispute wouldn't fix anything. A resolved AmountMismatch would leave its
    * reconciliation Mismatched, with the difference still on the books, just no longer in anyone's
    * queue. The real fixes resolve it automatically (DisputeService.resolveAutomatically, called by
-   * ManualReconciler, InMemoryReconciler and Ingestor). None: a judgment call a person closes with a
-   * comment.
+   * ManualReconciler, InMemoryReconciler and Ingestor). None: a judgment call a person closes with
+   * a comment.
    */
   def automaticResolution: Option[String] = category match
     case DisputeCategory.AmountMismatch =>
@@ -51,9 +51,9 @@ extension (category: DisputeCategory)
 
   /**
    * For the same categories: why a resolved one can't be reopened by hand, and what to do instead.
-   * The system closed it because the problem was fixed, and nothing would ever resolve it again,
-   * so a reopened one would be stuck open. If the fix itself was wrong, undoing the fix brings
-   * the problem back, and the system raises a new dispute for it.
+   * The system closed it because the problem was fixed, and nothing would ever resolve it again, so
+   * a reopened one would be stuck open. If the fix itself was wrong, undoing the fix brings the
+   * problem back, and the system raises a new dispute for it.
    */
   def insteadOfReopening: Option[String] = category match
     case DisputeCategory.AmountMismatch =>
@@ -89,15 +89,15 @@ object Dispute:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class DisputeComment(
-  @Id id:                  ID                     = createID(),
-  disputeId:               ID,
-  body:                    Option[String]         = None,
-  newStatus:               Option[DisputeStatus]  = None,
-  newAssignedToUserId:     Option[ID]             = None,
+  @Id id:              ID                    = createID(),
+  disputeId:           ID,
+  body:                Option[String]        = None,
+  newStatus:           Option[DisputeStatus] = None,
+  newAssignedToUserId: Option[ID]            = None,
   // Another dispute this entry points to, shown as a link on the thread — e.g. when reversing a
   // write-off re-raises a mismatch, the old (resolved) and new disputes each link to the other.
-  relatedDisputeId: Option[ID] = None,
-  var createdAt:           Option[OffsetDateTime] = None
+  relatedDisputeId: Option[ID]             = None,
+  var createdAt:    Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object DisputeComment:

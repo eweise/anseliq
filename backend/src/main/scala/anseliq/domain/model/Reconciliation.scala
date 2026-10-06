@@ -27,10 +27,10 @@ enum ReconciliationStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Reconciliation(
-  @Id id:               ID                     = createID(),
+  @Id id: ID = createID(),
   // None only for a Reversed reconciliation — see ReconciliationStatus.Reversed's doc. No default:
   // every caller should have to consciously decide this, not fall into None by omission.
-  specId:               Option[ID],
+  specId: Option[ID],
   // No default, same reasoning as specId: every caller states why the group was formed.
   appliedRules:         AppliedRules,
   description:          String                 = "",

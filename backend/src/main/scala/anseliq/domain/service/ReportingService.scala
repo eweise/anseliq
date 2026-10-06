@@ -196,7 +196,11 @@ class ReportingService(
       val totalMovements  = report.matchRates.map(_.totalMovementCount).sum
       val avgMatchRate =
         if totalMovements == 0 then None
-        else Some((BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
+        else
+          Some(
+            (BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100)
+              .setScale(2, BigDecimal.RoundingMode.HALF_UP)
+          )
       val agingByBucket = report.aging.buckets.toMap
 
       dailySnapshotRepo.upsert(
@@ -282,7 +286,11 @@ object ReportingService:
         val totalMovements  = dayRows.map(_.totalMovementCount).sum
         val avgMatchRate =
           if totalMovements == 0 then None
-          else Some((BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
+          else
+            Some(
+              (BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100)
+                .setScale(2, BigDecimal.RoundingMode.HALF_UP)
+            )
 
         val byCategory = dayRows
           .flatMap(r => upickle.read[Map[String, Int]](r.exceptionsByCategoryJson))

@@ -1,7 +1,7 @@
 package anseliq.domain.service
 
-import anseliq.common.model.model.ID
 import anseliq.common.model.*
+import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.model.JobStatus.{Complete, InProgress, Submitted}
 import anseliq.domain.port.driven.{JobRepo, Txn}

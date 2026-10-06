@@ -43,7 +43,9 @@ class AccountRoutes(
   def createAccount(request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
-      write(Payload.accountPayloadFromDomain(accountService.createAccount(Payload.accountPayloadToDomain(accountRequest))))
+      write(
+        Payload.accountPayloadFromDomain(accountService.createAccount(Payload.accountPayloadToDomain(accountRequest)))
+      )
 
   @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)
   def updateAccount(id: String, request: cask.Request): String =

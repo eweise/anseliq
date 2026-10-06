@@ -82,7 +82,8 @@ class EndToEndSuite extends munit.FunSuite {
         val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
         app.accountRepo.insert(reconAccount)
 
-        val journalAccount = Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+        val journalAccount =
+          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(journalAccount)
 
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
@@ -226,7 +227,8 @@ class EndToEndSuite extends munit.FunSuite {
         val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
         app.accountRepo.insert(reconAccount)
 
-        val journalAccount = Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+        val journalAccount =
+          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(journalAccount)
 
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
@@ -379,7 +381,8 @@ class EndToEndSuite extends munit.FunSuite {
         val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
         app.accountRepo.insert(reconAccount)
 
-        val journalAccount = Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+        val journalAccount =
+          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(journalAccount)
 
         val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)

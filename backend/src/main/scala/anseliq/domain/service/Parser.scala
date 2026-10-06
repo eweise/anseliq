@@ -1,7 +1,7 @@
 package anseliq.domain.service
 
-import anseliq.common.model.model.Properties
 import anseliq.common.model.*
+import anseliq.common.model.model.Properties
 import anseliq.domain.model.NonRetryableError
 import com.jayway.jsonpath.{Configuration, JsonPath, Option as JsonPathOption}
 

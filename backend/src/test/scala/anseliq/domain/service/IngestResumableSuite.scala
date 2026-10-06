@@ -95,10 +95,15 @@ class IngestResumableSuite extends munit.FunSuite:
       assertEquals(committedMovements.map(_.amount).sum, BigDecimal(10 + 20 + 30))
 
       val dispute = transact(app.transactor):
-        app.disputeRepo.findAll.filter(d => d.referenceId == feed.id && d.category == DisputeCategory.ExcessiveParseErrors)
+        app.disputeRepo.findAll.filter(d =>
+          d.referenceId == feed.id && d.category == DisputeCategory.ExcessiveParseErrors
+        )
       assertEquals(dispute.size, 1)
       assertEquals(dispute.head.targetType, DisputeTarget.FileFeed)
-      assert(dispute.head.detail.exists(_.contains("3")), "detail should surface the error count that crossed the cutoff")
+      assert(
+        dispute.head.detail.exists(_.contains("3")),
+        "detail should surface the error count that crossed the cutoff"
+      )
     finally
       transact(app.transactor):
         app.disputeRepo.findAll
@@ -142,9 +147,11 @@ class IngestResumableSuite extends munit.FunSuite:
   test(
     "a multi-account feed routes each row to its matching spec's account pair, and unmatched rows raise one UnroutedRecord dispute"
   ):
-    val data     = transact(app.transactor)(DataSetup(app))
-    val accountA = Account(name = "sub-account-a", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
-    val accountB = Account(name = "sub-account-b", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
+    val data = transact(app.transactor)(DataSetup(app))
+    val accountA =
+      Account(name = "sub-account-a", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
+    val accountB =
+      Account(name = "sub-account-b", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
     val feed = FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(

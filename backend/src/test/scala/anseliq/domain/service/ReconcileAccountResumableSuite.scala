@@ -113,7 +113,9 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     finally
       transact(app.transactor):
         val reconIds = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.id).toSet
-        app.disputeRepo.findAll.filter(d => reconIds.contains(d.referenceId)).foreach(d => app.disputeRepo.deleteById(d.id))
+        app.disputeRepo.findAll
+          .filter(d => reconIds.contains(d.referenceId))
+          .foreach(d => app.disputeRepo.deleteById(d.id))
       teardown(data)
 
   test("OneToOne match with equal amounts is Final with a zero balance"):
@@ -163,8 +165,19 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       transact(app.transactor):
         for _ <- 1 to 2
-        do app.accountService.postAmount(data.journalToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
-        app.accountService.postAmount(data.reportToRecon, 1000, referenceID = createID(), Map("id" -> createID().toString))
+        do
+          app.accountService.postAmount(
+            data.journalToRecon,
+            1000,
+            referenceID = createID(),
+            Map("id" -> createID().toString)
+          )
+        app.accountService.postAmount(
+          data.reportToRecon,
+          1000,
+          referenceID = createID(),
+          Map("id" -> createID().toString)
+        )
 
       val result2 = reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
       assertEquals(
@@ -342,7 +355,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(reconciliations.head.status, ReconciliationStatus.Final)
       assertEquals(reconciliations.head.balance, BigDecimal(0))
 
-      val reconciledMovements = transact(app.transactor)(app.movementRepo.findByReconciliationID(reconciliations.head.id))
+      val reconciledMovements =
+        transact(app.transactor)(app.movementRepo.findByReconciliationID(reconciliations.head.id))
       assertEquals(reconciledMovements.size, 4)
 
       // Same cancellation as the mirror-image test above: a Final match nets reconciledBalance to 0
@@ -392,7 +406,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       // anything is actually wrong yet — the rest of the "many" side could simply still be in
       // transit (a delayed file, a later batch). No dispute should be raised until aging says
       // otherwise, so this must not create one just because the reconciliation exists.
-      val disputesAfterFirstRun = transact(app.transactor)(app.disputeRepo.findAll.filter(_.referenceId == recons1.head.id))
+      val disputesAfterFirstRun =
+        transact(app.transactor)(app.disputeRepo.findAll.filter(_.referenceId == recons1.head.id))
       assert(disputesAfterFirstRun.isEmpty, "a fresh OneToMany InProgress reconciliation must not auto-raise a dispute")
 
       transact(app.transactor):
@@ -578,8 +593,18 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         app.movementSpecRepo.insert(inSpec)
         app.movementSpecRepo.insert(outSpec)
         data.reconSpecRepo.insert(spec)
-        app.accountService.postAmount(inSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "txnDate" -> "2026-09-01"))
-        app.accountService.postAmount(outSpec, 100, referenceID = createID(), Map("ref" -> "INV-1", "settleDate" -> "2026-09-03"))
+        app.accountService.postAmount(
+          inSpec,
+          100,
+          referenceID = createID(),
+          Map("ref" -> "INV-1", "txnDate" -> "2026-09-01")
+        )
+        app.accountService.postAmount(
+          outSpec,
+          100,
+          referenceID = createID(),
+          Map("ref" -> "INV-1", "settleDate" -> "2026-09-03")
+        )
 
       app.reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
 
@@ -643,8 +668,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
   // excluding both from every "unreconciled movement" query, a real reconciliation run could match
   // a counterpart against the reversal instead of (or as well as) a genuine movement.
   test("a reversed movement's contra-entry is never picked up as a match candidate by the reconciler"):
-    val data                        = transact(app.transactor)(DataSetup(app))
-    var reversal: Option[Movement]  = None
+    val data = transact(app.transactor)(DataSetup(app))
+    var reversal: Option[Movement] = None
     try
       val counterpart = transact(app.transactor):
         val original = insertMovement(data, data.journalToRecon, "reversal-test-key")

@@ -2,9 +2,9 @@ package anseliq.adapter.driving
 
 import anseliq.common.model.model.ID
 import anseliq.common.model.{Direction as ComDirection, ReconRelationship as ComRel, *}
+import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.model.{Relationship as Rel, *}
 import anseliq.domain.service.{BadFilePreview, FixBadFileResult, ParseTestResult}
-import anseliq.domain.model.helper.JSONBProps
 import upickle.default.{read as upickleRead, write as upickleWrite}
 
 import java.util.UUID
@@ -386,21 +386,21 @@ object Payload:
     assignedToName: Option[String] = None
   ): DisputePayload =
     DisputePayload(
-      id               = dispute.id.toString,
-      referenceId      = dispute.referenceId.toString,
-      targetType       = disputeTargetFromDomain(dispute.targetType),
-      category         = disputeCategoryFromDomain(dispute.category),
-      detail           = dispute.detail,
-      status           = disputeStatusFromDomain(dispute.status),
-      accountId        = accountId,
-      accountName      = accountName,
-      referenceLabel   = referenceLabel,
-      createdAt        = dispute.createdAt.get,
-      updatedAt        = dispute.updatedAt.get,
-      raisedByUserId   = dispute.raisedByUserId.map(_.toString),
-      raisedByName     = raisedByName,
-      assignedToUserId = dispute.assignedToUserId.map(_.toString),
-      assignedToName   = assignedToName,
+      id                  = dispute.id.toString,
+      referenceId         = dispute.referenceId.toString,
+      targetType          = disputeTargetFromDomain(dispute.targetType),
+      category            = disputeCategoryFromDomain(dispute.category),
+      detail              = dispute.detail,
+      status              = disputeStatusFromDomain(dispute.status),
+      accountId           = accountId,
+      accountName         = accountName,
+      referenceLabel      = referenceLabel,
+      createdAt           = dispute.createdAt.get,
+      updatedAt           = dispute.updatedAt.get,
+      raisedByUserId      = dispute.raisedByUserId.map(_.toString),
+      raisedByName        = raisedByName,
+      assignedToUserId    = dispute.assignedToUserId.map(_.toString),
+      assignedToName      = assignedToName,
       automaticResolution = dispute.category.automaticResolution,
       insteadOfReopening  = dispute.category.insteadOfReopening
     )

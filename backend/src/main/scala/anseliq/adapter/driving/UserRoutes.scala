@@ -1,8 +1,8 @@
 package anseliq.adapter.driving
 
+import anseliq.adapter.driving.ApiRoutes.requireAdmin
 import anseliq.common.http.HttpPath
 import anseliq.common.model.*
-import anseliq.adapter.driving.ApiRoutes.requireAdmin
 import anseliq.common.util.JwtHelper
 import anseliq.domain.model.*
 import anseliq.domain.service.*

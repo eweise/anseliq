@@ -12,15 +12,15 @@ import java.util.UUID
 // the same feed, each claiming the rows belonging to one account (via routingFilter).
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class FileFeed(
-  @Id id:               ID                     = createID(),
-  name:                 String                 = "",
-  dataSourceJson:       String                 = "",
-  expectedCadenceHours: Option[Int]            = None,
+  @Id id:               ID          = createID(),
+  name:                 String      = "",
+  dataSourceJson:       String      = "",
+  expectedCadenceHours: Option[Int] = None,
   // None means no cutoff is enforced, same "unset = feature disabled" convention as
   // expectedCadenceHours. See Ingestor.ingestResumable for where this stops ingestion.
-  maxParseErrors:       Option[Int]            = None,
-  var createdAt:        Option[OffsetDateTime] = None,
-  var updatedAt:        Option[OffsetDateTime] = None
+  maxParseErrors: Option[Int]            = None,
+  var createdAt:  Option[OffsetDateTime] = None,
+  var updatedAt:  Option[OffsetDateTime] = None
 ) derives DbCodec:
   def dataSourceConfig(): DataSourceConfig = upickle.read(dataSourceJson)
 

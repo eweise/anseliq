@@ -10,7 +10,7 @@ case class StatusTotals(status: ReconciliationStatus, count: Int, balance: Money
 
 trait ReconciliationRepo extends DomainRepo[Reconciliation, Reconciliation]:
   def findByReconSpecID(reconSpecID: ID): Txn[Vector[Reconciliation]]
-  def findBySpecIdAndStatus(specId: ID, status: ReconciliationStatus): Txn[Vector[Reconciliation]]
+  def findBySpecIdAndStatus(specId:  ID, status: ReconciliationStatus): Txn[Vector[Reconciliation]]
 
   // Spans every reconciliation spec belonging to the account (not just one), most recent first —
   // for an account-level "recent activity" view rather than the spec-scoped list. `status`

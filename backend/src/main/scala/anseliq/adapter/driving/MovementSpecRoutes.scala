@@ -35,7 +35,7 @@ class MovementSpecRoutes(
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
-    val specID = UUID.fromString(id)
+    val specID  = UUID.fromString(id)
     transact(transactor):
       val updated = movementSpecService.updateMovementSpec(
         specID,

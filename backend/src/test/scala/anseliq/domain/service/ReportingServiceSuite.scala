@@ -38,7 +38,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -63,7 +63,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -90,7 +90,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -105,7 +105,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -157,7 +157,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -184,7 +184,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -222,7 +222,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -250,7 +250,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -354,7 +354,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -378,7 +378,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -406,7 +406,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService
@@ -442,7 +442,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
+        val data        = DataSetup(app)
         given DataSetup = data
         given clock: ClockService = app.clock
         val service = app.reportingService

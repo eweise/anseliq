@@ -2,8 +2,8 @@ package anseliq.adapter.driven
 
 import anseliq.common.model.model.ID
 import anseliq.domain.model
-import anseliq.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
 import anseliq.domain.model.*
+import anseliq.domain.model.Relationship.{ManyToMany, OneToMany, OneToOne}
 import anseliq.domain.port.driven.*
 import com.augustnagro.magnum.*
 

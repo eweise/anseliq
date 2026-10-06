@@ -31,17 +31,17 @@ class MovementRoutes(
     val req = read[MovementSearchRequest](request.text())
     transact(transactor):
       val criteria = MovementSearchCriteria(
-        fundFlowId       = UUID.fromString(req.fundFlowId),
-        accountId        = req.accountId.map(UUID.fromString),
-        amount           = req.amount,
-        movementSpecId   = req.movementSpecId.map(UUID.fromString),
-        properties       = req.properties,
-        fileSourceQuery  = req.fileSourceQuery,
-        reconciliation   = Payload.reconciliationFilterToDomain(req.reconciliation),
-        createdFrom      = req.createdFrom,
-        createdTo        = req.createdTo,
-        movementType     = req.movementType.map(MovementType.valueOf),
-        adjustmentType   = req.adjustmentType.map(Payload.adjustmentTypeToDomain)
+        fundFlowId      = UUID.fromString(req.fundFlowId),
+        accountId       = req.accountId.map(UUID.fromString),
+        amount          = req.amount,
+        movementSpecId  = req.movementSpecId.map(UUID.fromString),
+        properties      = req.properties,
+        fileSourceQuery = req.fileSourceQuery,
+        reconciliation  = Payload.reconciliationFilterToDomain(req.reconciliation),
+        createdFrom     = req.createdFrom,
+        createdTo       = req.createdTo,
+        movementType    = req.movementType.map(MovementType.valueOf),
+        adjustmentType  = req.adjustmentType.map(Payload.adjustmentTypeToDomain)
       )
       write(views.movementSearchResults(criteria))
 

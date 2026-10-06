@@ -17,7 +17,8 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
       rollBackOnly:
         val data = DataSetup(app)
 
-        val recon = Reconciliation(description = "hey", specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+        val recon =
+          Reconciliation(description = "hey", specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         data.reconRepo.insert(recon)
 
         val found = data.reconRepo.findById(recon.id)
@@ -35,8 +36,9 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     val reconRepo = app.reconRepo
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        val reconciliation = Reconciliation(description = "original", specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
+        val data = DataSetup(app)
+        val reconciliation =
+          Reconciliation(description = "original", specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         reconRepo.insert(reconciliation)
 
         val updated = reconciliation.copy(description = "updated")
@@ -66,8 +68,12 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     val reconRepo = app.reconRepo
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "to delete")
+        val data = DataSetup(app)
+        val reconciliation = Reconciliation(
+          specId       = Some(data.reconSpec.id),
+          appliedRules = AppliedRules.Manual,
+          description  = "to delete"
+        )
         reconRepo.insert(reconciliation)
 
         reconRepo.delete(reconciliation)
@@ -82,8 +88,12 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
         val data         = DataSetup(app)
         val initialCount = reconRepo.findAll.size
 
-        reconRepo.insert(Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "first"))
-        reconRepo.insert(Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "second"))
+        reconRepo.insert(
+          Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "first")
+        )
+        reconRepo.insert(
+          Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "second")
+        )
 
         val allReconciliations = reconRepo.findAll
         assertEquals(allReconciliations.size, initialCount + 2)
@@ -93,7 +103,9 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
-        reconRepo.insert(Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "first"))
+        reconRepo.insert(
+          Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "first")
+        )
         val foundRecons = reconRepo.findByReconSpecID(data.reconSpec.id)
         assert(foundRecons.nonEmpty)
 
@@ -170,7 +182,9 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
       rollBackOnly:
         val data = DataSetup(app)
         def recon(status: ReconciliationStatus) =
-          reconRepo.insert(Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, status = status))
+          reconRepo.insert(
+            Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, status = status)
+          )
         recon(ReconciliationStatus.Mismatched)
         recon(ReconciliationStatus.Mismatched)
         recon(ReconciliationStatus.Final)

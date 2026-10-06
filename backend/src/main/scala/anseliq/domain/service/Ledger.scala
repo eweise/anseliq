@@ -2,8 +2,8 @@ package anseliq.domain.service
 
 import anseliq.common.model.AppliedRules
 import anseliq.common.model.model.{ID, Money, Properties, Zero}
-import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.model.*
+import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.port.driven.{AccountRepo, MovementRepo, ReconciliationRepo, Txn}
 import com.fasterxml.uuid.Generators
 

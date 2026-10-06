@@ -1,8 +1,8 @@
 package anseliq.domain.service
 
 import anseliq.domain.DataSetup
-import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.model.*
+import anseliq.domain.model.helper.JSONBProps
 import anseliq.domain.port.driven.Txn
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
@@ -37,8 +37,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("raise on a Movement creates a New dispute"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -63,8 +63,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("raise on a Reconciliation creates a New dispute"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val manualReconciler = app.manualReconciler
         val disputeService   = app.disputeService
 
@@ -85,8 +85,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("raise rejects a category that isn't valid for the given target"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -99,8 +99,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("raise on a nonexistent Movement errors"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         intercept[NotFoundError]:
@@ -109,8 +109,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("raise on a nonexistent Reconciliation errors"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         intercept[NotFoundError]:
@@ -124,8 +124,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment to Resolved without a body errors"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -137,8 +137,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment to Resolved with a body succeeds and updates the dispute's status"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -159,8 +159,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment to a non-Resolved status does not require a body"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -177,8 +177,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment can reopen a Resolved dispute"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -193,8 +193,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment with no status change requires a body"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -206,8 +206,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment with no status change and a body just adds a comment, leaving status unchanged"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -224,8 +224,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("comments are returned in chronological order"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -241,8 +241,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("raise with raisedByUserId persists the actor who raised it"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val user     = testUser()
@@ -263,8 +263,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("raise with no raisedByUserId leaves it unset (system-raised)"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -275,8 +275,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment with newAssignedToUserId sets assignedToUserId, bumps updatedAt, and logs it on the thread"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val user              = testUser()
@@ -297,8 +297,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment can assign with a message in the same entry"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val user     = testUser()
@@ -318,8 +318,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment rejects assigning a dispute to a Viewer"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val viewer   = testUser(role = UserRole.Viewer)
@@ -335,21 +335,26 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment with newAssignedToUserId on a non-existent dispute throws NotFoundError"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val user = testUser()
         intercept[NotFoundError]:
-          disputeService.addComment(UUID.randomUUID(), body = None, newStatus = None, newAssignedToUserId = Some(user.id))
+          disputeService.addComment(
+            UUID.randomUUID(),
+            body                = None,
+            newStatus           = None,
+            newAssignedToUserId = Some(user.id)
+          )
 
   // Resolving an AmountMismatch by hand would hide a reconciliation that's still Mismatched; only a
   // write-off, unmatch or late completion may resolve it (see DisputeCategory.automaticResolution).
   test("addComment rejects resolving an AmountMismatch by hand but still allows other status changes"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val manualReconciler = app.manualReconciler
         val disputeService   = app.disputeService
 
@@ -372,8 +377,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment rejects reopening an AmountMismatch the system resolved, but still allows comments"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val manualReconciler = app.manualReconciler
         val disputeService   = app.disputeService
 
@@ -396,8 +401,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment rejects assigning a resolved dispute, but allows assigning in the entry that reopens it"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val user     = testUser()
@@ -417,8 +422,8 @@ class DisputeServiceSuite extends munit.FunSuite:
   test("addComment rejects resolving and assigning in the same entry"):
     transact(app.transactor):
       rollBackOnly:
-        val data = DataSetup(app)
-        given DataSetup = data
+        val data           = DataSetup(app)
+        given DataSetup    = data
         val disputeService = app.disputeService
 
         val user     = testUser()

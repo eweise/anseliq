@@ -1,7 +1,7 @@
 package anseliq.domain.service
 
 import anseliq.common.model.AppliedRules
-import anseliq.common.model.model.{ID, Money, Zero}
+import anseliq.common.model.model.{ID, Zero}
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
 import com.augustnagro.magnum.{Transactor, transact}
@@ -17,14 +17,14 @@ case class BadFilePreview(
 case class FixBadFileResult(unreconcile: BulkUnreconcileResult, reversal: BulkReversalResult)
 
 class ManualReconciler(
-  val ledger:             Ledger,
-  val movementRepo:       MovementRepo,
-  val reconRepo:          ReconciliationRepo,
-  val reconSpecRepo:      ReconciliationSpecRepo,
-  val disputeService:     DisputeService,
-  val eventStore:         EventStore,
-  val clock:              ClockService,
-  val transactor:         Transactor
+  val ledger:         Ledger,
+  val movementRepo:   MovementRepo,
+  val reconRepo:      ReconciliationRepo,
+  val reconSpecRepo:  ReconciliationSpecRepo,
+  val disputeService: DisputeService,
+  val eventStore:     EventStore,
+  val clock:          ClockService,
+  val transactor:     Transactor
 ):
 
   def matchMovements(
@@ -155,9 +155,9 @@ class ManualReconciler(
       throw IllegalStateError(s"reconciliation $reconciliationId hasn't been written off")
     if reason.isBlank then throw IllegalArgumentError("reason", "required to reverse a write-off")
 
-    val specId    = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
-    val reconSpec = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
-    val movements = movementRepo.findByReconciliationID(reconciliationId)
+    val specId                 = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
+    val reconSpec              = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
+    val movements              = movementRepo.findByReconciliationID(reconciliationId)
     val (adjustments, matched) = movements.partition(_.movementType.contains(MovementType.ManualAdjustment))
     if adjustments.isEmpty then
       throw IllegalStateError(s"reconciliation $reconciliationId has no write-off adjustment to reverse")
@@ -191,23 +191,28 @@ class ManualReconciler(
         earlier,
         later,
         earlierNote = s"The write-off was reversed$by ($reason). The mismatch is open again under a new dispute.",
-        laterNote   = s"Raised because the write-off was reversed$by ($reason). The earlier dispute was resolved by that write-off."
+        laterNote =
+          s"Raised because the write-off was reversed$by ($reason). The earlier dispute was resolved by that write-off."
       )
     eventStore.publishEvent(
-      ReconciliationWriteOffReversed(reconciliationID = reconciliationId, reason = reason, reversedByUserId = reversedByUserId)
+      ReconciliationWriteOffReversed(
+        reconciliationID = reconciliationId,
+        reason           = reason,
+        reversedByUserId = reversedByUserId
+      )
     )
     reconciliation
 
   /**
    * Closes a Mismatched (or still-InProgress OneToMany) reconciliation by posting its whole
    * remaining difference as a ManualAdjustment movement, rather than just relabelling it Final and
-   * leaving the difference
-   * stranded on the reconciled account. `movementId` — one of the reconciliation's own movements,
-   * chosen by the user as where the difference belongs (e.g. the out-movement a bank fee was
-   * deducted from) — decides the accounts: the adjustment runs between the reconciled account and
-   * that movement's other account, in whichever direction cancels the difference on the reconciled
-   * account. The adjustment is linked into this reconciliation, so its movements net to zero and
-   * its balance becomes zero; the written-off amount lives on as the adjustment's amount.
+   * leaving the difference stranded on the reconciled account. `movementId` — one of the
+   * reconciliation's own movements, chosen by the user as where the difference belongs (e.g. the
+   * out-movement a bank fee was deducted from) — decides the accounts: the adjustment runs between
+   * the reconciled account and that movement's other account, in whichever direction cancels the
+   * difference on the reconciled account. The adjustment is linked into this reconciliation, so its
+   * movements net to zero and its balance becomes zero; the written-off amount lives on as the
+   * adjustment's amount.
    */
   def writeOff(reconciliationId: ID, movementId: ID, reason: String): Txn[Movement] =
     val reconciliation = reconRepo.findById(reconciliationId).ErrIfNotFound("reconciliation", reconciliationId)
@@ -220,7 +225,12 @@ class ManualReconciler(
 
     val against = movements
       .find(_.id == movementId)
-      .getOrElse(throw IllegalArgumentError("movementId", s"movement $movementId is not part of reconciliation $reconciliationId"))
+      .getOrElse(
+        throw IllegalArgumentError(
+          "movementId",
+          s"movement $movementId is not part of reconciliation $reconciliationId"
+        )
+      )
     val counterpartyId =
       if against.inAccountId == reconAccountId then against.outAccountId
       else if against.outAccountId == reconAccountId then against.inAccountId
@@ -243,7 +253,7 @@ class ManualReconciler(
       // A fresh id per write-off, not one derived from the reconciliation: a reconciliation can be
       // written off again after a reversal, and a repeated id would collide with the first
       // adjustment. Retrying the same write-off is already ruled out by the status check above.
-      referenceId    = createID(),
+      referenceId = createID(),
       metaData = Map(
         "write_off_of_reconciliation_id" -> reconciliationId.toString,
         "write_off_against_movement_id"  -> movementId.toString
@@ -319,14 +329,14 @@ class ManualReconciler(
    */
   def reverseMovementsByFile(fileSourceEntry: String, batchSize: Int = 1000): BulkReversalResult =
     val (candidates, stillReconciledCount) = transact(transactor):
-      val movements = movementRepo.findByFileSourceEntry(fileSourceEntry)
+      val movements              = movementRepo.findByFileSourceEntry(fileSourceEntry)
       val (reversals, originals) = movements.partition(ledger.isReversal)
       // Same reasoning as ManualReconciler.previewBadFile: an original that already has a reversal
       // now legitimately carries a reconciliationId (pointing at that reversal's own Reversed
       // reconciliation — see Ledger.reverseMovement), so without excluding it here, a retry after
       // a successful run would miscount it as "still reconciled" (blocked) instead of "already done".
       val alreadyReversedIds = reversals.flatMap(ledger.reversalTargetId).toSet
-      val pending             = originals.filterNot(m => alreadyReversedIds.contains(m.id))
+      val pending            = originals.filterNot(m => alreadyReversedIds.contains(m.id))
       (pending.filter(_.reconciliationId.isEmpty), pending.count(_.reconciliationId.isDefined))
 
     var reversedCount = 0
@@ -343,15 +353,15 @@ class ManualReconciler(
    * "N movements found, M would be reversed" before a human commits to the operation.
    */
   def previewBadFile(fileSourceEntry: String): Txn[BadFilePreview] =
-    val movements               = movementRepo.findByFileSourceEntry(fileSourceEntry)
-    val (reversals, originals)  = movements.partition(ledger.isReversal)
+    val movements              = movementRepo.findByFileSourceEntry(fileSourceEntry)
+    val (reversals, originals) = movements.partition(ledger.isReversal)
     // A reversal inherits its original's file_source_entry tag (see Ledger.reverseMovement), so
     // both sides of an already-reversed pair show up in `movements` — without excluding those
     // originals here, a re-run of the preview after a fix would still claim they're "eligible",
     // even though a real fix call would (correctly) no-op on them via reverseMovement's own
     // idempotency check.
-    val alreadyReversedIds      = reversals.flatMap(ledger.reversalTargetId).toSet
-    val pending                 = originals.filterNot(m => alreadyReversedIds.contains(m.id))
+    val alreadyReversedIds = reversals.flatMap(ledger.reversalTargetId).toSet
+    val pending            = originals.filterNot(m => alreadyReversedIds.contains(m.id))
     BadFilePreview(
       movementsFound           = movements.size,
       alreadyReversedCount     = reversals.size,

@@ -39,16 +39,16 @@ enum BatchDecision:
 private case object IngestionStopped extends RuntimeException
 
 class Ingestor(
-  val ledger:             Ledger,
-  val movementRepo:       MovementRepo,
-  val movementSpecRepo:   MovementSpecRepo,
-  val fileFeedRepo:       FileFeedRepo,
-  val eventStore:         EventStore,
-  val fileInventoryRepo:  FileInventoryRepo,
-  val fileSourceFactory:  FileSourceFactory,
-  val disputeService:     DisputeService,
-  val clock:              ClockService,
-  val transactor:         Transactor
+  val ledger:            Ledger,
+  val movementRepo:      MovementRepo,
+  val movementSpecRepo:  MovementSpecRepo,
+  val fileFeedRepo:      FileFeedRepo,
+  val eventStore:        EventStore,
+  val fileInventoryRepo: FileInventoryRepo,
+  val fileSourceFactory: FileSourceFactory,
+  val disputeService:    DisputeService,
+  val clock:             ClockService,
+  val transactor:        Transactor
 ):
 
   def ingestFileFromInventory(

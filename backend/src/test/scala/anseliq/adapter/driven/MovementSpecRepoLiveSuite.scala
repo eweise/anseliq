@@ -10,7 +10,7 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
   private val app = TestAppContainer()
 
   test("findByFundFlowId returns movement specs belonging to the fund flow"):
-    val fundFlowRepo     = app.fundFlowConfigRepo
+    val fundFlowRepo = app.fundFlowConfigRepo
     transact(app.transactor):
       rollBackOnly:
         val fundFlow = FundFlowConfig(name = UUID.randomUUID().toString)
@@ -31,7 +31,7 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         assertEquals(results.size, 1)
 
   test("findByFundFlowId does not return movement specs from other fund flows"):
-    val fundFlowRepo     = app.fundFlowConfigRepo
+    val fundFlowRepo = app.fundFlowConfigRepo
     transact(app.transactor):
       rollBackOnly:
         val fundFlowA = FundFlowConfig(name = UUID.randomUUID().toString)
@@ -58,7 +58,7 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         assertEquals(results.size, 1)
 
   test("findByFileFeedId returns every movement spec routed off a feed"):
-    val fundFlowRepo     = app.fundFlowConfigRepo
+    val fundFlowRepo = app.fundFlowConfigRepo
     transact(app.transactor):
       rollBackOnly:
         val fundFlow = FundFlowConfig(name = UUID.randomUUID().toString)

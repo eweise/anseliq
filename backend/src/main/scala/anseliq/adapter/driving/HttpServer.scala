@@ -1,12 +1,11 @@
 package anseliq.adapter.driving
 
+import anseliq.adapter.config.AppContainer
 import anseliq.common.http.HttpPath
 import anseliq.common.util.JwtHelper
 import anseliq.domain.model.*
 import anseliq.domain.service.*
 import com.typesafe.scalalogging.StrictLogging
-
-import anseliq.adapter.config.AppContainer
 
 // Serves every route class on one port, with the CORS/auth decorators and error handling applied
 // to all of them. Each route class is given only the services and repos its routes use.
@@ -158,7 +157,7 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
     case _: ForbiddenError       => 403
     case _: NotFoundError        => 404
     case _: IllegalStateError    => 409
-    case _                       => 500
+    case _ => 500
 
   // Applied globally (see mainDecorators above) so every route requires a valid Bearer token
   // except /login itself (can't require a token to get a token). A route that needs to know who's
