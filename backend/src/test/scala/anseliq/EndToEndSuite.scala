@@ -83,10 +83,10 @@ class EndToEndSuite extends munit.FunSuite {
         app.accountRepo.insert(reconAccount)
 
         val journalAccount =
-          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
         app.accountRepo.insert(journalAccount)
 
-        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
+        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
@@ -228,10 +228,10 @@ class EndToEndSuite extends munit.FunSuite {
         app.accountRepo.insert(reconAccount)
 
         val journalAccount =
-          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
         app.accountRepo.insert(journalAccount)
 
-        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
+        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
@@ -382,10 +382,10 @@ class EndToEndSuite extends munit.FunSuite {
         app.accountRepo.insert(reconAccount)
 
         val journalAccount =
-          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
         app.accountRepo.insert(journalAccount)
 
-        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
+        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(

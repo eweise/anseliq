@@ -89,11 +89,15 @@ object ReconciliationDetailPage:
       shortId(d.reconciliation.id) -> None
     )
 
-  // In and out totals as the reconciled account sees them, and what they were matched on — the
-  // answer to "why is this Mismatched?" without adding up the movements table by hand.
+  // Each side's total, named by its account, and what they were matched on — the answer to "why is
+  // this Mismatched?" without adding up the movements table by hand. Money flows Primary → Recon →
+  // Secondary, so the Primary side is what came into the reconciled account (IN) and the Secondary
+  // side what went out of it (OUT).
   private def balanceSection(d: ReconciliationDetailPayload): HtmlElement =
-    val inTotal  = d.movements.filter(_.direction.contains(Direction.IN)).map(_.amount).sum
-    val outTotal = d.movements.filter(_.direction.contains(Direction.OUT)).map(_.amount).sum
+    val primary   = d.movements.filter(_.direction.contains(Direction.IN))
+    val secondary = d.movements.filter(_.direction.contains(Direction.OUT))
+    val inTotal   = primary.map(_.amount).sum
+    val outTotal  = secondary.map(_.amount).sum
     val diff     = inTotal - outTotal
     val balanced = diff == BigDecimal(0)
     val relationshipNote = d.spec.map(_.relationship).map {
@@ -117,8 +121,8 @@ object ReconciliationDetailPage:
       ),
       div(
         cls := "grid grid-cols-1 sm:grid-cols-3 gap-4",
-        figure("In", money(inTotal), plain),
-        figure("Out", money(outTotal), plain),
+        figure(sideLabel(primary, "Primary"), money(inTotal), plain),
+        figure(sideLabel(secondary, "Secondary"), money(outTotal), plain),
         figure(
           "Difference",
           money(diff),
@@ -198,6 +202,12 @@ object ReconciliationDetailPage:
       case AppliedRules.Manual   => span("Manual match")
       case AppliedRules.Reversal => span("System reversal")
 
+  // A side's account name(s), or its role while it has no movements yet (e.g. a OneToMany group
+  // still waiting on its other side).
+  private def sideLabel(movements: Seq[ReconciliationMovementPayload], role: String): String =
+    val names = movements.flatMap(_.otherAccountName).distinct
+    if names.isEmpty then role else names.mkString(" / ")
+
   private def prettyJson(json: String): String =
     try ujson.read(json).render(indent = 2)
     catch case _: Exception => json
@@ -208,7 +218,7 @@ object ReconciliationDetailPage:
       cls := s"${Card.cls} p-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", "Related Movements"),
       Table.create(
-        Seq("ID", "Direction", "Other Account", "Type", "Amount"),
+        Seq("ID", "Account", "Type", "Amount"),
         movements.map(m =>
           Seq(
             a(
@@ -220,7 +230,6 @@ object ReconciliationDetailPage:
               },
               m.id
             ),
-            m.direction.map(d => span(d.toString)).getOrElse(DetailList.empty),
             m.otherAccountName.map(span(_)).getOrElse(DetailList.empty),
             div(
               span(MovementLabels.typeLabel(m.movementType, m.adjustmentType)),
@@ -231,15 +240,10 @@ object ReconciliationDetailPage:
             span(m.amount.toString)
           )
         ),
-        numCols = Set(4)
+        numCols = Set(3)
       )
     )
 
-  // One-line description of a movement for choosing between them, e.g. "OUT · 90.00 → Report Account".
+  // One-line description of a movement for choosing between them, e.g. "Report Account · 90.00".
   def movementChoiceLabel(m: ReconciliationMovementPayload): String =
-    val amount = (m.direction.map(_.toString).toSeq :+ m.amount.toString).mkString(" · ")
-    val other = for
-      d    <- m.direction
-      name <- m.otherAccountName
-    yield s" ${if d == Direction.IN then "←" else "→"} $name"
-    amount + other.getOrElse("")
+    (m.otherAccountName.toSeq :+ m.amount.toString).mkString(" · ")

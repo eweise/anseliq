@@ -1,6 +1,7 @@
 package anseliq.view.components
 
 import com.raquo.laminar.api.L.*
+import anseliq.view.ViewHelper
 import anseliq.common.model.*
 
 object RuleWidget:
@@ -102,9 +103,18 @@ object RuleWidget:
     movementSpecs:     Var[Seq[MovementSpecPayload]],
     fileFeeds:         Var[Seq[FileFeedPayload]],
     inMovementSpecId:  Signal[String],
-    outMovementSpecId: Signal[String]
+    outMovementSpecId: Signal[String],
+    accounts:          Signal[Seq[AccountPayload]]
   ): (HtmlElement, Signal[Rule]) =
     val state = Var(State.fromRule(initial))
+
+    // Each side's field is labelled by its account (e.g. "Journal field") rather than In/Out Key.
+    val inLabel = inMovementSpecId
+      .combineWith(movementSpecs.signal, accounts)
+      .map((id, specs, accts) => s"${ViewHelper.primarySideName(id, specs, accts)} field")
+    val outLabel = outMovementSpecId
+      .combineWith(movementSpecs.signal, accounts)
+      .map((id, specs, accts) => s"${ViewHelper.secondarySideName(id, specs, accts)} field")
 
     val ruleTypeOptions =
       Seq("NoOp" -> "No Rule", "StringMatch" -> "String Match", "DateMatch" -> "Date Match", "And" -> "And")
@@ -138,7 +148,7 @@ object RuleWidget:
           div(
             operandField(
               "in",
-              "In Key",
+              inLabel,
               inCols,
               inputType,
               state,
@@ -149,7 +159,7 @@ object RuleWidget:
             ),
             operandField(
               "out",
-              "Out Key",
+              outLabel,
               outCols,
               inputType,
               state,
@@ -162,7 +172,7 @@ object RuleWidget:
         case "And" =>
           div(
             children <-- state.signal.map(_.andRules).splitByIndex { (index, _, leafSignal) =>
-              leafRow(index, leafSignal, inCols, outCols, state)
+              leafRow(index, leafSignal, inCols, outCols, inLabel, outLabel, state)
             },
             button(
               cls := "text-md-primary text-sm px-4 py-2 rounded-full border border-md-primary mt-1",
@@ -176,7 +186,7 @@ object RuleWidget:
     )
     (el, state.signal.map(State.toRule))
 
-  // One side (In Key or Out Key) of a String/Date Match rule: toggles between a field-name
+  // One side (the Primary or Secondary account's field) of a String/Date Match rule: toggles between a field-name
   // dropdown (today's only option) and a typed constant value, via a checkbox. Reacts only to the
   // isConstant flag (via .distinct) rather than the whole State, so typing into the constant
   // textbox — which updates State on every keystroke via onKey — doesn't rebuild this element and
@@ -185,7 +195,7 @@ object RuleWidget:
   // only difference between call sites is which State field they read/write.
   private def operandField(
     idPrefix:    String,
-    fieldLabel:  String,
+    fieldLabel:  Signal[String],
     cols:        Signal[Seq[String]],
     inputType:   String,
     state:       Var[State],
@@ -198,19 +208,25 @@ object RuleWidget:
       cls := "mb-1",
       child <-- state.signal.map(getConstant).distinct.map { isConstant =>
         if isConstant then
-          Form.field(
-            s"${idPrefix}Value",
-            s"$fieldLabel (constant)",
-            getKey(state.now()),
-            v => state.update(s => setKey(s, v)),
-            inputType = inputType
+          // Rebuilt only when the label changes (picking a different movement spec), not on each
+          // keystroke, so typing keeps focus.
+          div(
+            child <-- fieldLabel.distinct.map(label =>
+              Form.field(
+                s"${idPrefix}Value",
+                s"$label (constant)",
+                getKey(state.now()),
+                v => state.update(s => setKey(s, v)),
+                inputType = inputType
+              )
+            )
           )
         else
           div(
-            child <-- cols.map(cs =>
+            child <-- cols.combineWith(fieldLabel).map((cs, label) =>
               Form.selectField(
                 s"${idPrefix}Key",
-                fieldLabel,
+                label,
                 cs.map(c => c -> c),
                 getKey(state.now()),
                 v => state.update(s => setKey(s, v))
@@ -234,6 +250,8 @@ object RuleWidget:
     leafSignal: Signal[LeafState],
     inCols:     Signal[Seq[String]],
     outCols:    Signal[Seq[String]],
+    inLabel:    Signal[String],
+    outLabel:   Signal[String],
     state:      Var[State]
   ): HtmlElement =
     // Defensive against a stale update landing after this leaf's index has shifted or the row was
@@ -268,7 +286,7 @@ object RuleWidget:
           ),
           operandField(
             s"andIn${index}_",
-            "In Key",
+            inLabel,
             inCols,
             inputType,
             state,
@@ -279,7 +297,7 @@ object RuleWidget:
           ),
           operandField(
             s"andOut${index}_",
-            "Out Key",
+            outLabel,
             outCols,
             inputType,
             state,

@@ -149,9 +149,9 @@ class IngestResumableSuite extends munit.FunSuite:
   ):
     val data = transact(app.transactor)(DataSetup(app))
     val accountA =
-      Account(name = "sub-account-a", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
+      Account(name = "sub-account-a", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Primary)
     val accountB =
-      Account(name = "sub-account-b", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Secondary)
+      Account(name = "sub-account-b", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Primary)
     val feed = FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(

@@ -11,17 +11,20 @@ class MovementSpecService(movementSpecRepo: MovementSpecRepo, accountRepo: Accou
     movementSpecRepo.insert(spec)
     spec
 
-  // A link is only ever valid between one Recon account and one Primary-or-Secondary account —
-  // never Recon-to-Recon, and never Primary-to-Secondary. Which side (in/out) the Recon account
-  // occupies doesn't matter here, only that exactly one side is Recon.
+  // Money only ever flows Primary → Recon → Secondary, so a movement spec is one of exactly two
+  // links: a Primary account paying into a Recon account, or a Recon account paying out to a
+  // Secondary one. Anything else is rejected: Recon-to-Recon, Primary-to-Secondary, or either link
+  // reversed. A reversed ledger could still balance, but it reads backwards to the people using it.
   private def validateAccountLink(inAccountId: ID, outAccountId: ID): Txn[Unit] =
     val inAccount  = accountRepo.findById(inAccountId).ErrIfNotFound("account", inAccountId)
     val outAccount = accountRepo.findById(outAccountId).ErrIfNotFound("account", outAccountId)
-    val reconSides = Seq(inAccount, outAccount).count(_.accountType == AccountType.Recon)
-    if reconSides != 1 then
-      throw IllegalArgumentException(
-        "A movement spec must link exactly one Recon account with one Primary or Secondary account"
-      )
+    (outAccount.accountType, inAccount.accountType) match
+      case (AccountType.Primary, AccountType.Recon) | (AccountType.Recon, AccountType.Secondary) => ()
+      case (from, to) =>
+        throw IllegalArgumentError(
+          "movementSpec",
+          s"A movement spec must be Primary → Recon or Recon → Secondary, not $from → $to"
+        )
 
   def updateMovementSpec(
     id:                ID,

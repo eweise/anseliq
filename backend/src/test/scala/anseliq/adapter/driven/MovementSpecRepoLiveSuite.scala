@@ -17,7 +17,7 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         fundFlowRepo.insert(fundFlow)
 
         val inAccount  = Account(name = "in", fundFlowId = fundFlow.id, accountType = AccountType.Recon)
-        val outAccount = Account(name = "out", fundFlowId = fundFlow.id, accountType = AccountType.Secondary)
+        val outAccount = Account(name = "out", fundFlowId = fundFlow.id, accountType = AccountType.Primary)
         app.accountRepo.insert(inAccount)
         app.accountRepo.insert(outAccount)
 
@@ -40,9 +40,9 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         fundFlowRepo.insert(fundFlowB)
 
         val inA  = Account(name = "in-a", fundFlowId = fundFlowA.id, accountType = AccountType.Recon)
-        val outA = Account(name = "out-a", fundFlowId = fundFlowA.id, accountType = AccountType.Secondary)
+        val outA = Account(name = "out-a", fundFlowId = fundFlowA.id, accountType = AccountType.Primary)
         val inB  = Account(name = "in-b", fundFlowId = fundFlowB.id, accountType = AccountType.Recon)
-        val outB = Account(name = "out-b", fundFlowId = fundFlowB.id, accountType = AccountType.Secondary)
+        val outB = Account(name = "out-b", fundFlowId = fundFlowB.id, accountType = AccountType.Primary)
         app.accountRepo.insert(inA); app.accountRepo.insert(outA)
         app.accountRepo.insert(inB); app.accountRepo.insert(outB)
 
@@ -64,8 +64,8 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         val fundFlow = FundFlowConfig(name = UUID.randomUUID().toString)
         fundFlowRepo.insert(fundFlow)
 
-        val accountA = Account(name = "a", fundFlowId = fundFlow.id, accountType = AccountType.Secondary)
-        val accountB = Account(name = "b", fundFlowId = fundFlow.id, accountType = AccountType.Secondary)
+        val accountA = Account(name = "a", fundFlowId = fundFlow.id, accountType = AccountType.Primary)
+        val accountB = Account(name = "b", fundFlowId = fundFlow.id, accountType = AccountType.Primary)
         val recon    = Account(name = "recon", fundFlowId = fundFlow.id, accountType = AccountType.Recon)
         app.accountRepo.insert(accountA)
         app.accountRepo.insert(accountB)

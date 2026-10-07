@@ -49,7 +49,7 @@ trait AppContainer:
   lazy val accountService:      AccountService         = AccountService(accountRepo, movementRepo)
   lazy val movementSpecService: MovementSpecService    = MovementSpecService(movementSpecRepo, accountRepo)
   lazy val fileFeedService:     FileFeedService        = FileFeedService(fileFeedRepo)
-  lazy val reconSpecService:    ReconSpecService       = ReconSpecService(reconSpecRepo)
+  lazy val reconSpecService:    ReconSpecService       = ReconSpecService(reconSpecRepo, movementSpecRepo, accountRepo)
   lazy val eventStore:          EventStore             = EventStore(eventRepo, clock, dataSource)
   lazy val fileInventoryRepo:   FileInventoryRepo      = FileInventoryRepoLive()
   lazy val ledger: Ledger =

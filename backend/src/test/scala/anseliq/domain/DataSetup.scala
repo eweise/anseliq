@@ -45,13 +45,13 @@ class DataSetup(val app: AppContainer)(using dbTx: DbTx) {
   val journalAccount = Account(
     name        = journalAccountName,
     fundFlowId  = fundFlowConfig.id,
-    accountType = AccountType.Secondary,
+    accountType = AccountType.Primary,
     properties  = JSONBProps(props)
   )
   val reportAccount = Account(
     name        = reportAccountName,
     fundFlowId  = fundFlowConfig.id,
-    accountType = AccountType.Primary,
+    accountType = AccountType.Secondary,
     properties  = JSONBProps(props)
   )
   val journalToReconFeed = FileFeed(

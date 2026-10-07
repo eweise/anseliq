@@ -3,8 +3,10 @@ package anseliq.view.pages
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
 import anseliq.common.model.{
+  AccountPayload,
   ManualMatchRequest,
   MovementPayload,
+  MovementSpecPayload,
   ReconRelationship,
   ReconciliationPayload,
   ReconciliationSpecPayload
@@ -13,6 +15,7 @@ import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
 import anseliq.state.{AppState, SessionStore}
+import anseliq.view.ViewHelper
 import anseliq.view.components.{Icons, PageHeader, Table}
 import upickle.default.*
 
@@ -34,6 +37,16 @@ object ManualMatchPage:
     val loadBus      = EventBus[Unit]()
     val movementsBus = EventBus[ReconciliationSpecPayload]()
     val matchBus     = EventBus[Unit]()
+    // The ledger's accounts and movement specs, only to name each side after its account.
+    val accounts      = Var(Seq.empty[AccountPayload])
+    val movementSpecs = Var(Seq.empty[MovementSpecPayload])
+    val ffId          = AppState.activeFundFlow.now().flatMap(_.id).getOrElse("")
+    val primaryName = spec.signal.combineWith(movementSpecs.signal, accounts.signal).map { (sp, specs, accts) =>
+      ViewHelper.primarySideName(sp.inMovementSpecId, specs, accts)
+    }
+    val secondaryName = spec.signal.combineWith(movementSpecs.signal, accounts.signal).map { (sp, specs, accts) =>
+      ViewHelper.secondarySideName(sp.outMovementSpecId, specs, accts)
+    }
 
     def loadReconSpec() =
       ApiClient.get[Seq[ReconciliationSpecPayload]](
@@ -83,6 +96,12 @@ object ManualMatchPage:
         movementsBus.emit(spec.now())
       },
       onMountCallback(_ => loadBus.emit(())),
+      ApiClient
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .apiBind(accounts.set),
+      ApiClient
+        .get[Seq[MovementSpecPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"), SessionStore.token)
+        .apiBind(movementSpecs.set),
       PageHeader.ledgerBreadcrumb(
         AppState.activeFundFlow.now(),
         Some("Reconciliations" -> "Reconciliations"),
@@ -92,7 +111,7 @@ object ManualMatchPage:
       div(
         cls := "grid grid-cols-2 gap-4 mt-6 text-left",
         div(
-          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "In Movements"),
+          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", child.text <-- primaryName.map(n => s"$n movements")),
           child <-- state.signal.map { s =>
             Table.create(
               Seq("", "Reference ID", "Amount"),
@@ -114,7 +133,7 @@ object ManualMatchPage:
           }
         ),
         div(
-          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Out Movements"),
+          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", child.text <-- secondaryName.map(n => s"$n movements")),
           child <-- state.signal.map { s =>
             Table.create(
               Seq("", "Reference ID", "Amount"),
@@ -138,7 +157,7 @@ object ManualMatchPage:
       ),
       div(
         cls := "mt-4 text-sm text-md-on-surface dark:text-gray-200",
-        child.text <-- state.signal.combineWith(spec.signal).map { (s, sp) =>
+        child.text <-- state.signal.combineWith(spec.signal, primaryName, secondaryName).map { (s, sp, pName, sName) =>
           val inTotal  = s.inMovements.filter(m => s.selectedIn.contains(m.id)).map(_.amount).sum
           val outTotal = s.outMovements.filter(m => s.selectedOut.contains(m.id)).map(_.amount).sum
           val diff     = inTotal - outTotal
@@ -148,7 +167,7 @@ object ManualMatchPage:
             if diff == BigDecimal(0) then "will close as Final"
             else if sp.relationship == ReconRelationship.OneToMany then "will save as InProgress"
             else "will save as Mismatched and raise an AmountMismatch dispute"
-          s"Selected In: ${s.selectedIn.size} ($inTotal)  Selected Out: ${s.selectedOut.size} ($outTotal)  Diff: $diff — $note"
+          s"$pName: ${s.selectedIn.size} selected ($inTotal)  $sName: ${s.selectedOut.size} selected ($outTotal)  Difference: $diff — $note"
         }
       ),
       div(

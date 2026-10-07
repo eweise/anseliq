@@ -40,7 +40,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           AccountPayload(
             name        = "Journal",
             fundFlowId  = fundFlowConfig.id.get,
-            accountType = AccountTypePayload.Secondary
+            accountType = AccountTypePayload.Primary
           )
         )
 
@@ -50,7 +50,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
 
       val bankAccount = createAccount(
-        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Primary)
+        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
       )
 
       // tmp_journal.csv: record_date, transaction_id, amount, description (header row present)
@@ -135,7 +135,7 @@ class DataSetupScenario1 extends munit.FunSuite:
 
       val visa =
         createAccount(
-          AccountPayload(name = "Visa", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
+          AccountPayload(name = "Visa", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Primary)
         )
 
       val reconAccount =
@@ -144,7 +144,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
 
       val bankAccount = createAccount(
-        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Primary)
+        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
       )
 
       // A single BAI2 feed covers visa's account activity; reconToBank stays on its own CSV feed.

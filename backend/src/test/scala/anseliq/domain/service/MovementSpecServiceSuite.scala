@@ -1,71 +1,60 @@
 package anseliq.domain.service
 
 import anseliq.domain.DataSetup
-import anseliq.domain.model.MovementSpec
+import anseliq.domain.model.{Account, AccountType, IllegalArgumentError, MovementSpec}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
 
+// DataSetup's journal account is Primary and its report account Secondary, so money flows
+// journal → recon → report.
 class MovementSpecServiceSuite extends munit.FunSuite:
   private val app = TestAppContainer()
 
-  test("createMovementSpec succeeds linking a Primary account to a Recon account"):
+  private def link(data: DataSetup, from: Account, to: Account): MovementSpec =
+    MovementSpec(
+      name         = s"${from.name} to ${to.name}",
+      outAccountId = from.id,
+      inAccountId  = to.id,
+      fileFeedId   = data.journalToReconFeed.id
+    )
+
+  private def assertRejected(from: DataSetup => Account, to: DataSetup => Account): Unit =
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
-        val spec = app.movementSpecService.createMovementSpec(
-          MovementSpec(
-            name         = "report to recon",
-            outAccountId = data.reconAccount.id,
-            inAccountId  = data.reportAccount.id,
-            fileFeedId   = data.reportToReconFeed.id
-          )
-        )
+        val error =
+          intercept[IllegalArgumentError](app.movementSpecService.createMovementSpec(link(data, from(data), to(data))))
+        assert(error.msg.contains("Primary → Recon or Recon → Secondary"), error.msg)
+
+  test("createMovementSpec succeeds linking a Primary account into a Recon account"):
+    transact(app.transactor):
+      rollBackOnly:
+        val data = DataSetup(app)
+        val spec = app.movementSpecService.createMovementSpec(link(data, data.journalAccount, data.reconAccount))
         assert(app.movementSpecRepo.findById(spec.id).isDefined)
 
-  test("createMovementSpec succeeds linking a Secondary account to a Recon account"):
+  test("createMovementSpec succeeds linking a Recon account out to a Secondary account"):
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
-        val spec = app.movementSpecService.createMovementSpec(
-          MovementSpec(
-            name         = "journal to recon",
-            outAccountId = data.journalAccount.id,
-            inAccountId  = data.reconAccount.id,
-            fileFeedId   = data.journalToReconFeed.id
-          )
-        )
+        val spec = app.movementSpecService.createMovementSpec(link(data, data.reconAccount, data.reportAccount))
         assert(app.movementSpecRepo.findById(spec.id).isDefined)
+
+  test("createMovementSpec rejects a Recon account paying a Primary account (reversed)"):
+    assertRejected(_.reconAccount, _.journalAccount)
+
+  test("createMovementSpec rejects a Secondary account paying a Recon account (reversed)"):
+    assertRejected(_.reportAccount, _.reconAccount)
 
   test("createMovementSpec rejects linking a Primary account directly to a Secondary account"):
-    transact(app.transactor):
-      rollBackOnly:
-        val data = DataSetup(app)
-        intercept[IllegalArgumentException]:
-          app.movementSpecService.createMovementSpec(
-            MovementSpec(
-              name         = "primary to secondary",
-              outAccountId = data.journalAccount.id,
-              inAccountId  = data.reportAccount.id,
-              fileFeedId   = data.journalToReconFeed.id
-            )
-          )
+    assertRejected(_.journalAccount, _.reportAccount)
 
   test("createMovementSpec rejects linking two Recon accounts together"):
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
-        val otherRecon = anseliq.domain.model.Account(
-          name        = "other-recon",
-          fundFlowId  = data.fundFlowConfig.id,
-          accountType = anseliq.domain.model.AccountType.Recon
-        )
+        val otherRecon =
+          Account(name = "other-recon", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Recon)
         data.accountRepo.insert(otherRecon)
-        intercept[IllegalArgumentException]:
-          app.movementSpecService.createMovementSpec(
-            MovementSpec(
-              name         = "recon to recon",
-              outAccountId = data.reconAccount.id,
-              inAccountId  = otherRecon.id,
-              fileFeedId   = data.journalToReconFeed.id
-            )
-          )
+        intercept[IllegalArgumentError]:
+          app.movementSpecService.createMovementSpec(link(data, data.reconAccount, otherRecon))

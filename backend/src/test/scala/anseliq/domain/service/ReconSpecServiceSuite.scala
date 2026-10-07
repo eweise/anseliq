@@ -43,6 +43,17 @@ class ReconSpecServiceSuite extends munit.FunSuite:
     val leaf = StringAttributeMatchRule(StringAttribute(key = "id"), StringAttribute(key = "id"))
     assertRejected(ORRule(List(leaf, leaf)), "only supports")
 
+  test("createReconSpec rejects swapped sides: the Primary side must flow into the Recon account"):
+    transact(app.transactor):
+      rollBackOnly:
+        val data = DataSetup(app)
+        val swapped = specWith(data, data.rule).copy(
+          inMovementSpecId  = data.reportToRecon.id,
+          outMovementSpecId = data.journalToRecon.id
+        )
+        val error = intercept[IllegalArgumentError](app.reconSpecService.createReconSpec(swapped))
+        assert(error.msg.contains("Primary side"), error.msg)
+
   test("updateReconSpec rejects an empty rule and leaves the saved spec unchanged"):
     transact(app.transactor):
       rollBackOnly:

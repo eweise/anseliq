@@ -2,7 +2,7 @@ package anseliq.view.pages
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
-import anseliq.common.model.{FileFeedPayload, MovementSpecPayload, ReconRelationship, ReconciliationSpecPayload}
+import anseliq.common.model.{AccountPayload, FileFeedPayload, MovementSpecPayload, ReconRelationship, ReconciliationSpecPayload}
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
@@ -54,6 +54,7 @@ object MaintainReconSpecPage:
   ): HtmlElement =
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
     val fileFeeds     = Var(Seq.empty[FileFeedPayload])
+    val accounts      = Var(Seq.empty[AccountPayload])
     val spec = Var(
       initialSpec.getOrElse(
         ReconciliationSpecPayload(accountId = Some(accountId))
@@ -70,7 +71,8 @@ object MaintainReconSpecPage:
       movementSpecs     = movementSpecs,
       fileFeeds         = fileFeeds,
       inMovementSpecId  = inSpecIdSignal,
-      outMovementSpecId = outSpecIdSignal
+      outMovementSpecId = outSpecIdSignal,
+      accounts          = accounts.signal
     )
 
     div(
@@ -89,6 +91,9 @@ object MaintainReconSpecPage:
       ApiClient
         .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
         .apiBind(feeds => fileFeeds.set(feeds)),
+      ApiClient
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .apiBind(accounts.set),
       saveBus.events
         .sample(ruleSignal)
         .flatMapSwitch { rule =>
@@ -130,14 +135,14 @@ object MaintainReconSpecPage:
               div(
                 movementSpecSelect(
                   "inMovementSpecId",
-                  "In Movement Spec",
+                  "Primary movement spec",
                   s.inMovementSpecId,
                   specs.filter(_.inAccountId == accountId),
                   v => spec.update(_.copy(inMovementSpecId = v))
                 ),
                 movementSpecSelect(
                   "outMovementSpecId",
-                  "Out Movement Spec",
+                  "Secondary movement spec",
                   s.outMovementSpecId,
                   specs.filter(_.outAccountId == accountId),
                   v => spec.update(_.copy(outMovementSpecId = v))
