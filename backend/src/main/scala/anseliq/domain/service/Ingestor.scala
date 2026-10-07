@@ -4,6 +4,7 @@ import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.model.FileInventoryStatus.COMPLETED
 import anseliq.domain.port.driven.*
+import anseliq.domain.service.parser.{Parser, ParserError}
 import com.augustnagro.magnum.{DbTx, Transactor, transact}
 import com.fasterxml.uuid.Generators
 import com.typesafe.scalalogging.Logger

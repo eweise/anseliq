@@ -1,6 +1,7 @@
 package anseliq.domain.service
 
 import anseliq.common.model.*
+import anseliq.domain.service.parser.{BAIParser, FixedWidthParser, JSONParser, ParsedLine, Parser, ParserError}
 
 class ParserSuite extends munit.FunSuite:
 
