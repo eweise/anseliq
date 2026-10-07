@@ -10,23 +10,36 @@ import com.typesafe.scalalogging.StrictLogging
 import org.postgresql.util.PSQLException
 import ox.scheduling.{Schedule, repeat}
 
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.sql.DataSource
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.util.control.NonFatal
 
-class JobManager(jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) extends StrictLogging:
+// A claimed (InProgress) job holds a lease that withLease's heartbeat keeps renewing while the work
+// runs. If the worker dies, the lease lapses and the next poll for that job type requeues the job,
+// rather than leaving it InProgress for good and blocking that (jobType, referenceID) forever.
+//
+// A failed attempt, or an abandoned one, is retried after a backoff (retryBaseDelay, doubling each
+// attempt) until maxAttempts, then the job is marked Error.
+class JobManager(
+  jobRepo:        JobRepo,
+  clock:          ClockService,
+  dataSource:     DataSource,
+  leaseDuration:  FiniteDuration = 5.minutes,
+  maxAttempts:    Int            = 5,
+  retryBaseDelay: FiniteDuration = 30.seconds
+) extends StrictLogging:
   private val UniqueViolationSqlState = "23505"
+  private val MaxRetryDelay           = 30.minutes
+  private val leaseSeconds            = leaseDuration.toSeconds
+  private val heartbeatInterval       = leaseDuration / 3
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
     val jobId = submitJob(jobType, referenceID)
-    val submittedJob = jobRepo
+    claimJob(jobId)
+    val processedJob = jobRepo
       .findById(jobId)
       .ErrIfNotFound("internal error. could not find job after submitting", jobId)
-
-    val processedJob = submittedJob.copy(
-      jobStatus = JobStatus.InProgress,
-      updatedAt = Some(clock.now)
-    )
-    jobRepo.update(processedJob)
 
     try {
       val jobInfo = processFn(processedJob)
@@ -36,21 +49,23 @@ class JobManager(jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) 
         ex.printStackTrace() // todo I think the txn is rolled back at this point :(
         markJobInError(processedJob.id, ex)
 
-  // Idempotent: if an active (Submitted or InProgress) job already exists for this
-  // (jobType, referenceID), return its id instead of creating a duplicate — covers the common,
-  // non-concurrent causes of double-submission (event redelivery, a periodic submitter racing a
-  // slow poller, a manual retrigger).
+  // Idempotent: if a job is already queued (Submitted) for this (jobType, referenceID), return its
+  // id instead of creating a duplicate — covers the common, non-concurrent causes of
+  // double-submission (event redelivery, a periodic submitter racing a slow poller, a manual
+  // retrigger). A job that's already InProgress doesn't count: it may have read its inputs before
+  // whatever prompted this submission, so a new job is queued to run once it finishes (getNextJob
+  // holds it back until then).
   //
   // The check-then-insert below still has a race window between two concurrent submitters: both
-  // can see "no active job" and both attempt the insert. job_active_unique (a partial unique index
-  // on job_type+reference_id where status is submitted/in_progress) is what actually prevents the
+  // can see "nothing queued" and both attempt the insert. job_submitted_unique (a partial unique
+  // index on job_type+reference_id where status is submitted) is what actually prevents the
   // duplicate row; the loser's insert hits that constraint. In Postgres a failed statement poisons
   // the rest of the transaction until rolled back, so the insert is wrapped in a SAVEPOINT — on a
   // unique-violation we roll back to it (undoing just the failed insert, not the whole transaction)
   // and re-look-up the winner, so a racing caller gets the same "return the existing job" result as
   // the non-racing path instead of a raw constraint-violation exception.
   def submitJob(jobType: JobType, referenceID: ID): Txn[ID] =
-    findActiveJob(jobType, referenceID) match
+    findQueuedJob(jobType, referenceID) match
       case Some(existing) =>
         logger.debug(
           s"submitJob: active $jobType job already exists for referenceID=$referenceID, skipping duplicate submission (existing job ${existing.id})"
@@ -76,14 +91,26 @@ class JobManager(jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) 
             logger.debug(
               s"submitJob: lost the race inserting $jobType job for referenceID=$referenceID, using the winner's job instead"
             )
-            findActiveJob(jobType, referenceID)
+            findQueuedJob(jobType, referenceID)
               .map(_.id)
               .getOrElse(throw ex)
 
-  private def findActiveJob(jobType: JobType, referenceID: ID): Txn[Option[Job]] =
+  private def findQueuedJob(jobType: JobType, referenceID: ID): Txn[Option[Job]] =
     jobRepo
       .findByJobTypeAndReferenceId(jobType, referenceID)
-      .find(j => j.jobStatus == JobStatus.Submitted || j.jobStatus == JobStatus.InProgress)
+      .find(_.jobStatus == JobStatus.Submitted)
+
+  /**
+   * Claims a Submitted job for the caller to run now. An IllegalStateError if another worker
+   * already claimed it, or another job for the same (jobType, referenceID) is running.
+   */
+  def claimJob(jobId: ID): Txn[Unit] =
+    val claimed =
+      try jobRepo.claim(jobId, leaseSeconds, clock.now)
+      catch
+        // job_in_progress_unique: another job for the same (jobType, referenceID) is running.
+        case ex: Exception if isUniqueViolation(ex) => false
+    if !claimed then throw IllegalStateError(s"job $jobId is already running, or another job for the same target is")
 
   private def isUniqueViolation(ex: Throwable): Boolean =
     ex match
@@ -123,6 +150,7 @@ class JobManager(jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) 
           job.copy(
             jobStatus   = Complete,
             jobInfoJson = Some(upickle.write(jobInfo)),
+            lockedUntil = None,
             updatedAt   = Some(clock.now)
           )
         )
@@ -142,34 +170,107 @@ class JobManager(jobRepo: JobRepo, clock: ClockService, dataSource: DataSource) 
           job.copy(
             jobStatus    = JobStatus.Error,
             errorMessage = Some(ex.getMessage),
+            lockedUntil  = None,
             updatedAt    = Some(clock.now)
           )
         )
       )
 
   def pollForJob(jobType: JobType, pollingSeconds: Int)(fn: Job => Unit): Unit =
+    val transactor = Transactor(dataSource)
     repeat(Schedule.fixedInterval(pollingSeconds.seconds)) {
       try
-        given transactor: Transactor = Transactor(dataSource)
-        val jobOpt = transact(transactor) {
-          getNextAvailableJob(jobType)
-        }
-        jobOpt.foreach(fn)
+        transact(transactor)(releaseExpiredLeases(jobType))
+        val jobOpt = transact(transactor)(getNextAvailableJob(jobType))
+        jobOpt.foreach(job => withLease(job.id)(fn(job)))
       catch
         case ex: Exception =>
           logger.error(s"Error polling for $jobType job, will retry in ${pollingSeconds}s", ex)
     }
 
   def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =
-    val job = jobRepo.getNextJob(jobType)
-    val results = job.map(job =>
+    jobRepo
+      .getNextJob(jobType)
+      .map: job =>
+        claimJob(job.id)
+        jobRepo.findById(job.id).get
+
+  /**
+   * Runs `body` while a heartbeat keeps the claimed job's lease from lapsing. The heartbeat runs on
+   * its own virtual thread so `body` stays on the caller's (and keeps its logging context).
+   */
+  def withLease[T](jobId: ID)(body: => T): T =
+    val transactor = Transactor(dataSource)
+    val stopped    = AtomicBoolean(false)
+    val heartbeat = Thread
+      .ofVirtual()
+      .start(() =>
+        while !stopped.get() do
+          try
+            Thread.sleep(heartbeatInterval.toMillis)
+            if !stopped.get() && !transact(transactor)(jobRepo.extendLease(jobId, leaseSeconds)) then
+              logger.warn(s"job $jobId is no longer InProgress, so its lease can't be extended")
+          catch
+            case _: InterruptedException => ()
+            case NonFatal(ex) if !stopped.get() =>
+              logger.warn(s"failed to extend lease for job $jobId, will retry", ex)
+            case NonFatal(_) => ()
+      )
+    try body
+    finally
+      stopped.set(true)
+      heartbeat.interrupt()
+
+  /**
+   * Fails the claimed job's current attempt. A NonRetryableError marks it Error; anything else is
+   * retried after a backoff, unless it's out of attempts or a newer job for the same target is
+   * already queued (see requeueOrFail).
+   */
+  def retryOrFail(jobId: ID, ex: Exception): Txn[Unit] =
+    val job = jobRepo.findById(jobId).getOrElse(throw NotFoundError(s"Could not find job with jobID: $jobId"))
+    if job.jobStatus != InProgress then
+      throw IllegalStateError(
+        s" cannot fail an attempt of job with jobID: $jobId. Job currently in status ${job.jobStatus}"
+      )
+    ex match
+      case _: NonRetryableError => markJobInError(jobId, ex)
+      case _ => requeueOrFail(job, ex.getMessage)
+
+  /**
+   * Releases InProgress jobs whose worker stopped renewing its lease (crashed, or the instance went
+   * away). Each is retried under the same id, so a resumable job picks up from its progressJson
+   * checkpoint — counted as an attempt, so a job that takes the process down every time still gives
+   * up eventually.
+   */
+  def releaseExpiredLeases(jobType: JobType): Txn[Unit] =
+    jobRepo
+      .findExpiredLeases(jobType)
+      .foreach(job => requeueOrFail(job, "Worker lease expired"))
+
+  // Retries an InProgress job after a backoff, or marks it Error if it's out of attempts. Also Error
+  // if a newer job for the same target is already queued: that one redoes the work anyway, and
+  // job_submitted_unique wouldn't let this one back in the queue beside it.
+  private def requeueOrFail(job: Job, reason: String): Txn[Unit] =
+    def fail(message: String): Unit =
+      logger.warn(s"${job.jobType} job ${job.id} failed: $message")
       jobRepo.update(
         job.copy(
-          jobStatus = InProgress,
-          updatedAt = Some(clock.now)
+          jobStatus    = JobStatus.Error,
+          errorMessage = Some(message),
+          lockedUntil  = None,
+          updatedAt    = Some(clock.now)
         )
       )
-      val found = jobRepo.findById(job.id).get
-      found
-    )
-    results
+
+    findQueuedJob(job.jobType, job.referenceId) match
+      case Some(queued)                        => fail(s"$reason; superseded by job ${queued.id}")
+      case None if job.attempts >= maxAttempts => fail(s"$reason; gave up after ${job.attempts} attempts")
+      case None =>
+        val delay = retryDelay(job.attempts)
+        logger.warn(s"${job.jobType} job ${job.id} failed attempt ${job.attempts} ($reason), retrying in $delay")
+        if !jobRepo.retryLater(job.id, delay.toSeconds, reason, clock.now) then
+          logger.warn(s"${job.jobType} job ${job.id} was no longer InProgress, so it wasn't requeued")
+
+  // retryBaseDelay after the first attempt, doubling after each one after that, capped at MaxRetryDelay.
+  private def retryDelay(attempts: Int): FiniteDuration =
+    (retryBaseDelay * (1L << (attempts - 1).max(0).min(20))).min(MaxRetryDelay)

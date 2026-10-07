@@ -51,3 +51,16 @@ class ReconciliationRunnerSuite extends munit.FunSuite:
       assertEquals(jobs.map(_.jobStatus), Vector(JobStatus.Error))
       assertEquals(jobs.head.errorMessage, Some(error.getMessage))
     finally teardown(data)
+
+  test("reconcileNow refuses, with an IllegalStateError, while the account's reconciliation is already running"):
+    val data = transact(app.transactor)(DataSetup(app))
+    try
+      transact(app.transactor):
+        val running = app.jobManager.submitJob(JobType.Reconciliation, data.reconAccount.id)
+        app.jobManager.claimJob(running)
+
+      intercept[IllegalStateError](app.reconciliationRunner.reconcileNow(data.reconAccount.id))
+
+      assertEquals(jobsFor(data).map(_.jobStatus), Vector(JobStatus.InProgress))
+    finally teardown(data)
+

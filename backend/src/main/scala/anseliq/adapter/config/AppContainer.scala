@@ -89,7 +89,6 @@ trait AppContainer:
   )
   lazy val reconciliationRunner: ReconciliationRunner = ReconciliationRunner(
     accountRepo = accountRepo,
-    jobRepo     = jobRepo,
     jobManager  = jobManager,
     reconciler  = reconciler,
     transactor  = transactor

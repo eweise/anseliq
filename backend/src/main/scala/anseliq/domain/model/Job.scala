@@ -26,6 +26,9 @@ case class Job(
   jobInfoJson:   Option[String]         = None,
   progressJson:  Option[String]         = None,
   errorMessage:  Option[String]         = None,
+  lockedUntil:   Option[OffsetDateTime] = None,
+  attempts:      Int                    = 0,
+  runAt:         Option[OffsetDateTime] = None,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
 ) derives DbCodec:

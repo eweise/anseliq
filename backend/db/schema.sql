@@ -254,17 +254,30 @@ create table recon.job
     progress_json text,
     reference_id  uuid                                  not null,
     error_message text,
+    -- While in_progress: the worker's lease, extended by its heartbeat. Once it lapses the worker
+    -- is presumed dead and the job is requeued (see JobManager.releaseExpiredLeases).
+    locked_until  timestamptz,
+    -- How many times a worker has claimed this job; failed and abandoned runs are retried, with
+    -- backoff, until JobManager's maxAttempts.
+    attempts      int         default 0                 not null,
+    -- Not claimable before this time (a retry's backoff); null means as soon as possible.
+    run_at        timestamptz,
     created_at    timestamptz default CURRENT_TIMESTAMP not null,
     updated_at    timestamptz default CURRENT_TIMESTAMP not null
 );
 
 CREATE INDEX job_reference_id_fk ON recon.job (reference_id, created_at);
 
--- At most one active (not yet Complete/Error) job per (job_type, reference_id): backstop against
--- duplicate submission (event redelivery, a periodic submitter racing a slow poller, a manual
--- retrigger, or a future multi-instance deployment) regardless of which caller wins the race.
-CREATE UNIQUE INDEX job_active_unique ON recon.job (job_type, reference_id)
-    WHERE job_status IN ('submitted', 'in_progress');
+-- At most one queued job per (job_type, reference_id): repeat submissions while one is waiting
+-- (event redelivery, a periodic submitter racing a slow poller, a manual retrigger) coalesce into
+-- it. A running job doesn't count, so work that arrives mid-run still gets a follow-up run.
+CREATE UNIQUE INDEX job_submitted_unique ON recon.job (job_type, reference_id)
+    WHERE job_status = 'submitted';
+
+-- At most one running job per (job_type, reference_id), e.g. never two reconciliations of the
+-- same account at once, whichever instance claims it.
+CREATE UNIQUE INDEX job_in_progress_unique ON recon.job (job_type, reference_id)
+    WHERE job_status = 'in_progress';
 
 CREATE INDEX job_job_status_create_at_fk ON recon.job (job_status, created_at);
 
