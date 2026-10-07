@@ -1,9 +1,10 @@
 package anseliq.domain.service
 
 import anseliq.common.model.*
+import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
-import anseliq.testing.TestAppContainer
+import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
 
 // Not rolled back: ReconciliationRunner commits its own transactions (the job rows, and the
@@ -64,3 +65,15 @@ class ReconciliationRunnerSuite extends munit.FunSuite:
       assertEquals(jobsFor(data).map(_.jobStatus), Vector(JobStatus.InProgress))
     finally teardown(data)
 
+  test("queueReconciliations queues one job per Recon account on the specs' sides, and none for other accounts"):
+    transact(app.transactor):
+      rollBackOnly:
+        val data = DataSetup(app)
+        // Both specs have the Recon account on one side, so it gets one job between them.
+        app.reconciliationRunner.queueReconciliations(Set(data.journalToRecon.id, data.reportToRecon.id))
+
+        def jobStatuses(accountId: ID) =
+          app.jobRepo.findByJobTypeAndReferenceId(JobType.Reconciliation, accountId).map(_.jobStatus)
+        assertEquals(jobStatuses(data.reconAccount.id), Vector(JobStatus.Submitted))
+        assertEquals(jobStatuses(data.journalAccount.id), Vector.empty)
+        assertEquals(jobStatuses(data.reportAccount.id), Vector.empty)

@@ -5,6 +5,7 @@ import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.model.JobStatus.{Complete, InProgress, Submitted}
 import anseliq.domain.port.driven.{JobRepo, Txn}
+import anseliq.util.LogContext
 import com.augustnagro.magnum.{DbCon, Transactor, transact}
 import com.typesafe.scalalogging.StrictLogging
 import org.postgresql.util.PSQLException
@@ -175,6 +176,38 @@ class JobManager(
           )
         )
       )
+
+  /**
+   * Runs jobType's worker loop: every pollingSeconds, claims the next queued job and runs `handler`
+   * on it under a lease. The JobInfo it returns completes the job; an exception fails the attempt
+   * (see retryOrFail). Work that should follow is queued as jobs by the handler itself.
+   */
+  def runWorker(jobType: JobType, pollingSeconds: Int)(handler: Job => JobInfo): Unit =
+    val transactor = Transactor(dataSource)
+    pollForJob(jobType, pollingSeconds): job =>
+      LogContext.withContext("job" -> jobType, "job_id" -> job.id):
+        try
+          val jobInfo = handler(job)
+          transact(transactor)(completeJob(job.id, jobInfo))
+        catch
+          case ex: Exception =>
+            logger.error(s"$jobType job failed", ex)
+            transact(transactor)(retryOrFail(job.id, ex))
+
+  /**
+   * Submits a singleton job (one fixed referenceID) every `interval`; submitJob keeps at most one
+   * queued.
+   */
+  def submitEvery(jobType: JobType, referenceID: ID, interval: FiniteDuration): Unit =
+    val transactor = Transactor(dataSource)
+    repeat(Schedule.fixedInterval(interval)) {
+      try
+        transact(transactor)(submitJob(jobType, referenceID))
+        ()
+      catch
+        case ex: Exception =>
+          logger.error(s"Error submitting $jobType job, will retry in $interval", ex)
+    }
 
   def pollForJob(jobType: JobType, pollingSeconds: Int)(fn: Job => Unit): Unit =
     val transactor = Transactor(dataSource)

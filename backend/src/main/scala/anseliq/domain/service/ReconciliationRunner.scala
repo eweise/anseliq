@@ -11,13 +11,28 @@ import net.logstash.logback.argument.StructuredArguments.kv
 // Runs an account's reconciliation as a Reconciliation job: the background worker hands it a job
 // it has already claimed, and "Run reconciliation" (POST /account/:id/reconcile) starts one and
 // runs it straight away. Not wrapped in one transaction: reconcileAccountResumable commits its own
-// batches, so a large account doesn't need one unbounded transaction.
+// batches, so a large account doesn't need one unbounded transaction. Also decides which accounts
+// newly ingested movements need reconciled.
 class ReconciliationRunner(
-  accountRepo: AccountRepo,
-  jobManager:  JobManager,
-  reconciler:  InMemoryReconciler,
-  transactor:  Transactor
+  accountRepo:      AccountRepo,
+  movementSpecRepo: MovementSpecRepo,
+  jobManager:       JobManager,
+  reconciler:       InMemoryReconciler,
+  transactor:       Transactor
 ) extends StrictLogging:
+
+  /**
+   * Queues a Reconciliation job for each Recon account on either side of these movement specs,
+   * after an ingestion added movements under them. A job already queued for the account absorbs
+   * this one.
+   */
+  def queueReconciliations(movementSpecIds: Set[ID]): Txn[Unit] =
+    val accountIds = movementSpecIds.flatMap: specId =>
+      val spec = movementSpecRepo.findById(specId).ErrIfNotFound("movementSpec", specId)
+      Set(spec.inAccountId, spec.outAccountId)
+    accountIds
+      .filter(accountId => accountRepo.findById(accountId).exists(_.accountType == AccountType.Recon))
+      .foreach(accountId => jobManager.submitJob(JobType.Reconciliation, accountId))
 
   /**
    * Submits a Reconciliation job for the account, claims it, and runs it now. An IllegalStateError
@@ -31,26 +46,29 @@ class ReconciliationRunner(
       val jobId = jobManager.submitJob(JobType.Reconciliation, accountId)
       jobManager.claimJob(jobId)
       jobId
-    try jobManager.withLease(jobId)(runJob(accountId, jobId))
+    try
+      val jobInfo = jobManager.withLease(jobId)(runJob(accountId, jobId))
+      transact(transactor)(jobManager.completeJob(jobId, jobInfo))
     catch
       case ex: Exception =>
         logger.error("reconciliation job failed", kv("job_id", jobId), ex)
         transact(transactor)(jobManager.markJobInError(jobId, ex))
         throw ex
 
-  /** Reconciles the account under an existing job and records the result as that job's info. */
-  def runJob(accountId: ID, jobId: ID): Unit =
+  /**
+   * Reconciles the account under an existing, claimed job, returning the result to complete it
+   * with.
+   */
+  def runJob(accountId: ID, jobId: ID): ReconciliationInfo =
     val account = transact(transactor):
       accountRepo.findById(accountId).getOrElse(throw NotFoundError(s"Account $accountId not found"))
 
     logger.debug("found account", kv("account_id", account.id))
     val result = reconciler.reconcileAccountResumable(account.id, jobId = Some(jobId))
 
-    transact(transactor):
-      val jobInfo = ReconciliationInfo(
-        accountId                   = account.id.toString,
-        accountName                 = account.name,
-        reconciliationsCreatedCount = result.totalCount,
-        processingTimeSeconds       = result.processingTimeSeconds
-      )
-      jobManager.completeJob(jobId, jobInfo)
+    ReconciliationInfo(
+      accountId                   = account.id.toString,
+      accountName                 = account.name,
+      reconciliationsCreatedCount = result.totalCount,
+      processingTimeSeconds       = result.processingTimeSeconds
+    )
