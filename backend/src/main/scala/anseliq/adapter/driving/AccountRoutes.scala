@@ -21,14 +21,14 @@ class AccountRoutes(
   def accountsByFundFlowID(fundFlowID: String): String =
     transact(transactor):
       val accounts = accountRepo.findByFundFlow(UUID.fromString(fundFlowID))
-      val payload  = accounts.map(Payload.accountPayloadFromDomain)
+      val payload  = accounts.map(PayloadMapper.accountPayloadFromDomain)
       write(payload)
 
   @cask.route(HttpPath.accounts, methods = HttpCmd.GET)
   def allAccounts(): String =
     transact(transactor):
       val accounts = accountRepo.findAll()
-      val payload  = accounts.map(Payload.accountPayloadFromDomain)
+      val payload  = accounts.map(PayloadMapper.accountPayloadFromDomain)
       write(payload)
 
   // methods = Seq("get"), not HttpCmd.GET: updateAccount (PUT, below) shares this same path and
@@ -37,14 +37,14 @@ class AccountRoutes(
   @cask.route(s"${HttpPath.account}/:id", methods = Seq("get"))
   def getAccount(id: String, request: cask.Request): String =
     transact(transactor):
-      write(accountRepo.findById(UUID.fromString(id)).map(Payload.accountPayloadFromDomain))
+      write(accountRepo.findById(UUID.fromString(id)).map(PayloadMapper.accountPayloadFromDomain))
 
   @cask.route(s"${HttpPath.account}", methods = HttpCmd.POST)
   def createAccount(request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
       write(
-        Payload.accountPayloadFromDomain(accountService.createAccount(Payload.accountPayloadToDomain(accountRequest)))
+        PayloadMapper.accountPayloadFromDomain(accountService.createAccount(PayloadMapper.accountPayloadToDomain(accountRequest)))
       )
 
   @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)
@@ -56,9 +56,9 @@ class AccountRoutes(
       val updated = accountService.updateAccount(
         accountID,
         name        = accountRequest.name,
-        accountType = Payload.accountTypeToDomain(accountRequest.accountType),
+        accountType = PayloadMapper.accountTypeToDomain(accountRequest.accountType),
         properties  = JSONBProps(accountRequest.properties)
       )
-      write(Payload.accountPayloadFromDomain(updated))
+      write(PayloadMapper.accountPayloadFromDomain(updated))
 
   initialize()

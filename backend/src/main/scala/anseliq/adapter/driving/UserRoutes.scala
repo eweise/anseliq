@@ -29,7 +29,7 @@ class UserRoutes(
   def listUsers()(currentUser: JwtHelper.UserClaim): String =
     requireAdmin(currentUser)
     transact(transactor):
-      write(userService.listUsers().map(Payload.userPayloadFromDomain))
+      write(userService.listUsers().map(PayloadMapper.userPayloadFromDomain))
 
   // Unlike listUsers above, any authenticated user can call this — it backs the dispute assignment
   // picker on the Exceptions page, not user administration. Viewers are excluded: they're read-only
@@ -38,7 +38,7 @@ class UserRoutes(
   def listAssignableUsers()(currentUser: JwtHelper.UserClaim): String =
     transact(transactor):
       write(
-        userService.listUsers().filter(u => u.active && u.role != UserRole.Viewer).map(Payload.userPayloadFromDomain)
+        userService.listUsers().filter(u => u.active && u.role != UserRole.Viewer).map(PayloadMapper.userPayloadFromDomain)
       )
 
   // methods = Seq("post"), not HttpCmd.POST: listUsers (above) already registers "options" at this
@@ -56,7 +56,7 @@ class UserRoutes(
         UserRole.valueOf(payload.role),
         payload.password
       )
-      write(Payload.userPayloadFromDomain(user))
+      write(PayloadMapper.userPayloadFromDomain(user))
 
   @cask.route(s"${HttpPath.users}/:id", methods = HttpCmd.PUT)
   def updateUser(id: String, request: cask.Request)(currentUser: JwtHelper.UserClaim): String =
@@ -70,7 +70,7 @@ class UserRoutes(
         UserRole.valueOf(payload.role),
         payload.active
       )
-      write(Payload.userPayloadFromDomain(user))
+      write(PayloadMapper.userPayloadFromDomain(user))
 
   @cask.route(s"${HttpPath.users}/:id/reset-password", methods = HttpCmd.POST)
   def resetUserPassword(id: String, request: cask.Request)(currentUser: JwtHelper.UserClaim): String =

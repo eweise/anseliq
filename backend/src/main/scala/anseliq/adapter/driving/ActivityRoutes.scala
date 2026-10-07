@@ -22,19 +22,19 @@ class ActivityRoutes(
       catch case ex: Exception => throw IllegalArgumentError("JobType", jobType)
     transact(transactor):
       val jobs = jobRepo.findByJobType(JobType.valueOf(jobTypeInfo.toString))
-      write(jobs.map(Payload.jobPayloadFromDomain))
+      write(jobs.map(PayloadMapper.jobPayloadFromDomain))
 
   // Events
   @cask.route(s"${HttpPath.events}/:eventType", methods = HttpCmd.GET)
   def getEvents(eventType: String): String =
     transact(transactor):
-      write(eventRepo.findByEventType(eventType).map(Payload.eventPayloadFromDomain))
+      write(eventRepo.findByEventType(eventType).map(PayloadMapper.eventPayloadFromDomain))
 
   // File Inventory
   @cask.route(s"${HttpPath.fileInventory}", methods = HttpCmd.GET)
   def getFileInventory(): String =
     transact(transactor):
       val entries = fileInventoryRepo.findAllWithFileFeedName()
-      write(entries.map((fi, fileFeedName) => Payload.fileInventoryPayloadFromDomain(fi, fileFeedName)))
+      write(entries.map((fi, fileFeedName) => PayloadMapper.fileInventoryPayloadFromDomain(fi, fileFeedName)))
 
   initialize()

@@ -5,7 +5,7 @@ import anseliq.domain.model.*
 
 import java.util.UUID
 
-class PayloadSuite extends munit.FunSuite:
+class PayloadMapperSuite extends munit.FunSuite:
 
   test("eventPayloadFromDomain converts MoneyMovementsIngested"):
     val specId = UUID.randomUUID()
@@ -18,7 +18,7 @@ class PayloadSuite extends munit.FunSuite:
       lastProcessedLine    = None
     )
     val state  = EventState.newEventState(event)
-    val result = Payload.eventPayloadFromDomain(state)
+    val result = PayloadMapper.eventPayloadFromDomain(state)
     assert(result.isInstanceOf[MoneyMovementsIngestedPayload])
     val payload = result.asInstanceOf[MoneyMovementsIngestedPayload]
     assertEquals(payload.id, event.id.toString)
@@ -32,7 +32,7 @@ class PayloadSuite extends munit.FunSuite:
     val accountId = UUID.randomUUID()
     val event     = AccountReconciled(accountID = accountId)
     val state     = EventState.newEventState(event)
-    val result    = Payload.eventPayloadFromDomain(state)
+    val result    = PayloadMapper.eventPayloadFromDomain(state)
     assert(result.isInstanceOf[AccountReconciledPayload])
     val payload = result.asInstanceOf[AccountReconciledPayload]
     assertEquals(payload.id, event.id.toString)
@@ -48,7 +48,7 @@ class PayloadSuite extends munit.FunSuite:
       source          = "b"
     )
     val state  = EventState.newEventState(event)
-    val result = Payload.eventPayloadFromDomain(state)
+    val result = PayloadMapper.eventPayloadFromDomain(state)
     assert(result.isInstanceOf[NewFileDetectedPayload])
     val payload = result.asInstanceOf[NewFileDetectedPayload]
     assertEquals(payload.id, event.id.toString)

@@ -24,7 +24,7 @@ class ReconciliationRoutes(
   def movementsByReconciliationSpec(reconSpecID: String): String =
     transact(transactor):
       val reconciliations = reconRepo.findByReconSpecID(UUID.fromString(reconSpecID))
-      val payload         = reconciliations.map(Payload.reconFromDomain)
+      val payload         = reconciliations.map(PayloadMapper.reconFromDomain)
       write(payload)
 
   @cask.route(s"${HttpPath.account}/:id/reconciliations", methods = HttpCmd.GET)
@@ -36,7 +36,7 @@ class ReconciliationRoutes(
     )
     transact(transactor):
       val reconciliations = reconRepo.findByAccountID(UUID.fromString(id), limit, statusFilter)
-      write(reconciliations.map(Payload.reconFromDomain))
+      write(reconciliations.map(PayloadMapper.reconFromDomain))
 
   // Keyed by ReconciliationStatus name ("Mismatched", "InProgress", ...), statuses with none omitted.
   @cask.route(s"${HttpPath.account}/:id/reconciliation-counts", methods = HttpCmd.GET)
@@ -59,7 +59,7 @@ class ReconciliationRoutes(
         payload.outMovementIds.map(UUID.fromString),
         payload.description
       )
-      write(Payload.reconFromDomain(reconciliation))
+      write(PayloadMapper.reconFromDomain(reconciliation))
 
   @cask.route(s"${HttpPath.reconciliation}/:id", methods = HttpCmd.GET)
   def getReconciliationDetail(id: String): String =

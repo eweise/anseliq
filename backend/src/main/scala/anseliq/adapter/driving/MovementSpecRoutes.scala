@@ -21,7 +21,7 @@ class MovementSpecRoutes(
   def movementSpecsByFundFlowID(fundFlowID: String): String =
     transact(transactor):
       val specs   = movementSpecRepo.findByFundFlowId(UUID.fromString(fundFlowID))
-      val payload = specs.map(Payload.movementSpecPayloadFromDomain)
+      val payload = specs.map(PayloadMapper.movementSpecPayloadFromDomain)
       write(payload)
 
   // MovementSpec
@@ -29,8 +29,8 @@ class MovementSpecRoutes(
   def createMovementSpec(request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
     transact(transactor):
-      val created = movementSpecService.createMovementSpec(Payload.movementSpecPayloadToDomain(payload))
-      write(Payload.movementSpecPayloadFromDomain(created))
+      val created = movementSpecService.createMovementSpec(PayloadMapper.movementSpecPayloadToDomain(payload))
+      write(PayloadMapper.movementSpecPayloadFromDomain(created))
 
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
@@ -43,9 +43,9 @@ class MovementSpecRoutes(
         inAccountId       = UUID.fromString(payload.inAccountId),
         outAccountId      = UUID.fromString(payload.outAccountId),
         fileFeedId        = UUID.fromString(payload.fileFeedId),
-        routingFilterJson = Payload.routingFilterJson(payload)
+        routingFilterJson = PayloadMapper.routingFilterJson(payload)
       )
-      write(Payload.movementSpecPayloadFromDomain(updated))
+      write(PayloadMapper.movementSpecPayloadFromDomain(updated))
 
   @cask.delete(s"${HttpPath.movementSpec}/:id")
   def deleteMovementSpec(id: String): String =

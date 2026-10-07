@@ -33,17 +33,17 @@ class ViewAssembler(
     val fundFlow     = specAndAccount.flatMap((_, account) => fundFlowConfigRepo.findById(account.fundFlowId))
     val movements    = reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
     val openDisputes = disputeRepo.findOpenByReferenceId(reconId).map(disputePayloadWithNames)
-    Payload.reconciliationDetailPayloadFromDomain(recon, spec, movements, fundFlow, openDisputes)
+    PayloadMapper.reconciliationDetailPayloadFromDomain(recon, spec, movements, fundFlow, openDisputes)
 
   def movementDetail(movementId: ID): Txn[MovementDetailPayload] =
     val m            = movementRepo.findById(movementId).ErrIfNotFound("movement", movementId)
     val outAccount   = accountRepo.findById(m.outAccountId).ErrIfNotFound("account", m.outAccountId)
     val inAccount    = accountRepo.findById(m.inAccountId).ErrIfNotFound("account", m.inAccountId)
     val movementSpec = movementSpecRepo.findById(m.movementSpecId).ErrIfNotFound("movement spec", m.movementSpecId)
-    val detail       = Payload.movementDetailPayloadFromDomain(m, outAccount.name, inAccount.name, movementSpec.name)
+    val detail       = PayloadMapper.movementDetailPayloadFromDomain(m, outAccount.name, inAccount.name, movementSpec.name)
     detail.copy(
-      reconciliation = m.reconciliationId.flatMap(reconRepo.findById).map(Payload.reconFromDomain),
-      fundFlow       = fundFlowConfigRepo.findById(inAccount.fundFlowId).map(Payload.fundFlowPayloadFromDomain),
+      reconciliation = m.reconciliationId.flatMap(reconRepo.findById).map(PayloadMapper.reconFromDomain),
+      fundFlow       = fundFlowConfigRepo.findById(inAccount.fundFlowId).map(PayloadMapper.fundFlowPayloadFromDomain),
       openDisputes   = disputeRepo.findOpenByReferenceId(m.id).map(disputePayloadWithNames)
     )
 
@@ -58,7 +58,7 @@ class ViewAssembler(
     // entirely and is simpler than working around the array-binding bug.
     val accountNames = accountRepo.findByFundFlow(criteria.fundFlowId).map(a => a.id -> a.name).toMap
     val movSpecNames = movementSpecRepo.findByFundFlowId(criteria.fundFlowId).map(s => s.id -> s.name).toMap
-    results.map(m => Payload.movementSearchResultPayloadFromDomain(m, accountNames, movSpecNames))
+    results.map(m => PayloadMapper.movementSearchResultPayloadFromDomain(m, accountNames, movSpecNames))
 
   // A reconciliation's movements as payload rows, each movement's accounts' names looked up once
   // per distinct account rather than once per movement.
@@ -72,12 +72,12 @@ class ViewAssembler(
       .distinct
       .map(id => id -> accountRepo.findById(id).map(_.name).getOrElse(id.toString))
       .toMap
-    movements.map(Payload.reconciliationMovementFromDomain(_, reconAccountId, accountNames))
+    movements.map(PayloadMapper.reconciliationMovementFromDomain(_, reconAccountId, accountNames))
 
   def disputeDetail(dispute: Dispute): Txn[DisputeDetailPayload] =
     val disputePayload = disputePayloadWithNames(dispute)
     val movementPayload = dispute.targetType match
-      case DisputeTarget.Movement       => movementRepo.findById(dispute.referenceId).map(Payload.movementfromDomainModel)
+      case DisputeTarget.Movement       => movementRepo.findById(dispute.referenceId).map(PayloadMapper.movementfromDomainModel)
       case DisputeTarget.Reconciliation => None
       case DisputeTarget.MovementSpec   => None
       case DisputeTarget.FileFeed       => None
@@ -86,18 +86,18 @@ class ViewAssembler(
       case DisputeTarget.Movement       => None
       case DisputeTarget.MovementSpec   => None
       case DisputeTarget.FileFeed       => None
-    val reconPayload = recon.map(Payload.reconFromDomain)
+    val reconPayload = recon.map(PayloadMapper.reconFromDomain)
     val reconMovements = recon
       .map(r => reconciliationMovementPayloads(r, r.specId.flatMap(reconSpecRepo.findById).map(_.accountId)))
       .getOrElse(Seq.empty)
     val comments = disputeCommentRepo
       .findByDisputeId(dispute.id)
-      .map(c => Payload.disputeCommentPayloadFromDomain(c, userDisplay(c.newAssignedToUserId)))
+      .map(c => PayloadMapper.disputeCommentPayloadFromDomain(c, userDisplay(c.newAssignedToUserId)))
     DisputeDetailPayload(disputePayload, movementPayload, reconPayload, comments, reconMovements)
 
   def disputePayloadWithNames(dispute: Dispute): Txn[DisputePayload] =
     val (accountId, accountName, referenceLabel) = disputeContext(dispute)
-    Payload.disputePayloadFromDomain(
+    PayloadMapper.disputePayloadFromDomain(
       dispute,
       accountId,
       accountName,

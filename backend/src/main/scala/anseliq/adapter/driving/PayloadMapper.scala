@@ -9,7 +9,7 @@ import upickle.default.{read as upickleRead, write as upickleWrite}
 
 import java.util.UUID
 
-object Payload:
+object PayloadMapper:
 
   def jobPayloadToDomain(payload: JobInfoPayload): Job =
     Job(

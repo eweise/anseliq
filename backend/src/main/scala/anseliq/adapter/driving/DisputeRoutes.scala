@@ -25,8 +25,8 @@ class DisputeRoutes(
     transact(transactor):
       val dispute = disputeService.raise(
         UUID.fromString(payload.referenceId),
-        Payload.disputeTargetToDomain(payload.targetType),
-        Payload.disputeCategoryToDomain(payload.category),
+        PayloadMapper.disputeTargetToDomain(payload.targetType),
+        PayloadMapper.disputeCategoryToDomain(payload.category),
         payload.detail,
         raisedByUserId = Some(UUID.fromString(currentUser.userId))
       )
@@ -50,7 +50,7 @@ class DisputeRoutes(
       disputeService.addComment(
         UUID.fromString(id),
         payload.body,
-        payload.newStatus.map(Payload.disputeStatusToDomain),
+        payload.newStatus.map(PayloadMapper.disputeStatusToDomain),
         payload.newAssignedToUserId.map(UUID.fromString)
       )
       val dispute = disputeRepo.findById(UUID.fromString(id)).ErrIfNotFound("dispute", UUID.fromString(id))

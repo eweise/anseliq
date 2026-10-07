@@ -19,13 +19,13 @@ class ReportRoutes(
   def getReportsSummary(fundFlowId: Option[String] = None): String =
     transact(transactor):
       val report = reportingService.summary(fundFlowId.map(UUID.fromString))
-      write(Payload.reportsSummaryPayloadFromDomain(report))
+      write(PayloadMapper.reportsSummaryPayloadFromDomain(report))
 
   @cask.route(s"${HttpPath.reports}/trend", methods = HttpCmd.GET)
   def getReportsTrend(fundFlowId: Option[String] = None, days: Int = 30): String =
     transact(transactor):
       val report = reportingService.trend(fundFlowId.map(UUID.fromString), days)
-      write(Payload.trendReportPayloadFromDomain(report))
+      write(PayloadMapper.trendReportPayloadFromDomain(report))
 
   // Drill-through list backing the aging chart's click-through — same fundFlowId scoping as
   // /reports/summary (omitted -> every fund flow), one row per (recon account, unreconciled
@@ -34,6 +34,6 @@ class ReportRoutes(
   def getReportsUnreconciledMovements(fundFlowId: Option[String] = None): String =
     transact(transactor):
       val rows = reportingService.unreconciledMovements(fundFlowId.map(UUID.fromString))
-      write(rows.map(Payload.unreconciledMovementPayloadFromDomain))
+      write(rows.map(PayloadMapper.unreconciledMovementPayloadFromDomain))
 
   initialize()

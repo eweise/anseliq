@@ -1,6 +1,6 @@
 package anseliq.testing
 
-import anseliq.adapter.driving.Payload
+import anseliq.adapter.driving.PayloadMapper
 import anseliq.common.model.*
 import anseliq.common.model.ReconRelationship.{OneToMany, OneToOne}
 import anseliq.domain.port.driven.Txn
@@ -14,17 +14,17 @@ class DataSetupScenario1 extends munit.FunSuite:
   // The scenario is written in payload terms, as the UI would send it, so each step goes through
   // the same Payload conversions the HTTP routes use on either side of the service call.
   private def createFundFlow(p: FundFlowPayload): Txn[FundFlowPayload] =
-    Payload.fundFlowPayloadFromDomain(app.fundFlowService.createFundFlow(Payload.fundFlowPayloadToDomain(p)))
+    PayloadMapper.fundFlowPayloadFromDomain(app.fundFlowService.createFundFlow(PayloadMapper.fundFlowPayloadToDomain(p)))
   private def createAccount(p: AccountPayload): Txn[AccountPayload] =
-    Payload.accountPayloadFromDomain(app.accountService.createAccount(Payload.accountPayloadToDomain(p)))
+    PayloadMapper.accountPayloadFromDomain(app.accountService.createAccount(PayloadMapper.accountPayloadToDomain(p)))
   private def createFileFeed(p: FileFeedPayload): Txn[FileFeedPayload] =
-    Payload.fileFeedPayloadFromDomain(app.fileFeedService.createFileFeed(Payload.fileFeedPayloadToDomain(p)))
+    PayloadMapper.fileFeedPayloadFromDomain(app.fileFeedService.createFileFeed(PayloadMapper.fileFeedPayloadToDomain(p)))
   private def createMovementSpec(p: MovementSpecPayload): Txn[MovementSpecPayload] =
-    Payload.movementSpecPayloadFromDomain(
-      app.movementSpecService.createMovementSpec(Payload.movementSpecPayloadToDomain(p))
+    PayloadMapper.movementSpecPayloadFromDomain(
+      app.movementSpecService.createMovementSpec(PayloadMapper.movementSpecPayloadToDomain(p))
     )
   private def createReconSpec(p: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
-    Payload.reconSpecPayloadFromDomain(app.reconSpecService.createReconSpec(Payload.reconSpecPayloadToDomain(p)))
+    PayloadMapper.reconSpecPayloadFromDomain(app.reconSpecService.createReconSpec(PayloadMapper.reconSpecPayloadToDomain(p)))
 
   test("Setup data for a complete Fund flow scenario"):
     transact(app.transactor):

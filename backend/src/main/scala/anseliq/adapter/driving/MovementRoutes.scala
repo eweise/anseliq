@@ -23,7 +23,7 @@ class MovementRoutes(
     val specID = UUID.fromString(movementSpecID)
     transact(transactor):
       val movements = movementRepo.findUnReconciledByMovementSpec(specID)
-      val payload   = movements.map(Payload.movementfromDomainModel)
+      val payload   = movements.map(PayloadMapper.movementfromDomainModel)
       write(payload)
 
   @cask.route(s"${HttpPath.movements}/search", methods = HttpCmd.POST)
@@ -37,11 +37,11 @@ class MovementRoutes(
         movementSpecId  = req.movementSpecId.map(UUID.fromString),
         properties      = req.properties,
         fileSourceQuery = req.fileSourceQuery,
-        reconciliation  = Payload.reconciliationFilterToDomain(req.reconciliation),
+        reconciliation  = PayloadMapper.reconciliationFilterToDomain(req.reconciliation),
         createdFrom     = req.createdFrom,
         createdTo       = req.createdTo,
         movementType    = req.movementType.map(MovementType.valueOf),
-        adjustmentType  = req.adjustmentType.map(Payload.adjustmentTypeToDomain)
+        adjustmentType  = req.adjustmentType.map(PayloadMapper.adjustmentTypeToDomain)
       )
       write(views.movementSearchResults(criteria))
 
@@ -54,7 +54,7 @@ class MovementRoutes(
   def previewBadFile(request: cask.Request): String =
     val payload = read[BadFilePreviewRequest](request.text())
     transact(transactor):
-      write(Payload.badFilePreviewPayloadFromDomain(manualReconciler.previewBadFile(payload.fileSourceEntry)))
+      write(PayloadMapper.badFilePreviewPayloadFromDomain(manualReconciler.previewBadFile(payload.fileSourceEntry)))
 
   // Not wrapped in transact(...): fixBadFile manages its own batched transactions internally (the same
   // way ReconciliationRunner runs reconcileAccountResumable) — a very dirty file shouldn't need one
@@ -63,7 +63,7 @@ class MovementRoutes(
   def fixBadFile(request: cask.Request): String =
     val payload = read[FixBadFileRequest](request.text())
     val result  = manualReconciler.fixBadFile(payload.fileSourceEntry)
-    write(Payload.fixBadFileResultPayloadFromDomain(result))
+    write(PayloadMapper.fixBadFileResultPayloadFromDomain(result))
 
   @cask.get("/account/:id/movements")
   def movements(fundFlowName: String, accountIdStr: String): String =
@@ -76,7 +76,7 @@ class MovementRoutes(
     transact(transactor):
       val adapterMovements = movementRepo
         .findByAccount(accountID)
-        .map(Payload.movementfromDomainModel)
+        .map(PayloadMapper.movementfromDomainModel)
 
       write(adapterMovements.toSeq)
 

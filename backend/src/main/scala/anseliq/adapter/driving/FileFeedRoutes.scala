@@ -24,14 +24,14 @@ class FileFeedRoutes(
   @cask.route(s"${HttpPath.fileFeeds}", methods = HttpCmd.GET)
   def listFileFeeds(): String =
     transact(transactor):
-      write(fileFeedRepo.findAll.map(Payload.fileFeedPayloadFromDomain))
+      write(fileFeedRepo.findAll.map(PayloadMapper.fileFeedPayloadFromDomain))
 
   @cask.route(s"${HttpPath.fileFeed}", methods = HttpCmd.POST)
   def createFileFeed(request: cask.Request): String =
     val payload = read[FileFeedPayload](request.text())
     validateDataSourceConfig(payload)
     transact(transactor):
-      write(Payload.fileFeedPayloadFromDomain(fileFeedService.createFileFeed(Payload.fileFeedPayloadToDomain(payload))))
+      write(PayloadMapper.fileFeedPayloadFromDomain(fileFeedService.createFileFeed(PayloadMapper.fileFeedPayloadToDomain(payload))))
 
   @cask.route(s"${HttpPath.fileFeed}/:id", methods = HttpCmd.PUT)
   def updateFileFeed(id: String, request: cask.Request): String =
@@ -42,10 +42,10 @@ class FileFeedRoutes(
       val updated = fileFeedService.updateFileFeed(
         feedID,
         name                 = payload.name,
-        dataSourceJson       = Payload.dataSourceJson(payload),
+        dataSourceJson       = PayloadMapper.dataSourceJson(payload),
         expectedCadenceHours = payload.expectedCadenceHours
       )
-      write(Payload.fileFeedPayloadFromDomain(updated))
+      write(PayloadMapper.fileFeedPayloadFromDomain(updated))
 
   // Re-checks the same rules the frontend validates inline (DataSourceConfig.validate, in common)
   // as a safety net against a bypassed or buggy frontend — not the primary UX for catching mistakes.
@@ -62,7 +62,7 @@ class FileFeedRoutes(
       val fileFeedId = UUID.fromString(id)
       val fileFeed   = fileFeedRepo.findById(fileFeedId).ErrIfNotFound("FileFeed", fileFeedId)
       val result     = ingestor.testParse(fileFeed, content)
-      write(Payload.parseTestResultPayloadFromDomain(result))
+      write(PayloadMapper.parseTestResultPayloadFromDomain(result))
 
   @cask.delete(s"${HttpPath.fileFeed}/:id")
   def deleteFileFeed(id: String): String =

@@ -22,7 +22,7 @@ class ReconSpecRoutes(
     transact(transactor):
       val specs = reconSpecRepo.findByAccountID(UUID.fromString(accountID))
       specs.foreach(s => logger.debug(s"[reconSpecsByaccountID] id=${s.id} ruleJson=${s.ruleJson} rule=${s.rule()}"))
-      val payload = specs.map(Payload.reconSpecPayloadFromDomain)
+      val payload = specs.map(PayloadMapper.reconSpecPayloadFromDomain)
       write(payload)
 
   @cask.route(s"${HttpPath.reconSpec}", methods = HttpCmd.POST)
@@ -30,7 +30,7 @@ class ReconSpecRoutes(
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
       write(
-        Payload.reconSpecPayloadFromDomain(reconSpecService.createReconSpec(Payload.reconSpecPayloadToDomain(payload)))
+        PayloadMapper.reconSpecPayloadFromDomain(reconSpecService.createReconSpec(PayloadMapper.reconSpecPayloadToDomain(payload)))
       )
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
@@ -41,12 +41,12 @@ class ReconSpecRoutes(
       val updated = reconSpecService.updateReconSpec(
         specID,
         agingLimit        = payload.agingLimit,
-        relationship      = Payload.reconRelationshipToDomain(payload.relationship),
+        relationship      = PayloadMapper.reconRelationshipToDomain(payload.relationship),
         inMovementSpecId  = UUID.fromString(payload.inMovementSpecId),
         outMovementSpecId = UUID.fromString(payload.outMovementSpecId),
         ruleJson          = upickle.write(payload.rule)
       )
-      write(Payload.reconSpecPayloadFromDomain(updated))
+      write(PayloadMapper.reconSpecPayloadFromDomain(updated))
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = Seq("delete"))
   def deleteReconSpec(id: String): String =

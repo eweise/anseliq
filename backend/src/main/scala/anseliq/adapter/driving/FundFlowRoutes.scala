@@ -25,7 +25,7 @@ class FundFlowRoutes(
   def getFundFlows() =
     transact(transactor):
       val fundFlows = fundFlowConfigRepo.findAll
-      val payloads  = fundFlows.map(ff => Payload.fundFlowPayloadFromDomain(ff))
+      val payloads  = fundFlows.map(ff => PayloadMapper.fundFlowPayloadFromDomain(ff))
       write(payloads)
 
   @cask.route(s"${HttpPath.fundFlow}/:id/summary", methods = HttpCmd.GET)
@@ -45,7 +45,7 @@ class FundFlowRoutes(
         val mismatched = openTotals.get(ReconciliationStatus.Mismatched)
 
         AccountSummaryViewPayload(
-          Payload.accountPayloadFromDomain(account),
+          PayloadMapper.accountPayloadFromDomain(account),
           isReconAccount    = isReconAccount,
           unreconciledCount = unreconciledCount,
           inProgressCount   = inProgress.fold(0)(_.count),
@@ -55,7 +55,7 @@ class FundFlowRoutes(
         )
       )
       val fundFlowSummaryView = FundFlowSummaryViewPayload(
-        fundFlow = Payload.fundFlowPayloadFromDomain(fundFlow),
+        fundFlow = PayloadMapper.fundFlowPayloadFromDomain(fundFlow),
         accounts = accountSummaryViews
       )
       write(fundFlowSummaryView)
@@ -64,7 +64,7 @@ class FundFlowRoutes(
   def createFundFlow(request: cask.Request): String =
     val payload = read[FundFlowPayload](request.text())
     transact(transactor):
-      write(Payload.fundFlowPayloadFromDomain(fundFlowService.createFundFlow(Payload.fundFlowPayloadToDomain(payload))))
+      write(PayloadMapper.fundFlowPayloadFromDomain(fundFlowService.createFundFlow(PayloadMapper.fundFlowPayloadToDomain(payload))))
 
   @cask.route(s"${HttpPath.fundFlow}/:id", methods = HttpCmd.PUT)
   def updateFundFlow(id: String, request: cask.Request): String =
@@ -72,6 +72,6 @@ class FundFlowRoutes(
     val ffID    = UUID.fromString(payload.id.get)
     transact(transactor):
       val updated = fundFlowService.updateFundFlow(ffID, payload.name, payload.dailyCutoffHours)
-      write(Payload.fundFlowPayloadFromDomain(updated))
+      write(PayloadMapper.fundFlowPayloadFromDomain(updated))
 
   initialize()
