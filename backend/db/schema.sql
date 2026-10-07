@@ -23,7 +23,7 @@ $$ language 'plpgsql';
 -- Named app_user, not user: "user" is a reserved word in Postgres (collides with the CURRENT_USER
 -- function), which would force every raw-SQL reference to be quoted. role is a fixed, global enum
 -- (UserRole: Admin/Analyst/Viewer) persisted as plain text, matching this schema's existing
--- convention for every other Scala enum column (event_state.status, dispute.status, job.job_type) —
+-- convention for every other Scala enum column (job.job_status, dispute.status, job.job_type) —
 -- no Postgres CREATE TYPE, no custom codec. Stored lowercase ('admin', not 'Admin'): the @Table(...,
 -- SqlNameMapper.CamelToSnakeCase) on UserRole downcases enum case names too, not just column/table
 -- names, so the literal text a DbCodec writes/expects is lowercase, confirmed by direct testing
@@ -337,25 +337,17 @@ CREATE TRIGGER update_job
     FOR EACH ROW
 EXECUTE PROCEDURE update_audit_fields_task();
 
+-- An append-only record of what happened, for the activity feed. Not a work queue: background work
+-- is coordinated through recon.job.
 create table recon.event_state
 (
     id            uuid primary key,
     event_type    text not null,
     payload       text not null,
-    status        text not null default 'Pending',
-    retry_count   int  not null default 0,
-    error_message text,
-    created_at    timestamptz   default CURRENT_TIMESTAMP not null,
-    updated_at    timestamptz   default CURRENT_TIMESTAMP not null
+    created_at    timestamptz   default CURRENT_TIMESTAMP not null
 );
 
-CREATE INDEX event_status_created_at ON recon.event_state (status, created_at);
-
-CREATE TRIGGER update_event
-    BEFORE INSERT OR UPDATE
-    ON recon.event_state
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
+CREATE INDEX event_type_created_at ON recon.event_state (event_type, created_at);
 
 create table recon.daily_snapshot
 (

@@ -76,12 +76,9 @@ object EventsPage:
                 "Source"
               )
             case _ => Seq("ID")
-          val headers = Seq("Status", "Retries", "Error", "Created At") ++ extraHeaders
+          val headers = Seq("Created At") ++ extraHeaders
           val rows = s.events.map { event =>
             Seq(
-              span(event.status),
-              span(event.retryCount.toString),
-              span(event.errorMessage.getOrElse("-")),
               span(event.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"))
             ) ++ extraCells(event)
           }

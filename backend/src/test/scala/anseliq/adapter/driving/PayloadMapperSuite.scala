@@ -24,8 +24,6 @@ class PayloadMapperSuite extends munit.FunSuite:
     assertEquals(payload.id, event.id.toString)
     assertEquals(payload.eventType, "MoneyMovementsIngested")
     assertEquals(payload.movementSpecID, specId.toString)
-    assertEquals(payload.status, "Pending")
-    assertEquals(payload.retryCount, 0)
     assert(payload.createdAt.isDefined)
 
   test("eventPayloadFromDomain converts AccountReconciled"):
@@ -38,7 +36,6 @@ class PayloadMapperSuite extends munit.FunSuite:
     assertEquals(payload.id, event.id.toString)
     assertEquals(payload.eventType, "AccountReconciled")
     assertEquals(payload.accountID, accountId.toString)
-    assertEquals(payload.status, "Pending")
 
   test("eventPayloadFromDomain converts NewFileDetected"):
     val fileInventoryId = UUID.randomUUID()
@@ -54,4 +51,3 @@ class PayloadMapperSuite extends munit.FunSuite:
     assertEquals(payload.id, event.id.toString)
     assertEquals(payload.eventType, "NewFileDetected")
     assertEquals(payload.fileInventoryID, fileInventoryId.toString)
-    assertEquals(payload.status, "Pending")

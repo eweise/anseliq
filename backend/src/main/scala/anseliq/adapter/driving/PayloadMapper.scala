@@ -237,22 +237,14 @@ object PayloadMapper:
           recordCount          = e.recordCount,
           ingestionTimeSeconds = e.ingestionTimeSeconds,
           lastProcessedLine    = e.lastProcessedLine,
-          status               = state.status.toString,
-          retryCount           = state.retryCount,
-          errorMessage         = state.errorMessage,
-          createdAt            = state.createdAt,
-          updatedAt            = state.updatedAt
+          createdAt            = Some(state.createdAt)
         )
       case e: AccountReconciled =>
         AccountReconciledPayload(
-          id           = state.id.toString,
-          eventType    = state.eventType,
-          accountID    = e.accountID.toString,
-          status       = state.status.toString,
-          retryCount   = state.retryCount,
-          errorMessage = state.errorMessage,
-          createdAt    = state.createdAt,
-          updatedAt    = state.updatedAt
+          id        = state.id.toString,
+          eventType = state.eventType,
+          accountID = e.accountID.toString,
+          createdAt = Some(state.createdAt)
         )
       case e: NewFileDetected =>
         NewFileDetectedPayload(
@@ -261,11 +253,7 @@ object PayloadMapper:
           fileInventoryID = e.fileInventoryID.toString,
           filePath        = e.filePath,
           fileSource      = e.source,
-          status          = state.status.toString,
-          retryCount      = state.retryCount,
-          errorMessage    = state.errorMessage,
-          createdAt       = state.createdAt,
-          updatedAt       = state.updatedAt
+          createdAt       = Some(state.createdAt)
         )
 
   def movementfromDomainModel(dmMovement: Movement): MovementPayload =

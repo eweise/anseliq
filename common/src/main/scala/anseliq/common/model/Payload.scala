@@ -522,13 +522,9 @@ def combineReconAndMovementSpecs(
   )
 
 sealed trait EventPayload derives ReadWriter:
-  val id:           String
-  val eventType:    String
-  val status:       String
-  val retryCount:   Int
-  val errorMessage: Option[String]
-  val createdAt:    Option[OffsetDateTime]
-  val updatedAt:    Option[OffsetDateTime]
+  val id:        String
+  val eventType: String
+  val createdAt: Option[OffsetDateTime]
 
 case class MoneyMovementsIngestedPayload(
   id:                   String,
@@ -539,22 +535,14 @@ case class MoneyMovementsIngestedPayload(
   recordCount:          Int,
   ingestionTimeSeconds: Long,
   lastProcessedLine:    Option[Long],
-  status:               String,
-  retryCount:           Int,
-  errorMessage:         Option[String],
-  createdAt:            Option[OffsetDateTime],
-  updatedAt:            Option[OffsetDateTime]
+  createdAt:            Option[OffsetDateTime]
 ) extends EventPayload
 
 case class AccountReconciledPayload(
-  id:           String,
-  eventType:    String,
-  accountID:    String,
-  status:       String,
-  retryCount:   Int,
-  errorMessage: Option[String],
-  createdAt:    Option[OffsetDateTime],
-  updatedAt:    Option[OffsetDateTime]
+  id:        String,
+  eventType: String,
+  accountID: String,
+  createdAt: Option[OffsetDateTime]
 ) extends EventPayload
 
 case class NewFileDetectedPayload(
@@ -563,9 +551,5 @@ case class NewFileDetectedPayload(
   fileInventoryID: String,
   filePath:        String,
   fileSource:      String,
-  status:          String,
-  retryCount:      Int,
-  errorMessage:    Option[String],
-  createdAt:       Option[OffsetDateTime],
-  updatedAt:       Option[OffsetDateTime]
+  createdAt:       Option[OffsetDateTime]
 ) extends EventPayload
