@@ -18,14 +18,14 @@ trait Parser:
 object Parser:
   def apply(config: ParserConfig): Parser =
     config match
-      case csv: CSVParserConfig =>
-        CSVParser(
+      case csv: CsvParserConfig =>
+        CsvParser(
           hasHeader   = csv.hasHeader,
           columns     = csv.columnDefinitions,
           amountField = csv.amountField
         )
-      case bai:  BAIParserConfig        => BAIParser(bai)
-      case json: JSONParserConfig       => JSONParser(json)
+      case bai:  BaiParserConfig        => BaiParser(bai)
+      case json: JsonParserConfig       => JsonParser(json)
       case fw:   FixedWidthParserConfig => FixedWidthParser(fw)
 
 

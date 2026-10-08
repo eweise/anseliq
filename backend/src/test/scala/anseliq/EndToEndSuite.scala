@@ -92,7 +92,7 @@ class EndToEndSuite extends munit.FunSuite {
         val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader = true,
                 columnDefinitions = Map(
                   0 -> "record_date",
@@ -116,7 +116,7 @@ class EndToEndSuite extends munit.FunSuite {
         val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader = false,
                 columnDefinitions = Map(
                   0 -> "txn_date",
@@ -237,7 +237,7 @@ class EndToEndSuite extends munit.FunSuite {
         val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader = true,
                 columnDefinitions = Map(
                   0 -> "record_date",
@@ -261,7 +261,7 @@ class EndToEndSuite extends munit.FunSuite {
         val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader = false,
                 columnDefinitions = Map(
                   0 -> "txn_date",
@@ -391,7 +391,7 @@ class EndToEndSuite extends munit.FunSuite {
         val journalFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader = true,
                 columnDefinitions = Map(
                   0 -> "record_date",
@@ -414,7 +414,7 @@ class EndToEndSuite extends munit.FunSuite {
         val reportFeed = FileFeed(
           dataSourceJson = upickle.write(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader = false,
                 columnDefinitions = Map(
                   0 -> "account_date",

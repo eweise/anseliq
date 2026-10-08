@@ -1,6 +1,6 @@
 package anseliq.domain.service
 
-import anseliq.common.model.{CSVParserConfig, DataSourceConfig, RoutingFilter}
+import anseliq.common.model.{CsvParserConfig, DataSourceConfig, RoutingFilter}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.testing.TestAppContainer
@@ -16,7 +16,7 @@ class IngestResumableSuite extends munit.FunSuite:
     FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
-          parserConfig = CSVParserConfig(
+          parserConfig = CsvParserConfig(
             hasHeader         = false,
             columnDefinitions = Map(0 -> "id"),
             amountField       = Some(1)
@@ -155,7 +155,7 @@ class IngestResumableSuite extends munit.FunSuite:
     val feed = FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
-          parserConfig = CSVParserConfig(
+          parserConfig = CsvParserConfig(
             hasHeader         = false,
             columnDefinitions = Map(0 -> "id", 1 -> "amount", 2 -> "account_number"),
             amountField       = Some(1)

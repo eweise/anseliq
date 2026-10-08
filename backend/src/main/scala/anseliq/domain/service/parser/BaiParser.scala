@@ -1,6 +1,6 @@
 package anseliq.domain.service.parser
 
-import anseliq.common.model.{BAIField, BAIParserConfig}
+import anseliq.common.model.{BaiField, BaiParserConfig}
 
 import scala.util.Try
 
@@ -34,7 +34,7 @@ import scala.util.Try
  * fields: its position is always known, so it's captured automatically into ParsedLine.maybeAmount
  * rather than requiring the user to identify it.
  */
-class BAIParser(config: BAIParserConfig = BAIParserConfig()) extends Parser:
+class BaiParser(config: BaiParserConfig = BaiParserConfig()) extends Parser:
   private var currentAccountNumber: Option[String]     = None
   private var pending:              Option[ParsedLine] = None
 
@@ -64,13 +64,13 @@ class BAIParser(config: BAIParserConfig = BAIParserConfig()) extends Parser:
     pending = None
     result
 
-  private def rawFieldValue(field: BAIField, fields: Array[String]): String = field match
-    case BAIField.AccountNumber           => currentAccountNumber.getOrElse("")
-    case BAIField.TypeCode                => fields.lift(1).getOrElse("")
-    case BAIField.FundsType               => fields.lift(3).getOrElse("")
-    case BAIField.BankReferenceNumber     => fields.lift(4).getOrElse("")
-    case BAIField.CustomerReferenceNumber => fields.lift(5).getOrElse("")
-    case BAIField.Text                    => fields.drop(6).mkString(",")
+  private def rawFieldValue(field: BaiField, fields: Array[String]): String = field match
+    case BaiField.AccountNumber           => currentAccountNumber.getOrElse("")
+    case BaiField.TypeCode                => fields.lift(1).getOrElse("")
+    case BaiField.FundsType               => fields.lift(3).getOrElse("")
+    case BaiField.BankReferenceNumber     => fields.lift(4).getOrElse("")
+    case BaiField.CustomerReferenceNumber => fields.lift(5).getOrElse("")
+    case BaiField.Text                    => fields.drop(6).mkString(",")
 
   private def toTransaction(fields: Array[String]): ParsedLine =
     val amountStr = fields.lift(2).getOrElse("")
@@ -89,7 +89,7 @@ class BAIParser(config: BAIParserConfig = BAIParserConfig()) extends Parser:
 
   // If Text isn't a field the user chose to store, there's nothing for a continuation to extend.
   private def appendContinuation(txn: ParsedLine, fields: Array[String]): ParsedLine =
-    config.fieldMappings.get(BAIField.Text) match
+    config.fieldMappings.get(BaiField.Text) match
       case None => txn
       case Some(textPropName) =>
         val extra = fields.drop(1).mkString(",")

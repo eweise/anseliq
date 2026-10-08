@@ -1,6 +1,6 @@
 package anseliq.adapter.driven
 
-import anseliq.common.model.{CSVParserConfig, DataSourceConfig, S3ConnectionConfig}
+import anseliq.common.model.{CsvParserConfig, DataSourceConfig, S3ConnectionConfig}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.domain.service.*
@@ -103,7 +103,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
-          parserConfig = CSVParserConfig(
+          parserConfig = CsvParserConfig(
             hasHeader         = false,
             columnDefinitions = Map(0 -> "id"),
             amountField       = Some(1)

@@ -2,13 +2,13 @@ package anseliq.view.components
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.model.{
-  BAIField,
-  BAIParserConfig,
-  CSVParserConfig,
+  BaiField,
+  BaiParserConfig,
+  CsvParserConfig,
   DataSourceConfig,
   FixedWidthField,
   FixedWidthParserConfig,
-  JSONParserConfig,
+  JsonParserConfig,
   S3ConnectionConfig
 }
 
@@ -35,30 +35,30 @@ object DataSourceConfigWidget:
   case class FixedWidthFieldRow(name: String = "", startPosition: String = "", endPosition: String = "")
 
   case class State(
-    parserType: ParserType = ParserType.CSV,
-    hasHeader:  Boolean    = true,
-    // csvAmountIndex is a position into csvFields (which row is the amount), not a CSV column
-    // index itself — same indirection as jsonAmountIndex below, resolved to the real column index
-    // only when building CSVParserConfig.
-    csvFields:      List[CsvFieldRow] = List.empty,
-    csvAmountIndex: Option[Int]       = None,
-    // BAI2's fields are fixed and known (unlike CSV columns), so this is a name PER field rather
-    // than a growable list — baiFieldsIncluded tracks which ones are turned on, and baiFieldNames
-    // keeps every field's typed name (even while excluded) so toggling one back on doesn't lose it.
-    baiFieldNames:         Map[BAIField, String]    = BAIParserConfig.defaultFieldMappings,
-    baiFieldsIncluded:     Set[BAIField]            = BAIField.values.toSet,
-    jsonFields:            List[JsonFieldRow]       = List.empty,
-    jsonAmountIndex:       Option[Int]              = None,
-    fixedWidthFields:      List[FixedWidthFieldRow] = List.empty,
-    fixedWidthAmountIndex: Option[Int]              = None,
-    s3Bucket:              String                   = "",
-    s3FilePath:            String                   = ""
+                    parserType: ParserType = ParserType.CSV,
+                    hasHeader:  Boolean    = true,
+                    // csvAmountIndex is a position into csvFields (which row is the amount), not a CSV column
+                    // index itself — same indirection as jsonAmountIndex below, resolved to the real column index
+                    // only when building CSVParserConfig.
+                    csvFields:      List[CsvFieldRow] = List.empty,
+                    csvAmountIndex: Option[Int]       = None,
+                    // BAI2's fields are fixed and known (unlike CSV columns), so this is a name PER field rather
+                    // than a growable list — baiFieldsIncluded tracks which ones are turned on, and baiFieldNames
+                    // keeps every field's typed name (even while excluded) so toggling one back on doesn't lose it.
+                    baiFieldNames:         Map[BaiField, String]    = BaiParserConfig.defaultFieldMappings,
+                    baiFieldsIncluded:     Set[BaiField]            = BaiField.values.toSet,
+                    jsonFields:            List[JsonFieldRow]       = List.empty,
+                    jsonAmountIndex:       Option[Int]              = None,
+                    fixedWidthFields:      List[FixedWidthFieldRow] = List.empty,
+                    fixedWidthAmountIndex: Option[Int]              = None,
+                    s3Bucket:              String                   = "",
+                    s3FilePath:            String                   = ""
   )
 
   object State:
     def fromConfig(cfg: Option[DataSourceConfig]): State = cfg match
       case None => State()
-      case Some(DataSourceConfig(CSVParserConfig(hasHeader, colDefs, amountField), S3ConnectionConfig(bucket, path))) =>
+      case Some(DataSourceConfig(CsvParserConfig(hasHeader, colDefs, amountField), S3ConnectionConfig(bucket, path))) =>
         val rows = colDefs.toList.sortBy(_._1).map((idx, name) => CsvFieldRow(idx.toString, name))
         State(
           parserType     = ParserType.CSV,
@@ -68,15 +68,15 @@ object DataSourceConfigWidget:
           s3Bucket       = bucket,
           s3FilePath     = path
         )
-      case Some(DataSourceConfig(BAIParserConfig(fieldMappings), S3ConnectionConfig(bucket, path))) =>
+      case Some(DataSourceConfig(BaiParserConfig(fieldMappings), S3ConnectionConfig(bucket, path))) =>
         State(
           parserType        = ParserType.BAI,
-          baiFieldNames     = BAIParserConfig.defaultFieldMappings ++ fieldMappings,
+          baiFieldNames     = BaiParserConfig.defaultFieldMappings ++ fieldMappings,
           baiFieldsIncluded = fieldMappings.keySet,
           s3Bucket          = bucket,
           s3FilePath        = path
         )
-      case Some(DataSourceConfig(JSONParserConfig(fieldMappings, amountPath), S3ConnectionConfig(bucket, path))) =>
+      case Some(DataSourceConfig(JsonParserConfig(fieldMappings, amountPath), S3ConnectionConfig(bucket, path))) =>
         val rows = fieldMappings.toList.map((p, n) => JsonFieldRow(p, n))
         State(
           parserType      = ParserType.JSON,
@@ -99,7 +99,7 @@ object DataSourceConfigWidget:
     def toConfig(s: State): Option[DataSourceConfig] =
       val parserConfig = s.parserType match
         case ParserType.CSV =>
-          CSVParserConfig(
+          CsvParserConfig(
             hasHeader = s.hasHeader,
             columnDefinitions = s.csvFields
               .flatMap(r => r.columnIndex.trim.toIntOption.map(idx => idx -> r.name))
@@ -107,9 +107,9 @@ object DataSourceConfigWidget:
             amountField = s.csvAmountIndex.flatMap(s.csvFields.lift).flatMap(_.columnIndex.trim.toIntOption)
           )
         case ParserType.BAI =>
-          BAIParserConfig(fieldMappings = s.baiFieldNames.filter((field, _) => s.baiFieldsIncluded.contains(field)))
+          BaiParserConfig(fieldMappings = s.baiFieldNames.filter((field, _) => s.baiFieldsIncluded.contains(field)))
         case ParserType.JSON =>
-          JSONParserConfig(
+          JsonParserConfig(
             fieldMappings = s.jsonFields.filter(_.path.nonEmpty).map(r => r.path -> r.name).toMap,
             amountPath    = s.jsonAmountIndex.flatMap(s.jsonFields.lift).map(_.path).filter(_.nonEmpty)
           )
@@ -304,7 +304,7 @@ object DataSourceConfigWidget:
                 )
               ),
               tbody(
-                BAIField.values.toSeq.map { field =>
+                BaiField.values.toSeq.map { field =>
                   tr(
                     cls := Form.tableRowCls,
                     td(
@@ -328,7 +328,7 @@ object DataSourceConfigWidget:
                       cls := "px-2 py-1.5",
                       Form.tableInput(
                         "text",
-                        initialState.baiFieldNames.getOrElse(field, BAIParserConfig.defaultFieldMappings(field)),
+                        initialState.baiFieldNames.getOrElse(field, BaiParserConfig.defaultFieldMappings(field)),
                         v => state.update(s => s.copy(baiFieldNames = s.baiFieldNames.updated(field, v)))
                       )
                     )

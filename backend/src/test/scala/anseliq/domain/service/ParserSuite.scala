@@ -1,7 +1,7 @@
 package anseliq.domain.service
 
 import anseliq.common.model.*
-import anseliq.domain.service.parser.{BAIParser, FixedWidthParser, JSONParser, ParsedLine, Parser, ParserError}
+import anseliq.domain.service.parser.{BaiParser, FixedWidthParser, JsonParser, ParsedLine, Parser, ParserError}
 
 class ParserSuite extends munit.FunSuite:
 
@@ -23,7 +23,7 @@ class ParserSuite extends munit.FunSuite:
   )
 
   test("BAIParser extracts transaction detail records, deferred by one line to allow for continuations"):
-    val results = parseAll(BAIParser(), sampleFile)
+    val results = parseAll(BaiParser(), sampleFile)
     assertEquals(results.size, 2, "01/02/03/88/49/98/99 lines must never themselves produce output")
 
     val txn1 = results(0)
@@ -53,7 +53,7 @@ class ParserSuite extends munit.FunSuite:
       "16,195,200000,,REF-B,REF-B,txn on account B",
       "49,300000,4/"
     )
-    val results = parseAll(BAIParser(), lines)
+    val results = parseAll(BaiParser(), lines)
     assertEquals(
       results.size,
       2,
@@ -64,7 +64,7 @@ class ParserSuite extends munit.FunSuite:
 
   test("BAIParser throws ParserError on a malformed amount"):
     intercept[ParserError]:
-      BAIParser().parse("16,195,not-a-number,,REF,REF,bad amount", 0)
+      BaiParser().parse("16,195,not-a-number,,REF,REF,bad amount", 0)
 
   test(
     "BAIParser drops a final transaction with no trailer to flush it (known limitation of well-formed-file assumption)"
@@ -73,17 +73,17 @@ class ParserSuite extends munit.FunSuite:
       "03,ACCOUNT-A,USD,010,100000,,,/",
       "16,195,100000,,REF-A,REF-A,never flushed"
     )
-    val results = parseAll(BAIParser(), lines)
+    val results = parseAll(BaiParser(), lines)
     assert(results.isEmpty, "no 49/98/99 trailer ever arrives to flush the pending transaction")
 
   test("BAIParser only stores the fields selected in fieldMappings, under the configured names"):
-    val config = BAIParserConfig(
+    val config = BaiParserConfig(
       fieldMappings = Map(
-        BAIField.CustomerReferenceNumber -> "ref",
-        BAIField.AccountNumber           -> "account"
+        BaiField.CustomerReferenceNumber -> "ref",
+        BaiField.AccountNumber           -> "account"
       )
     )
-    val results = parseAll(BAIParser(config), sampleFile)
+    val results = parseAll(BaiParser(config), sampleFile)
     assertEquals(results.size, 2)
 
     val txn1 = results(0)
@@ -92,8 +92,8 @@ class ParserSuite extends munit.FunSuite:
     assertEquals(txn1.maybeAmount, Some(BigDecimal(1500)))
 
   test("BAIParser drops continuation text entirely when Text isn't a selected field"):
-    val config  = BAIParserConfig(fieldMappings = Map(BAIField.CustomerReferenceNumber -> "ref"))
-    val results = parseAll(BAIParser(config), sampleFile)
+    val config  = BaiParserConfig(fieldMappings = Map(BaiField.CustomerReferenceNumber -> "ref"))
+    val results = parseAll(BaiParser(config), sampleFile)
     assertEquals(results.size, 2)
     assertEquals(
       results(0).props,
@@ -102,13 +102,13 @@ class ParserSuite extends munit.FunSuite:
     )
 
   test("BAIParser with an empty fieldMappings stores no properties but still captures amount"):
-    val results = parseAll(BAIParser(BAIParserConfig(fieldMappings = Map.empty)), sampleFile)
+    val results = parseAll(BaiParser(BaiParserConfig(fieldMappings = Map.empty)), sampleFile)
     assertEquals(results.size, 2)
     assertEquals(results(0).props, Map.empty[String, String])
     assertEquals(results(0).maybeAmount, Some(BigDecimal(1500)))
 
   test("JSONParser extracts configured fields by JSONPath, under the configured property names"):
-    val config = JSONParserConfig(
+    val config = JsonParserConfig(
       fieldMappings = Map(
         "$.transaction.customerRef" -> "customer_ref",
         "$.description"             -> "text"
@@ -118,32 +118,32 @@ class ParserSuite extends munit.FunSuite:
     val line =
       """{"transaction": {"customerRef": "CUST-001", "amount": 150.75}, "description": "Wire transfer"}"""
 
-    val Some(result) = JSONParser(config).parse(line, 0): @unchecked
+    val Some(result) = JsonParser(config).parse(line, 0): @unchecked
     assertEquals(result.props, Map("customer_ref" -> "CUST-001", "text" -> "Wire transfer"))
     assertEquals(result.maybeAmount, Some(BigDecimal("150.75")))
 
   test("JSONParser treats a JSONPath that matches nothing on a given row as absent, not an error"):
-    val config = JSONParserConfig(fieldMappings = Map("$.optionalField" -> "opt"))
+    val config = JsonParserConfig(fieldMappings = Map("$.optionalField" -> "opt"))
     val line   = """{"other": "value"}"""
 
-    val Some(result) = JSONParser(config).parse(line, 0): @unchecked
+    val Some(result) = JsonParser(config).parse(line, 0): @unchecked
     assertEquals(result.props, Map.empty[String, String])
 
   test("JSONParser returns None for a blank line"):
-    assertEquals(JSONParser(JSONParserConfig()).parse("   ", 0), None)
+    assertEquals(JsonParser(JsonParserConfig()).parse("   ", 0), None)
 
   test("JSONParser throws ParserError on malformed JSON"):
     intercept[ParserError]:
-      JSONParser(JSONParserConfig()).parse("{not valid json", 0)
+      JsonParser(JsonParserConfig()).parse("{not valid json", 0)
 
   test("JSONParser throws ParserError when the amountPath value isn't a valid number"):
-    val config = JSONParserConfig(amountPath = Some("$.amount"))
+    val config = JsonParserConfig(amountPath = Some("$.amount"))
     intercept[ParserError]:
-      JSONParser(config).parse("""{"amount": "not-a-number"}""", 0)
+      JsonParser(config).parse("""{"amount": "not-a-number"}""", 0)
 
   test("JSONParser with no amountPath configured never sets an amount"):
-    val config       = JSONParserConfig(fieldMappings = Map("$.id" -> "id"))
-    val Some(result) = JSONParser(config).parse("""{"id": "abc", "amount": 100}""", 0): @unchecked
+    val config       = JsonParserConfig(fieldMappings = Map("$.id" -> "id"))
+    val Some(result) = JsonParser(config).parse("""{"id": "abc", "amount": 100}""", 0): @unchecked
     assertEquals(result.maybeAmount, None)
 
   private val fixedWidthLine = "ACME CORP 0001500.00WIRE TRANSFER"

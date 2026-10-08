@@ -2,7 +2,7 @@ package anseliq.domain.service.parser
 
 import scala.util.Try
 
-case class CSVParser(
+case class CsvParser(
                       columns:     Map[Int, String],
                       amountField: Option[Int],
                       hasHeader:   Boolean = false

@@ -1,6 +1,6 @@
 package anseliq.domain.service
 
-import anseliq.common.model.{CSVParserConfig, DataSourceConfig}
+import anseliq.common.model.{CsvParserConfig, DataSourceConfig}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.*
 import anseliq.testing.TestAppContainer
@@ -27,7 +27,7 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
     FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
-          parserConfig = CSVParserConfig(
+          parserConfig = CsvParserConfig(
             hasHeader         = false,
             columnDefinitions = Map(0 -> "id"),
             amountField       = Some(1)

@@ -7,19 +7,19 @@ class DataSourceConfigSuite extends AnyFunSuite:
 
   test("DataSourceConfig with CSVParserConfig round-trips through upickle") {
     val cfg =
-      DataSourceConfig(CSVParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id"), amountField = Some(1)))
+      DataSourceConfig(CsvParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id"), amountField = Some(1)))
     val json = write(cfg)
     assertResult(cfg)(read[DataSourceConfig](json))
   }
 
   test("DataSourceConfig with BAIParserConfig round-trips through upickle") {
-    val cfg  = DataSourceConfig(BAIParserConfig(fieldMappings = Map(BAIField.AccountNumber -> "acct")))
+    val cfg  = DataSourceConfig(BaiParserConfig(fieldMappings = Map(BaiField.AccountNumber -> "acct")))
     val json = write(cfg)
     assertResult(cfg)(read[DataSourceConfig](json))
   }
 
   test("DataSourceConfig with JSONParserConfig round-trips through upickle") {
-    val cfg  = DataSourceConfig(JSONParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = Some("$.amt")))
+    val cfg  = DataSourceConfig(JsonParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = Some("$.amt")))
     val json = write(cfg)
     info(s"serialized: $json")
     assertResult(cfg)(read[DataSourceConfig](json))
@@ -127,78 +127,78 @@ class DataSourceConfigSuite extends AnyFunSuite:
   }
 
   test("CSVParserConfig.validate rejects an empty column list") {
-    val cfg = CSVParserConfig(hasHeader = true, columnDefinitions = Map.empty, amountField = None)
+    val cfg = CsvParserConfig(hasHeader = true, columnDefinitions = Map.empty, amountField = None)
     assert(cfg.validate.contains("At least one column must be defined"))
   }
 
   test("CSVParserConfig.validate rejects a negative column number") {
-    val cfg = CSVParserConfig(hasHeader = true, columnDefinitions = Map(-1 -> "id"), amountField = None)
+    val cfg = CsvParserConfig(hasHeader = true, columnDefinitions = Map(-1 -> "id"), amountField = None)
     assert(cfg.validate.contains("Column numbers must not be negative"))
   }
 
   test("CSVParserConfig.validate rejects a blank field name") {
-    val cfg = CSVParserConfig(hasHeader = true, columnDefinitions = Map(0 -> ""), amountField = None)
+    val cfg = CsvParserConfig(hasHeader = true, columnDefinitions = Map(0 -> ""), amountField = None)
     assert(cfg.validate.contains("Every column must have a field name"))
   }
 
   test("CSVParserConfig.validate rejects duplicate field names") {
-    val cfg = CSVParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "dup", 1 -> "dup"), amountField = None)
+    val cfg = CsvParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "dup", 1 -> "dup"), amountField = None)
     assert(cfg.validate.contains("Field name(s) used more than once: dup"))
   }
 
   test("CSVParserConfig.validate rejects a negative amount column") {
-    val cfg = CSVParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id"), amountField = Some(-1))
+    val cfg = CsvParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id"), amountField = Some(-1))
     assert(cfg.validate.contains("Amount column number must not be negative"))
   }
 
   test("CSVParserConfig.validate is empty for a valid config") {
     val cfg =
-      CSVParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id", 1 -> "amount"), amountField = Some(1))
+      CsvParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id", 1 -> "amount"), amountField = Some(1))
     assertResult(Nil)(cfg.validate)
   }
 
   test("BAIParserConfig.validate rejects a blank stored-as name") {
-    val cfg = BAIParserConfig(fieldMappings = Map(BAIField.AccountNumber -> ""))
+    val cfg = BaiParserConfig(fieldMappings = Map(BaiField.AccountNumber -> ""))
     assert(cfg.validate.contains("Every included BAI2 field must have a name to store it under"))
   }
 
   test("BAIParserConfig.validate rejects duplicate stored-as names") {
-    val cfg = BAIParserConfig(
-      fieldMappings = Map(BAIField.AccountNumber -> "dup", BAIField.TypeCode -> "dup")
+    val cfg = BaiParserConfig(
+      fieldMappings = Map(BaiField.AccountNumber -> "dup", BaiField.TypeCode -> "dup")
     )
     assert(cfg.validate.contains("Field name(s) used more than once: dup"))
   }
 
   test("BAIParserConfig.validate allows an empty fieldMappings (amount-only capture is a legitimate use case)") {
-    assertResult(Nil)(BAIParserConfig(fieldMappings = Map.empty).validate)
+    assertResult(Nil)(BaiParserConfig(fieldMappings = Map.empty).validate)
   }
 
   test("JSONParserConfig.validate rejects an empty field list") {
-    assert(JSONParserConfig().validate.contains("At least one field must be defined"))
+    assert(JsonParserConfig().validate.contains("At least one field must be defined"))
   }
 
   test("JSONParserConfig.validate rejects a blank JSON path") {
-    val cfg = JSONParserConfig(fieldMappings = Map("" -> "name"))
+    val cfg = JsonParserConfig(fieldMappings = Map("" -> "name"))
     assert(cfg.validate.contains("Every field must have a JSON path"))
   }
 
   test("JSONParserConfig.validate rejects a blank stored name") {
-    val cfg = JSONParserConfig(fieldMappings = Map("$.a" -> ""))
+    val cfg = JsonParserConfig(fieldMappings = Map("$.a" -> ""))
     assert(cfg.validate.contains("Every field must have a stored name"))
   }
 
   test("JSONParserConfig.validate rejects duplicate stored names") {
-    val cfg = JSONParserConfig(fieldMappings = Map("$.a" -> "dup", "$.b" -> "dup"))
+    val cfg = JsonParserConfig(fieldMappings = Map("$.a" -> "dup", "$.b" -> "dup"))
     assert(cfg.validate.contains("Field name(s) used more than once: dup"))
   }
 
   test("JSONParserConfig.validate rejects a blank amount path") {
-    val cfg = JSONParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = Some(""))
+    val cfg = JsonParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = Some(""))
     assert(cfg.validate.contains("Amount path must not be blank"))
   }
 
   test("JSONParserConfig.validate is empty for a valid config") {
-    val cfg = JSONParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = Some("$.amt"))
+    val cfg = JsonParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = Some("$.amt"))
     assertResult(Nil)(cfg.validate)
   }
 
@@ -219,16 +219,16 @@ class DataSourceConfigSuite extends AnyFunSuite:
   }
 
   test("DataSourceConfig.validate delegates to a CSVParserConfig's own validate") {
-    val cfg = DataSourceConfig(CSVParserConfig(hasHeader = true, columnDefinitions = Map.empty, amountField = Some(0)))
+    val cfg = DataSourceConfig(CsvParserConfig(hasHeader = true, columnDefinitions = Map.empty, amountField = Some(0)))
     assertResult(List("At least one column must be defined"))(cfg.validate)
   }
 
   test("CSVParserConfig.validate rejects a config with no amount column selected") {
-    val cfg = CSVParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id"), amountField = None)
+    val cfg = CsvParserConfig(hasHeader = true, columnDefinitions = Map(0 -> "id"), amountField = None)
     assert(cfg.validate.contains("One column must be marked as the amount field"))
   }
 
   test("JSONParserConfig.validate rejects a config with no amount path selected") {
-    val cfg = JSONParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = None)
+    val cfg = JsonParserConfig(fieldMappings = Map("$.a" -> "a"), amountPath = None)
     assert(cfg.validate.contains("One field must be marked as the amount field"))
   }

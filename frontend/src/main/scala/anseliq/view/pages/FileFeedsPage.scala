@@ -3,11 +3,11 @@ package anseliq.view.pages
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
 import anseliq.common.model.{
-  BAIParserConfig,
-  CSVParserConfig,
+  BaiParserConfig,
+  CsvParserConfig,
   FileFeedPayload,
   FixedWidthParserConfig,
-  JSONParserConfig,
+  JsonParserConfig,
   ParserConfig,
   S3ConnectionConfig
 }
@@ -70,7 +70,7 @@ object FileFeedsPage:
     )
 
   private def formatLabel(cfg: ParserConfig): String = cfg match
-    case _: CSVParserConfig        => "CSV"
-    case _: BAIParserConfig        => "BAI2"
-    case _: JSONParserConfig       => "JSON"
+    case _: CsvParserConfig        => "CSV"
+    case _: BaiParserConfig        => "BAI2"
+    case _: JsonParserConfig       => "JSON"
     case _: FixedWidthParserConfig => "Fixed Width"

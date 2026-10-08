@@ -1,6 +1,6 @@
 package anseliq.domain.service.parser
 
-import anseliq.common.model.JSONParserConfig
+import anseliq.common.model.JsonParserConfig
 import com.jayway.jsonpath.{Configuration, JsonPath, Option as JsonPathOption}
 
 import scala.util.Try
@@ -18,7 +18,7 @@ import scala.util.Try
  * amountPath that isn't a valid number, both throw ParserError, matching how a malformed CSV/BAI2
  * amount is treated as a real data-quality problem rather than something to silently skip.
  */
-class JSONParser(config: JSONParserConfig) extends Parser:
+class JsonParser(config: JsonParserConfig) extends Parser:
   private val jsonPathConfig = Configuration.defaultConfiguration().addOptions(JsonPathOption.SUPPRESS_EXCEPTIONS)
 
   override def parse(text: String, lineNumber: Long): Option[ParsedLine] =

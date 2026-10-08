@@ -57,7 +57,7 @@ class DataSetup(val app: AppContainer)(using dbTx: DbTx) {
   val journalToReconFeed = FileFeed(
     dataSourceJson = upickle.write(
       DataSourceConfig(
-        parserConfig = CSVParserConfig(
+        parserConfig = CsvParserConfig(
           hasHeader         = false,
           columnDefinitions = Map(0 -> "field1", 1 -> "field2"),
           amountField       = None

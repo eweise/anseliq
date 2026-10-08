@@ -60,7 +60,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           name                 = "Journal Feed",
           dataSourceConfig = Some(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader         = false,
                 columnDefinitions = Map(0 -> "transaction_id", 1 -> "amount", 2 -> "record_date"),
                 amountField       = Some(1)
@@ -89,7 +89,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           name                 = "Bank Feed",
           dataSourceConfig = Some(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader         = false,
                 columnDefinitions = Map(0 -> "txn_id", 1 -> "amount"),
                 amountField       = Some(1)
@@ -154,7 +154,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           name                 = "BAI Feed",
           dataSourceConfig = Some(
             DataSourceConfig(
-              parserConfig     = BAIParserConfig(),
+              parserConfig     = BaiParserConfig(),
               connectionConfig = S3ConnectionConfig(s3Bucket = "onparity", filePath = "bai")
             )
           )
@@ -177,7 +177,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           name                 = "Bank Feed",
           dataSourceConfig = Some(
             DataSourceConfig(
-              parserConfig = CSVParserConfig(
+              parserConfig = CsvParserConfig(
                 hasHeader         = false,
                 columnDefinitions = Map(0 -> "txn_id", 1 -> "amount"),
                 amountField       = Some(1)

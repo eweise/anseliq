@@ -5,11 +5,11 @@ import org.scalajs.dom
 import org.scalajs.dom.{FileReader, HTMLInputElement}
 import anseliq.common.http.HttpPath
 import anseliq.common.model.{
-  BAIParserConfig,
-  CSVParserConfig,
+  BaiParserConfig,
+  CsvParserConfig,
   FileFeedPayload,
   FixedWidthParserConfig,
-  JSONParserConfig,
+  JsonParserConfig,
   ParseTestResultPayload,
   ParsedRowPayload,
   ParserConfig
@@ -86,7 +86,7 @@ object TestParserPage:
     )
 
   private def parserConfigDetails(cfg: ParserConfig): HtmlElement = cfg match
-    case CSVParserConfig(hasHeader, columnDefinitions, amountField) =>
+    case CsvParserConfig(hasHeader, columnDefinitions, amountField) =>
       div(
         div(
           cls := "text-sm mb-2 text-md-on-surface dark:text-gray-200",
@@ -101,7 +101,7 @@ object TestParserPage:
             )
         )
       )
-    case BAIParserConfig(fieldMappings) =>
+    case BaiParserConfig(fieldMappings) =>
       div(
         div(cls := "text-sm mb-2 text-md-on-surface dark:text-gray-200", "Format: BAI2"),
         Table.create(
@@ -109,7 +109,7 @@ object TestParserPage:
           fieldMappings.toSeq.map((field, name) => Seq(span(field.toString), span(name)))
         )
       )
-    case JSONParserConfig(fieldMappings, amountPath) =>
+    case JsonParserConfig(fieldMappings, amountPath) =>
       val amountOnlyRow =
         amountPath.filterNot(fieldMappings.contains).map(p => Seq(span(p), span("(amount)"))).toSeq
       div(

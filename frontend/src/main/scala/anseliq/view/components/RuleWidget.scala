@@ -84,9 +84,9 @@ object RuleWidget:
   // one specific (just-selected) feed's fields rather than resolving a feed via a movement spec.
   def fieldsFor(feed: FileFeedPayload): Seq[String] =
     feed.dataSourceConfig.collect {
-      case DataSourceConfig(CSVParserConfig(_, cols, _), _)        => cols.values.toSeq
-      case DataSourceConfig(BAIParserConfig(fieldMappings), _)     => fieldMappings.values.toSeq
-      case DataSourceConfig(JSONParserConfig(fieldMappings, _), _) => fieldMappings.values.toSeq
+      case DataSourceConfig(CsvParserConfig(_, cols, _), _)        => cols.values.toSeq
+      case DataSourceConfig(BaiParserConfig(fieldMappings), _)     => fieldMappings.values.toSeq
+      case DataSourceConfig(JsonParserConfig(fieldMappings, _), _) => fieldMappings.values.toSeq
       case DataSourceConfig(FixedWidthParserConfig(_, fields), _)  => fields.map(_.name)
     }
       .getOrElse(Seq.empty)

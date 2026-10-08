@@ -19,7 +19,7 @@ private def duplicateValues(values: Iterable[String]): List[String] =
     .toList
     .sorted
 
-case class CSVParserConfig(
+case class CsvParserConfig(
   hasHeader:         Boolean,
   columnDefinitions: Map[Int, String],
   amountField:       Option[Int]
@@ -40,11 +40,11 @@ case class CSVParserConfig(
 // known fields to store, and under what property name" rather than a user-defined column list.
 // Amount isn't a selectable field here — its position on every transaction detail record is
 // always known, so it's captured automatically instead of something the user opts into.
-enum BAIField derives ReadWriter:
+enum BaiField derives ReadWriter:
   case AccountNumber, TypeCode, FundsType, BankReferenceNumber, CustomerReferenceNumber, Text
 
-case class BAIParserConfig(
-  fieldMappings: Map[BAIField, String] = BAIParserConfig.defaultFieldMappings
+case class BaiParserConfig(
+  fieldMappings: Map[BaiField, String] = BaiParserConfig.defaultFieldMappings
 ) extends ParserConfig:
   override def validate: List[String] =
     val errors = List.newBuilder[String]
@@ -54,14 +54,14 @@ case class BAIParserConfig(
     if dups.nonEmpty then errors += s"Field name(s) used more than once: ${dups.mkString(", ")}"
     errors.result()
 
-object BAIParserConfig:
-  val defaultFieldMappings: Map[BAIField, String] = Map(
-    BAIField.AccountNumber           -> "account_number",
-    BAIField.TypeCode                -> "type_code",
-    BAIField.FundsType               -> "funds_type",
-    BAIField.BankReferenceNumber     -> "bank_reference_number",
-    BAIField.CustomerReferenceNumber -> "customer_reference_number",
-    BAIField.Text                    -> "text"
+object BaiParserConfig:
+  val defaultFieldMappings: Map[BaiField, String] = Map(
+    BaiField.AccountNumber           -> "account_number",
+    BaiField.TypeCode                -> "type_code",
+    BaiField.FundsType               -> "funds_type",
+    BaiField.BankReferenceNumber     -> "bank_reference_number",
+    BaiField.CustomerReferenceNumber -> "customer_reference_number",
+    BaiField.Text                    -> "text"
   )
 
 // JSON-lines source: one standalone JSON document per file row (not a single JSON array covering
@@ -71,7 +71,7 @@ object BAIParserConfig:
 // under, the same "which + what name" shape as CSV's columnDefinitions. amountPath is the JSONPath
 // to the amount, mirroring CSV's amountField — unlike BAI2, JSON has no fixed position to infer it
 // from automatically.
-case class JSONParserConfig(
+case class JsonParserConfig(
   fieldMappings: Map[String, String] = Map.empty,
   amountPath:    Option[String]      = None
 ) extends ParserConfig:
