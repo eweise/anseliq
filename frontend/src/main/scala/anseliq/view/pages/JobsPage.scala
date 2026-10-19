@@ -100,7 +100,7 @@ object JobsPage:
     val pct = durationSeconds(job).filter(_ => maxSec > 0).map(d => 35 + (65 * d / maxSec)).getOrElse(100L)
     val ring = if selected then "ring-2 ring-offset-1 ring-gray-900 dark:ring-white dark:ring-offset-gray-800" else ""
     button(
-      cls   := s"w-2.5 shrink-0 rounded-sm hover:opacity-70 ${statusBg(job.jobStatus)} $ring",
+      cls   := s"w-2.5 shrink-0 rounded-sm hover:opacity-70 ${statusBg(RunStatus.of(job))} $ring",
       styleAttr := s"height: $pct%",
       title := tooltip(job),
       onClick --> (_ => state.update(_.copy(selectedJob = Some(job))))
@@ -114,14 +114,15 @@ object JobsPage:
         "Started"    -> job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"),
         "Last update" -> job.updatedAt.map(ViewHelper.formatDateTime).getOrElse("-"),
         "Duration"   -> durationSeconds(job).map(formatSeconds).getOrElse("-"),
-        "Reference"  -> (if job.referenceId.isEmpty then "-" else job.referenceId)
-      ) ++ infoFields(info)
+        "Reference"  -> (if job.referenceId.isEmpty then "-" else job.referenceId),
+        "Attempts"   -> job.attempts.toString
+      ) ++ retryFields(job) ++ infoFields(info)
     div(
       cls := s"${Card.cls} p-6",
       div(
         cls := "mb-4 flex items-center gap-3",
         h2(cls := "text-base font-semibold text-gray-900 dark:text-white", "Run details"),
-        statusPill(job.jobStatus)
+        statusPill(RunStatus.of(job))
       ),
       job.errorMessage.map { msg =>
         pre(
@@ -148,7 +149,7 @@ object JobsPage:
     val headers = Seq("Status", "Started", "Error") ++ extraHeaders
     val rows = jobs.map { job =>
       Seq(
-        statusPill(job.jobStatus),
+        statusPill(RunStatus.of(job)),
         span(job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-")),
         span(job.errorMessage.getOrElse("-"))
       ) ++ extraCells(job, jobType)
@@ -185,6 +186,11 @@ object JobsPage:
         }
         .getOrElse(Seq(span("-")))
 
+  private def retryFields(job: JobInfoPayload): Seq[(String, String)] =
+    if RunStatus.of(job) == RunStatus.Retrying then
+      Seq("Next retry" -> job.runAt.map(ViewHelper.formatDateTime).getOrElse("-"))
+    else Seq.empty
+
   private def infoFields(info: Option[JobInfo]): Seq[(String, String)] = info match
     case Some(ri: ReconciliationInfo) =>
       Seq("Account" -> ri.accountName, "Reconciliations created" -> ri.reconciliationsCreatedCount.toString)
@@ -193,33 +199,42 @@ object JobsPage:
     case Some(rs: ReconStatsInfo)    => Seq("Fund flows snapshotted" -> rs.fundFlowsSnapshotted.toString)
     case None                        => Seq.empty
 
+  // A Submitted job with an error message is one whose last attempt failed and that is waiting out
+  // its backoff (see JobManager.retryOrFail), so it's shown as Retrying rather than Queued.
+  private enum RunStatus:
+    case Queued, Running, Retrying, Success, Failed
+
+  private object RunStatus:
+    def of(job: JobInfoPayload): RunStatus = job.jobStatus match
+      case JobInfoStatus.Submitted if job.errorMessage.isDefined => Retrying
+      case JobInfoStatus.Submitted                               => Queued
+      case JobInfoStatus.InProgress                              => Running
+      case JobInfoStatus.Complete                                => Success
+      case JobInfoStatus.Error                                   => Failed
+
   private val statusLegend: HtmlElement =
     div(
       cls := "flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300",
-      JobInfoStatus.values.toSeq.map { st =>
-        span(cls := "flex items-center gap-1.5", span(cls := s"inline-block h-3 w-3 rounded-sm ${statusBg(st)}"), statusLabel(st))
+      RunStatus.values.toSeq.map { st =>
+        span(cls := "flex items-center gap-1.5", span(cls := s"inline-block h-3 w-3 rounded-sm ${statusBg(st)}"), st.toString)
       }
     )
 
-  private def statusBg(status: JobInfoStatus): String = status match
-    case JobInfoStatus.Complete   => "bg-md-good dark:bg-md-good-dark"
-    case JobInfoStatus.Error      => "bg-md-critical dark:bg-md-critical-dark"
-    case JobInfoStatus.InProgress => "bg-md-warning dark:bg-md-warning-dark"
-    case JobInfoStatus.Submitted  => "bg-gray-300 dark:bg-gray-600"
+  private def statusBg(status: RunStatus): String = status match
+    case RunStatus.Success  => "bg-md-good dark:bg-md-good-dark"
+    case RunStatus.Failed   => "bg-md-critical dark:bg-md-critical-dark"
+    case RunStatus.Running  => "bg-md-warning dark:bg-md-warning-dark"
+    case RunStatus.Retrying => "bg-md-serious dark:bg-md-serious-dark"
+    case RunStatus.Queued   => "bg-gray-300 dark:bg-gray-600"
 
-  private def statusLabel(status: JobInfoStatus): String = status match
-    case JobInfoStatus.Complete   => "Success"
-    case JobInfoStatus.Error      => "Failed"
-    case JobInfoStatus.InProgress => "Running"
-    case JobInfoStatus.Submitted  => "Queued"
-
-  private def statusPill(status: JobInfoStatus): HtmlElement =
+  private def statusPill(status: RunStatus): HtmlElement =
     val tone = status match
-      case JobInfoStatus.Complete   => Pill.Tone.Good
-      case JobInfoStatus.Error      => Pill.Tone.Critical
-      case JobInfoStatus.InProgress => Pill.Tone.Warning
-      case JobInfoStatus.Submitted  => Pill.Tone.Neutral
-    Pill(statusLabel(status), tone)
+      case RunStatus.Success  => Pill.Tone.Good
+      case RunStatus.Failed   => Pill.Tone.Critical
+      case RunStatus.Running  => Pill.Tone.Warning
+      case RunStatus.Retrying => Pill.Tone.Serious
+      case RunStatus.Queued   => Pill.Tone.Neutral
+    Pill(status.toString, tone)
 
   private def runSummary(jobs: Seq[JobInfoPayload]): String =
     val finished = jobs.filter(j => j.jobStatus == JobInfoStatus.Complete || j.jobStatus == JobInfoStatus.Error)
@@ -230,7 +245,7 @@ object JobsPage:
 
   private def tooltip(job: JobInfoPayload): String =
     Seq(
-      Some(statusLabel(job.jobStatus)),
+      Some(RunStatus.of(job).toString),
       job.createdAt.map(ViewHelper.formatDateTime),
       durationSeconds(job).map(formatSeconds),
       job.jobInfoJson.flatMap(parseJobInfo).collect { case ri: ReconciliationInfo => ri.accountName },

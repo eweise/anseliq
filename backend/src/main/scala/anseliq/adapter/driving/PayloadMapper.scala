@@ -11,15 +11,6 @@ import java.util.UUID
 
 object PayloadMapper:
 
-  def jobPayloadToDomain(payload: JobInfoPayload): Job =
-    Job(
-      referenceId  = UUID.fromString(payload.referenceId),
-      jobType      = JobType.valueOf(payload.jobType.toString),
-      jobStatus    = JobStatus.valueOf(JobInfoStatus.toString),
-      jobInfoJson  = Some(upickle.write(payload.jobInfo)),
-      errorMessage = payload.errorMessage
-    )
-
   def jobPayloadFromDomain(job: Job): JobInfoPayload =
     JobInfoPayload(
       id           = Some(job.id.toString),
@@ -28,6 +19,8 @@ object PayloadMapper:
       jobStatus    = JobInfoStatus.valueOf(job.jobStatus.toString),
       jobInfoJson  = job.jobInfoJson,
       errorMessage = job.errorMessage,
+      attempts     = job.attempts,
+      runAt        = job.runAt,
       createdAt    = job.createdAt,
       updatedAt    = job.updatedAt
     )

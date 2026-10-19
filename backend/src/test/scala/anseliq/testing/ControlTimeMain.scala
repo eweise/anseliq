@@ -9,5 +9,5 @@ object ControlTimeMain:
     val app = new TestAppContainer {
       override lazy val ingestor: Ingestor = ControlTimeIngestor(this)
     }
-    app.clock.addHours(24)
+    app.clock.addHours(0)
     AppEnv(app).run(args)

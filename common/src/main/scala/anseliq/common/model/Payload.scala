@@ -85,6 +85,8 @@ case class JobInfoPayload(
   jobInfoJson:  Option[String],
   jobInfo:      Option[JobInfo]        = None,
   errorMessage: Option[String]         = None,
+  attempts:     Int                    = 0,
+  runAt:        Option[OffsetDateTime] = None,
   createdAt:    Option[OffsetDateTime] = None,
   updatedAt:    Option[OffsetDateTime] = None
 ) derives ReadWriter
