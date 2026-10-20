@@ -2,6 +2,6 @@ package anseliq.domain.model
 
 import java.util.UUID
 
-def createID(): UUID =
-  val uuid = java.util.UUID.ofEpochMillis(123)
-  uuid
+// A UUIDv7: time-ordered, so new rows land together in primary-key indexes. Real time, not the app
+// clock, since a test moving the clock back would otherwise break that ordering.
+def createID(): UUID = UUID.ofEpochMillis(System.currentTimeMillis())
