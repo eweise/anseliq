@@ -183,61 +183,64 @@ class ReportingService(
       !now.isBefore(cutoff) && !dailySnapshotRepo.existsForDate(ff.id, today)
     }
 
-    for ff <- dueFundFlows do
-      val report = summary(Some(ff.id))
-      val rated  = report.matchRates.flatMap(m => m.balanceCoveragePercent.map(pct => pct -> m))
-      val avgBalanceCoverage =
-        if rated.isEmpty then None
-        else Some((rated.map(_._1).sum / rated.size).setScale(2, BigDecimal.RoundingMode.HALF_UP))
-      // Ratio of sums, not an average of per-account percentages — the correct way to combine
-      // counts across accounts (an account with 1000 movements shouldn't count the same as one
-      // with 2 when computing the fund flow's overall match rate).
-      val totalReconciled = report.matchRates.map(_.reconciledMovementCount).sum
-      val totalMovements  = report.matchRates.map(_.totalMovementCount).sum
-      val avgMatchRate =
-        if totalMovements == 0 then None
-        else
-          Some(
-            (BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100)
-              .setScale(2, BigDecimal.RoundingMode.HALF_UP)
-          )
-      val agingByBucket = report.aging.buckets.toMap
-
-      dailySnapshotRepo.upsert(
-        DailySnapshot(
-          fundFlowId   = ff.id,
-          snapshotDate = today,
-          matchRatesJson = upickle.write(
-            report.matchRates.map(m =>
-              MatchRateSnapshot(
-                m.accountId.toString,
-                m.accountName,
-                m.balance,
-                m.reconciledBalance,
-                m.balanceCoveragePercent,
-                m.reconciledMovementCount,
-                m.totalMovementCount,
-                m.matchRatePercent
-              )
-            )
-          ),
-          avgBalanceCoveragePercent = avgBalanceCoverage,
-          avgMatchRatePercent       = avgMatchRate,
-          ratedAccountCount         = rated.size,
-          reconciledMovementCount   = totalReconciled,
-          totalMovementCount        = totalMovements,
-          exceptionsByCategoryJson  = upickle.write(report.exceptions.byCategory),
-          exceptionsByStatusJson    = upickle.write(report.exceptions.byStatus),
-          openExceptionCount        = report.exceptions.byStatus.values.sum,
-          agingZeroToThree          = agingByBucket.getOrElse("0-3", 0),
-          agingFourToSeven          = agingByBucket.getOrElse("4-7", 0),
-          agingEightToFourteen      = agingByBucket.getOrElse("8-14", 0),
-          agingFifteenPlus          = agingByBucket.getOrElse("15+", 0),
-          overdueCount              = report.aging.overdueCount
-        )
-      )
-
+    dueFundFlows.foreach(storeDailySnapshot)
     dueFundFlows.size
+
+  /** Computes and stores (or replaces) the fund flow's snapshot for clock.now's date. */
+  def storeDailySnapshot(ff: FundFlowConfig): Txn[Unit] =
+    val today  = clock.now.toLocalDate
+    val report = summary(Some(ff.id))
+    val rated  = report.matchRates.flatMap(m => m.balanceCoveragePercent.map(pct => pct -> m))
+    val avgBalanceCoverage =
+      if rated.isEmpty then None
+      else Some((rated.map(_._1).sum / rated.size).setScale(2, BigDecimal.RoundingMode.HALF_UP))
+    // Ratio of sums, not an average of per-account percentages — the correct way to combine
+    // counts across accounts (an account with 1000 movements shouldn't count the same as one
+    // with 2 when computing the fund flow's overall match rate).
+    val totalReconciled = report.matchRates.map(_.reconciledMovementCount).sum
+    val totalMovements  = report.matchRates.map(_.totalMovementCount).sum
+    val avgMatchRate =
+      if totalMovements == 0 then None
+      else
+        Some(
+          (BigDecimal(totalReconciled) / BigDecimal(totalMovements) * 100)
+            .setScale(2, BigDecimal.RoundingMode.HALF_UP)
+        )
+    val agingByBucket = report.aging.buckets.toMap
+
+    dailySnapshotRepo.upsert(
+      DailySnapshot(
+        fundFlowId   = ff.id,
+        snapshotDate = today,
+        matchRatesJson = upickle.write(
+          report.matchRates.map(m =>
+            MatchRateSnapshot(
+              m.accountId.toString,
+              m.accountName,
+              m.balance,
+              m.reconciledBalance,
+              m.balanceCoveragePercent,
+              m.reconciledMovementCount,
+              m.totalMovementCount,
+              m.matchRatePercent
+            )
+          )
+        ),
+        avgBalanceCoveragePercent = avgBalanceCoverage,
+        avgMatchRatePercent       = avgMatchRate,
+        ratedAccountCount         = rated.size,
+        reconciledMovementCount   = totalReconciled,
+        totalMovementCount        = totalMovements,
+        exceptionsByCategoryJson  = upickle.write(report.exceptions.byCategory),
+        exceptionsByStatusJson    = upickle.write(report.exceptions.byStatus),
+        openExceptionCount        = report.exceptions.byStatus.values.sum,
+        agingZeroToThree          = agingByBucket.getOrElse("0-3", 0),
+        agingFourToSeven          = agingByBucket.getOrElse("4-7", 0),
+        agingEightToFourteen      = agingByBucket.getOrElse("8-14", 0),
+        agingFifteenPlus          = agingByBucket.getOrElse("15+", 0),
+        overdueCount              = report.aging.overdueCount
+      )
+    )
 
   /**
    * Reads back the last `days` days of stored snapshots. When fundFlowId is None, aggregates across

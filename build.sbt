@@ -143,9 +143,14 @@ lazy val backend = (project in file("backend"))
     // current per-row matching loop, and is likewise meant to be run explicitly
     // (sbt "testOnly anseliq.domain.service.LargeFileIngestionReconciliationSuite"). Both are scoped to
     // the `test` task only (not `testOnly`/`testQuick`) so explicit invocation still works.
+    // SeedHappyPathDemo likewise commits demo data on purpose
+    // (sbt "testOnly anseliq.testing.SeedHappyPathDemo"), and PopulateS3Buckets writes files into
+    // LocalStack for a running backend to pick up (sbt "testOnly anseliq.testing.PopulateS3Buckets").
     Test / test / testOptions += Tests.Filter(name =>
       name != "anseliq.testing.DataSetupScenario1" &&
-        name != "anseliq.domain.service.LargeFileIngestionReconciliationSuite"
+        name != "anseliq.domain.service.LargeFileIngestionReconciliationSuite" &&
+        name != "anseliq.testing.SeedHappyPathDemo" &&
+        name != "anseliq.testing.PopulateS3Buckets"
     ),
     mainClass := Some("anseliq.app.Main")
   )

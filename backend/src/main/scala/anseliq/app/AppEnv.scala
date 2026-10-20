@@ -3,7 +3,9 @@ package anseliq.app
 import anseliq.adapter.config.AppContainer
 import anseliq.adapter.driving.*
 import anseliq.common.model.*
+import anseliq.common.model.model.ID
 import anseliq.domain.model.*
+import anseliq.domain.port.driven.Txn
 import com.augustnagro.magnum.*
 import com.typesafe.scalalogging.Logger
 import ox.*
@@ -59,22 +61,27 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
   /** Finds new files on every feed and queues an Ingestion job for each, with its inventory row. */
   private def scanFileFeeds(): FileInventoryInfo =
     transact(Transactor(dataSource = app.dataSource)):
-      var filesQueued = 0
-
-      app.fileFeedRepo.findAll.foreach: feed =>
-        app.ingestor.checkForMissingFile(feed)
-        val fileSource = app.fileSourceFactory.createFileSource(feed.dataSourceConfig().connectionConfig)
-        val newFiles   = app.ingestor.detectAndQueue(feed.id, fileSource)
-        newFiles.foreach(file => app.jobManager.submitJob(JobType.Ingestion, file.id))
-        logger.info(s"File inventory scan: queued ${newFiles.size} new S3 files")
-        filesQueued += newFiles.size
-
+      val filesQueued = app.fileFeedRepo.findAll.map(scanFileFeed(_).size).sum
       FileInventoryInfo(filesQueued = filesQueued)
+
+  /**
+   * Finds the feed's new files and queues an Ingestion job for each, returning the job ids, then
+   * checks whether the feed is overdue. New files are looked for first so a file that has just
+   * landed counts toward the feed's cadence, rather than raising a FileMissing dispute that the
+   * next scan resolves.
+   */
+  def scanFileFeed(feed: FileFeed): Txn[Vector[ID]] =
+    val fileSource = app.fileSourceFactory.createFileSource(feed.dataSourceConfig().connectionConfig)
+    val newFiles   = app.ingestor.detectAndQueue(feed.id, fileSource)
+    val jobIds     = newFiles.map(file => app.jobManager.submitJob(JobType.Ingestion, file.id))
+    logger.info(s"File inventory scan: queued ${newFiles.size} new files for feed ${feed.name}")
+    app.ingestor.checkForMissingFile(feed)
+    jobIds
 
   /**
    * Ingests the job's file, then queues reconciliation of the Recon accounts on its feed's specs.
    */
-  private def ingest(job: Job): IngestionInfo =
+  def ingest(job: Job): IngestionInfo =
     val result = app.ingestor.ingestFileFromInventory(job.referenceId)
     // Every spec on the file's feed, not just the ones this run added rows to: a retry after a crash
     // resumes past the rows the failed attempt already committed, so it can't tell which specs those

@@ -27,7 +27,7 @@ trait AppContainer:
 
   lazy val clock = ClockServiceLive()
 
-  lazy val fileSourceFactory =
+  lazy val fileSourceFactory: FileSourceFactory =
     S3FileSourceFactory(
       region   = config.getString("s3.region"),
       endpoint = config.getString("s3.endpoint"),
@@ -50,7 +50,7 @@ trait AppContainer:
   lazy val movementSpecService: MovementSpecService    = MovementSpecService(movementSpecRepo, accountRepo)
   lazy val fileFeedService:     FileFeedService        = FileFeedService(fileFeedRepo)
   lazy val reconSpecService:    ReconSpecService       = ReconSpecService(reconSpecRepo, movementSpecRepo, accountRepo)
-  lazy val eventStore:          EventStore             = EventStore(eventRepo)
+  lazy val eventStore:          EventStore             = EventStore(eventRepo, clock)
   lazy val fileInventoryRepo:   FileInventoryRepo      = FileInventoryRepoLive()
   lazy val ledger: Ledger =
     Ledger(
