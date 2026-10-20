@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.*
@@ -10,19 +11,20 @@ import com.augustnagro.magnum.*
 import java.util.UUID
 import javax.sql.DataSource
 
-class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
+class MovementRepoLive(clock: ClockService) extends AuditedRepo[Movement, UUID](clock) with MovementRepo:
   val m    = Movement.Table
   val r    = Reconciliation.Table
   val acct = Account.Table
 
   override def insertAll(movements: Iterable[Movement])(using DbCon): Unit =
-    batchUpdate(movements): movement =>
+    batchUpdate(movements.map(stampCreated)): movement =>
       sql"""
            INSERT INTO $m ${m.insertColumns}
            VALUES ($movement)
            ON CONFLICT(reference_id) DO NOTHING""".update
 
   override def insert(movement: Movement)(using DbCon): Unit =
+    stampCreated(movement)
     sql"""
          INSERT INTO $m ${m.insertColumns}
          VALUES ($movement)
@@ -286,7 +288,8 @@ class MovementRepoLive extends Repo[Movement, Movement, UUID] with MovementRepo:
       )
       val updated = sql"""
         UPDATE $m AS a
-        SET reconciliation_id = v.reconciliation_id
+        SET reconciliation_id = v.reconciliation_id,
+            updated_at = ${clock.now}
         FROM (VALUES $valuesClause) AS v(id, reconciliation_id)
         WHERE a.id = v.id
         AND a.reconciliation_id IS NULL

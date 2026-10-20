@@ -23,7 +23,7 @@ case class ReconciliationSpec(
   ruleJson:          String                 = "{}",
   var createdAt:     Option[OffsetDateTime] = None,
   var updatedAt:     Option[OffsetDateTime] = None
-) derives DbCodec:
+) extends Audited derives DbCodec:
   def rule(): Rule = upickle.read(ruleJson)
 
 object ReconciliationSpec:

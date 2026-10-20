@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.ReconciliationSpec
@@ -8,7 +9,7 @@ import com.augustnagro.magnum.{Repo, sql}
 
 import java.util.UUID
 
-class ReconciliationSpecRepoLive extends Repo[ReconciliationSpec, ReconciliationSpec, UUID] with ReconciliationSpecRepo:
+class ReconciliationSpecRepoLive(clock: ClockService) extends AuditedRepo[ReconciliationSpec, UUID](clock) with ReconciliationSpecRepo:
   private val t = ReconciliationSpec.Table
 
   override def findByAccountID(accountID: ID): Txn[Vector[ReconciliationSpec]] =

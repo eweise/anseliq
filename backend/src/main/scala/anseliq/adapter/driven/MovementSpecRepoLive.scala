@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model.MovementSpec
 import anseliq.domain.port.driven.{MovementSpecRepo, Txn}
@@ -7,7 +8,7 @@ import com.augustnagro.magnum.{DbCon, Repo, sql}
 
 import java.util.UUID
 
-class MovementSpecRepoLive extends Repo[MovementSpec, MovementSpec, UUID] with MovementSpecRepo:
+class MovementSpecRepoLive(clock: ClockService) extends AuditedRepo[MovementSpec, UUID](clock) with MovementSpecRepo:
   val ms = MovementSpec.Table
 
   def findByFundFlowId(fundFlowId: ID): Txn[Vector[MovementSpec]] =

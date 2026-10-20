@@ -12,7 +12,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
   private val app = TestAppContainer()
 
   test("insertWithIdempotency"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     transact(app.transactor):
       rollBackOnly:
         val data        = DataSetup(app)
@@ -32,7 +32,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.properties.props, props)
 
   test("insertAllWithIdempotency"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     transact(app.transactor):
       rollBackOnly:
         val data        = DataSetup(app)
@@ -59,7 +59,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(found.properties.props, props)
 
   test("findUnreconciledByAccount"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     val reconRepo    = app.reconRepo
 
     transact(app.transactor):
@@ -94,7 +94,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(movementRepo.countUnreconciledByAccount(data.reconAccount.id), 1)
 
   test("findUnreconciledByMovementSpecID"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     val reconRepo    = app.reconRepo
 
     transact(app.transactor):
@@ -129,7 +129,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(foundInMovements.size, 0)
 
   //  test("generateLotsOfData"):
-//    val movementRepo = MovementRepoLive()
+//    val movementRepo = MovementRepoLive(app.clock)
 //    val reconRepo    = app.reconRepo
 //
 //    var mSpecID1 = ""
@@ -166,7 +166,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 //    print(mSpecID1)
 
   test("findMatches".ignore): // ignored because relies on old sql matching
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     val reconRepo    = app.reconRepo
 
     transact(app.transactor):
@@ -216,7 +216,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(outReconMovement.id.toString, outMovementIdWithAnd)
 
   test("findUnreconciledByAttribute"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     val reconRepo    = app.reconRepo
 
     transact(app.transactor):
@@ -239,7 +239,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(foundMovement.head.id, outReconMovement.id)
 
   test("findByAccount returns all movements for an account"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
 
     transact(app.transactor):
       rollBackOnly:
@@ -278,7 +278,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(reportMovements.size, 2)
 
   test("findByAccount returns empty for account with no movements"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
 
     transact(app.transactor):
       rollBackOnly:
@@ -287,7 +287,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(movements.size, 0)
 
   test("findUnreconciledPage orders by the match key expression and pages via afterKey"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
@@ -323,7 +323,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(secondPage.map(_.properties.props("id")), Vector("30"))
 
   test("setReconciliationIds bulk-links each movement to its own reconciliation in one statement"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
@@ -372,7 +372,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(movementRepo.findById(m2.id).get.properties.props("id"), "2")
 
   test("setReconciliationIds refuses to re-link a movement that is already reconciled"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     transact(app.transactor):
       rollBackOnly:
         val data = DataSetup(app)
@@ -408,7 +408,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         assertEquals(movementRepo.findById(m1.id).get.reconciliationId, Some(original.id))
 
   test("setReconciliationIds does nothing for an empty input"):
-    val movementRepo = MovementRepoLive()
+    val movementRepo = MovementRepoLive(app.clock)
     transact(app.transactor):
       rollBackOnly:
         movementRepo.setReconciliationIds(Seq.empty)

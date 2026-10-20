@@ -20,7 +20,7 @@ case class MovementSpec(
   routingFilterJson: Option[String]         = None,
   var createdAt:     Option[OffsetDateTime] = None,
   var updatedAt:     Option[OffsetDateTime] = None
-) derives DbCodec:
+) extends Audited derives DbCodec:
   def routingFilter(): Option[RoutingFilter] = routingFilterJson.map(upickle.read[RoutingFilter](_))
 
 object MovementSpec:

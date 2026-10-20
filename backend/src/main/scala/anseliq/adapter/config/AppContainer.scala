@@ -35,15 +35,15 @@ trait AppContainer:
       password = config.getString("s3.password")
     )
 
-  lazy val jobRepo:             JobRepo                = JobRepoLive()
+  lazy val jobRepo:             JobRepo                = JobRepoLive(clock)
   lazy val jobManager:          JobManager             = JobManager(jobRepo, clock, dataSource)
-  lazy val fundFlowConfigRepo:  FundFlowConfigRepo     = FundFlowConfigRepoLive()
-  lazy val reconRepo:           ReconciliationRepo     = ReconciliationRepoLive()
-  lazy val movementSpecRepo:    MovementSpecRepo       = MovementSpecRepoLive()
-  lazy val fileFeedRepo:        FileFeedRepo           = FileFeedRepoLive()
-  lazy val reconSpecRepo:       ReconciliationSpecRepo = ReconciliationSpecRepoLive()
-  lazy val accountRepo:         AccountRepo            = AccountRepoLive()
-  lazy val movementRepo:        MovementRepo           = MovementRepoLive()
+  lazy val fundFlowConfigRepo:  FundFlowConfigRepo     = FundFlowConfigRepoLive(clock)
+  lazy val reconRepo:           ReconciliationRepo     = ReconciliationRepoLive(clock)
+  lazy val movementSpecRepo:    MovementSpecRepo       = MovementSpecRepoLive(clock)
+  lazy val fileFeedRepo:        FileFeedRepo           = FileFeedRepoLive(clock)
+  lazy val reconSpecRepo:       ReconciliationSpecRepo = ReconciliationSpecRepoLive(clock)
+  lazy val accountRepo:         AccountRepo            = AccountRepoLive(clock)
+  lazy val movementRepo:        MovementRepo           = MovementRepoLive(clock)
   lazy val eventRepo:           EventRepo              = EventRepoLive()
   lazy val fundFlowService:     FundFlowService        = FundFlowService(fundFlowConfigRepo)
   lazy val accountService:      AccountService         = AccountService(accountRepo, movementRepo)
@@ -61,7 +61,7 @@ trait AppContainer:
     )
   lazy val disputeRepo:        DisputeRepo        = DisputeRepoLive()
   lazy val disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
-  lazy val userRepo:           UserRepo           = UserRepoLive()
+  lazy val userRepo:           UserRepo           = UserRepoLive(clock)
   lazy val disputeService: DisputeService = DisputeService(
     disputeRepo      = disputeRepo,
     commentRepo      = disputeCommentRepo,
@@ -104,7 +104,7 @@ trait AppContainer:
     clock          = clock,
     transactor     = transactor
   )
-  lazy val dailySnapshotRepo: DailySnapshotRepo = DailySnapshotRepoLive()
+  lazy val dailySnapshotRepo: DailySnapshotRepo = DailySnapshotRepoLive(clock)
   lazy val reportingService: ReportingService = ReportingService(
     accountRepo        = accountRepo,
     disputeRepo        = disputeRepo,

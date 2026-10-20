@@ -31,7 +31,7 @@ case class Job(
   runAt:         Option[OffsetDateTime] = None,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
-) derives DbCodec:
+) extends Audited derives DbCodec:
 
   def jobInfo(): JobInfo = upickle.read(jobInfoJson)
 

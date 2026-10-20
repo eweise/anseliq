@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model.DailySnapshot
 import anseliq.domain.port.driven.{DailySnapshotRepo, Txn}
@@ -8,13 +9,13 @@ import com.augustnagro.magnum.{DbCon, Repo, sql}
 import java.time.LocalDate
 import java.util.UUID
 
-class DailySnapshotRepoLive extends Repo[DailySnapshot, DailySnapshot, UUID] with DailySnapshotRepo:
+class DailySnapshotRepoLive(clock: ClockService) extends AuditedRepo[DailySnapshot, UUID](clock) with DailySnapshotRepo:
   val d = DailySnapshot.Table
 
   def upsert(snapshot: DailySnapshot): Txn[Unit] =
     sql"""
       INSERT INTO $d ${d.insertColumns}
-      VALUES ($snapshot)
+      VALUES (${stampCreated(snapshot)})
       ON CONFLICT (fund_flow_id, snapshot_date) DO UPDATE SET
         match_rates_json               = EXCLUDED.match_rates_json,
         avg_balance_coverage_percent   = EXCLUDED.avg_balance_coverage_percent,
@@ -30,7 +31,7 @@ class DailySnapshotRepoLive extends Repo[DailySnapshot, DailySnapshot, UUID] wit
         avg_match_rate_percent         = EXCLUDED.avg_match_rate_percent,
         reconciled_movement_count      = EXCLUDED.reconciled_movement_count,
         total_movement_count           = EXCLUDED.total_movement_count,
-        updated_at                     = now()
+        updated_at                     = EXCLUDED.updated_at
     """.update.run()
 
   def findTrend(fundFlowId: ID, from: LocalDate, to: LocalDate): Txn[Vector[DailySnapshot]] =

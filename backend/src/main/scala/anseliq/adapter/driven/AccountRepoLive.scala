@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.Account
@@ -8,7 +9,7 @@ import com.augustnagro.magnum.{DbCon, Repo, sql}
 
 import java.util.UUID
 
-class AccountRepoLive extends Repo[Account, Account, UUID] with AccountRepo:
+class AccountRepoLive(clock: ClockService) extends AuditedRepo[Account, UUID](clock) with AccountRepo:
   val a = Account.Table
 
   def findByIdForUpdate(id: ID): Txn[Option[Account]] =

@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model.{Job, JobStatus, JobType}
 import anseliq.domain.port.driven.{JobRepo, Txn}
@@ -8,7 +9,7 @@ import com.augustnagro.magnum.{Repo, sql}
 import java.time.OffsetDateTime
 import java.util.UUID
 
-class JobRepoLive extends Repo[Job, Job, UUID] with JobRepo:
+class JobRepoLive(clock: ClockService) extends AuditedRepo[Job, UUID](clock) with JobRepo:
   val j = Job.Table
 
   override def findByJobTypeAndReferenceId(jobtype: JobType, referenceID: ID): Txn[Vector[Job]] =

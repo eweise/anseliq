@@ -8,6 +8,7 @@ import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
 
 import java.io.InputStream
+import java.time.OffsetDateTime
 import java.util.UUID
 
 class IngestorSuite extends munit.FunSuite:
@@ -18,19 +19,22 @@ class IngestorSuite extends munit.FunSuite:
     def listFiles(): Vector[FileSourceEntry] = entries
     override def getFile(entry: FileSourceEntry): InputStream = ???
 
-  private def createExistingFileInventory(fileFeedID: UUID) =
+  // A listed file counts as already in the inventory only if its entry, lastModifiedAt included, is
+  // equal — so a test matching a listing against this entry passes both the same lastModifiedAt
+  // rather than calling clock.now twice (it moves between calls).
+  private def createExistingFileInventory(fileFeedID: UUID, lastModifiedAt: OffsetDateTime = app.clock.now) =
     val s3Entry = S3FileSourceEntry(
       bucket         = "bucket",
       key            = "existing",
       fileSizeBytes  = 512L,
-      lastModifiedAt = app.clock.now
+      lastModifiedAt = lastModifiedAt
     )
     FileInventory(
       sourceSystem        = "S3",
       fileFeedId          = fileFeedID,
       fileSourceEntryJson = upickle.write(s3Entry),
       fileSizeBytes       = 512L,
-      lastModifiedAt      = app.clock.now,
+      lastModifiedAt      = lastModifiedAt,
       status              = FileInventoryStatus.QUEUED,
       lastProcessedAt     = None,
       updatedAt           = None
@@ -53,10 +57,11 @@ class IngestorSuite extends munit.FunSuite:
       rollBackOnly:
         val fileFeedID = UUID.randomUUID()
         val ingestor   = app.ingestor
-        val existing   = createExistingFileInventory(fileFeedID)
+        val fileTime   = app.clock.now
+        val existing   = createExistingFileInventory(fileFeedID, fileTime)
         app.fileInventoryRepo.insert(existing)
         val entries = Vector(
-          S3FileSourceEntry(bucket = "bucket", key = "existing", 512L, app.clock.now),
+          S3FileSourceEntry(bucket = "bucket", key = "existing", 512L, fileTime),
           S3FileSourceEntry(bucket = "bucket", key = "new", 1024L, app.clock.now)
         )
         val result = ingestor.detectAndQueue(fileFeedID, stubSource(entries))
@@ -69,10 +74,11 @@ class IngestorSuite extends munit.FunSuite:
       rollBackOnly:
         val fileFeedID = UUID.randomUUID()
         val ingestor   = app.ingestor
-        app.fileInventoryRepo.insert(createExistingFileInventory(fileFeedID))
+        val fileTime   = app.clock.now
+        app.fileInventoryRepo.insert(createExistingFileInventory(fileFeedID, fileTime))
         val result = ingestor.detectAndQueue(
           fileFeedID,
-          stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, app.clock.now)))
+          stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, fileTime)))
         )
         assert(result.isEmpty)
 
@@ -221,7 +227,7 @@ class IngestorSuite extends munit.FunSuite:
         val persisted = app.fileFeedRepo.findById(feed.id).get
         assert(
           persisted.createdAt.isDefined,
-          "createdAt should be populated by the update_file_feed trigger on insert"
+          "createdAt should be stamped by the repo on insert"
         )
 
         app.clock.addHours(25)

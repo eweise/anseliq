@@ -31,7 +31,7 @@ case class DailySnapshot(
   avgMatchRatePercent:     Option[BigDecimal] = None,
   reconciledMovementCount: Int                = 0,
   totalMovementCount:      Int                = 0
-) derives DbCodec
+) extends Audited derives DbCodec
 
 object DailySnapshot:
   val Table = TableInfo[DailySnapshot, DailySnapshot, UUID]

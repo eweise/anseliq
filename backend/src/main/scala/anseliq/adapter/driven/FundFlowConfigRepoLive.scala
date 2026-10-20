@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.FundFlowConfig
@@ -8,7 +9,7 @@ import com.augustnagro.magnum.{DbCon, Repo, sql}
 
 import java.util.UUID
 
-class FundFlowConfigRepoLive extends Repo[FundFlowConfig, FundFlowConfig, UUID] with FundFlowConfigRepo:
+class FundFlowConfigRepoLive(clock: ClockService) extends AuditedRepo[FundFlowConfig, UUID](clock) with FundFlowConfigRepo:
   private val f = FundFlowConfig.Table
 
   override def findByName(name: String): Txn[Option[FundFlowConfig]] =

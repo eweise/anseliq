@@ -1,5 +1,6 @@
 package anseliq.adapter.driven
 
+import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.{Reconciliation, ReconciliationStatus}
@@ -12,7 +13,7 @@ import anseliq.domain.port.driven.{ReconciliationRepo, StatusTotals, Txn}
 
 import java.util.UUID
 
-class ReconciliationRepoLive extends Repo[Reconciliation, Reconciliation, UUID] with ReconciliationRepo:
+class ReconciliationRepoLive(clock: ClockService) extends AuditedRepo[Reconciliation, UUID](clock) with ReconciliationRepo:
   val r = Reconciliation.Table
 
   def findByReconSpecID(reconSpecID: ID): Txn[Vector[Reconciliation]] =

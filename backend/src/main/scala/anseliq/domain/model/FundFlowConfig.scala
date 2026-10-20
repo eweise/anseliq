@@ -16,7 +16,7 @@ case class FundFlowConfig(
   // Must stay last: ALTER TABLE appends new columns physically, and Magnum maps DbCodec fields
   // positionally, so this has to match the live table's actual column order.
   dailyCutoffHours: Int = 0
-) derives DbCodec
+) extends Audited derives DbCodec
 
 object FundFlowConfig:
   val Table: TableInfo[FundFlowConfig, FundFlowConfig, UUID] = TableInfo[FundFlowConfig, FundFlowConfig, UUID]

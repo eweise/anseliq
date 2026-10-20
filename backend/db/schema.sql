@@ -6,20 +6,6 @@ create database recon_db;
 
 create schema if not exists recon;
 
-CREATE FUNCTION update_audit_fields_task()
-    RETURNS TRIGGER AS
-$$
-BEGIN
-    IF NEW.created_at IS NULL THEN
-        NEW.created_at = now();
-    END IF;
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-
-
 -- Named app_user, not user: "user" is a reserved word in Postgres (collides with the CURRENT_USER
 -- function), which would force every raw-SQL reference to be quoted. role is a fixed, global enum
 -- (UserRole: Admin/Analyst/Viewer) persisted as plain text, matching this schema's existing
@@ -41,12 +27,6 @@ create table recon.app_user
     created_at    timestamptz default CURRENT_TIMESTAMP not null,
     updated_at    timestamptz default CURRENT_TIMESTAMP not null
 );
-
-CREATE TRIGGER update_app_user
-    BEFORE INSERT OR UPDATE
-    ON recon.app_user
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
 
 -- Seed one default Admin so the app is usable right after `make create-db`. Password is
 -- "changeme123" (bcrypt, cost 12) — rotate it immediately via the Users & Roles admin page.
@@ -281,62 +261,6 @@ CREATE UNIQUE INDEX job_in_progress_unique ON recon.job (job_type, reference_id)
 
 CREATE INDEX job_job_status_create_at_fk ON recon.job (job_status, created_at);
 
-CREATE TRIGGER update_fund_flow_config
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.fund_flow_config
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
-CREATE TRIGGER update_account
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.account
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
-CREATE TRIGGER update_file_feed
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.file_feed
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
-CREATE TRIGGER update_movement_spec
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.movement_spec
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
-CREATE TRIGGER update_movement
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.movement
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
-CREATE TRIGGER update_reconciliation
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.reconciliation
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
-CREATE TRIGGER update_reconciliation_spec
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.reconciliation_spec
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
-CREATE TRIGGER update_job
-    BEFORE INSERT OR UPDATE
-    ON
-        recon.job
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
-
 -- An append-only record of what happened, for the activity feed. Not a work queue: background work
 -- is coordinated through recon.job.
 create table recon.event_state
@@ -381,12 +305,6 @@ ALTER TABLE recon.daily_snapshot
     ADD COLUMN avg_match_rate_percent    numeric(5, 2),
     ADD COLUMN reconciled_movement_count int not null default 0,
     ADD COLUMN total_movement_count      int not null default 0;
-
-CREATE TRIGGER update_daily_snapshot
-    BEFORE INSERT OR UPDATE
-    ON recon.daily_snapshot
-    FOR EACH ROW
-EXECUTE PROCEDURE update_audit_fields_task();
 
 -- At most one open (non-resolved) dispute per (reference_id, category) pair, so auto-raising a
 -- dispute on every reconciliation run is idempotent via ON CONFLICT ... DO NOTHING rather than a

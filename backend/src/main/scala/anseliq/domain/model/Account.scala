@@ -23,7 +23,7 @@ case class Account(
   var unreconciledBalance: Money                  = 0,
   var createdAt:           Option[OffsetDateTime] = None,
   var updatedAt:           Option[OffsetDateTime] = None
-) derives DbCodec
+) extends Audited derives DbCodec
 
 object Account:
   val Table = TableInfo[Account, Account, UUID]
