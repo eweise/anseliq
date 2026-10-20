@@ -2,7 +2,7 @@ package anseliq.domain.service
 
 import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
-import anseliq.domain.model.{MatchSuggestionStatus, createID}
+import anseliq.domain.model.{MatchSuggestionStatus, UserRole, createID}
 import anseliq.domain.port.driven.{MatchCandidate, MatchRequest, MatchSuggester, ProposedMatch, Txn}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
@@ -99,6 +99,9 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
         assertEquals(service.record(spec, request, proposal), None, why)
       assertEquals(app.matchSuggestionRepo.findPendingByReconSpecId(spec.id), Vector.empty)
 
+  private def newReviewer(app: TestAppContainer): Txn[ID] =
+    app.userService.createUser(s"reviewer-${createID()}@example.com", "Rita", "Reviewer", UserRole.Analyst, "a-real-password").id
+
   // Two movements on the in side, both offered the same out-side movement, each with a pending suggestion.
   private def twoSuggestionsForOneMovement(
     app:     TestAppContainer,
@@ -114,20 +117,24 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
   test("accept reconciles the suggested movements and marks the suggestion Accepted"):
     withService: (app, data, service) =>
       val suggestion = twoSuggestionsForOneMovement(app, data, service).head
-      val recon      = service.accept(suggestion.id)
+      val reviewer   = newReviewer(app)
+      val recon      = service.accept(suggestion.id, reviewer)
 
       assertEquals(recon.status, anseliq.domain.model.ReconciliationStatus.Final)
       val matched = (suggestion.movementId +: suggestion.suggestedMovementIds).flatMap(app.movementRepo.findById)
       assert(matched.forall(_.reconciliationId.contains(recon.id)), "both movements are in the new reconciliation")
-      assertEquals(app.matchSuggestionRepo.findById(suggestion.id).get.status, MatchSuggestionStatus.Accepted)
-      intercept[anseliq.domain.model.IllegalStateError](service.accept(suggestion.id))
+      val accepted = app.matchSuggestionRepo.findById(suggestion.id).get
+      assertEquals((accepted.status, accepted.reviewedByUserId), (MatchSuggestionStatus.Accepted, Some(reviewer)))
+      intercept[anseliq.domain.model.IllegalStateError](service.accept(suggestion.id, reviewer))
 
   test("reject marks the suggestion Rejected and reconciles nothing"):
     withService: (app, data, service) =>
       val suggestion = twoSuggestionsForOneMovement(app, data, service).head
-      service.reject(suggestion.id)
+      val reviewer   = newReviewer(app)
+      service.reject(suggestion.id, reviewer)
 
-      assertEquals(app.matchSuggestionRepo.findById(suggestion.id).get.status, MatchSuggestionStatus.Rejected)
+      val rejected = app.matchSuggestionRepo.findById(suggestion.id).get
+      assertEquals((rejected.status, rejected.reviewedByUserId), (MatchSuggestionStatus.Rejected, Some(reviewer)))
       assert(app.movementRepo.findById(suggestion.movementId).get.reconciliationId.isEmpty)
       assertEquals(service.pendingForSpec(data.reconSpec.id).map(_.id).toSet.contains(suggestion.id), false)
 
@@ -136,5 +143,5 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
       val suggestions = twoSuggestionsForOneMovement(app, data, service)
       assertEquals(service.pendingForSpec(data.reconSpec.id).size, 2)
 
-      service.accept(suggestions.head.id)
+      service.accept(suggestions.head.id, newReviewer(app))
       assertEquals(service.pendingForSpec(data.reconSpec.id), Vector.empty, "the other one's out-side movement is now reconciled")

@@ -20,7 +20,8 @@ import java.time.temporal.ChronoUnit
  * against them again before it's stored.
  *
  * A person then reviews each pending suggestion: accepting it matches the movements through
- * ManualReconciler, exactly as a manual match would; rejecting it just records that.
+ * ManualReconciler, exactly as a manual match would; rejecting it just records that. Either way the
+ * reviewer is recorded on the suggestion.
  */
 class MatchSuggestionService(
   reconSpecRepo:       ReconciliationSpecRepo,
@@ -128,7 +129,7 @@ class MatchSuggestionService(
     pending.filter(s => (s.movementId +: s.suggestedMovementIds).forall(unreconciled.contains))
 
   /** Matches the suggestion's movements as a manual match would, and marks it Accepted. */
-  def accept(suggestionId: ID): Txn[Reconciliation] =
+  def accept(suggestionId: ID, reviewedByUserId: ID): Txn[Reconciliation] =
     val suggestion = findPending(suggestionId)
     val reconciliation = manualReconciler.matchMovements(
       reconSpecId    = suggestion.reconSpecId,
@@ -137,12 +138,14 @@ class MatchSuggestionService(
       description    = s"Suggested by ${suggestion.model}: ${suggestion.rationale}"
     )
     suggestion.status = MatchSuggestionStatus.Accepted
+    suggestion.reviewedByUserId = Some(reviewedByUserId)
     matchSuggestionRepo.update(suggestion)
     reconciliation
 
-  def reject(suggestionId: ID): Txn[Unit] =
+  def reject(suggestionId: ID, reviewedByUserId: ID): Txn[Unit] =
     val suggestion = findPending(suggestionId)
     suggestion.status = MatchSuggestionStatus.Rejected
+    suggestion.reviewedByUserId = Some(reviewedByUserId)
     matchSuggestionRepo.update(suggestion)
 
   private def findPending(suggestionId: ID): Txn[MatchSuggestion] =

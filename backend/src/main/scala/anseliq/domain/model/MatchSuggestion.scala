@@ -23,6 +23,8 @@ case class MatchSuggestion(
   model:                    String,
   promptVersion:            String,
   var status:               MatchSuggestionStatus  = MatchSuggestionStatus.Pending,
+  // Who accepted or rejected it; None while pending.
+  var reviewedByUserId:     Option[ID]             = None,
   var createdAt:            Option[OffsetDateTime] = None,
   var updatedAt:            Option[OffsetDateTime] = None
 ) extends Audited derives DbCodec:

@@ -1,6 +1,7 @@
 package anseliq.adapter.driving
 
 import anseliq.common.http.HttpPath
+import anseliq.common.util.JwtHelper
 import anseliq.domain.service.MatchSuggestionService
 import com.augustnagro.magnum.*
 import upickle.default.*
@@ -19,14 +20,15 @@ class MatchSuggestionRoutes(
       write(matchSuggestionService.pendingForSpec(UUID.fromString(id)).map(PayloadMapper.matchSuggestionFromDomain))
 
   @cask.route(s"${HttpPath.matchSuggestion}/:id/accept", methods = HttpCmd.POST)
-  def acceptSuggestion(id: String): String =
+  def acceptSuggestion(id: String)(currentUser: JwtHelper.UserClaim): String =
     transact(transactor):
-      write(PayloadMapper.reconFromDomain(matchSuggestionService.accept(UUID.fromString(id))))
+      val recon = matchSuggestionService.accept(UUID.fromString(id), UUID.fromString(currentUser.userId))
+      write(PayloadMapper.reconFromDomain(recon))
 
   @cask.route(s"${HttpPath.matchSuggestion}/:id/reject", methods = HttpCmd.POST)
-  def rejectSuggestion(id: String): String =
+  def rejectSuggestion(id: String)(currentUser: JwtHelper.UserClaim): String =
     transact(transactor):
-      matchSuggestionService.reject(UUID.fromString(id))
+      matchSuggestionService.reject(UUID.fromString(id), UUID.fromString(currentUser.userId))
       write("rejected")
 
   initialize()

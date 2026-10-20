@@ -340,6 +340,8 @@ create table recon.match_suggestion
     model                       text           not null,
     prompt_version              text           not null,
     status                      text           not null default 'pending',
+    -- Who accepted or rejected it: null while pending, or once that user is deleted.
+    reviewed_by_user_id         uuid           REFERENCES recon.app_user (id) ON DELETE SET NULL,
     created_at                  timestamptz default CURRENT_TIMESTAMP not null,
     updated_at                  timestamptz default CURRENT_TIMESTAMP not null
 );

@@ -101,9 +101,16 @@ class HappyPathScenarioSuite extends munit.FunSuite:
         val proposed    = suggestions.map(sg => reference(sg.movementId) -> sg.suggestedMovementIds.map(reference)).toSet
         assertEquals(proposed, FuzzyPairs.map((j, b, _) => j -> Seq(b)).toSet)
 
+        // This block commits, so the reviewer is deleted again at the end of it; a failure rolls it back.
+        val reviewer = app.userService.createUser(s"happy-path-${s.runId}@example.com", "Rita", "Reviewer", UserRole.Analyst, "a-real-password")
         val (invoice, purchaseOrder) = suggestions.partition(sg => reference(sg.movementId) == FuzzyPairs.head._1)
-        assertEquals(app.matchSuggestionService.accept(invoice.head.id).status, ReconciliationStatus.Final)
-        app.matchSuggestionService.reject(purchaseOrder.head.id)
+        assertEquals(app.matchSuggestionService.accept(invoice.head.id, reviewer.id).status, ReconciliationStatus.Final)
+        app.matchSuggestionService.reject(purchaseOrder.head.id, reviewer.id)
         assertEquals(app.matchSuggestionService.pendingForSpec(s.reconSpec.id), Vector.empty)
+        assertEquals(
+          app.matchSuggestionRepo.findAll.filter(_.reconSpecId == s.reconSpec.id).map(_.reviewedByUserId).toSet,
+          Set[Option[ID]](Some(reviewer.id))
+        )
         assertEquals(app.reconRepo.findByReconSpecID(s.reconSpec.id).size, expectedByDay.last.reconciliations + 1)
+        app.userRepo.deleteById(reviewer.id)
     finally scenario.teardown(s)
