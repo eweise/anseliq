@@ -25,6 +25,18 @@ object PayloadMapper:
       updatedAt    = job.updatedAt
     )
 
+  def matchSuggestionFromDomain(s: MatchSuggestion): MatchSuggestionPayload =
+    MatchSuggestionPayload(
+      id                   = s.id.toString,
+      reconSpecId          = s.reconSpecId.toString,
+      movementId           = s.movementId.toString,
+      suggestedMovementIds = s.suggestedMovementIds.map(_.toString),
+      confidence           = s.confidence,
+      rationale            = s.rationale,
+      model                = s.model,
+      createdAt            = s.createdAt
+    )
+
   def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
     FundFlowConfig(
       name             = payload.name,

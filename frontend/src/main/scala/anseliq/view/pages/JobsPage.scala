@@ -3,7 +3,7 @@ package anseliq.view.pages
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
 import anseliq.common.model.*
-import anseliq.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Reconciliation}
+import anseliq.common.model.JobTypeInfo.{CreateFileInventory, Ingestion, Reconciliation, SuggestMatches}
 import anseliq.http.ApiClient
 import anseliq.state.AppState.apiBind
 import anseliq.state.SessionStore
@@ -146,6 +146,7 @@ object JobsPage:
       case Reconciliation      => Seq("Account Name", "Record Count", "Processing Time (seconds)")
       case Ingestion           => Seq("Records Ingested", "Processing Time (Seconds)")
       case CreateFileInventory => Seq("Files Queued")
+      case SuggestMatches      => Seq("Movements Considered", "Suggestions Created")
     val headers = Seq("Status", "Started", "Error") ++ extraHeaders
     val rows = jobs.map { job =>
       Seq(
@@ -185,6 +186,13 @@ object JobsPage:
           Seq(span(ii.filesQueued.toString))
         }
         .getOrElse(Seq(span("-")))
+    case SuggestMatches =>
+      job.jobInfoJson
+        .flatMap(parseJobInfo)
+        .collect { case ms: MatchSuggestionInfo =>
+          Seq(span(ms.movementsConsidered.toString), span(ms.suggestionsCreated.toString))
+        }
+        .getOrElse(Seq.fill(2)(span("-")))
 
   private def retryFields(job: JobInfoPayload): Seq[(String, String)] =
     if RunStatus.of(job) == RunStatus.Retrying then
@@ -197,6 +205,8 @@ object JobsPage:
     case Some(ii: IngestionInfo)     => Seq("Records ingested" -> ii.numberOfRecordsIngested.toString)
     case Some(fi: FileInventoryInfo) => Seq("Files queued" -> fi.filesQueued.toString)
     case Some(rs: ReconStatsInfo)    => Seq("Fund flows snapshotted" -> rs.fundFlowsSnapshotted.toString)
+    case Some(ms: MatchSuggestionInfo) =>
+      Seq("Movements considered" -> ms.movementsConsidered.toString, "Suggestions created" -> ms.suggestionsCreated.toString)
     case None                        => Seq.empty
 
   // A Submitted job with an error message is one whose last attempt failed and that is waiting out

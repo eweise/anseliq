@@ -18,7 +18,9 @@ class ReconciliationRunner(
   movementSpecRepo: MovementSpecRepo,
   jobManager:       JobManager,
   reconciler:       InMemoryReconciler,
-  transactor:       Transactor
+  transactor:       Transactor,
+  // Whether a reconciliation queues a SuggestMatches job for what it left unmatched.
+  suggestMatches: Boolean = false
 ) extends StrictLogging:
 
   /**
@@ -57,7 +59,7 @@ class ReconciliationRunner(
 
   /**
    * Reconciles the account under an existing, claimed job, returning the result to complete it
-   * with.
+   * with, then queues secondary matching of whatever it left unmatched if that's turned on.
    */
   def runJob(accountId: ID, jobId: ID): ReconciliationInfo =
     val account = transact(transactor):
@@ -65,6 +67,7 @@ class ReconciliationRunner(
 
     logger.debug("found account", kv("account_id", account.id))
     val result = reconciler.reconcileAccountResumable(account.id, jobId = Some(jobId))
+    if suggestMatches then transact(transactor)(jobManager.submitJob(JobType.SuggestMatches, account.id))
 
     ReconciliationInfo(
       accountId                   = account.id.toString,

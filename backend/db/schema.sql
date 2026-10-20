@@ -323,3 +323,28 @@ CREATE UNIQUE INDEX dispute_reference_id_category_open_unique
 ALTER TABLE recon.dispute
     ADD COLUMN raised_by_user_id   uuid REFERENCES recon.app_user (id) ON DELETE SET NULL,
     ADD COLUMN assigned_to_user_id uuid REFERENCES recon.app_user (id) ON DELETE SET NULL;
+
+-- A secondary matcher's proposal (see MatchSuggester) for an unreconciled movement the recon spec's
+-- rule couldn't match. Never a reconciliation itself: a person accepts or rejects it, and accepting
+-- goes through ManualReconciler like any manual match. suggested_movement_ids_json is the movement
+-- ids proposed to reconcile with movement_id, a JSON array.
+create table recon.match_suggestion
+(
+    id                          uuid primary key,
+    recon_spec_id               uuid           not null REFERENCES recon.reconciliation_spec (id) ON DELETE CASCADE,
+    movement_id                 uuid           not null REFERENCES recon.movement (id) ON DELETE CASCADE,
+    suggested_movement_ids_json text           not null,
+    confidence                  numeric(4, 3)  not null,
+    rationale                   text           not null,
+    -- Which model and prompt produced it, so a suggestion can be traced after either changes.
+    model                       text           not null,
+    prompt_version              text           not null,
+    status                      text           not null default 'pending',
+    created_at                  timestamptz default CURRENT_TIMESTAMP not null,
+    updated_at                  timestamptz default CURRENT_TIMESTAMP not null
+);
+
+-- At most one pending suggestion per movement, so rerunning the matcher doesn't stack them.
+CREATE UNIQUE INDEX match_suggestion_pending_unique ON recon.match_suggestion (movement_id)
+    WHERE status = 'pending';
+CREATE INDEX match_suggestion_recon_spec_status ON recon.match_suggestion (recon_spec_id, status);

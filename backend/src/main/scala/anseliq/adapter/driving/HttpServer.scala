@@ -61,6 +61,10 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
       reconciliationRunner = app.reconciliationRunner,
       manualReconciler     = app.manualReconciler
     ),
+    MatchSuggestionRoutes(
+      transactor             = transactor,
+      matchSuggestionService = app.matchSuggestionService
+    ),
     MovementRoutes(
       transactor       = transactor,
       views            = views,

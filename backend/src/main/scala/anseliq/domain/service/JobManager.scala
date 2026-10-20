@@ -147,6 +147,10 @@ class JobManager(
             if !jobInfo.isInstanceOf[ReconStatsInfo] then
               throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
 
+          case JobType.SuggestMatches =>
+            if !jobInfo.isInstanceOf[MatchSuggestionInfo] then
+              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
+
         jobRepo.update(
           job.copy(
             jobStatus   = Complete,

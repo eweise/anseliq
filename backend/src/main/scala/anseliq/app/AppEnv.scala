@@ -22,6 +22,7 @@ import scala.concurrent.duration.DurationInt
  * and a job that leads to more work queues that work as jobs itself:
  *
  * timer ─▶ CreateFileInventory ─▶ Ingestion (per new file) ─▶ Reconciliation (per Recon account)
+ *                                                               ─▶ SuggestMatches (if enabled)
  * timer ─▶ GenerateReconStats
  *
  * Events are only a record of what happened (the activity feed); nothing consumes them.
@@ -54,6 +55,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
         )
       )
       fork(app.jobManager.runWorker(JobType.GenerateReconStats, 3)(_ => generateReconStats()))
+      fork(app.jobManager.runWorker(JobType.SuggestMatches, 3)(job => app.matchSuggestionService.suggestForAccount(job.referenceId)))
 
       HttpServer(app).main(args)
       shutdownLatch.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled

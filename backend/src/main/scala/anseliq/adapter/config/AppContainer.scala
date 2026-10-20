@@ -92,7 +92,21 @@ trait AppContainer:
     movementSpecRepo = movementSpecRepo,
     jobManager       = jobManager,
     reconciler       = reconciler,
-    transactor       = transactor
+    transactor       = transactor,
+    suggestMatches   = config.getBoolean("match-suggestions.enabled")
+  )
+  lazy val matchSuggestionRepo: MatchSuggestionRepo = MatchSuggestionRepoLive(clock)
+  // Swap for a local-model adapter; see MatchSuggester for why it must not call out.
+  lazy val matchSuggester: MatchSuggester = DisabledMatchSuggester()
+  lazy val matchSuggestionService: MatchSuggestionService = MatchSuggestionService(
+    reconSpecRepo       = reconSpecRepo,
+    movementRepo        = movementRepo,
+    matchSuggestionRepo = matchSuggestionRepo,
+    suggester           = matchSuggester,
+    manualReconciler    = manualReconciler,
+    transactor          = transactor,
+    candidateWindowDays = config.getInt("match-suggestions.candidate-window-days"),
+    maxCandidates       = config.getInt("match-suggestions.max-candidates")
   )
   lazy val manualReconciler: ManualReconciler = ManualReconciler(
     ledger         = ledger,

@@ -27,3 +27,10 @@ case class ReconStatsInfo(
   fundFlowsSnapshotted:  Int,
   processingTimeSeconds: Long
 ) extends JobInfo
+
+case class MatchSuggestionInfo(
+  accountId:             String,
+  movementsConsidered:   Int,
+  suggestionsCreated:    Int,
+  processingTimeSeconds: Long
+) extends JobInfo

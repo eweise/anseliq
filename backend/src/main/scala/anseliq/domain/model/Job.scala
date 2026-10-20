@@ -11,7 +11,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum JobType derives DbCodec:
-  case Ingestion, Reconciliation, GenerateReconStats, CreateFileInventory
+  case Ingestion, Reconciliation, GenerateReconStats, CreateFileInventory, SuggestMatches
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum JobStatus derives DbCodec:

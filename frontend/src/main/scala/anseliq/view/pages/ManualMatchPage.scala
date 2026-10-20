@@ -5,6 +5,7 @@ import anseliq.common.http.HttpPath
 import anseliq.common.model.{
   AccountPayload,
   ManualMatchRequest,
+  MatchSuggestionPayload,
   MovementPayload,
   MovementSpecPayload,
   ReconRelationship,
@@ -27,6 +28,7 @@ object ManualMatchPage:
     selectedIn:         Set[String]          = Set.empty,
     selectedOut:        Set[String]          = Set.empty,
     expandedProperties: Set[String]          = Set.empty,
+    suggestions:        Seq[MatchSuggestionPayload] = Seq.empty,
     description:        String               = "Manual match",
     message:            Option[String]       = None
   )
@@ -37,6 +39,8 @@ object ManualMatchPage:
     val loadBus      = EventBus[Unit]()
     val movementsBus = EventBus[ReconciliationSpecPayload]()
     val matchBus     = EventBus[Unit]()
+    val acceptBus    = EventBus[String]()
+    val rejectBus    = EventBus[String]()
     // The ledger's accounts and movement specs, only to name each side after its account.
     val accounts      = Var(Seq.empty[AccountPayload])
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
@@ -80,6 +84,29 @@ object ManualMatchPage:
         case (Left(e), _) => AppState.globalError.set(Some(e))
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
+      // Pending suggestions are reloaded with the movements, so they stay in step after any match.
+      movementsBus.events
+        .flatMapSwitch(s =>
+          ApiClient.get[Seq[MatchSuggestionPayload]](
+            HttpPath.url(s"${HttpPath.reconSpec}/${s.id.getOrElse("")}/match-suggestions"),
+            SessionStore.token
+          )
+        )
+        .apiBind(suggestions => state.update(_.copy(suggestions = suggestions))),
+      acceptBus.events
+        .flatMapSwitch(id =>
+          ApiClient.postEmpty[ReconciliationPayload](HttpPath.url(s"${HttpPath.matchSuggestion}/$id/accept"), SessionStore.token)
+        )
+        .apiBind { recon =>
+          state.update(_.copy(message = Some(s"Suggestion accepted: match saved as ${recon.status}")))
+          movementsBus.emit(spec.now())
+        },
+      rejectBus.events
+        .flatMapSwitch(id => ApiClient.postRaw(HttpPath.url(s"${HttpPath.matchSuggestion}/$id/reject"), "", SessionStore.token))
+        .apiBind { _ =>
+          state.update(_.copy(message = Some("Suggestion rejected")))
+          movementsBus.emit(spec.now())
+        },
       matchBus.events.flatMapSwitch { _ =>
         val s = state.now()
         ApiClient.post[ReconciliationPayload, ManualMatchRequest](
@@ -108,6 +135,9 @@ object ManualMatchPage:
         "Manual match" -> None
       ),
       PageHeader.title("Manual Match"),
+      child <-- state.signal.combineWith(primaryName, secondaryName).map { (s, pName, sName) =>
+        suggestionsSection(s, pName, sName, acceptBus, rejectBus)
+      },
       div(
         cls := "grid grid-cols-2 gap-4 mt-6 text-left",
         div(
@@ -185,6 +215,52 @@ object ManualMatchPage:
         )
       )
     )
+
+  // Suggestions from secondary matching for what the spec's rule left unmatched. Accepting one
+  // matches its movements exactly as "Match Selected" would.
+  private def suggestionsSection(
+    s:         State,
+    pName:     String,
+    sName:     String,
+    acceptBus: EventBus[String],
+    rejectBus: EventBus[String]
+  ): HtmlElement =
+    if s.suggestions.isEmpty then div()
+    else
+      val movements = (s.inMovements ++ s.outMovements).map(m => m.id -> m).toMap
+      def describe(id: String): HtmlElement =
+        movements.get(id).fold(span(id))(m => div(span(m.referenceId), span(cls := "ml-2 text-md-on-surface-variant dark:text-gray-400", m.amount.toString)))
+      div(
+        cls := "mt-6 text-left",
+        h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Suggested matches"),
+        Table.create(
+          Seq(pName, sName, "Confidence", "Reason", ""),
+          s.suggestions.map(sg =>
+            Seq(
+              describe(sg.movementId),
+              div(sg.suggestedMovementIds.map(describe)*),
+              span(s"${(sg.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)}%"),
+              div(span(sg.rationale), div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", sg.model)),
+              div(
+                cls := "flex gap-2",
+                button(
+                  cls := "bg-md-primary text-md-on-primary rounded-full px-4 py-1.5 text-xs font-medium",
+                  typ := "button",
+                  onClick.mapToUnit --> Observer[Unit](_ => acceptBus.emit(sg.id)),
+                  "Accept"
+                ),
+                button(
+                  cls := "border border-gray-300 dark:border-gray-600 text-md-on-surface dark:text-gray-200 rounded-full px-4 py-1.5 text-xs font-medium",
+                  typ := "button",
+                  onClick.mapToUnit --> Observer[Unit](_ => rejectBus.emit(sg.id)),
+                  "Reject"
+                )
+              )
+            )
+          ),
+          numCols = Set(2)
+        )
+      )
 
   private def toggle(selected: Set[String], id: String): Set[String] =
     if selected.contains(id) then selected - id else selected + id

@@ -72,7 +72,7 @@ enum MovementStatus:
   case Reconciled, WithinSLA, OutOfSLA
 
 enum JobTypeInfo derives ReadWriter:
-  case Ingestion, Reconciliation, CreateFileInventory
+  case Ingestion, Reconciliation, CreateFileInventory, SuggestMatches
 
 enum JobInfoStatus derives ReadWriter:
   case Submitted, InProgress, Complete, Error
@@ -162,6 +162,19 @@ case class ReconciliationDetailPayload(
   fundFlow: Option[FundFlowPayload] = None,
   // Unresolved disputes raised against this reconciliation (any category).
   openDisputes: Seq[DisputePayload] = Seq.empty
+) derives ReadWriter
+
+// A pending secondary-match suggestion: reconcile movementId (the spec's in side) with
+// suggestedMovementIds (its out side). confidence is 0 to 1.
+case class MatchSuggestionPayload(
+  id:                   String,
+  reconSpecId:          String,
+  movementId:           String,
+  suggestedMovementIds: Seq[String],
+  confidence:           BigDecimal,
+  rationale:            String,
+  model:                String,
+  createdAt:            Option[OffsetDateTime] = None
 ) derives ReadWriter
 
 case class ManualMatchRequest(
