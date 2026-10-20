@@ -14,5 +14,10 @@ import com.typesafe.config.{Config, ConfigFactory}
  * }}}
  */
 class TestAppContainer extends AppContainer:
+  /** Settings a test container changes, ahead of test-application.conf. */
+  protected def configOverrides: Config = ConfigFactory.empty()
+
   override lazy val config: Config =
-    ConfigFactory.load("test-application.conf").withFallback(ConfigFactory.load("application.conf"))
+    configOverrides
+      .withFallback(ConfigFactory.load("test-application.conf"))
+      .withFallback(ConfigFactory.load("application.conf"))

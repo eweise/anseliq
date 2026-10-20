@@ -4,8 +4,9 @@ import anseliq.app.AppEnv
 import anseliq.common.model.*
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
-import anseliq.domain.port.driven.FileSourceFactory
+import anseliq.domain.port.driven.{FileSourceFactory, MatchSuggester}
 import com.augustnagro.magnum.transact
+import com.typesafe.config.{Config, ConfigFactory}
 
 /**
  * One fund flow run day by day through the real pipeline, for HappyPathScenarioSuite to check and
@@ -14,19 +15,27 @@ import com.augustnagro.magnum.transact
  * A Journal account posts into a Recon account and the Recon account settles out to a Bank
  * account, matched one-to-one on transaction id. Each day a journal file and a bank file land, and
  * the day runs the same steps the background jobs do: scan the feeds, ingest each new file, then
- * reconcile, as jobs, then take the day's snapshot. The clock starts Days - 1 days back and moves
- * forward a day at a time, so the last day is today and the data reads as recent history.
+ * reconcile and suggest matches for what's left, as jobs, then take the day's snapshot. The clock
+ * starts Days - 1 days back and moves forward a day at a time, so the last day is today and the
+ * data reads as recent history.
  *
  * What lands, so the expected numbers in HappyPathScenarioSuite can be worked out by hand:
  *   - every day: three transactions that settle the same day
  *   - days 0, 3 and 6: one more that settles the next day
  *   - day 0: one that never settles, aging from 0 days on day 0 to Days - 1 days on the last day
+ *   - the last day: two whose references differ only in formatting (FuzzyPairs), which the rule
+ *     can't match but ReferenceFormatSuggester can, so they're left as pending suggestions
  */
 object HappyPathScenario:
   val Days           = 10
   val AgingLimitDays = 5
   val LateDays       = Set(0, 3, 6)
   val StuckId        = "T0-STUCK"
+  // (journal reference, bank reference, amount)
+  val FuzzyPairs = Seq(
+    ("INV-2026-0042", "inv20260042", BigDecimal("1250.00")),
+    ("PO 7781/A", "PO7781A", BigDecimal("89.90"))
+  )
 
   case class DayFiles(journal: Seq[(String, BigDecimal)], bank: Seq[(String, BigDecimal)])
 
@@ -35,7 +44,11 @@ object HappyPathScenario:
     val late    = if LateDays.contains(day) then Seq(s"T$day-LATE" -> BigDecimal(500)) else Nil
     val settled = if LateDays.contains(day - 1) then Seq(s"T${day - 1}-LATE" -> BigDecimal(500)) else Nil
     val stuck   = if day == 0 then Seq(StuckId -> BigDecimal("42.00")) else Nil
-    DayFiles(journal = sameDay ++ late ++ stuck, bank = sameDay ++ settled)
+    val fuzzy   = if day == Days - 1 then FuzzyPairs else Nil
+    DayFiles(
+      journal = sameDay ++ late ++ stuck ++ fuzzy.map((ref, _, amount) => ref -> amount),
+      bank    = sameDay ++ settled ++ fuzzy.map((_, ref, amount) => ref -> amount)
+    )
 
   case class Setup(
     runId:        String,
@@ -50,10 +63,13 @@ object HappyPathScenario:
     reconSpec:    ReconciliationSpec
   )
 
-// The production wiring with files coming from memory instead of S3.
+// The production wiring with files coming from memory instead of S3, and match suggestions turned
+// on with ReferenceFormatSuggester standing in for a local model.
 class HappyPathApp extends TestAppContainer:
   lazy val files: InMemoryFileSources                   = InMemoryFileSources(clock)
   override lazy val fileSourceFactory: FileSourceFactory = files
+  override lazy val matchSuggester: MatchSuggester       = ReferenceFormatSuggester()
+  override protected def configOverrides: Config         = ConfigFactory.parseString("match-suggestions.enabled = true")
 
 class HappyPathScenario(app: HappyPathApp):
   import HappyPathScenario.*
@@ -132,6 +148,13 @@ class HappyPathScenario(app: HappyPathApp):
         .filter(_.jobStatus == JobStatus.Submitted)
     reconJobs.foreach(job => runJob(job.id)(j => app.reconciliationRunner.runJob(j.referenceId, j.id)))
 
+    // The reconciliation queued a SuggestMatches job for what it left unmatched.
+    val suggestJobs = transact(app.transactor):
+      app.jobRepo
+        .findByJobTypeAndReferenceId(JobType.SuggestMatches, s.recon.id)
+        .filter(_.jobStatus == JobStatus.Submitted)
+    suggestJobs.foreach(job => runJob(job.id)(j => app.matchSuggestionService.suggestForAccount(j.referenceId)))
+
     transact(app.transactor):
       app.reportingService.storeDailySnapshot(s.fundFlow)
       app.reconciler.raiseStaleMismatchDisputes(s.reconSpec)
@@ -172,10 +195,12 @@ class HappyPathScenario(app: HappyPathApp):
       inventoryIds.foreach: id =>
         app.jobRepo.findByJobTypeAndReferenceId(JobType.Ingestion, id).foreach(j => app.jobRepo.deleteById(j.id))
         app.fileInventoryRepo.deleteById(id)
-      app.jobRepo.findByJobTypeAndReferenceId(JobType.Reconciliation, s.recon.id).foreach(j => app.jobRepo.deleteById(j.id))
+      Seq(JobType.Reconciliation, JobType.SuggestMatches).foreach: jobType =>
+        app.jobRepo.findByJobTypeAndReferenceId(jobType, s.recon.id).foreach(j => app.jobRepo.deleteById(j.id))
       // Deleting a reconciliation deletes its movements (movement.reconciliation_id cascades).
       recons.foreach(r => app.reconRepo.deleteById(r.id))
       app.reconSpecRepo.deleteById(s.reconSpec.id)
-      // Cascades to the accounts, and from them to the movement specs, remaining movements and daily snapshots.
+      // Cascades to the accounts, and from them to the movement specs, remaining movements (and their
+      // match suggestions) and daily snapshots.
       app.fundFlowConfigRepo.deleteById(s.fundFlow.id)
       feedIds.foreach(app.fileFeedRepo.deleteById)

@@ -1,5 +1,6 @@
 package anseliq
 
+import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.testing.{HappyPathApp, HappyPathScenario}
 import anseliq.testing.HappyPathScenario.*
@@ -30,7 +31,8 @@ class HappyPathScenarioSuite extends munit.FunSuite:
     Expected(23, 48, Set(StuckId, "T6-LATE"), (1, 1, 0, 0), 1), // the stuck one is now past the 5-day aging limit
     Expected(27, 55, Set(StuckId), (0, 1, 0, 0), 1),
     Expected(30, 61, Set(StuckId), (0, 0, 1, 0), 1),
-    Expected(33, 67, Set(StuckId), (0, 0, 1, 0), 1)
+    // The fuzzy pairs land: the rule can't match them, so all four movements are unreconciled.
+    Expected(33, 71, Set(StuckId) ++ FuzzyPairs.flatMap((j, b, _) => Seq(j, b)), (4, 0, 1, 0), 1)
   )
 
   test("a fund flow reconciles, ages and snapshots correctly day by day"):
@@ -73,12 +75,15 @@ class HappyPathScenarioSuite extends munit.FunSuite:
           assertEquals(snapshot.head.overdueCount, expected.overdue, clue)
           assertEquals(snapshot.head.totalMovementCount, expected.movements, clue)
 
-          // Two files a day, each ingested by its own job, then one reconciliation job.
+          // Two files a day, each ingested by its own job, then one reconciliation job and one
+          // match-suggestion job.
           val inventoryIds = app.fileInventoryRepo.findAll.filter(fi => Set(s.journalFeed.id, s.bankFeed.id).contains(fi.fileFeedId)).map(_.id)
           val ingestionJobs = inventoryIds.flatMap(app.jobRepo.findByJobTypeAndReferenceId(JobType.Ingestion, _))
           val reconJobs     = app.jobRepo.findByJobTypeAndReferenceId(JobType.Reconciliation, s.recon.id)
           assertEquals(ingestionJobs.map(_.jobStatus).count(_ == JobStatus.Complete), 2 * (day + 1), clue)
           assertEquals(reconJobs.map(_.jobStatus), Vector.fill(day + 1)(JobStatus.Complete), clue)
+          val suggestJobs = app.jobRepo.findByJobTypeAndReferenceId(JobType.SuggestMatches, s.recon.id)
+          assertEquals(suggestJobs.map(_.jobStatus), Vector.fill(day + 1)(JobStatus.Complete), clue)
 
       transact(app.transactor):
         val today = app.clock.now.toLocalDate
@@ -87,4 +92,18 @@ class HappyPathScenarioSuite extends munit.FunSuite:
           Days,
           "one snapshot per day"
         )
+      // The fuzzy pairs were suggested, and a reviewer can accept or reject each.
+      transact(app.transactor):
+        def reference(id: ID) =
+          val props = app.movementRepo.findById(id).get.props
+          props.getOrElse("transaction_id", props.getOrElse("txn_id", "?"))
+        val suggestions = app.matchSuggestionService.pendingForSpec(s.reconSpec.id)
+        val proposed    = suggestions.map(sg => reference(sg.movementId) -> sg.suggestedMovementIds.map(reference)).toSet
+        assertEquals(proposed, FuzzyPairs.map((j, b, _) => j -> Seq(b)).toSet)
+
+        val (invoice, purchaseOrder) = suggestions.partition(sg => reference(sg.movementId) == FuzzyPairs.head._1)
+        assertEquals(app.matchSuggestionService.accept(invoice.head.id).status, ReconciliationStatus.Final)
+        app.matchSuggestionService.reject(purchaseOrder.head.id)
+        assertEquals(app.matchSuggestionService.pendingForSpec(s.reconSpec.id), Vector.empty)
+        assertEquals(app.reconRepo.findByReconSpecID(s.reconSpec.id).size, expectedByDay.last.reconciliations + 1)
     finally scenario.teardown(s)
