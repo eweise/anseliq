@@ -30,6 +30,14 @@ create-db: delete-db
 delete-db:
 	$(POSTGRES_BIN)/psql -p 5432 -Upostgres -c "drop database if exists recon_db"
 
+# Adds a "Happy Path <id>" fund flow with ten days of history ending today (see
+# HappyPathScenario). Stop the backend first: its workers would race the seeder for its jobs.
+seed-demo:
+	sbt "backend/testOnly anseliq.testing.SeedHappyPathDemo"
+
+# A fresh database with the demo data in it.
+reset-demo: create-db seed-demo
+
 snapshot-db:
 	$(POSTGRES_BIN)/pg_dump -p $(PG_DB_ROOT) -U$(PG_DB_USER) -Fc -f $(DB_SNAPSHOT_FILE) $(DB_NAME)
 	@echo "Snapshot written to $(DB_SNAPSHOT_FILE)"
