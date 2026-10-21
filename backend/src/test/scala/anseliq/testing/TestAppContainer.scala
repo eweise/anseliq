@@ -8,7 +8,7 @@ import javax.sql.DataSource
 
 /**
  * The production AppContainer wiring, pointed at the test database: test-application.conf wins,
- * falling back to application.conf for anything it doesn't set (e.g. the s3.* LocalStack keys). A
+ * falling back to application.conf for anything it doesn't set (e.g. the match-suggestions.* keys). A
  * suite needing a different service overrides just that one, the same way as any AppContainer:
  * {{{
  *   val app = new TestAppContainer {

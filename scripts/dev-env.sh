@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sets up the secrets the backend needs for local development and prints them as export lines.
+# Sets up the settings the backend needs for local development and prints them as export lines.
 # They're kept in .env (gitignored) so they stay the same from one run to the next: a new
 # JWT_SECRET would invalidate every login token already issued.
 #
@@ -26,6 +26,10 @@ ensure() {
 }
 
 ensure JWT_SECRET "$(openssl rand -base64 48)"
+# LocalStack, which accepts any key (see `make start-localstack`).
+ensure S3_ENDPOINT "http://localhost:4566"
+ensure S3_USERNAME "test"
+ensure S3_PASSWORD "test"
 
 while IFS= read -r line || [[ -n "$line" ]]; do
   [[ -z "$line" || "$line" == \#* ]] && continue

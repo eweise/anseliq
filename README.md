@@ -22,8 +22,9 @@ To see all available commands:
 sbt
 ```
 
-The backend won't start its HTTP server without a JWT secret of at least 32 bytes. This generates
-one into `.env` (gitignored) the first time and loads `.env` into your shell:
+The backend won't start its HTTP server without a JWT secret of at least 32 bytes, and reads S3 from
+real AWS unless pointed at LocalStack. This sets up both in `.env` (gitignored) the first time, then
+loads `.env` into your shell:
 
 ```bash
 eval "$(scripts/dev-env.sh)"

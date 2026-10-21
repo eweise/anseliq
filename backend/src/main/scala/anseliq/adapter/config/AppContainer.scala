@@ -20,13 +20,7 @@ trait AppContainer:
 
   lazy val clock = ClockServiceLive()
 
-  lazy val fileSourceFactory: FileSourceFactory =
-    S3FileSourceFactory(
-      region   = config.getString("s3.region"),
-      endpoint = config.getString("s3.endpoint"),
-      username = config.getString("s3.username"),
-      password = config.getString("s3.password")
-    )
+  lazy val fileSourceFactory: FileSourceFactory = S3FileSourceFactory.fromConfig(config)
 
   lazy val jobRepo:             JobRepo                = JobRepoLive(clock)
   lazy val jobManager:          JobManager             = JobManager(jobRepo, clock, dataSource)
