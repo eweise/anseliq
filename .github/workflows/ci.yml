@@ -54,12 +54,13 @@ jobs:
 
       - uses: sbt/setup-sbt@v1
 
-      # -java-home overrides .sbtopts's, which points at a developer's local JDK. The frontend has no
+      # -java-home overrides .sbtopts's, which points at a developer's local JDK. testFull, not test:
+      # sbt 2's test only reruns what failed or changed since the last run. The frontend has no
       # tests, so it's only compiled.
       - name: Test
         run: >-
           sbt -java-home "$JAVA_HOME"
-          commonJVM/test
+          commonJVM/testFull
           frontend/fastLinkJS
           "backend/runMain anseliq.app.Main migrate"
-          backend/test
+          backend/testFull

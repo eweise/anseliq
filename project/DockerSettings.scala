@@ -1,3 +1,4 @@
+import sbt.*
 import com.typesafe.sbt.SbtNativePackager.Docker
 import com.typesafe.sbt.packager.Keys.{dockerBuildCommand, dockerExecCommand, dockerBuildOptions}
 import com.typesafe.sbt.packager.docker.DockerAlias

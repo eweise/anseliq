@@ -43,7 +43,7 @@ object CLIHelper {
     ) ++ backendUrl.map(url => s"Backend URL of this build: $url") ++
       backendUrl.map(_ => "Tip: Change backend URL: BACKEND_BASE_URL=http://myserver.com sbt")
 
-    val successMessage = boxedSuccess(messages: _*)
+    val successMessage = boxedSuccess(messages*)
     CommandWatcher.watch(buildCommand, pattern, successMessage)
   }
 
@@ -71,7 +71,7 @@ object CLIHelper {
               "Press Ctrl+C to stop"
             ) ++ backendUrl.map(_ => "Tip: Change backend URL: BACKEND_BASE_URL=http://myserver.com sbt")
 
-            logSuccess(messages: _*)
+            logSuccess(messages*)
           }
           println(s"[Vite] $line")
         },
@@ -101,6 +101,6 @@ object CLIHelper {
       "Vite dev server" -> "Starting..."
     )
 
-    println(boxedConfigs(configs: _*))
+    println(boxedConfigs(configs*))
   }
 }

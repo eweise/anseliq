@@ -30,16 +30,16 @@ object LoggingUtils {
   // ============================================================================
 
   def logSuccess(lines: String*): Unit =
-    println(boxedSuccess(lines: _*))
+    println(boxedSuccess(lines*))
 
   def logError(lines: String*): Unit =
-    println(boxedError(lines: _*))
+    println(boxedError(lines*))
 
   def logWarning(lines: String*): Unit =
-    println(boxedWarning(lines: _*))
+    println(boxedWarning(lines*))
 
   def logInfo(lines: String*): Unit =
-    println(boxedInfo(lines: _*))
+    println(boxedInfo(lines*))
 
   // ============================================================================
   // Utility Methods

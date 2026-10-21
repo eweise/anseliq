@@ -56,6 +56,12 @@ an ALB with an ACM certificate); its `README.md` covers the AWS setup and what t
 An init container in each backend pod applies the database migrations before the app starts (see
 Database migrations below), so the database itself only has to exist.
 
+## Tests
+
+The build uses sbt 2, where `sbt test` only reruns the tests that failed or whose code changed since
+the last run; `sbt testFull` runs them all. sbt 2 also keeps a server running in the background
+between commands; `sbt shutdown` stops it.
+
 ## CI
 
 The CI workflow (`.github/workflows/ci.yml`) runs the tests on every push to `main` and every pull

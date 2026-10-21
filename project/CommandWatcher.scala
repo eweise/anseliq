@@ -28,6 +28,8 @@ object CommandWatcher {
       )
     )
 
-    process.exitValue()
+    // A failed command fails the task, rather than leaving e.g. an empty dist/ to be packaged.
+    val exitCode = process.exitValue()
+    if (exitCode != 0) sys.error(s"${command.mkString(" ")} failed with exit code $exitCode")
   }
 }

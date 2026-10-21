@@ -10,14 +10,14 @@ ThisBuild / scalaVersion := scala3Version
 // 1.2.3-4-abcd1234 after it. "-" rather than dynver's default "+", which a Docker tag can't contain.
 ThisBuild / dynverSeparator := "-"
 
-lazy val root = (project in file("."))
+lazy val root = project.in(file("."))
 
 /**
  * Frontend subproject
  */
 lazy val devServer   = taskKey[Unit]("Start both ~fastOptJS and vite dev server concurrently")
 lazy val publishDist = taskKey[Unit]("Build a static web artifact")
-lazy val frontend = (project in file("frontend"))
+lazy val frontend = project.in(file("frontend"))
   .enablePlugins(ScalaJSPlugin, DockerPlugin)
   .settings(
     name    := "frontend",
@@ -26,11 +26,15 @@ lazy val frontend = (project in file("frontend"))
     // Source maps seem to be broken with bundler
     Compile / fastOptJS / scalaJSLinkerConfig ~= { _.withSourceMap(false) },
     Compile / fullOptJS / scalaJSLinkerConfig ~= { _.withSourceMap(false) },
+    // Inside frontend/, not sbt 2's target/out, so Vite resolves the bare imports in the linked JS
+    // (e.g. chart.js) from frontend/node_modules, which only covers what's under frontend/.
+    Compile / fastLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "frontend-fastopt",
+    Compile / fullLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "frontend-opt",
     libraryDependencies ++= Seq(
-      "com.raquo"                  %%% "laminar"    % Dependencies.Laminar,
-      "io.frontroute"              %%% "frontroute" % Dependencies.Frontroute,
-      "com.lihaoyi"                %%% "upickle"    % upickleVersion,
-      "com.softwaremill.quicklens" %%% "quicklens"  % Dependencies.Quicklens
+      "com.raquo"                  %%  "laminar"    % Dependencies.Laminar,
+      "io.frontroute"              %%  "frontroute" % Dependencies.Frontroute,
+      "com.lihaoyi"                %%  "upickle"    % upickleVersion,
+      "com.softwaremill.quicklens" %%  "quicklens"  % Dependencies.Quicklens
     )
   )
   .settings(
@@ -49,37 +53,34 @@ lazy val frontend = (project in file("frontend"))
       case _               => true
 
     } ++ Seq(Cmd("COPY", "nginx.conf", "/etc/nginx/nginx.conf"), Cmd("CMD", """["nginx", "-g", "daemon off;"]""")),
+    // sbt 2 maps virtual file references rather than Files, so each one goes through fileConverter.
     Docker / mappings ++= {
       publishDist.value
+      val converter       = fileConverter.value
       val frontendDist    = baseDirectory.value / "dist"
       val nginxConfigFile = baseDirectory.value / "nginx.conf"
 
-      (frontendDist ** "*").get.map { file =>
-        file -> s"/usr/share/nginx/html/${frontendDist.relativize(file).get.getPath}"
-      } :+ (nginxConfigFile -> "/nginx.conf")
-
+      (frontendDist ** "*").get().filter(_.isFile).map { file =>
+        converter.toVirtualFile(file.toPath) -> s"/usr/share/nginx/html/${frontendDist.relativize(file).get.getPath}"
+      } :+ (converter.toVirtualFile(nginxConfigFile.toPath) -> "/nginx.conf")
     }
   )
   .settings(
-    devServer := {
+    devServer := Def.uncached {
       val sourceDirs = (Compile / sourceDirectories).value
       val watchSrcs  = (Compile / watchSources).value
       val scalaVer   = scalaVersion.value
-      val backendUrl = Environtments.backendBaseUrl
+      val backendUrl = Environtments.backendBaseUrl()
       val projectRef = thisProjectRef.value
       val taskKey    = projectRef / Compile / fastOptJS
       val sbtState   = state.value
 
+      // Extracted.runTask throws when the task fails, e.g. a compilation error.
       val compilationRunner = () =>
-        try
-          Project.runTask(taskKey, sbtState) match {
-            case Some((_, Value(_))) => true  // Success
-            case Some((_, Inc(_)))   => false // Compilation failed
-            case None =>
-              println(s"[Scala.js ERROR] Task $taskKey not found")
-              false
-          }
-        catch {
+        try {
+          Project.extract(sbtState).runTask(taskKey, sbtState)
+          true
+        } catch {
           case e: Exception =>
             println(s"[Scala.js ERROR] Compilation error: ${e.getMessage}")
             false
@@ -93,9 +94,10 @@ lazy val frontend = (project in file("frontend"))
         backendUrl = Some(backendUrl)
       )
     },
-    publishDist := {
+    // Uncached (sbt 2 caches tasks by default): both run npm and Vite for their side effects.
+    publishDist := Def.uncached {
       (Compile / fullLinkJS).value
-      CLIHelper.buildFrontend(prefix = "frontend", backendUrl = Some(Environtments.backendBaseUrl))
+      CLIHelper.buildFrontend(prefix = "frontend", backendUrl = Some(Environtments.backendBaseUrl()))
     }
   )
   .dependsOn(common.js)
@@ -103,7 +105,14 @@ lazy val frontend = (project in file("frontend"))
 /**
  * Backend subproject
  */
-lazy val backend = (project in file("backend"))
+// Backend suites left out of a full test run, to be run on their own with testOnly (see below).
+lazy val explicitOnlySuites = Set(
+  "anseliq.testing.DataSetupScenario1",
+  "anseliq.domain.service.LargeFileIngestionReconciliationSuite",
+  "anseliq.testing.SeedHappyPathDemo",
+  "anseliq.testing.PopulateS3Buckets"
+)
+lazy val backend = project.in(file("backend"))
   .enablePlugins(JavaAppPackaging, DockerPlugin)
   .settings(
     name    := "backend",
@@ -147,17 +156,14 @@ lazy val backend = (project in file("backend"))
     // regular suite where it would pollute state for every other test. LargeFileIngestionReconciliationSuite
     // ingests and reconciles two 5,000,000-row files, which takes on the order of hours given Reconciler's
     // current per-row matching loop, and is likewise meant to be run explicitly
-    // (sbt "testOnly anseliq.domain.service.LargeFileIngestionReconciliationSuite"). Both are scoped to
-    // the `test` task only (not `testOnly`/`testQuick`) so explicit invocation still works.
+    // (sbt "testOnly anseliq.domain.service.LargeFileIngestionReconciliationSuite"). These are scoped to
+    // the tasks that run the whole suite, not `testOnly`, so explicit invocation still works: in sbt 2,
+    // `test` runs testQuick, with testQuick's own options, and testFull runs with `test`'s.
     // SeedHappyPathDemo likewise commits demo data on purpose
     // (sbt "testOnly anseliq.testing.SeedHappyPathDemo"), and PopulateS3Buckets writes files into
     // LocalStack for a running backend to pick up (sbt "testOnly anseliq.testing.PopulateS3Buckets").
-    Test / test / testOptions += Tests.Filter(name =>
-      name != "anseliq.testing.DataSetupScenario1" &&
-        name != "anseliq.domain.service.LargeFileIngestionReconciliationSuite" &&
-        name != "anseliq.testing.SeedHappyPathDemo" &&
-        name != "anseliq.testing.PopulateS3Buckets"
-    ),
+    Test / test / testOptions      += Tests.Filter(name => !explicitOnlySuites(name)),
+    Test / testQuick / testOptions += Tests.Filter(name => !explicitOnlySuites(name)),
     mainClass := Some("anseliq.app.Main")
   )
   .settings(
@@ -173,8 +179,9 @@ lazy val backend = (project in file("backend"))
 /**
  * Shared project between frontend and backend
  */
-lazy val common = (crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Pure) in file("common"))
+lazy val common = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("common"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     scalaVersion := scala3Version,
@@ -183,9 +190,9 @@ lazy val common = (crossProject(JVMPlatform, JSPlatform)
       "64"
     ), // see [[https://docs.scala-lang.org/scala3/guides/migration/options-new.html]]
     libraryDependencies ++= Seq(
-      "dev.zio"              %%% "zio-json"        % Dependencies.ZioJson,
-      "dev.zio"              %%% "zio-http"        % Dependencies.ZioHttp,
-      "com.github.jwt-scala" %%% "jwt-json-common" % Dependencies.JwtScala,
+      "dev.zio"              %%  "zio-json"        % Dependencies.ZioJson,
+      "dev.zio"              %%  "zio-http"        % Dependencies.ZioHttp,
+      "com.github.jwt-scala" %%  "jwt-json-common" % Dependencies.JwtScala,
       "com.lihaoyi"           %% "upickle"         % upickleVersion,
       "org.scalatest"         %% "scalatest"       % Dependencies.Scalatest % Test
     ),
