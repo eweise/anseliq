@@ -43,6 +43,8 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
    * worker, and the HTTP server — and blocks until shutdown.
    */
   def run(args: Array[String]): Unit =
+    // Fail now, not on the first login, if the HTTP server is missing its JWT secret.
+    if services.getBoolean("http.enabled") then app.jwtSecret
     val shutdownRequested = CountDownLatch(1)
     val stopped           = CountDownLatch(1)
 

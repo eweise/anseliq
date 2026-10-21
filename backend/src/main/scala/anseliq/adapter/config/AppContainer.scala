@@ -6,6 +6,7 @@ import anseliq.domain.service.*
 import com.augustnagro.magnum.Transactor
 import com.typesafe.config.{Config, ConfigFactory}
 
+import java.nio.charset.StandardCharsets
 import javax.sql.DataSource
 
 trait AppContainer:
@@ -128,7 +129,16 @@ trait AppContainer:
     clock              = clock
   )
   lazy val userService: UserService = UserService(userRepo, clock)
-  lazy val jwtSecret:   JwtSecret   = JwtSecret(config.getString("jwt.secret"))
+  // No default, so an instance can't end up signing tokens with a secret anyone can read in this
+  // repo. HS256 wants a key at least as long as its 256-bit hash (RFC 7518 section 3.2).
+  private val MinJwtSecretBytes = 32
+  lazy val jwtSecret: JwtSecret =
+    if !config.hasPath("jwt.secret") then
+      throw IllegalStateException("JWT_SECRET is not set; the HTTP server needs it to sign and check login tokens")
+    val secret = config.getString("jwt.secret")
+    if secret.getBytes(StandardCharsets.UTF_8).length < MinJwtSecretBytes then
+      throw IllegalStateException(s"JWT_SECRET must be at least $MinJwtSecretBytes bytes")
+    JwtSecret(secret)
   lazy val authService: AuthService = AuthService(userRepo, jwtSecret)
   lazy val ingestor = Ingestor(
     ledger            = ledger,
