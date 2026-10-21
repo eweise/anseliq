@@ -50,6 +50,9 @@ cp k8s/overlays/local/secrets.env.example k8s/overlays/local/secrets.env   # the
 kubectl apply -k k8s/overlays/local
 ```
 
+`k8s/overlays/eks` is the template for a customer install on AWS EKS (RDS, S3 through an IAM role,
+an ALB with an ACM certificate); its `README.md` covers the AWS setup and what to fill in.
+
 An init container in each backend pod applies the database migrations before the app starts (see
 Database migrations below), so the database itself only has to exist.
 

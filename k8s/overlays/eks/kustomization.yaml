@@ -1,0 +1,40 @@
+# A customer install on AWS EKS: RDS Postgres, S3 through the pods' IAM role (IRSA), and an ALB with
+# an ACM certificate in front. A template: copy it per customer and replace every REPLACE_ME_ value
+# (README.md in this folder lists them and the AWS resources they point at).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: anseliq
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+images:
+  - name: anseliq-backend
+    newName: REPLACE_ME_REGISTRY/anseliq
+    newTag: backend-0.1.0
+  - name: anseliq-frontend
+    newName: REPLACE_ME_REGISTRY/anseliq
+    newTag: frontend-0.1.0
+
+configMapGenerator:
+  - name: anseliq-config
+    behavior: merge
+    literals:
+      # The RDS instance's endpoint. RDS requires TLS by default, which the Postgres driver uses
+      # when the server asks for it.
+      - DB_HOST=REPLACE_ME_RDS_ENDPOINT
+      - S3_REGION=REPLACE_ME_AWS_REGION
+
+# secrets.env is gitignored; secrets.env.example lists what goes in it.
+secretGenerator:
+  - name: anseliq-secrets
+    envs:
+      - secrets.env
+
+patches:
+  - path: ingress-alb.yaml
+  - path: backend-api-alb.yaml
+  - path: frontend-alb.yaml
+  - path: service-account-irsa.yaml

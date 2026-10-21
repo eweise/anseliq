@@ -1,0 +1,8 @@
+# Matches backend-api's draining (see backend-api-alb.yaml). The frontend's / serves the SPA, so the
+# ALB's default health check works for it as is.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  annotations:
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30

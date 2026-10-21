@@ -1,0 +1,27 @@
+# The ALB health-checks the API on its readiness endpoint (on the health port, not the traffic
+# port, where / is a 404), and stops sending a stopping pod requests before it closes its port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-port: "8081"
+    alb.ingress.kubernetes.io/healthcheck-path: /health/ready
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+---
+# An ALB takes longer than kube-proxy to stop routing to a terminating pod, so the API keeps serving
+# for 20s rather than the base's 10s, with the grace period raised to match.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: backend
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "20"]
