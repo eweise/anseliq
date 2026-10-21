@@ -10,7 +10,7 @@ configurable rules, and explains and resolves whatever doesn't tie out.
 
 ### Prerequisites
 
-- [Java JDK](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) (11 or higher)
+- [Java JDK](https://jdk.java.net/26/) 26 (the backend uses `UUID.ofEpochMillis`, new in 26)
 - [sbt](https://www.scala-sbt.org/download.html) (Scala Build Tool)
 - [Nodejs V22.13.0](https://nodejs.org/en/blog/release/v22.13.0)
 
@@ -21,6 +21,15 @@ To see all available commands:
 ```bash
 sbt
 ```
+
+The backend won't start its HTTP server without a JWT secret of at least 32 bytes. This generates
+one into `.env` (gitignored) the first time and loads `.env` into your shell:
+
+```bash
+eval "$(scripts/dev-env.sh)"
+```
+
+For IntelliJ, point the backend run configuration's environment variables at the same `.env`.
 
 # reconproto
 
