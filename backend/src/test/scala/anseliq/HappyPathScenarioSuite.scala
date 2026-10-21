@@ -104,7 +104,13 @@ class HappyPathScenarioSuite extends munit.FunSuite:
         // This block commits, so the reviewer is deleted again at the end of it; a failure rolls it back.
         val reviewer = app.userService.createUser(s"happy-path-${s.runId}@example.com", "Rita", "Reviewer", UserRole.Analyst, "a-real-password")
         val (invoice, purchaseOrder) = suggestions.partition(sg => reference(sg.movementId) == FuzzyPairs.head._1)
-        assertEquals(app.matchSuggestionService.accept(invoice.head.id, reviewer.id).status, ReconciliationStatus.Final)
+        val accepted = app.matchSuggestionService.accept(invoice.head.id, reviewer.id)
+        assertEquals(accepted.status, ReconciliationStatus.Final)
+        assertEquals(
+          accepted.appliedRules.summary,
+          "normalize(transaction_id) = normalize(txn_id): inv20260042 (suggested by reference-format-demo, 92%)",
+          "the suggester's explanation was checked and recorded"
+        )
         app.matchSuggestionService.reject(purchaseOrder.head.id, reviewer.id)
         assertEquals(app.matchSuggestionService.pendingForSpec(s.reconSpec.id), Vector.empty)
         assertEquals(

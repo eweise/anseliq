@@ -34,6 +34,7 @@ object PayloadMapper:
       confidence           = s.confidence,
       rationale            = s.rationale,
       model                = s.model,
+      explanation          = s.explanation.map(_.summary),
       createdAt            = s.createdAt
     )
 

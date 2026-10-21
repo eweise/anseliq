@@ -174,6 +174,8 @@ case class MatchSuggestionPayload(
   confidence:           BigDecimal,
   rationale:            String,
   model:                String,
+  // The checked explanation, e.g. "normalize(transaction_id) = normalize(txn_id): inv20260042".
+  explanation:          Option[String]         = None,
   createdAt:            Option[OffsetDateTime] = None
 ) derives ReadWriter
 

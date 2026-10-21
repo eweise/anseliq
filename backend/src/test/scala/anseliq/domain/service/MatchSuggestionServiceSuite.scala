@@ -1,9 +1,9 @@
 package anseliq.domain.service
 
-import anseliq.common.model.AppliedRules
+import anseliq.common.model.{AppliedRules, Normalize, StringAttribute, StringAttributeMatchRule, StringModifier, StripPrefix, SubstringModifier}
 import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
-import anseliq.domain.model.{MatchSuggestionStatus, UserRole, createID}
+import anseliq.domain.model.{MatchSuggestionStatus, ReconciliationSpec, UserRole, createID}
 import anseliq.domain.port.driven.{MatchCandidate, MatchRequest, MatchSuggester, ProposedMatch, Txn}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
@@ -208,3 +208,53 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
       postOut(app, data, 30, "candidate")
       val context = service.findRequests(data.reconAccount.id).map(_._2).find(_.movement.properties("name") == "anchor").get.context
       assertEquals(context.pastMatches.map(e => named(e.matchedWith)), Seq(Seq("shared")))
+
+  // An invoice on the in side and the bank's differently formatted copy of its reference on the out side.
+  private def invoicePair(app: TestAppContainer, data: DataSetup): Txn[(ReconciliationSpec, MatchRequest)] =
+    app.accountService.postAmount(data.journalToRecon, 1250, createID(), Map("name" -> "anchor", "ref" -> "INV-2026-0042"))
+    app.accountService.postAmount(data.reportToRecon, 1250, createID(), Map("name" -> "bank", "ref" -> "inv20260042"))
+    service(app).findRequests(data.reconAccount.id).head
+
+  private def service(app: TestAppContainer) = MatchSuggestionService(
+    reconSpecRepo       = app.reconSpecRepo,
+    reconRepo           = app.reconRepo,
+    movementRepo        = app.movementRepo,
+    matchSuggestionRepo = app.matchSuggestionRepo,
+    suggester           = FakeSuggester(),
+    manualReconciler    = app.manualReconciler,
+    transactor          = app.transactor,
+    candidateWindowDays = 7,
+    maxCandidates       = 10
+  )
+
+  private def refRule(in: Option[StringModifier], out: Option[StringModifier]) =
+    StringAttributeMatchRule(StringAttribute("ref", in), StringAttribute("ref", out))
+
+  test("a checked explanation is stored with the suggestion and carried into the reconciliation"):
+    withService: (app, data, service) =>
+      val (spec, request) = invoicePair(app, data)
+      val proposal = ProposedMatch(Seq(idOf(request, "bank")), BigDecimal("0.9"), "same invoice", Some(refRule(Some(Normalize), Some(Normalize))))
+      val stored   = service.record(spec, request, proposal).get
+      assertEquals(stored.explanation.map(_.value), Some("inv20260042"))
+      assertEquals(service.pendingForSpec(spec.id).head.explanation.map(_.summary), Some("normalize(ref) = normalize(ref): inv20260042"))
+
+      val recon = service.accept(stored.id, newReviewer(app))
+      assertEquals(recon.appliedRules.asInstanceOf[AppliedRules.Suggested].explanation.map(_.value), Some("inv20260042"))
+
+  test("an explanation that doesn't hold is dropped, but the suggestion is still stored"):
+    withService: (app, data, service) =>
+      val (spec, request) = invoicePair(app, data)
+      val proposal = ProposedMatch(Seq(idOf(request, "bank")), BigDecimal("0.9"), "same invoice", Some(refRule(None, None)))
+      val stored   = service.record(spec, request, proposal).get
+      assertEquals(stored.explanation, None, "'INV-2026-0042' and 'inv20260042' aren't equal without normalizing")
+
+  test("checkExplanation rejects constants, missing fields and empty values"):
+    withService: (app, data, service) =>
+      val (_, request) = invoicePair(app, data)
+      val bank         = request.candidates.head
+      def check(rule: StringAttributeMatchRule) = service.checkExplanation(rule, request.movement, bank)
+      assertEquals(check(refRule(Some(Normalize), Some(Normalize))).map(_.value), Some("inv20260042"))
+      assertEquals(check(StringAttributeMatchRule(StringAttribute("inv20260042", isConstant = true), StringAttribute("ref", Some(Normalize)))), None, "constant")
+      assertEquals(check(StringAttributeMatchRule(StringAttribute("missing"), StringAttribute("ref"))), None, "missing field")
+      assertEquals(check(refRule(Some(SubstringModifier("[0-9]{20}")), Some(SubstringModifier("[0-9]{20}")))), None, "different values")
+      assertEquals(check(StringAttributeMatchRule(StringAttribute("name", Some(StripPrefix("anchor"))), StringAttribute("name", Some(StripPrefix("bank"))))), None, "both reduce to empty")

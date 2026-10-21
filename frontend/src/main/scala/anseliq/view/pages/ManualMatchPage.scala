@@ -240,7 +240,11 @@ object ManualMatchPage:
               describe(sg.movementId),
               div(sg.suggestedMovementIds.map(describe)*),
               span(s"${(sg.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)}%"),
-              div(span(sg.rationale), div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", sg.model)),
+              div(
+                span(sg.rationale),
+                sg.explanation.map(e => div(cls := "font-mono text-xs text-md-on-surface dark:text-gray-200", s"Checked: $e")),
+                div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", sg.model)
+              ),
               div(
                 cls := "flex gap-2",
                 button(

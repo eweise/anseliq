@@ -1,5 +1,6 @@
 package anseliq.domain.port.driven
 
+import anseliq.common.model.StringAttributeMatchRule
 import anseliq.common.model.model.{ID, Money, Properties}
 
 import java.time.OffsetDateTime
@@ -44,5 +45,13 @@ object MatchContext:
 
 case class MatchExample(movement: MatchCandidate, matchedWith: Seq[MatchCandidate])
 
-// confidence is 0 to 1; rationale is a short reason a reviewer can check.
-case class ProposedMatch(movementIds: Seq[ID], confidence: BigDecimal, rationale: String)
+// confidence is 0 to 1; rationale is a short reason a reviewer can check. explanation, if the
+// suggester gives one, is why the references match as a rule: the movement's field on the in side,
+// the candidate's on the out side, each with the modifiers that make them equal. It's only a claim
+// until MatchSuggestionService checks it against the movements.
+case class ProposedMatch(
+  movementIds: Seq[ID],
+  confidence:  BigDecimal,
+  rationale:   String,
+  explanation: Option[StringAttributeMatchRule] = None
+)

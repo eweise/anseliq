@@ -336,6 +336,8 @@ create table recon.match_suggestion
     suggested_movement_ids_json text           not null,
     confidence                  numeric(4, 3)  not null,
     rationale                   text           not null,
+    -- The suggester's explanation as a RuleMatch, JSON; only stored once checked against the movements.
+    explanation_json            text,
     -- Which model and prompt produced it, so a suggestion can be traced after either changes.
     model                       text           not null,
     prompt_version              text           not null,

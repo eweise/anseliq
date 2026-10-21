@@ -7,7 +7,8 @@ import anseliq.common.model.{
   Direction,
   ReconRelationship,
   ReconciliationDetailPayload,
-  ReconciliationMovementPayload
+  ReconciliationMovementPayload,
+  RuleMatch
 }
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
@@ -185,26 +186,27 @@ object ReconciliationDetailPage:
   // Also used by ExceptionDetailPage for a disputed reconciliation.
   def appliedRulesView(rules: AppliedRules): HtmlElement =
     rules match
-      case AppliedRules.Matched(matches) =>
-        ul(
-          cls := "space-y-1",
-          matches.map: m =>
-            li(
-              cls := "flex flex-wrap items-center gap-2",
-              code(cls := "font-mono text-xs text-md-on-surface-variant dark:text-gray-400", m.condition),
-              span(cls := "text-gray-400 dark:text-gray-500", "→"),
-              span(
-                cls := "px-2 py-0.5 rounded font-mono text-xs bg-md-primary-container text-md-on-primary-container dark:bg-md-primary-container-dark dark:text-md-on-primary-container-dark",
-                m.value
-              )
-            )
-        )
-      case AppliedRules.Manual   => span("Manual match")
+      case AppliedRules.Matched(matches) => ul(cls := "space-y-1", matches.map(ruleMatchLine))
+      case AppliedRules.Manual           => span("Manual match")
       case s: AppliedRules.Suggested =>
-        span(
-          s"Accepted suggestion from ${s.model} (${(s.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)}% confident): ${s.reason}"
-        )
+        val source =
+          s"Accepted suggestion from ${s.model} (${(s.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)}% confident)"
+        // A checked explanation reads like a rule match; the model's own reason is the fallback.
+        s.explanation.fold(span(s"$source: ${s.reason}")): e =>
+          div(cls := "space-y-1", ul(ruleMatchLine(e)), div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", source))
       case AppliedRules.Reversal => span("System reversal")
+
+  // The condition both sides were compared on, then the value they matched.
+  private def ruleMatchLine(m: RuleMatch): HtmlElement =
+    li(
+      cls := "flex flex-wrap items-center gap-2",
+      code(cls := "font-mono text-xs text-md-on-surface-variant dark:text-gray-400", m.condition),
+      span(cls := "text-gray-400 dark:text-gray-500", "→"),
+      span(
+        cls := "px-2 py-0.5 rounded font-mono text-xs bg-md-primary-container text-md-on-primary-container dark:bg-md-primary-container-dark dark:text-md-on-primary-container-dark",
+        m.value
+      )
+    )
 
   // A side's account name(s), or its role while it has no movements yet (e.g. a OneToMany group
   // still waiting on its other side).

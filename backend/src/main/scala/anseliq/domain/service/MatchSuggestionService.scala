@@ -1,6 +1,6 @@
 package anseliq.domain.service
 
-import anseliq.common.model.{AndRule, AppliedRules, MatchSuggestionInfo, NoOpRule, ORRule, Rule, RuleMatch}
+import anseliq.common.model.{AndRule, AppliedRules, MatchSuggestionInfo, NoOpRule, ORRule, Rule, RuleMatch, StringAttributeMatchRule}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
@@ -8,6 +8,7 @@ import com.augustnagro.magnum.{Transactor, transact}
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.temporal.ChronoUnit
+import scala.util.Try
 
 /**
  * Secondary matching: after the rule-based reconciler has run, asks the MatchSuggester which of an
@@ -118,7 +119,9 @@ class MatchSuggestionService(
   /**
    * Stores the proposal as a pending suggestion if it holds up: one movement (OneToOne), from the
    * request's candidates, with the same amount, a confidence between 0 and 1, and both movements
-   * still unreconciled. None if it doesn't, or the movement already has a pending suggestion.
+   * still unreconciled. None if it doesn't, or the movement already has a pending suggestion. Its
+   * explanation is kept only if it checks out (see checkExplanation); one that doesn't is dropped
+   * without dropping the suggestion.
    */
   def record(spec: ReconciliationSpec, request: MatchRequest, proposal: ProposedMatch): Txn[Option[MatchSuggestion]] =
     val movementId   = request.movement.movementId
@@ -140,6 +143,10 @@ class MatchSuggestionService(
         logger.warn(s"discarding ${suggester.model} suggestion for movement $movementId: $reason")
         None
       case None =>
+        val explanation = proposal.explanation.flatMap: rule =>
+          val checked = request.candidates.find(_.movementId == proposal.movementIds.head).flatMap(checkExplanation(rule, request.movement, _))
+          if checked.isEmpty then logger.info(s"dropping ${suggester.model}'s explanation for movement $movementId: it doesn't hold for these movements")
+          checked
         matchSuggestionRepo.insertIfNoPending(
           MatchSuggestion(
             reconSpecId              = spec.id,
@@ -147,10 +154,25 @@ class MatchSuggestionService(
             suggestedMovementIdsJson = upickle.write(proposal.movementIds),
             confidence               = proposal.confidence.setScale(3, BigDecimal.RoundingMode.HALF_UP),
             rationale                = proposal.rationale.take(1000),
+            explanationJson          = explanation.map(upickle.write(_)),
             model                    = suggester.model,
             promptVersion            = suggester.promptVersion
           )
         )
+
+  /**
+   * The explanation as a RuleMatch if it holds: each side names a field (not a constant, which
+   * would just restate the answer) that the movement has, and the rule reduces both to the same
+   * non-empty value. Checked here rather than trusted, since a model can claim anything.
+   */
+  def checkExplanation(rule: StringAttributeMatchRule, movement: MatchCandidate, candidate: MatchCandidate): Option[RuleMatch] =
+    if rule.inKey.isConstant || rule.outKey.isConstant then None
+    else
+      for
+        in  <- Try(rule.inKey.getValue(movement.properties)).toOption
+        out <- Try(rule.outKey.getValue(candidate.properties)).toOption
+        if in.nonEmpty && in == out
+      yield RuleMatch(rule, in)
 
   /**
    * The spec's pending suggestions that can still be accepted: ones whose movements are all still
@@ -177,7 +199,8 @@ class MatchSuggestionService(
         model         = suggestion.model,
         promptVersion = suggestion.promptVersion,
         confidence    = suggestion.confidence,
-        reason        = suggestion.rationale
+        reason        = suggestion.rationale,
+        explanation   = suggestion.explanation
       )
     )
     suggestion.status = MatchSuggestionStatus.Accepted

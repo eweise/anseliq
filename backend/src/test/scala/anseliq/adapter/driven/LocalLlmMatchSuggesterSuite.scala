@@ -88,3 +88,41 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
   test("parseAnswer accepts JSON wrapped in a code fence"):
     val fenced = "```json\n{\"match\": 1, \"confidence\": 0.8, \"reason\": \"r\"}\n```"
     assertEquals(LocalLlmMatchSuggester.parseAnswer(fenced, request).map(_.movementIds), Some(Seq(candidates.head.movementId)))
+
+  private def explanation(movementSteps: String, candidateSteps: String) = ujson.read(
+    s"""{"movement_field": "transaction_id", "movement_steps": $movementSteps, "candidate_field": "txn_id", "candidate_steps": $candidateSteps}"""
+  )
+
+  test("parseExplanation turns the steps into a rule, chaining several"):
+    import anseliq.common.model.*
+    val rule = LocalLlmMatchSuggester.parseExplanation(
+      explanation("""[{"op": "strip_prefix", "text": "INV-"}, {"op": "normalize", "text": null}]""", """[{"op": "normalize", "text": null}]""")
+    )
+    assertEquals(
+      rule,
+      Some(
+        StringAttributeMatchRule(
+          StringAttribute("transaction_id", Some(Chain(List(StripPrefix("INV-"), Normalize)))),
+          StringAttribute("txn_id", Some(Normalize))
+        )
+      )
+    )
+    assertEquals(
+      LocalLlmMatchSuggester.parseExplanation(explanation("[]", "[]")),
+      Some(StringAttributeMatchRule(StringAttribute("transaction_id"), StringAttribute("txn_id"))),
+      "no steps compares the fields as they are"
+    )
+
+  test("parseExplanation drops a malformed explanation"):
+    val malformed = Seq(
+      ujson.Null,
+      explanation("""[{"op": "uppercase", "text": null}]""", "[]"),
+      explanation("""[{"op": "strip_prefix", "text": null}]""", "[]"),
+      ujson.read("""{"movement_field": "", "movement_steps": [], "candidate_field": "txn_id", "candidate_steps": []}""")
+    )
+    malformed.foreach(e => assertEquals(LocalLlmMatchSuggester.parseExplanation(e), None, e.render()))
+
+  test("an answer keeps its match when its explanation is malformed"):
+    val content = """{"match": 2, "confidence": 0.9, "reason": "r", "explanation": {"movement_field": "transaction_id", "movement_steps": [{"op": "shout"}], "candidate_field": "txn_id", "candidate_steps": []}}"""
+    val proposal = LocalLlmMatchSuggester.parseAnswer(content, request).get
+    assertEquals((proposal.movementIds, proposal.explanation), (Seq(candidates(1).movementId), None))

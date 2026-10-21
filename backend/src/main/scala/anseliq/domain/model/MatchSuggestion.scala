@@ -1,5 +1,6 @@
 package anseliq.domain.model
 
+import anseliq.common.model.RuleMatch
 import anseliq.common.model.model.ID
 import com.augustnagro.magnum.*
 
@@ -20,6 +21,9 @@ case class MatchSuggestion(
   suggestedMovementIdsJson: String,
   confidence:               BigDecimal,
   rationale:                String,
+  // The suggester's explanation as a RuleMatch (rule and the value both sides reduce to), stored
+  // only once it's been checked against the movements.
+  explanationJson:          Option[String]         = None,
   model:                    String,
   promptVersion:            String,
   var status:               MatchSuggestionStatus  = MatchSuggestionStatus.Pending,
@@ -28,7 +32,8 @@ case class MatchSuggestion(
   var createdAt:            Option[OffsetDateTime] = None,
   var updatedAt:            Option[OffsetDateTime] = None
 ) extends Audited derives DbCodec:
-  def suggestedMovementIds: Seq[ID] = upickle.read[Seq[UUID]](suggestedMovementIdsJson)
+  def suggestedMovementIds: Seq[ID]           = upickle.read[Seq[UUID]](suggestedMovementIdsJson)
+  def explanation:          Option[RuleMatch] = explanationJson.map(upickle.read[RuleMatch](_))
 
 object MatchSuggestion:
   val Table = TableInfo[MatchSuggestion, MatchSuggestion, UUID]
