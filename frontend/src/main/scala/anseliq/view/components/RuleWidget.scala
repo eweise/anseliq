@@ -4,11 +4,12 @@ import com.raquo.laminar.api.L.*
 import anseliq.view.ViewHelper
 import anseliq.common.model.*
 
-// Edits a spec's matching rule. The form edits the primary rule's fields, including each string
-// field's transforms (e.g. normalize, so "INV-2026-0042" matches "inv20260042"). The rule's extra
-// alternatives (an ORRule's rules after the first, such as ones learned from match suggestions)
-// are listed with a Remove button; they and anything else the form has no controls for, such as a
-// regex extract set through the API, are carried through to the saved rule rather than dropped.
+// Edits a spec's matching rule: a primary rule and any alternatives (an ORRule's rules, tried in
+// order, each on what the earlier ones left unmatched; see InMemoryReconciler.alternatives). Each
+// is edited with the same form, including each string field's transforms (e.g. normalize, so
+// "INV-2026-0042" matches "inv20260042"). Alternatives can be added by hand or from rules learned
+// from match suggestions. Anything the form has no controls for, such as a regex extract set
+// through the API, is carried through to the saved rule rather than dropped.
 object RuleWidget:
 
   case class LeafState(
@@ -21,16 +22,16 @@ object RuleWidget:
     outModifier: Option[StringModifier] = None
   )
 
+  // One rule: the primary, or one alternative.
   case class State(
-    ruleType:     String                 = "NoOp",
-    inKey:        String                 = "",
-    inConstant:   Boolean                = false,
-    outKey:       String                 = "",
-    outConstant:  Boolean                = false,
-    andRules:     Seq[LeafState]         = Seq.empty,
-    inModifier:   Option[StringModifier] = None,
-    outModifier:  Option[StringModifier] = None,
-    alternatives: Seq[Rule]              = Seq.empty
+    ruleType:    String                 = "NoOp",
+    inKey:       String                 = "",
+    inConstant:  Boolean                = false,
+    outKey:      String                 = "",
+    outConstant: Boolean                = false,
+    andRules:    Seq[LeafState]         = Seq.empty,
+    inModifier:  Option[StringModifier] = None,
+    outModifier: Option[StringModifier] = None
   )
 
   object State:
@@ -63,14 +64,9 @@ object RuleWidget:
             LeafState("DateMatch", ik.key, ik.isConstant, ok.key, ok.isConstant)
         }
         State(ruleType = "And", andRules = leaves)
-      case ORRule(first :: rest) => fromRule(first).copy(alternatives = rest)
-      case _                     => State()
+      case _ => State()
 
-    def toRule(s: State): Rule =
-      val primary = primaryRule(s)
-      if s.alternatives.isEmpty then primary else ORRule(primary :: s.alternatives.toList)
-
-    private def primaryRule(s: State): Rule = s.ruleType match
+    def toRule(s: State): Rule = s.ruleType match
       case "StringMatch" =>
         StringAttributeMatchRule(
           StringAttribute(s.inKey, s.inModifier, isConstant   = s.inConstant),
@@ -125,7 +121,16 @@ object RuleWidget:
     // Rules to add as alternatives, e.g. a learned rule the spec page offers.
     addAlternative: EventStream[Rule] = EventStream.empty
   ): (HtmlElement, Signal[Rule]) =
-    val state = Var(State.fromRule(initial))
+    val (primaryRule, alternativeRules) = initial match
+      case ORRule(first :: rest) => (first, rest)
+      case rule                  => (rule, Nil)
+    val primary = Var(State.fromRule(primaryRule))
+    // Each alternative's own state, with an id that keeps its form stable while others are removed.
+    var nextId       = 0
+    def newAlternative(state: State): (Int, Var[State]) =
+      nextId += 1
+      nextId -> Var(state)
+    val alternatives = Var(alternativeRules.map(rule => newAlternative(State.fromRule(rule))))
 
     // Each side's field is labelled by its account (e.g. "Journal field") rather than In/Out Key.
     val inLabel = inMovementSpecId
@@ -134,9 +139,6 @@ object RuleWidget:
     val outLabel = outMovementSpecId
       .combineWith(movementSpecs.signal, accounts)
       .map((id, specs, accts) => s"${ViewHelper.secondarySideName(id, specs, accts)} field")
-
-    val ruleTypeOptions =
-      Seq("NoOp" -> "No Rule", "StringMatch" -> "String Match", "DateMatch" -> "Date Match", "And" -> "And")
 
     val inCols = inMovementSpecId
       .combineWith(movementSpecs.signal)
@@ -147,27 +149,91 @@ object RuleWidget:
       .combineWith(fileFeeds.signal)
       .map { case (id, specs, feeds) => columnsFor(id, specs, feeds) }
 
+    def editor(idPrefix: String, state: Var[State], allowNoRule: Boolean) =
+      ruleEditor(idPrefix, state, allowNoRule, inCols, outCols, inLabel, outLabel)
+
     val el = div(
       cls := "border-t border-md-outline pt-5 mt-2",
-      addAlternative --> (rule => state.update(s => if s.alternatives.contains(rule) then s else s.copy(alternatives = s.alternatives :+ rule))),
+      addAlternative --> { rule =>
+        val present = rule +: alternatives.now().map((_, state) => State.toRule(state.now()))
+        if !present.contains(rule) then alternatives.update(_ :+ newAlternative(State.fromRule(rule)))
+      },
       p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200 mb-4", "Matching Rule"),
+      editor("", primary, allowNoRule = true),
+      div(
+        cls := "mt-5",
+        p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200 mb-1", "Also matches on"),
+        p(
+          cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mb-3",
+          "Alternatives are tried in order after the rule above, each on whatever is still unmatched, so they never change what the rule above matches."
+        ),
+        children <-- alternatives.signal.split(_._1) { (id, initial, _) =>
+          val state = initial._2
+          div(
+            cls := "border border-md-outline rounded p-3 mb-3",
+            div(
+              cls := "flex justify-between items-center mb-2",
+              code(
+                cls := "font-mono text-xs text-md-on-surface dark:text-gray-200",
+                child.text <-- state.signal.map(s => describe(State.toRule(s)))
+              ),
+              button(
+                cls := "text-md-error text-sm px-2",
+                typ := "button",
+                onClick --> (_ => alternatives.update(_.filterNot(_._1 == id))),
+                "Remove"
+              )
+            ),
+            editor(s"alt${id}_", state, allowNoRule = false)
+          )
+        },
+        button(
+          cls := "text-md-primary text-sm px-4 py-2 rounded-full border border-md-primary",
+          typ := "button",
+          onClick --> (_ => alternatives.update(_ :+ newAlternative(State(ruleType = "StringMatch")))),
+          "+ Add alternative"
+        )
+      )
+    )
+    val rule = primary.signal
+      .combineWith(alternatives.signal.flatMapSwitch(alts => Signal.combineSeq(alts.map(_._2.signal))))
+      .map { (primaryState, alternativeStates) =>
+        val primaryRule = State.toRule(primaryState)
+        if alternativeStates.isEmpty then primaryRule else ORRule(primaryRule :: alternativeStates.map(State.toRule).toList)
+      }
+    (el, rule)
+
+  // The form for one rule: its type, then its fields (and their transforms) or AND rows. An
+  // alternative can't be "No Rule", since an alternative that matches nothing isn't runnable.
+  private def ruleEditor(
+    idPrefix:    String,
+    state:       Var[State],
+    allowNoRule: Boolean,
+    inCols:      Signal[Seq[String]],
+    outCols:     Signal[Seq[String]],
+    inLabel:     Signal[String],
+    outLabel:    Signal[String]
+  ): HtmlElement =
+    val ruleTypeOptions =
+      (if allowNoRule then Seq("NoOp" -> "No Rule") else Nil) ++
+        Seq("StringMatch" -> "String Match", "DateMatch" -> "Date Match", "And" -> "And")
+    div(
       Form.selectField(
-        "ruleType",
+        s"${idPrefix}ruleType",
         "Rule Type",
         ruleTypeOptions,
         state.now().ruleType,
         v => state.update(_.copy(ruleType = v))
       ),
       // Narrowed to only react when ruleType itself changes (via .distinct) — rebuilding on every
-      // state mutation (the previous behavior) is harmless for dropdowns (today's only in/out
-      // controls) but would drop keystroke-by-keystroke focus on the new constant-value text
-      // inputs below, the same bug this app hit once already in MaintainUserPage.scala.
+      // state mutation would drop keystroke-by-keystroke focus on the constant-value and prefix
+      // text inputs below, the same bug this app hit once already in MaintainUserPage.scala.
       child <-- state.signal.map(_.ruleType).distinct.map {
         case rt @ ("StringMatch" | "DateMatch") =>
           val inputType = if rt == "DateMatch" then "date" else "text"
           div(
             operandField(
-              "in",
+              s"${idPrefix}in",
               inLabel,
               inCols,
               inputType,
@@ -179,7 +245,7 @@ object RuleWidget:
               Option.when(rt == "StringMatch")((_.inModifier, (s, m) => s.copy(inModifier = m)))
             ),
             operandField(
-              "out",
+              s"${idPrefix}out",
               outLabel,
               outCols,
               inputType,
@@ -194,7 +260,7 @@ object RuleWidget:
         case "And" =>
           div(
             children <-- state.signal.map(_.andRules).splitByIndex { (index, _, leafSignal) =>
-              leafRow(index, leafSignal, inCols, outCols, inLabel, outLabel, state)
+              leafRow(idPrefix, index, leafSignal, inCols, outCols, inLabel, outLabel, state)
             },
             button(
               cls := "text-md-primary text-sm px-4 py-2 rounded-full border border-md-primary mt-1",
@@ -204,47 +270,8 @@ object RuleWidget:
             )
           )
         case _ => div()
-      },
-      // The fields above can't show modifiers, so a primary rule that has them is also shown in words.
-      child <-- state.signal.map { s =>
-        val hasModifiers = (s.inModifier ++ s.outModifier ++ s.andRules.flatMap(l => l.inModifier ++ l.outModifier)).nonEmpty
-        if !hasModifiers then emptyNode
-        else
-          p(
-            cls := "mt-2 text-xs text-md-on-surface-variant dark:text-gray-400",
-            "Compares ",
-            code(cls := "font-mono", describe(State.toRule(s.copy(alternatives = Seq.empty))))
-          )
-      },
-      child <-- state.signal.map(_.alternatives).distinct.map { alternatives =>
-        if alternatives.isEmpty then emptyNode
-        else
-          div(
-            cls := "mt-4",
-            p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200 mb-1", "Also matches on"),
-            p(
-              cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mb-2",
-              "Tried in order after the rule above, on whatever it leaves unmatched."
-            ),
-            ul(
-              cls := "space-y-1",
-              alternatives.map { alternative =>
-                li(
-                  cls := "flex items-center gap-3",
-                  code(cls := "font-mono text-xs text-md-on-surface dark:text-gray-200", describe(alternative)),
-                  button(
-                    cls := "text-xs text-md-primary",
-                    typ := "button",
-                    onClick --> (_ => state.update(s => s.copy(alternatives = s.alternatives.filterNot(_ == alternative)))),
-                    "Remove"
-                  )
-                )
-              }
-            )
-          )
       }
     )
-    (el, state.signal.map(State.toRule))
 
   private def describe(rule: Rule): String = rule match
     case AndRule(rules) => rules.map(describe).mkString(" and ")
@@ -414,6 +441,7 @@ object RuleWidget:
     case Chain(steps)         => steps.map(stepLabel).mkString(", then ")
 
   private def leafRow(
+    idPrefix:   String,
     index:      Int,
     leafSignal: Signal[LeafState],
     inCols:     Signal[Seq[String]],
@@ -446,14 +474,14 @@ object RuleWidget:
         val inputType = if ruleType == "DateMatch" then "date" else "text"
         div(
           Form.selectField(
-            s"andType_$index",
+            s"${idPrefix}andType_$index",
             "Type",
             Seq("StringMatch" -> "String Match", "DateMatch" -> "Date Match"),
             ruleType,
             v => state.update(s => updateLeaf(s, _.copy(ruleType = v)))
           ),
           operandField(
-            s"andIn${index}_",
+            s"${idPrefix}andIn${index}_",
             inLabel,
             inCols,
             inputType,
@@ -467,7 +495,7 @@ object RuleWidget:
             )
           ),
           operandField(
-            s"andOut${index}_",
+            s"${idPrefix}andOut${index}_",
             outLabel,
             outCols,
             inputType,
