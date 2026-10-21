@@ -45,6 +45,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
    * worker, and the HTTP server — and blocks until shutdown.
    */
   def run(args: Array[String]): Unit =
+    logger.info(s"Starting AnselIQ backend ${AppEnv.version}")
     // Fail now, not on the first login, if the HTTP server is missing its JWT secret.
     if services.getBoolean("http.enabled") then app.jwtSecret
     if app.config.getBoolean("db.migrate-on-start") then DbMigrations.migrate(app.config)
@@ -200,3 +201,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
         fundFlowsSnapshotted  = count,
         processingTimeSeconds = (System.currentTimeMillis() - beginTime) / 1000
       )
+
+object AppEnv:
+  /** The release this is, from the jar's manifest (see dynver in build.sbt); "dev" outside a jar. */
+  val version: String = Option(classOf[AppEnv].getPackage.getImplementationVersion).getOrElse("dev")

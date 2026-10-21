@@ -14,13 +14,14 @@ resources:
 
 # Built into the cluster's own image store, e.g. after `eval $(minikube docker-env)`:
 #   sbt backend/Docker/publishLocal frontend/Docker/publishLocal
+# which tags a build that isn't a release "dev" as well as with its version.
 images:
   - name: anseliq-backend
-    newName: myrepo/anseliq
-    newTag: backend-0.1.0
+    newName: ghcr.io/eweise/anseliq-backend
+    newTag: dev
   - name: anseliq-frontend
-    newName: myrepo/anseliq
-    newTag: frontend-0.1.0
+    newName: ghcr.io/eweise/anseliq-frontend
+    newTag: dev
 
 replicas:
   - name: backend-api

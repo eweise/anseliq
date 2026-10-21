@@ -6,6 +6,9 @@ lazy val scala3Version  = "3.8.1"
 lazy val upickleVersion = "4.4.2"
 ThisBuild / organization := "anseliq"
 ThisBuild / scalaVersion := scala3Version
+// The version comes from git (sbt-dynver): 1.2.3 on the commit tagged v1.2.3, and something like
+// 1.2.3-4-abcd1234 after it. "-" rather than dynver's default "+", which a Docker tag can't contain.
+ThisBuild / dynverSeparator := "-"
 
 lazy val root = (project in file("."))
 
@@ -18,7 +21,6 @@ lazy val frontend = (project in file("frontend"))
   .enablePlugins(ScalaJSPlugin, DockerPlugin)
   .settings(
     name    := "frontend",
-    version := "0.1.0",
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     scalaJSUseMainModuleInitializer := true,
     // Source maps seem to be broken with bundler
@@ -37,8 +39,8 @@ lazy val frontend = (project in file("frontend"))
     Docker / publishLocal := (Docker / publishLocal).dependsOn(Compile / fullLinkJS).value,
     dockerExposedPorts    := Seq(80),
     dockerRepository      := Some(DockerSettings.repository),
-    dockerAlias := DockerAlias
-      .apply(dockerRepository.value, None, "anseliq", dockerAlias.value.tag.map(t => "frontend-" + t)),
+    dockerAlias           := DockerAlias(dockerRepository.value, None, "anseliq-frontend", Some(version.value)),
+    dockerAliases ++= DockerSettings.devAlias(dockerAlias.value, isSnapshot.value),
     DockerSettings.x86ArchSetting,
     Docker / defaultLinuxInstallLocation := "/usr/share/nginx/html",
     dockerCommands := dockerCommands.value.filter {
@@ -105,7 +107,6 @@ lazy val backend = (project in file("backend"))
   .enablePlugins(JavaAppPackaging, DockerPlugin)
   .settings(
     name    := "backend",
-    version := "0.1.0",
     libraryDependencies ++= Seq(
       "ch.qos.logback"              % "logback-classic"     % Dependencies.LogbackClassic,
       "net.logstash.logback"        % "logstash-logback-encoder" % Dependencies.LogstashEncoder,
@@ -163,8 +164,8 @@ lazy val backend = (project in file("backend"))
     dockerBaseImage    := "eclipse-temurin:26-jre",
     dockerExposedPorts := Seq(8080),
     dockerRepository   := Some(DockerSettings.repository),
-    dockerAlias := DockerAlias
-      .apply(dockerRepository.value, None, "anseliq", dockerAlias.value.tag.map(t => "backend-" + t)),
+    dockerAlias        := DockerAlias(dockerRepository.value, None, "anseliq-backend", Some(version.value)),
+    dockerAliases ++= DockerSettings.devAlias(dockerAlias.value, isSnapshot.value),
     DockerSettings.x86ArchSetting
   )
   .dependsOn(common.jvm)

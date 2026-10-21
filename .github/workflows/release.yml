@@ -1,0 +1,45 @@
+# Publishes the backend and frontend images for a release. Pushing a tag like v1.2.3 publishes
+# ghcr.io/<owner>/anseliq-backend:1.2.3 and ghcr.io/<owner>/anseliq-frontend:1.2.3; the version
+# comes from the tag (sbt-dynver, see build.sbt).
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # dynver reads the version from the tag, which a shallow clone leaves out.
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "26"
+
+      - uses: sbt/setup-sbt@v1
+
+      # The frontend image runs the Vite build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # -java-home overrides .sbtopts's, which points at a developer's local JDK.
+      - name: Build and push the images
+        env:
+          DOCKER_REGISTRY: ghcr.io/${{ github.repository_owner }}
+        run: sbt -java-home "$JAVA_HOME" backend/Docker/publish frontend/Docker/publish

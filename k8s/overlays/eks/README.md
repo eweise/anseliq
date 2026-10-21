@@ -7,7 +7,8 @@ This overlay is a template for one customer install. Copy the folder for the cus
 
 | Placeholder | What it is |
 |---|---|
-| `REPLACE_ME_REGISTRY` | Where the cluster pulls the AnselIQ images from, e.g. an ECR repository in the customer's account (`<account>.dkr.ecr.<region>.amazonaws.com`). Tags are set in `kustomization.yaml`. |
+| `REPLACE_ME_REGISTRY` | Where the cluster pulls the AnselIQ images from: `ghcr.io/eweise`, where releases are published, or a registry in the customer's account they're copied to, e.g. ECR (`<account>.dkr.ecr.<region>.amazonaws.com`). |
+| `REPLACE_ME_VERSION` | The AnselIQ release to install, e.g. `1.2.3`. |
 | `REPLACE_ME_RDS_ENDPOINT` | A PostgreSQL instance (RDS or Aurora) the cluster can reach. See Database below. |
 | `REPLACE_ME_AWS_REGION` | The region of the S3 buckets the file feeds read. |
 | `REPLACE_ME_AWS_ACCOUNT_ID`, `REPLACE_ME_S3_READ_ROLE` | The IAM role the backend pods read S3 with. See S3 below. |
@@ -72,5 +73,8 @@ kubectl apply -k .
 
 Then sign in as `ADMIN_EMAIL`, which the backend creates on its first start.
 
-An upgrade is the same `kubectl apply -k .` with new image tags: each backend pod migrates the
-database before it starts, and running jobs drain before old pods stop.
+An upgrade is the same `kubectl apply -k .` after changing both `newTag`s in `kustomization.yaml` to
+the new release: each backend pod
+migrates the database before it starts, and running jobs drain before old pods stop. A customer
+keeping its overlay in its own repository can reference this base at the same release instead of
+copying it: `github.com/eweise/anseliq//k8s/base?ref=v1.2.3`.

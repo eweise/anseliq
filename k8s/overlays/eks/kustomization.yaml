@@ -10,13 +10,14 @@ resources:
   - namespace.yaml
   - ../../base
 
+# The release being installed, e.g. 1.2.3 (without the tag's "v"); upgrading is changing it.
 images:
   - name: anseliq-backend
-    newName: REPLACE_ME_REGISTRY/anseliq
-    newTag: backend-0.1.0
+    newName: REPLACE_ME_REGISTRY/anseliq-backend
+    newTag: REPLACE_ME_VERSION
   - name: anseliq-frontend
-    newName: REPLACE_ME_REGISTRY/anseliq
-    newTag: frontend-0.1.0
+    newName: REPLACE_ME_REGISTRY/anseliq-frontend
+    newTag: REPLACE_ME_VERSION
 
 configMapGenerator:
   - name: anseliq-config

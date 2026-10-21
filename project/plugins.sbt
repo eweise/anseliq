@@ -5,5 +5,6 @@ addSbtPlugin("com.github.reibitto" % "sbt-welcome"         % "0.5.0")
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.13.1")
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.3.2")
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.10.0")
+addSbtPlugin("com.github.sbt" % "sbt-dynver" % "5.1.0")
 
 libraryDependencies += "com.w47s0n" %% "consolebox" % "0.2.1"

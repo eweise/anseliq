@@ -56,6 +56,21 @@ an ALB with an ACM certificate); its `README.md` covers the AWS setup and what t
 An init container in each backend pod applies the database migrations before the app starts (see
 Database migrations below), so the database itself only has to exist.
 
+## Releases
+
+Pushing a version tag publishes that release's images:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+The Release workflow (`.github/workflows/release.yml`) builds and pushes
+`ghcr.io/eweise/anseliq-backend:1.2.3` and `ghcr.io/eweise/anseliq-frontend:1.2.3`. The version comes
+from git (sbt-dynver): a build anywhere other than a release tag gets one like `1.2.3-4-abcd1234`,
+plus a `dev` tag, which the local overlay deploys. The backend logs its version when it starts.
+`DOCKER_REGISTRY` publishes somewhere other than `ghcr.io/eweise`.
+
 ## Database migrations
 
 The schema is managed by [Flyway](https://documentation.red-gate.com/flyway). Migrations are in
