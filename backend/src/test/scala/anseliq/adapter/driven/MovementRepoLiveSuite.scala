@@ -322,6 +322,36 @@ class MovementRepoLiveSuite extends munit.FunSuite:
         )
         assertEquals(secondPage.map(_.properties.props("id")), Vector("30"))
 
+  // The reconciler's merge-join compares keys with String.compareTo, so the pages have to come back
+  // in that order whatever the database's collation. Only a linguistic one (CI's Postgres, RDS)
+  // sorts these differently: it would put "inv20260012" second, ignoring case.
+  test("findUnreconciledPage orders and pages match keys the way String.compareTo does"):
+    val movementRepo = MovementRepoLive(app.clock)
+    transact(app.transactor):
+      rollBackOnly:
+        val data = DataSetup(app)
+        val keys = Seq("inv20260012", "T2-1", "INV-2026-0012", "T0-STUCK", "t2-0")
+
+        for id <- keys
+        do
+          movementRepo.insert(
+            Movement(
+              inAccountId    = data.journalAccount.id,
+              outAccountId   = data.reconAccount.id,
+              movementSpecId = data.journalToRecon.id,
+              amount         = 100,
+              properties     = JSONBProps(Map("id" -> id))
+            )
+          )
+
+        def page(afterKey: Option[String]) =
+          movementRepo
+            .findUnreconciledPage(data.journalToRecon.id, "a.properties['props'] ->> 'id'", afterKey, pageSize = 3)
+            .map(_.properties.props("id"))
+
+        val firstPage = page(None)
+        assertEquals(firstPage ++ page(Some(firstPage.last)), keys.sorted.toVector)
+
   test("setReconciliationIds bulk-links each movement to its own reconciliation in one statement"):
     val movementRepo = MovementRepoLive(app.clock)
     transact(app.transactor):

@@ -20,7 +20,9 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # Matches test-application.conf.
+      # Matches test-application.conf. Keep the image's default en_US.utf8 collation: it sorts text
+      # linguistically like RDS does, unlike Postgres on macOS, and that's what catches code relying
+      # on the database's sort order matching Scala's (see MovementRepoLive.byteOrdered).
       postgres:
         image: postgres:18
         env:

@@ -113,13 +113,22 @@ class MovementRepoLive(clock: ClockService) extends AuditedRepo[Movement, UUID](
       $orderingClause
     """.query[(String, String)].run()
 
+  // A match key in byte order (the "C" collation) rather than the database's default collation,
+  // for the queries that page through movements by key: InMemoryReconciler merge-joins the two
+  // sides by comparing keys with String.compareTo, so the database has to sort the way that does.
+  // A linguistic collation (en_US.UTF-8 on Linux, RDS's default included) ignores case and
+  // punctuation at first, putting "inv20260012" before "T2-1" where compareTo puts it after, and
+  // the merge then walks past keys that should have matched. Equality lookups don't need it: a
+  // deterministic collation only calls byte-identical strings equal.
+  private def byteOrdered(matchKeyExpr: String) = SqlLiteral(s"""($matchKeyExpr) COLLATE "C"""")
+
   def findUnreconciledPage(
     movementSpecId: ID,
     matchKeyExpr:   String,
     afterKey:       Option[String],
     pageSize:       Int
   ): Txn[Vector[Movement]] =
-    val keyExpr = SqlLiteral(matchKeyExpr)
+    val keyExpr = byteOrdered(matchKeyExpr)
     // No lower bound needed on the first page: match keys come from real business
     // identifiers and are never empty strings in practice, so "> ''" is equivalent
     // to "no filter" while still letting afterKey be a plain, safely-parameterized
@@ -166,7 +175,7 @@ class MovementRepoLive(clock: ClockService) extends AuditedRepo[Movement, UUID](
     afterKey:       Option[String],
     pageSize:       Int
   )(use: UnreconciledCursor => T): T =
-    val keyExpr = SqlLiteral(matchKeyExpr)
+    val keyExpr = byteOrdered(matchKeyExpr)
     // Cursor names can't be bind parameters, so this is spliced as a literal like matchKeyExpr
     // above; safe because it's generated here, not user input.
     val cursorName = SqlLiteral(s"movement_cur_${UUID.randomUUID.toString.replace("-", "")}")
