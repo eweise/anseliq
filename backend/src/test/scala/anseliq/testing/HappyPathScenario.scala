@@ -24,16 +24,26 @@ import com.typesafe.config.{Config, ConfigFactory}
  *   - every day: three transactions that settle the same day
  *   - days 0, 3 and 6: one more that settles the next day
  *   - day 0: one that never settles, aging from 0 days on day 0 to Days - 1 days on the last day
- *   - the last day: two whose references differ only in formatting (FuzzyPairs), which the rule
- *     can't match but ReferenceFormatSuggester can, so they're left as pending suggestions
+ *   - days 2, 4 and 6: one whose references differ only in formatting (ReviewedFuzzyPairs), which
+ *     the rule can't match but the suggester can; a reviewer accepts it the next morning
+ *   - the last day: two more (PendingFuzzyPairs), left as pending suggestions for the demo
+ *
+ * So by the end, normalize(transaction_id) = normalize(txn_id) has explained three accepted
+ * suggestions, and the spec page offers it as a learned rule that would match the two pending pairs.
  */
 object HappyPathScenario:
   val Days           = 10
   val AgingLimitDays = 5
   val LateDays       = Set(0, 3, 6)
   val StuckId        = "T0-STUCK"
-  // (journal reference, bank reference, amount)
-  val FuzzyPairs = Seq(
+  // (journal reference, bank reference, amount), by the day they land; each is accepted the day after.
+  val ReviewedFuzzyPairs = Map(
+    2 -> ("INV-2026-0012", "inv20260012", BigDecimal("640.00")),
+    4 -> ("INV-2026-0019", "inv20260019", BigDecimal("1890.25")),
+    6 -> ("INV-2026-0027", "inv20260027", BigDecimal("312.40"))
+  )
+  // Land on the last day and stay pending.
+  val PendingFuzzyPairs = Seq(
     ("INV-2026-0042", "inv20260042", BigDecimal("1250.00")),
     ("PO 7781/A", "PO7781A", BigDecimal("89.90"))
   )
@@ -45,7 +55,7 @@ object HappyPathScenario:
     val late    = if LateDays.contains(day) then Seq(s"T$day-LATE" -> BigDecimal(500)) else Nil
     val settled = if LateDays.contains(day - 1) then Seq(s"T${day - 1}-LATE" -> BigDecimal(500)) else Nil
     val stuck   = if day == 0 then Seq(StuckId -> BigDecimal("42.00")) else Nil
-    val fuzzy   = if day == Days - 1 then FuzzyPairs else Nil
+    val fuzzy   = ReviewedFuzzyPairs.get(day).toSeq ++ (if day == Days - 1 then PendingFuzzyPairs else Nil)
     DayFiles(
       journal = sameDay ++ late ++ stuck ++ fuzzy.map((ref, _, amount) => ref -> amount),
       bank    = sameDay ++ settled ++ fuzzy.map((_, ref, amount) => ref -> amount)
@@ -61,7 +71,9 @@ object HappyPathScenario:
     bankFeed:     FileFeed,
     journalSpec:  MovementSpec,
     bankSpec:     MovementSpec,
-    reconSpec:    ReconciliationSpec
+    reconSpec:    ReconciliationSpec,
+    // Accepts the previous day's match suggestions each morning.
+    reviewer: User
   )
 
 // The production wiring with files coming from memory instead of S3, and match suggestions turned
@@ -125,14 +137,30 @@ class HappyPathScenario(app: HappyPathApp):
           )
         )
       )
-      Setup(runId, fundFlow, journal, recon, bank, journalFeed, bankFeed, journalSpec, bankSpec, reconSpec)
+      val reviewer = app.userService.createUser(
+        s"happy-path-$runId@example.com",
+        "Rita",
+        "Reviewer",
+        UserRole.Analyst,
+        java.util.UUID.randomUUID().toString
+      )
+      Setup(runId, fundFlow, journal, recon, bank, journalFeed, bankFeed, journalSpec, bankSpec, reconSpec, reviewer)
 
   /** Runs every day, calling `afterDay` with each day's number once it's done, before the clock moves on. */
   def runDays(s: Setup)(afterDay: Int => Unit = _ => ()): Unit =
     (0 until Days).foreach: day =>
-      if day > 0 then app.clock.addHours(24)
+      if day > 0 then
+        app.clock.addHours(24)
+        acceptYesterdaysSuggestions(s)
       runDay(s, day)
       afterDay(day)
+
+  // The reviewer works through the previous day's suggestions first thing, accepting each one.
+  private def acceptYesterdaysSuggestions(s: Setup): Unit =
+    transact(app.transactor):
+      app.matchSuggestionService
+        .pendingForSpec(s.reconSpec.id)
+        .foreach(suggestion => app.matchSuggestionService.accept(suggestion.id, s.reviewer.id))
 
   private def csv(rows: Seq[(String, BigDecimal)]): String = rows.map((id, amount) => s"$id,$amount\n").mkString
 
@@ -207,3 +235,4 @@ class HappyPathScenario(app: HappyPathApp):
       // match suggestions) and daily snapshots.
       app.fundFlowConfigRepo.deleteById(s.fundFlow.id)
       feedIds.foreach(app.fileFeedRepo.deleteById)
+      app.userRepo.deleteById(s.reviewer.id)

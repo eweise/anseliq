@@ -1,7 +1,9 @@
 package anseliq
 
+import anseliq.common.model.{Normalize, StringAttribute, StringAttributeMatchRule}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
+import anseliq.domain.service.RuleProposal
 import anseliq.testing.{HappyPathApp, HappyPathScenario}
 import anseliq.testing.HappyPathScenario.*
 import com.augustnagro.magnum.transact
@@ -21,19 +23,27 @@ class HappyPathScenarioSuite extends munit.FunSuite:
     overdue:            Int
   )
 
+  // A reviewed fuzzy pair's two movements are unreconciled on the day they land, and matched (one
+  // more reconciliation) when the reviewer accepts the suggestion the next morning.
+  private def reviewedPair(day: Int): Set[String] =
+    val (journalRef, bankRef, _) = ReviewedFuzzyPairs(day)
+    Set(journalRef, bankRef)
+
   private val expectedByDay = Vector(
     Expected(3, 8, Set(StuckId, "T0-LATE"), (2, 0, 0, 0), 0),
     Expected(7, 15, Set(StuckId), (1, 0, 0, 0), 0),
-    Expected(10, 21, Set(StuckId), (1, 0, 0, 0), 0),
-    Expected(13, 28, Set(StuckId, "T3-LATE"), (2, 0, 0, 0), 0),
-    Expected(17, 35, Set(StuckId), (0, 1, 0, 0), 0),
-    Expected(20, 41, Set(StuckId), (0, 1, 0, 0), 0),
-    Expected(23, 48, Set(StuckId, "T6-LATE"), (1, 1, 0, 0), 1), // the stuck one is now past the 5-day aging limit
-    Expected(27, 55, Set(StuckId), (0, 1, 0, 0), 1),
-    Expected(30, 61, Set(StuckId), (0, 0, 1, 0), 1),
-    // The fuzzy pairs land: the rule can't match them, so all four movements are unreconciled.
-    Expected(33, 71, Set(StuckId) ++ FuzzyPairs.flatMap((j, b, _) => Seq(j, b)), (4, 0, 1, 0), 1)
+    Expected(10, 23, Set(StuckId) ++ reviewedPair(2), (3, 0, 0, 0), 0),
+    Expected(14, 30, Set(StuckId, "T3-LATE"), (2, 0, 0, 0), 0),
+    Expected(18, 39, Set(StuckId) ++ reviewedPair(4), (2, 1, 0, 0), 0),
+    Expected(22, 45, Set(StuckId), (0, 1, 0, 0), 0),
+    // The stuck one is now past the 5-day aging limit.
+    Expected(25, 54, Set(StuckId, "T6-LATE") ++ reviewedPair(6), (3, 1, 0, 0), 1),
+    Expected(30, 61, Set(StuckId), (0, 1, 0, 0), 1),
+    Expected(33, 67, Set(StuckId), (0, 0, 1, 0), 1),
+    // The pending pairs land and stay unreconciled.
+    Expected(36, 77, Set(StuckId) ++ PendingFuzzyPairs.flatMap((j, b, _) => Seq(j, b)), (4, 0, 1, 0), 1)
   )
+
 
   test("a fund flow reconciles, ages and snapshots correctly day by day"):
     assertEquals(expectedByDay.size, Days)
@@ -92,18 +102,28 @@ class HappyPathScenarioSuite extends munit.FunSuite:
           Days,
           "one snapshot per day"
         )
-      // The fuzzy pairs were suggested, and a reviewer can accept or reject each.
+      // The pending pairs were suggested, the three accepted ones taught a rule, and a reviewer can
+      // accept or reject each pending one.
       transact(app.transactor):
         def reference(id: ID) =
           val props = app.movementRepo.findById(id).get.props
           props.getOrElse("transaction_id", props.getOrElse("txn_id", "?"))
         val suggestions = app.matchSuggestionService.pendingForSpec(s.reconSpec.id)
         val proposed    = suggestions.map(sg => reference(sg.movementId) -> sg.suggestedMovementIds.map(reference)).toSet
-        assertEquals(proposed, FuzzyPairs.map((j, b, _) => j -> Seq(b)).toSet)
+        assertEquals(proposed, PendingFuzzyPairs.map((j, b, _) => j -> Seq(b)).toSet)
 
-        // This block commits, so the reviewer is deleted again at the end of it; a failure rolls it back.
-        val reviewer = app.userService.createUser(s"happy-path-${s.runId}@example.com", "Rita", "Reviewer", UserRole.Analyst, "a-real-password")
-        val (invoice, purchaseOrder) = suggestions.partition(sg => reference(sg.movementId) == FuzzyPairs.head._1)
+        val learned = StringAttributeMatchRule(
+          StringAttribute("transaction_id", Some(Normalize)),
+          StringAttribute("txn_id", Some(Normalize))
+        )
+        assertEquals(
+          app.matchSuggestionService.ruleProposals(s.reconSpec.id),
+          Vector(RuleProposal(learned, acceptedSuggestions = 3, unmatchedPairs = 2)),
+          "learned from the three accepted suggestions; it would match the two pending pairs"
+        )
+
+        val reviewer                 = s.reviewer
+        val (invoice, purchaseOrder) = suggestions.partition(sg => reference(sg.movementId) == PendingFuzzyPairs.head._1)
         val accepted = app.matchSuggestionService.accept(invoice.head.id, reviewer.id)
         assertEquals(accepted.status, ReconciliationStatus.Final)
         assertEquals(
@@ -118,5 +138,4 @@ class HappyPathScenarioSuite extends munit.FunSuite:
           Set[Option[ID]](Some(reviewer.id))
         )
         assertEquals(app.reconRepo.findByReconSpecID(s.reconSpec.id).size, expectedByDay.last.reconciliations + 1)
-        app.userRepo.deleteById(reviewer.id)
     finally scenario.teardown(s)
