@@ -156,7 +156,7 @@ lazy val backend = (project in file("backend"))
     mainClass := Some("anseliq.app.Main")
   )
   .settings(
-    dockerBaseImage    := "eclipse-temurin:25-jre",
+    dockerBaseImage    := "eclipse-temurin:26-jre",
     dockerExposedPorts := Seq(8080),
     dockerRepository   := Some(DockerSettings.repository),
     dockerAlias := DockerAlias
