@@ -4,10 +4,11 @@ import com.raquo.laminar.api.L.*
 import anseliq.view.ViewHelper
 import anseliq.common.model.*
 
-// Edits a spec's matching rule. The form edits the primary rule's fields; what it has no controls
-// for is still carried through to the saved rule rather than dropped: a string field's modifiers
-// (e.g. normalize), and the rule's extra alternatives (an ORRule's rules after the first, such as
-// ones learned from match suggestions), which are listed with a Remove button.
+// Edits a spec's matching rule. The form edits the primary rule's fields, including each string
+// field's transforms (e.g. normalize, so "INV-2026-0042" matches "inv20260042"). The rule's extra
+// alternatives (an ORRule's rules after the first, such as ones learned from match suggestions)
+// are listed with a Remove button; they and anything else the form has no controls for, such as a
+// regex extract set through the API, are carried through to the saved rule rather than dropped.
 object RuleWidget:
 
   case class LeafState(
@@ -174,7 +175,8 @@ object RuleWidget:
               _.inKey,
               (s, v) => s.copy(inKey = v),
               _.inConstant,
-              (s, v) => s.copy(inConstant = v)
+              (s, v) => s.copy(inConstant = v),
+              Option.when(rt == "StringMatch")((_.inModifier, (s, m) => s.copy(inModifier = m)))
             ),
             operandField(
               "out",
@@ -185,7 +187,8 @@ object RuleWidget:
               _.outKey,
               (s, v) => s.copy(outKey = v),
               _.outConstant,
-              (s, v) => s.copy(outConstant = v)
+              (s, v) => s.copy(outConstant = v),
+              Option.when(rt == "StringMatch")((_.outModifier, (s, m) => s.copy(outModifier = m)))
             )
           )
         case "And" =>
@@ -263,7 +266,9 @@ object RuleWidget:
     getKey:      State => String,
     setKey:      (State, String) => State,
     getConstant: State => Boolean,
-    setConstant: (State, Boolean) => State
+    setConstant: (State, Boolean) => State,
+    // A string field's transforms; None for a date field, which has none.
+    transforms: Option[(State => Option[StringModifier], (State, Option[StringModifier]) => State)] = None
   ): HtmlElement =
     div(
       cls := "mb-1",
@@ -303,8 +308,110 @@ object RuleWidget:
           onClick --> (_ => state.update(s => setConstant(s, !getConstant(s))))
         ),
         "Match a constant value instead of a field"
+      ),
+      transforms.map { (get, set) =>
+        child <-- state.signal.map(getConstant).distinct.map(isConstant =>
+          if isConstant then emptyNode else transformEditor(state, get, set)
+        )
+      }
+    )
+
+  // A field's transforms, applied in order before the two sides are compared. Offers the same steps
+  // a learned rule can use (see StringModifier): ones whose SQL and Scala are checked to agree.
+  private def transformEditor(
+    state: Var[State],
+    get:   State => Option[StringModifier],
+    set:   (State, Option[StringModifier]) => State
+  ): HtmlElement =
+    def steps(s: State): List[StringModifier] = get(s) match
+      case Some(Chain(steps)) => steps
+      case Some(one)          => List(one)
+      case None               => Nil
+    def setSteps(s: State, steps: List[StringModifier]): State =
+      set(
+        s,
+        steps match
+          case Nil        => None
+          case one :: Nil => Some(one)
+          case many       => Some(Chain(many))
+      )
+    def add(step: StringModifier): Unit = state.update(s => setSteps(s, steps(s) :+ step))
+
+    val askingForPrefix = Var(false)
+    val prefix          = Var("")
+    div(
+      cls := "-mt-2 mb-4",
+      div(
+        cls := "flex flex-wrap items-center gap-2 text-xs text-md-on-surface-variant dark:text-gray-400",
+        span("Transform:"),
+        children <-- state.signal.map(steps).distinct.map(_.zipWithIndex.map { (step, i) =>
+          span(
+            cls := "inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-md-on-surface dark:text-gray-200",
+            stepLabel(step),
+            button(
+              typ        := "button",
+              cls        := "text-md-on-surface-variant dark:text-gray-400",
+              aria.label := s"Remove ${stepLabel(step)}",
+              onClick --> (_ => state.update(s => setSteps(s, steps(s).patch(i, Nil, 1)))),
+              "✕"
+            )
+          )
+        }),
+        select(
+          cls := "bg-transparent border border-md-outline rounded px-2 py-0.5",
+          option(value := "", "+ Add transform"),
+          option(value := "normalize", "Normalize (ignore case and punctuation)"),
+          option(value := "trimLeadingZeros", "Trim leading zeros"),
+          option(value := "stripPrefix", "Strip prefix…"),
+          inContext(el =>
+            onChange.mapToValue --> { choice =>
+              choice match
+                case "normalize"        => add(Normalize)
+                case "trimLeadingZeros" => add(TrimLeadingZeros)
+                case "stripPrefix"      => askingForPrefix.set(true)
+                case _                  => ()
+              el.ref.value = ""
+            }
+          )
+        )
+      ),
+      child <-- askingForPrefix.signal.map(asking =>
+        if !asking then emptyNode
+        else
+          div(
+            cls := "flex items-center gap-2 mt-2",
+            input(
+              cls         := "border border-md-outline rounded px-2 py-1 text-sm bg-transparent text-md-on-surface dark:text-white",
+              placeholder := "Prefix, e.g. ACH ",
+              onMountFocus,
+              controlled(value <-- prefix.signal, onInput.mapToValue --> prefix.writer)
+            ),
+            button(
+              cls := "text-xs text-md-primary",
+              typ := "button",
+              onClick --> { _ =>
+                if prefix.now().nonEmpty then add(StripPrefix(prefix.now()))
+                prefix.set("")
+                askingForPrefix.set(false)
+              },
+              "Add"
+            ),
+            button(
+              cls := "text-xs text-md-on-surface-variant dark:text-gray-400",
+              typ := "button",
+              onClick --> { _ => prefix.set(""); askingForPrefix.set(false) },
+              "Cancel"
+            )
+          )
       )
     )
+
+  private def stepLabel(step: StringModifier): String = step match
+    case Normalize            => "normalize"
+    case TrimLeadingZeros     => "trim leading zeros"
+    case StripPrefix(p)       => s"strip prefix \"$p\""
+    case SubstringModifier(r) => s"extract /$r/"
+    case Chain(steps)         => steps.map(stepLabel).mkString(", then ")
 
   private def leafRow(
     index:      Int,
@@ -354,7 +461,10 @@ object RuleWidget:
             s => s.andRules.lift(index).map(_.inKey).getOrElse(""),
             (s, v) => updateLeaf(s, _.copy(inKey = v)),
             s => s.andRules.lift(index).exists(_.inConstant),
-            (s, v) => updateLeaf(s, _.copy(inConstant = v))
+            (s, v) => updateLeaf(s, _.copy(inConstant = v)),
+            Option.when(ruleType == "StringMatch")(
+              (s => s.andRules.lift(index).flatMap(_.inModifier), (s, m) => updateLeaf(s, _.copy(inModifier = m)))
+            )
           ),
           operandField(
             s"andOut${index}_",
@@ -365,7 +475,10 @@ object RuleWidget:
             s => s.andRules.lift(index).map(_.outKey).getOrElse(""),
             (s, v) => updateLeaf(s, _.copy(outKey = v)),
             s => s.andRules.lift(index).exists(_.outConstant),
-            (s, v) => updateLeaf(s, _.copy(outConstant = v))
+            (s, v) => updateLeaf(s, _.copy(outConstant = v)),
+            Option.when(ruleType == "StringMatch")(
+              (s => s.andRules.lift(index).flatMap(_.outModifier), (s, m) => updateLeaf(s, _.copy(outModifier = m)))
+            )
           )
         )
       }
