@@ -110,7 +110,8 @@ trait AppContainer:
     manualReconciler    = manualReconciler,
     transactor          = transactor,
     candidateWindowDays = config.getInt("match-suggestions.candidate-window-days"),
-    maxCandidates       = config.getInt("match-suggestions.max-candidates")
+    maxCandidates       = config.getInt("match-suggestions.max-candidates"),
+    ruleProposalMinExamples = config.getInt("match-suggestions.rule-proposal-min-examples")
   )
   lazy val manualReconciler: ManualReconciler = ManualReconciler(
     ledger         = ledger,

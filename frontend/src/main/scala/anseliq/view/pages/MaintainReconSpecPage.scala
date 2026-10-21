@@ -2,7 +2,16 @@ package anseliq.view.pages
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
-import anseliq.common.model.{AccountPayload, FileFeedPayload, MovementSpecPayload, ReconRelationship, ReconciliationSpecPayload}
+import anseliq.common.model.{
+  AccountPayload,
+  FileFeedPayload,
+  MovementSpecPayload,
+  ORRule,
+  ReconRelationship,
+  ReconciliationSpecPayload,
+  Rule,
+  RuleProposalPayload
+}
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
@@ -60,8 +69,10 @@ object MaintainReconSpecPage:
         ReconciliationSpecPayload(accountId = Some(accountId))
       )
     )
-    val saveBus   = EventBus[Unit]()
-    val deleteBus = EventBus[Unit]()
+    val saveBus        = EventBus[Unit]()
+    val deleteBus      = EventBus[Unit]()
+    val addAlternative = EventBus[Rule]()
+    val proposals      = Var(Seq.empty[RuleProposalPayload])
 
     val inSpecIdSignal  = spec.signal.map(_.inMovementSpecId)
     val outSpecIdSignal = spec.signal.map(_.outMovementSpecId)
@@ -72,7 +83,8 @@ object MaintainReconSpecPage:
       fileFeeds         = fileFeeds,
       inMovementSpecId  = inSpecIdSignal,
       outMovementSpecId = outSpecIdSignal,
-      accounts          = accounts.signal
+      accounts          = accounts.signal,
+      addAlternative    = addAlternative.events
     )
 
     div(
@@ -94,6 +106,11 @@ object MaintainReconSpecPage:
       ApiClient
         .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
         .apiBind(accounts.set),
+      initialSpec.flatMap(_.id).map { id =>
+        ApiClient
+          .get[Seq[RuleProposalPayload]](HttpPath.url(s"${HttpPath.reconSpec}/$id/rule-proposals"), SessionStore.token)
+          .apiBind(proposals.set)
+      },
       saveBus.events
         .sample(ruleSignal)
         .flatMapSwitch { rule =>
@@ -152,6 +169,7 @@ object MaintainReconSpecPage:
           )
         },
         ruleEl,
+        child <-- proposals.signal.combineWith(ruleSignal).map(learnedRules(_, _, addAlternative)),
         div(
           cls := "flex justify-between mt-6",
           child <-- spec.signal.map { s =>
@@ -170,6 +188,45 @@ object MaintainReconSpecPage:
         )
       )
     )
+
+  // Rules learned from this spec's accepted match suggestions that its rule doesn't include yet.
+  // Adding one puts it in the rule above as an alternative; Save persists it.
+  private def learnedRules(proposals: Seq[RuleProposalPayload], rule: Rule, addAlternative: EventBus[Rule]): HtmlElement =
+    val current = rule match
+      case ORRule(rules) => rules.toSet
+      case other         => Set(other)
+    val notAdded = proposals.filterNot(p => current.contains(p.rule))
+    if notAdded.isEmpty then div()
+    else
+      div(
+        cls := "border-t border-md-outline pt-5 mt-5",
+        p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200 mb-1", "Learned from accepted suggestions"),
+        p(
+          cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mb-3",
+          "Rules that explained matches people accepted. Add one so those pairs match without a suggestion from now on."
+        ),
+        ul(
+          cls := "space-y-3",
+          notAdded.map { proposal =>
+            li(
+              cls := "flex items-center justify-between gap-4",
+              div(
+                code(cls := "font-mono text-xs text-md-on-surface dark:text-gray-200", proposal.condition),
+                div(
+                  cls := "text-xs text-md-on-surface-variant dark:text-gray-400",
+                  s"Explained ${proposal.acceptedSuggestions} accepted suggestions · would match ${proposal.unmatchedPairs} unmatched pairs now"
+                )
+              ),
+              button(
+                cls := "shrink-0 text-xs text-md-primary border border-md-primary rounded-full px-3 py-1",
+                typ := "button",
+                onClick --> (_ => addAlternative.emit(proposal.rule)),
+                "Add as alternative"
+              )
+            )
+          }
+        )
+      )
 
   private def movementSpecSelect(
     id:       String,

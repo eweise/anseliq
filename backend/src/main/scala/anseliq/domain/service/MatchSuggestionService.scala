@@ -38,7 +38,9 @@ class MatchSuggestionService(
   maxCandidates:       Int,
   // Of each kind (past matches, past non-matches): a few is enough, and small models get less
   // accurate as the prompt grows.
-  maxExamples: Int = 3
+  maxExamples: Int = 3,
+  // How many accepted suggestions a rule has to explain before it's proposed for the spec.
+  ruleProposalMinExamples: Int = 3
 ) extends StrictLogging:
 
   /**
@@ -219,3 +221,43 @@ class MatchSuggestionService(
     if suggestion.status != MatchSuggestionStatus.Pending then
       throw IllegalStateError(s"match suggestion $suggestionId was already ${suggestion.status}")
     suggestion
+
+  /**
+   * Rules learned from accepted suggestions, for a person to add to the spec as an alternative (see
+   * InMemoryReconciler.alternatives) so those pairs match without a model from then on: each
+   * checked explanation behind ruleProposalMinExamples or more of the spec's accepted suggestions,
+   * unless the spec already has it. Most-used first.
+   */
+  def ruleProposals(reconSpecId: ID): Txn[Vector[RuleProposal]] =
+    val spec     = reconSpecRepo.findById(reconSpecId).ErrIfNotFound("reconciliation spec", reconSpecId)
+    val existing = InMemoryReconciler.alternatives(spec.rule()).getOrElse(Seq(spec.rule())).toSet[Rule]
+    val explained = reconRepo
+      .findSuggested(reconSpecId)
+      .flatMap(_.appliedRules match
+        case s: AppliedRules.Suggested => s.explanation.map(_.rule)
+        case _                         => None)
+      .collect { case rule: StringAttributeMatchRule => rule }
+    lazy val unreconciled = movementRepo.findUnReconciledByAccount(spec.accountId)
+    explained
+      .groupBy(identity)
+      .collect { case (rule, uses) if uses.size >= ruleProposalMinExamples && !existing.contains(rule) => rule -> uses.size }
+      .toVector
+      .sortBy((_, count) => -count)
+      .map: (rule, count) =>
+        RuleProposal(rule, count, unmatchedPairsFor(rule, spec, unreconciled))
+
+  // How many pairs of the spec's unreconciled movements the rule would match one-to-one now.
+  private def unmatchedPairsFor(rule: StringAttributeMatchRule, spec: ReconciliationSpec, unreconciled: Vector[Movement]): Int =
+    def keys(specId: ID, attribute: anseliq.common.model.StringAttribute) =
+      unreconciled
+        .filter(_.movementSpecId == specId)
+        .flatMap(m => Try(attribute.getValue(m.props)).toOption.filter(_.nonEmpty))
+        .groupBy(identity)
+        .view
+        .mapValues(_.size)
+        .toMap
+    val inKeys  = keys(spec.inMovementSpecId, rule.inKey)
+    val outKeys = keys(spec.outMovementSpecId, rule.outKey)
+    inKeys.map((key, count) => count.min(outKeys.getOrElse(key, 0))).sum
+
+case class RuleProposal(rule: StringAttributeMatchRule, acceptedSuggestions: Int, unmatchedPairs: Int)

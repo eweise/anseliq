@@ -37,6 +37,15 @@ class ReconciliationRepoLive(clock: ClockService) extends AuditedRepo[Reconcilia
       LIMIT $limit
     """.query[Reconciliation].run()
 
+  def findSuggested(reconSpecID: ID): Txn[Vector[Reconciliation]] =
+    sql"""
+      SELECT ${r.all}
+      FROM $r AS a
+      WHERE spec_id = $reconSpecID
+      AND status = ${ReconciliationStatus.Final}
+      AND applied_rules ->> '$$type' = 'Suggested'
+    """.query[Reconciliation].run()
+
   def findBySpecIdAndStatus(specId: ID, status: ReconciliationStatus): Txn[Vector[Reconciliation]] =
     sql"""
       SELECT ${r.all}

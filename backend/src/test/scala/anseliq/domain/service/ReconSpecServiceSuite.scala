@@ -39,9 +39,19 @@ class ReconSpecServiceSuite extends munit.FunSuite:
   test("createReconSpec rejects an AND rule with no conditions"):
     assertRejected(AndRule(Nil), "at least one condition")
 
-  test("createReconSpec rejects an OR rule, which reconciliation doesn't support"):
+  test("createReconSpec saves a top-level OR rule: each alternative is its own pass"):
+    val exact      = StringAttributeMatchRule(StringAttribute(key = "id"), StringAttribute(key = "id"))
+    val normalized = StringAttributeMatchRule(StringAttribute("id", Some(Normalize)), StringAttribute("id", Some(Normalize)))
+    transact(app.transactor):
+      rollBackOnly:
+        val data    = DataSetup(app)
+        val created = app.reconSpecService.createReconSpec(specWith(data, ORRule(List(exact, normalized))))
+        assertEquals(app.reconSpecRepo.findById(created.id).map(_.rule()), Some(ORRule(List(exact, normalized))))
+
+  test("createReconSpec rejects an OR nested inside an AND, and an OR with no alternatives"):
     val leaf = StringAttributeMatchRule(StringAttribute(key = "id"), StringAttribute(key = "id"))
-    assertRejected(ORRule(List(leaf, leaf)), "only supports")
+    assertRejected(AndRule(List(leaf, ORRule(List(leaf, leaf)))), "only supports")
+    assertRejected(ORRule(Nil), "at least one alternative")
 
   test("createReconSpec rejects swapped sides: the Primary side must flow into the Recon account"):
     transact(app.transactor):

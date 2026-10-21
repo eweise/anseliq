@@ -86,6 +86,69 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         assertEquals(unmatched, Set("A-1", "REF b1"))
     finally teardown(data)
 
+  private val exactId      = StringAttributeMatchRule(StringAttribute("id"), StringAttribute("id"))
+  private val normalizedId = StringAttributeMatchRule(StringAttribute("id", Some(Normalize)), StringAttribute("id", Some(Normalize)))
+
+  // Two pairs only the exact rule needs, and two only the normalized one can match.
+  private def insertExactAndFormattedPairs(data: DataSetup): Txn[Unit] =
+    for (in, out) <- Seq("A1" -> "A1", "B2" -> "B2", "INV-0042" -> "inv0042", "PO 7/A" -> "po7a")
+    do
+      insertMovement(data, data.journalToRecon, in)
+      insertMovement(data, data.reportToRecon, out)
+
+  test("an OR rule's alternatives run in order, each on what the earlier ones left"):
+    val data = transact(app.transactor)(DataSetup(app))
+    try
+      transact(app.transactor):
+        data.reconSpecRepo.update(data.reconSpec.copy(ruleJson = upickle.write[Rule](ORRule(List(exactId, normalizedId)))))
+        insertExactAndFormattedPairs(data)
+
+      val result = app.reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 1)
+      assertEquals(result.reconciliationSpecInsertCount(data.reconSpec.id), 4, "counts are summed across the passes")
+
+      transact(app.transactor):
+        val summaries = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.appliedRules.summary).toSet
+        assertEquals(
+          summaries,
+          Set("id = id: A1", "id = id: B2", "normalize(id) = normalize(id): inv0042", "normalize(id) = normalize(id): po7a"),
+          "the exact pairs were matched by the first alternative, not the broader second one"
+        )
+        assertEquals(data.movementRepo.findUnReconciledByAccount(data.reconAccount.id), Vector.empty)
+    finally teardown(data)
+
+  test("a resumed job starts at the alternative its checkpoint was on"):
+    val data = transact(app.transactor)(DataSetup(app))
+    val job  = Job(referenceId = data.reconAccount.id, jobType = JobType.Reconciliation)
+    try
+      transact(app.transactor):
+        data.reconSpecRepo.update(data.reconSpec.copy(ruleJson = upickle.write[Rule](ORRule(List(exactId, normalizedId)))))
+        insertExactAndFormattedPairs(data)
+        // As if a crash happened after the first alternative's pass had finished.
+        app.jobRepo.insert(job.copy(progressJson = Some(upickle.write(Map(data.reconSpec.id -> ReconciliationCheckpoint(alternative = 1))))))
+
+      app.reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10, jobId = Some(job.id))
+
+      transact(app.transactor):
+        val summaries = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.appliedRules.summary).toSet
+        assertEquals(
+          summaries,
+          Set("normalize(id) = normalize(id): a1", "normalize(id) = normalize(id): b2", "normalize(id) = normalize(id): inv0042", "normalize(id) = normalize(id): po7a"),
+          "the first alternative's pass was skipped, so the second matched everything"
+        )
+    finally
+      transact(app.transactor)(app.jobRepo.deleteById(job.id))
+      teardown(data)
+
+  test("progress saved before alternatives existed still reads, as the first alternative"):
+    case class CheckpointBeforeAlternatives(lastInMatchKey: Option[String], lastOutMatchKey: Option[String])
+        derives upickle.default.ReadWriter
+    val id    = createID()
+    val saved = upickle.write(Map(id -> CheckpointBeforeAlternatives(Some("k1"), Some("k2"))))
+    assertEquals(
+      upickle.read[Map[anseliq.common.model.model.ID, ReconciliationCheckpoint]](saved),
+      Map(id -> ReconciliationCheckpoint(Some("k1"), Some("k2"), alternative = 0))
+    )
+
   test("OneToOne verifies amount balance: a key match with mismatched amounts is Mismatched, not Final"):
     // A OneToOne pair is inherently a single, final judgment — there's no third movement that could
     // ever arrive to close the gap under a OneToOne rule — but "stays InProgress" (rather than

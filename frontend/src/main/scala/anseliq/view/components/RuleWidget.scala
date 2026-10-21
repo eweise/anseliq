@@ -4,23 +4,32 @@ import com.raquo.laminar.api.L.*
 import anseliq.view.ViewHelper
 import anseliq.common.model.*
 
+// Edits a spec's matching rule. The form edits the primary rule's fields; what it has no controls
+// for is still carried through to the saved rule rather than dropped: a string field's modifiers
+// (e.g. normalize), and the rule's extra alternatives (an ORRule's rules after the first, such as
+// ones learned from match suggestions), which are listed with a Remove button.
 object RuleWidget:
 
   case class LeafState(
-    ruleType:    String  = "StringMatch",
-    inKey:       String  = "",
-    inConstant:  Boolean = false,
-    outKey:      String  = "",
-    outConstant: Boolean = false
+    ruleType:    String                 = "StringMatch",
+    inKey:       String                 = "",
+    inConstant:  Boolean                = false,
+    outKey:      String                 = "",
+    outConstant: Boolean                = false,
+    inModifier:  Option[StringModifier] = None,
+    outModifier: Option[StringModifier] = None
   )
 
   case class State(
-    ruleType:    String         = "NoOp",
-    inKey:       String         = "",
-    inConstant:  Boolean        = false,
-    outKey:      String         = "",
-    outConstant: Boolean        = false,
-    andRules:    Seq[LeafState] = Seq.empty
+    ruleType:     String                 = "NoOp",
+    inKey:        String                 = "",
+    inConstant:   Boolean                = false,
+    outKey:       String                 = "",
+    outConstant:  Boolean                = false,
+    andRules:     Seq[LeafState]         = Seq.empty,
+    inModifier:   Option[StringModifier] = None,
+    outModifier:  Option[StringModifier] = None,
+    alternatives: Seq[Rule]              = Seq.empty
   )
 
   object State:
@@ -33,7 +42,9 @@ object RuleWidget:
           inKey       = inKey.key,
           inConstant  = inKey.isConstant,
           outKey      = outKey.key,
-          outConstant = outKey.isConstant
+          outConstant = outKey.isConstant,
+          inModifier  = inKey.modifier,
+          outModifier = outKey.modifier
         )
       case DateAttributeMatchRule(inKey, outKey) =>
         State(
@@ -46,18 +57,23 @@ object RuleWidget:
       case AndRule(rules) =>
         val leaves = rules.collect {
           case StringAttributeMatchRule(ik, ok) =>
-            LeafState("StringMatch", ik.key, ik.isConstant, ok.key, ok.isConstant)
+            LeafState("StringMatch", ik.key, ik.isConstant, ok.key, ok.isConstant, ik.modifier, ok.modifier)
           case DateAttributeMatchRule(ik, ok) =>
             LeafState("DateMatch", ik.key, ik.isConstant, ok.key, ok.isConstant)
         }
         State(ruleType = "And", andRules = leaves)
-      case _ => State()
+      case ORRule(first :: rest) => fromRule(first).copy(alternatives = rest)
+      case _                     => State()
 
-    def toRule(s: State): Rule = s.ruleType match
+    def toRule(s: State): Rule =
+      val primary = primaryRule(s)
+      if s.alternatives.isEmpty then primary else ORRule(primary :: s.alternatives.toList)
+
+    private def primaryRule(s: State): Rule = s.ruleType match
       case "StringMatch" =>
         StringAttributeMatchRule(
-          StringAttribute(s.inKey, isConstant  = s.inConstant),
-          StringAttribute(s.outKey, isConstant = s.outConstant)
+          StringAttribute(s.inKey, s.inModifier, isConstant   = s.inConstant),
+          StringAttribute(s.outKey, s.outModifier, isConstant = s.outConstant)
         )
       case "DateMatch" =>
         DateAttributeMatchRule(
@@ -74,8 +90,8 @@ object RuleWidget:
             )
           else
             StringAttributeMatchRule(
-              StringAttribute(leaf.inKey, isConstant  = leaf.inConstant),
-              StringAttribute(leaf.outKey, isConstant = leaf.outConstant)
+              StringAttribute(leaf.inKey, leaf.inModifier, isConstant   = leaf.inConstant),
+              StringAttribute(leaf.outKey, leaf.outModifier, isConstant = leaf.outConstant)
             )
         })
       case _ => NoOpRule
@@ -104,7 +120,9 @@ object RuleWidget:
     fileFeeds:         Var[Seq[FileFeedPayload]],
     inMovementSpecId:  Signal[String],
     outMovementSpecId: Signal[String],
-    accounts:          Signal[Seq[AccountPayload]]
+    accounts:          Signal[Seq[AccountPayload]],
+    // Rules to add as alternatives, e.g. a learned rule the spec page offers.
+    addAlternative: EventStream[Rule] = EventStream.empty
   ): (HtmlElement, Signal[Rule]) =
     val state = Var(State.fromRule(initial))
 
@@ -130,6 +148,7 @@ object RuleWidget:
 
     val el = div(
       cls := "border-t border-md-outline pt-5 mt-2",
+      addAlternative --> (rule => state.update(s => if s.alternatives.contains(rule) then s else s.copy(alternatives = s.alternatives :+ rule))),
       p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200 mb-4", "Matching Rule"),
       Form.selectField(
         "ruleType",
@@ -182,9 +201,51 @@ object RuleWidget:
             )
           )
         case _ => div()
+      },
+      // The fields above can't show modifiers, so a primary rule that has them is also shown in words.
+      child <-- state.signal.map { s =>
+        val hasModifiers = (s.inModifier ++ s.outModifier ++ s.andRules.flatMap(l => l.inModifier ++ l.outModifier)).nonEmpty
+        if !hasModifiers then emptyNode
+        else
+          p(
+            cls := "mt-2 text-xs text-md-on-surface-variant dark:text-gray-400",
+            "Compares ",
+            code(cls := "font-mono", describe(State.toRule(s.copy(alternatives = Seq.empty))))
+          )
+      },
+      child <-- state.signal.map(_.alternatives).distinct.map { alternatives =>
+        if alternatives.isEmpty then emptyNode
+        else
+          div(
+            cls := "mt-4",
+            p(cls := "text-sm font-medium text-md-on-surface dark:text-gray-200 mb-1", "Also matches on"),
+            p(
+              cls := "text-xs text-md-on-surface-variant dark:text-gray-400 mb-2",
+              "Tried in order after the rule above, on whatever it leaves unmatched."
+            ),
+            ul(
+              cls := "space-y-1",
+              alternatives.map { alternative =>
+                li(
+                  cls := "flex items-center gap-3",
+                  code(cls := "font-mono text-xs text-md-on-surface dark:text-gray-200", describe(alternative)),
+                  button(
+                    cls := "text-xs text-md-primary",
+                    typ := "button",
+                    onClick --> (_ => state.update(s => s.copy(alternatives = s.alternatives.filterNot(_ == alternative)))),
+                    "Remove"
+                  )
+                )
+              }
+            )
+          )
       }
     )
     (el, state.signal.map(State.toRule))
+
+  private def describe(rule: Rule): String = rule match
+    case AndRule(rules) => rules.map(describe).mkString(" and ")
+    case leaf           => RuleMatch(leaf, "").condition
 
   // One side (the Primary or Secondary account's field) of a String/Date Match rule: toggles between a field-name
   // dropdown (today's only option) and a typed constant value, via a checkbox. Reacts only to the

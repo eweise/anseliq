@@ -258,3 +258,38 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
       assertEquals(check(StringAttributeMatchRule(StringAttribute("missing"), StringAttribute("ref"))), None, "missing field")
       assertEquals(check(refRule(Some(SubstringModifier("[0-9]{20}")), Some(SubstringModifier("[0-9]{20}")))), None, "different values")
       assertEquals(check(StringAttributeMatchRule(StringAttribute("name", Some(StripPrefix("anchor"))), StringAttribute("name", Some(StripPrefix("bank"))))), None, "both reduce to empty")
+
+  // `count` invoices accepted as suggestions, each explained by normalize(ref) = normalize(ref).
+  private def acceptExplainedSuggestions(app: TestAppContainer, data: DataSetup, service: MatchSuggestionService, count: Int): Txn[Unit] =
+    val reviewer = newReviewer(app)
+    (1 to count).foreach: i =>
+      app.accountService.postAmount(data.journalToRecon, 1000 + i, createID(), Map("name" -> s"in-$i", "ref" -> s"INV-00$i"))
+      app.accountService.postAmount(data.reportToRecon, 1000 + i, createID(), Map("name" -> s"out-$i", "ref" -> s"inv00$i"))
+    service.findRequests(data.reconAccount.id).foreach: (spec, request) =>
+      val proposal = ProposedMatch(Seq(request.candidates.head.movementId), BigDecimal("0.9"), "same invoice", Some(refRule(Some(Normalize), Some(Normalize))))
+      service.accept(service.record(spec, request, proposal).get.id, reviewer)
+
+  test("ruleProposals offers a rule once it has explained enough accepted suggestions"):
+    withService: (app, data, service) =>
+      acceptExplainedSuggestions(app, data, service, 3)
+      // Still unmatched: one pair the learned rule would match, and a movement it wouldn't.
+      app.accountService.postAmount(data.journalToRecon, 77, createID(), Map("name" -> "later-in", "ref" -> "AB-9"))
+      app.accountService.postAmount(data.reportToRecon, 77, createID(), Map("name" -> "later-out", "ref" -> "ab9"))
+      app.accountService.postAmount(data.journalToRecon, 55, createID(), Map("name" -> "alone", "ref" -> "ZZ-1"))
+
+      assertEquals(
+        service.ruleProposals(data.reconSpec.id),
+        Vector(RuleProposal(refRule(Some(Normalize), Some(Normalize)), acceptedSuggestions = 3, unmatchedPairs = 1))
+      )
+
+  test("ruleProposals leaves out a rule with too few examples, or one the spec already has"):
+    withService: (app, data, service) =>
+      acceptExplainedSuggestions(app, data, service, 2)
+      assertEquals(service.ruleProposals(data.reconSpec.id), Vector.empty, "two accepted suggestions isn't enough")
+
+      acceptExplainedSuggestions(app, data, service, 1)
+      val withLearnedRule = data.reconSpec.copy(ruleJson = upickle.write[anseliq.common.model.Rule](
+        anseliq.common.model.ORRule(List(data.reconSpec.rule(), refRule(Some(Normalize), Some(Normalize))))
+      ))
+      app.reconSpecRepo.update(withLearnedRule)
+      assertEquals(service.ruleProposals(data.reconSpec.id), Vector.empty, "the spec already matches on it")

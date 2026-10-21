@@ -50,9 +50,8 @@ class ReconSpecService(
     rule match
       case NoOpRule => throw IllegalArgumentError("rule", "A reconciliation rule is required")
       case _ =>
-        InMemoryReconciler.leafMatchRules(rule) match
+        InMemoryReconciler.alternatives(rule) match
           case Left(reason) => throw IllegalArgumentError("rule", reason)
-          case Right(Seq()) => throw IllegalArgumentError("rule", "A reconciliation rule needs at least one condition")
           case Right(_)     => ()
 
   // A reconciliation pairs the account's Primary side (inMovementSpecId: Primary → this Recon

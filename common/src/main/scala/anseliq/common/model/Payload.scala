@@ -179,6 +179,15 @@ case class MatchSuggestionPayload(
   createdAt:            Option[OffsetDateTime] = None
 ) derives ReadWriter
 
+// A rule learned from accepted match suggestions, which can be added to the spec as an alternative.
+// condition is the rule in words; unmatchedPairs is how many currently unmatched pairs it would match.
+case class RuleProposalPayload(
+  rule:                Rule,
+  condition:           String,
+  acceptedSuggestions: Int,
+  unmatchedPairs:      Int
+) derives ReadWriter
+
 case class ManualMatchRequest(
   inMovementIds:  Seq[String],
   outMovementIds: Seq[String],

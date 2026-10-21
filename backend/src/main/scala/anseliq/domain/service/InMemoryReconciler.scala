@@ -18,9 +18,13 @@ import scala.collection.mutable.ListBuffer
 import scala.util.boundary
 import scala.util.boundary.break
 
+// alternative is which of the spec's rule alternatives the pass was on (see
+// InMemoryReconciler.alternatives); the ones before it are done. 0 for a rule with no alternatives,
+// and for progress saved before alternatives existed.
 case class ReconciliationCheckpoint(
   lastInMatchKey:  Option[String] = None,
-  lastOutMatchKey: Option[String] = None
+  lastOutMatchKey: Option[String] = None,
+  alternative:     Int            = 0
 ) derives upickle.default.ReadWriter
 
 case class SpecBatchProgress(specId: ID, matchesInBatch: Int, checkpoint: ReconciliationCheckpoint)
@@ -38,9 +42,10 @@ object InMemoryReconciler:
   // Supports StringAttributeMatchRule/DateAttributeMatchRule, singly or ANDed together via
   // AndRule (each sub-rule contributes one attribute to a composite key, in rule order — the
   // in-side and out-side lists are always built from the same AndRule traversal, so they pair up
-  // correctly). OrRule and any other Rule are unsupported: Left with why, rather than silently
-  // comparing the wrong thing. ReconSpecService checks this too, so an unrunnable rule is
-  // rejected when it's saved instead of failing every reconciliation run.
+  // correctly). Within one alternative, ORRule and any other Rule are unsupported: Left with why,
+  // rather than silently comparing the wrong thing (a top-level ORRule's alternatives are handled
+  // by alternatives, below). ReconSpecService checks this too, so an unrunnable rule is rejected
+  // when it's saved instead of failing every reconciliation run.
   def leafMatchRules(rule: Rule): Either[String, Seq[StringAttributeMatchRule | DateAttributeMatchRule]] =
     rule match
       case s: StringAttributeMatchRule => Right(Seq(s))
@@ -51,8 +56,25 @@ object InMemoryReconciler:
         }
       case other =>
         Left(
-          s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them; got ${other.getClass.getSimpleName}"
+          s"reconcileAccountResumable only supports StringAttributeMatchRule/DateAttributeMatchRule and AndRule combinations of them, optionally as the alternatives of a top-level ORRule; got ${other.getClass.getSimpleName}"
         )
+
+  /**
+   * The rule's alternatives, tried in order: each one is its own matching pass over what the
+   * earlier ones left unmatched, so adding an alternative never changes what the earlier ones
+   * match. An ORRule's rules are its alternatives (each a leaf rule or an AndRule of them; an OR
+   * nested deeper is unsupported); any other runnable rule is a single alternative.
+   */
+  def alternatives(rule: Rule): Either[String, Seq[Rule]] =
+    val candidates = rule match
+      case ORRule(rules) => rules
+      case other         => List(other)
+    if candidates.isEmpty then Left("A reconciliation rule needs at least one alternative")
+    else
+      candidates.foldLeft[Either[String, Seq[Rule]]](Right(Seq.empty)): (acc, alternative) =>
+        acc.flatMap: done =>
+          leafMatchRules(alternative).flatMap: leaves =>
+            if leaves.isEmpty then Left("A reconciliation rule needs at least one condition") else Right(done :+ alternative)
 
 class InMemoryReconciler(
   val ledger:             Ledger,
@@ -101,44 +123,36 @@ class InMemoryReconciler(
       boundary:
         for reconSpec <- reconSpecs do
           logger.debug("reconciling reconSpec", kv("recon_spec_id", reconSpec.id))
+          // Each alternative of the spec's rule is its own pass, in order. A resumed job starts at
+          // the pass its checkpoint was on and skips the ones before it.
+          val alternatives =
+            InMemoryReconciler.alternatives(reconSpec.rule()).fold(msg => throw UnsupportedOperationException(msg), identity)
           val startCheckpoint = checkpoints.getOrElse(reconSpec.id, ReconciliationCheckpoint())
-          reconSpec.relationship match
-            case OneToOne =>
-              logger.debug("processing OneToOne")
-              val (matchCount, endingCheckpoint, stopped) =
-                reconcileOneToOneStreaming(
-                  reconSpec,
-                  accountId,
-                  startCheckpoint,
-                  batchSize,
-                  jobId,
-                  checkpoints,
-                  onBatchComplete
+          for (rule, alternative) <- alternatives.zipWithIndex if alternative >= startCheckpoint.alternative do
+            val passStart =
+              if alternative == startCheckpoint.alternative then startCheckpoint
+              else ReconciliationCheckpoint(alternative = alternative)
+            val pass = reconSpec.relationship match
+              case OneToOne =>
+                logger.debug("processing OneToOne", kv("alternative", alternative))
+                Some(
+                  reconcileOneToOneStreaming(reconSpec, rule, accountId, passStart, batchSize, jobId, checkpoints, onBatchComplete)
                 )
-              specCounts += (reconSpec.id  -> matchCount)
-              checkpoints += (reconSpec.id -> endingCheckpoint)
-              if stopped then
-                completed = false
-                break()
-            case OneToMany =>
-              completeOpenReconciliations(reconSpec, accountId)
-              val (matchCount, endingCheckpoint, stopped) =
-                reconcileOneToManyStreaming(
-                  reconSpec,
-                  accountId,
-                  startCheckpoint,
-                  batchSize,
-                  jobId,
-                  checkpoints,
-                  onBatchComplete
+              case OneToMany =>
+                completeOpenReconciliations(reconSpec, rule, accountId)
+                Some(
+                  reconcileOneToManyStreaming(reconSpec, rule, accountId, passStart, batchSize, jobId, checkpoints, onBatchComplete)
                 )
-              specCounts += (reconSpec.id  -> matchCount)
-              checkpoints += (reconSpec.id -> endingCheckpoint)
-              if stopped then
-                completed = false
-                break()
-            case ManyToMany => break()
-          end match
+              case ManyToMany => None
+            pass match
+              case None => break()
+              case Some((matchCount, endingCheckpoint, stopped)) =>
+                specCounts += (reconSpec.id  -> (specCounts.getOrElse(reconSpec.id, 0) + matchCount))
+                checkpoints += (reconSpec.id -> endingCheckpoint)
+                if stopped then
+                  completed = false
+                  break()
+          end for
         end for
       // end boundary
 
@@ -296,6 +310,7 @@ class InMemoryReconciler(
    */
   private def streamMergeJoin(
     reconSpec:       ReconciliationSpec,
+    rule:            Rule,
     accountId:       ID,
     startCheckpoint: ReconciliationCheckpoint,
     batchSize:       Int,
@@ -307,7 +322,6 @@ class InMemoryReconciler(
     toReconciliation: (Vector[Movement], Vector[Movement], OffsetDateTime) => Reconciliation
   ): (Int, ReconciliationCheckpoint, Boolean) =
     val logger = Logger(getClass.getName)
-    val rule   = reconSpec.rule()
 
     // Both sides' WITH HOLD cursors (each sorted once by its keyExpr — see
     // MovementRepoLive.withUnreconciledCursor) have to stay open for this whole merge-join, so both
@@ -338,7 +352,7 @@ class InMemoryReconciler(
           pendingGroups.clear()
 
           val checkpoint =
-            ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey)
+            ReconciliationCheckpoint(inCursor.lastKey, outCursor.lastKey, startCheckpoint.alternative)
           logger.info("committing batch", kv("checkpoint", checkpoint))
 
           val decision = transact(transactor):
@@ -417,7 +431,7 @@ class InMemoryReconciler(
 
         (
           totalGroups,
-          ReconciliationCheckpoint(lastInMatchKey = inCursor.lastKey, lastOutMatchKey = outCursor.lastKey),
+          ReconciliationCheckpoint(inCursor.lastKey, outCursor.lastKey, startCheckpoint.alternative),
           stopped
         )
   end streamMergeJoin
@@ -435,6 +449,7 @@ class InMemoryReconciler(
    */
   private def reconcileOneToOneStreaming(
     reconSpec:       ReconciliationSpec,
+    rule:            Rule,
     accountId:       ID,
     startCheckpoint: ReconciliationCheckpoint,
     batchSize:       Int,
@@ -442,9 +457,9 @@ class InMemoryReconciler(
     allCheckpoints:  Map[ID, ReconciliationCheckpoint],
     onBatchComplete: SpecBatchProgress => BatchDecision
   ): (Int, ReconciliationCheckpoint, Boolean) =
-    val rule = reconSpec.rule()
     streamMergeJoin(
       reconSpec,
+      rule,
       accountId,
       startCheckpoint,
       batchSize,
@@ -481,8 +496,8 @@ class InMemoryReconciler(
    * group brought to zero becomes Final, and (if it was Mismatched) its AmountMismatch dispute is
    * auto-resolved; one only partly topped up keeps its status with the new balance.
    */
-  private def completeOpenReconciliations(reconSpec: ReconciliationSpec, accountId: ID): Unit =
-    val rule    = reconSpec.rule()
+  // Run once per alternative, so a group's late movements are found under any of the spec's rules.
+  private def completeOpenReconciliations(reconSpec: ReconciliationSpec, rule: Rule, accountId: ID): Unit =
     val inExpr  = matchKeyExpr(rule, IN, "a")
     val outExpr = matchKeyExpr(rule, OUT, "a")
 
@@ -539,6 +554,7 @@ class InMemoryReconciler(
    */
   private def reconcileOneToManyStreaming(
     reconSpec:       ReconciliationSpec,
+    rule:            Rule,
     accountId:       ID,
     startCheckpoint: ReconciliationCheckpoint,
     batchSize:       Int,
@@ -546,9 +562,9 @@ class InMemoryReconciler(
     allCheckpoints:  Map[ID, ReconciliationCheckpoint],
     onBatchComplete: SpecBatchProgress => BatchDecision
   ): (Int, ReconciliationCheckpoint, Boolean) =
-    val rule = reconSpec.rule()
     streamMergeJoin(
       reconSpec,
+      rule,
       accountId,
       startCheckpoint,
       batchSize,

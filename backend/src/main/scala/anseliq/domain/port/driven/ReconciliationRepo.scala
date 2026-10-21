@@ -16,6 +16,9 @@ trait ReconciliationRepo extends DomainRepo[Reconciliation, Reconciliation]:
    * accepting a suggestion (AppliedRules.Suggested), newest first.
    */
   def findRecentManualOrSuggested(reconSpecID: ID, limit: Int): Txn[Vector[Reconciliation]]
+
+  /** The spec's Final reconciliations made by accepting a suggestion (AppliedRules.Suggested). */
+  def findSuggested(reconSpecID: ID): Txn[Vector[Reconciliation]]
   def findBySpecIdAndStatus(specId:  ID, status: ReconciliationStatus): Txn[Vector[Reconciliation]]
 
   // Spans every reconciliation spec belonging to the account (not just one), most recent first —
