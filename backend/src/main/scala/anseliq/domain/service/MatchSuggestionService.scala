@@ -1,6 +1,6 @@
 package anseliq.domain.service
 
-import anseliq.common.model.{AndRule, MatchSuggestionInfo, NoOpRule, ORRule, Rule, RuleMatch}
+import anseliq.common.model.{AndRule, AppliedRules, MatchSuggestionInfo, NoOpRule, ORRule, Rule, RuleMatch}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
@@ -86,7 +86,7 @@ class MatchSuggestionService(
   /** The spec's rule in words, and its most recent hand-made matches and rejected suggestions. */
   def contextFor(spec: ReconciliationSpec): Txn[MatchContext] =
     val pastMatches = reconRepo
-      .findRecentManual(spec.id, maxExamples)
+      .findRecentManualOrSuggested(spec.id, maxExamples)
       .flatMap: recon =>
         val movements = movementRepo.findByReconciliationID(recon.id)
         val outSide   = movements.filter(_.movementSpecId == spec.outMovementSpecId).map(toCandidate)
@@ -171,7 +171,14 @@ class MatchSuggestionService(
       reconSpecId    = suggestion.reconSpecId,
       inMovementIds  = Seq(suggestion.movementId),
       outMovementIds = suggestion.suggestedMovementIds,
-      description    = s"Suggested by ${suggestion.model}: ${suggestion.rationale}"
+      description    = s"Suggested by ${suggestion.model}: ${suggestion.rationale}",
+      appliedRules = AppliedRules.Suggested(
+        suggestionId  = suggestion.id.toString,
+        model         = suggestion.model,
+        promptVersion = suggestion.promptVersion,
+        confidence    = suggestion.confidence,
+        reason        = suggestion.rationale
+      )
     )
     suggestion.status = MatchSuggestionStatus.Accepted
     suggestion.reviewedByUserId = Some(reviewedByUserId)

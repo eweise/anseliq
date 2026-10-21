@@ -25,14 +25,14 @@ class ReconciliationRepoLive(clock: ClockService) extends AuditedRepo[Reconcilia
     """.query[Reconciliation].run()
 
   // AppliedRules.Manual has no fields, so it's matched however upickle wrote it: a bare string or
-  // a {"$$type": ...} object.
-  def findRecentManual(reconSpecID: ID, limit: Int): Txn[Vector[Reconciliation]] =
+  // a {"$$type": ...} object. Suggested has fields, so it's always an object.
+  def findRecentManualOrSuggested(reconSpecID: ID, limit: Int): Txn[Vector[Reconciliation]] =
     sql"""
       SELECT ${r.all}
       FROM $r AS a
       WHERE spec_id = $reconSpecID
       AND status = ${ReconciliationStatus.Final}
-      AND (applied_rules = '"Manual"'::jsonb OR applied_rules ->> '$$type' = 'Manual')
+      AND (applied_rules = '"Manual"'::jsonb OR applied_rules ->> '$$type' IN ('Manual', 'Suggested'))
       ORDER BY created_at DESC
       LIMIT $limit
     """.query[Reconciliation].run()

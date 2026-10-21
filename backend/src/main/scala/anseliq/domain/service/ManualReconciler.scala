@@ -31,7 +31,9 @@ class ManualReconciler(
     reconSpecId:    ID,
     inMovementIds:  Seq[ID],
     outMovementIds: Seq[ID],
-    description:    String
+    description:    String,
+    // Why the movements were grouped: a person's own match unless they accepted a suggestion.
+    appliedRules: AppliedRules = AppliedRules.Manual
   ): Txn[Reconciliation] =
     if inMovementIds.isEmpty then throw IllegalArgumentError("inMovementIds", "must select at least one in-movement")
     if outMovementIds.isEmpty then throw IllegalArgumentError("outMovementIds", "must select at least one out-movement")
@@ -68,7 +70,7 @@ class ManualReconciler(
     val now = clock.now
     val reconciliation = Reconciliation(
       specId       = Some(reconSpecId),
-      appliedRules = AppliedRules.Manual,
+      appliedRules = appliedRules,
       description  = description,
       status       = status,
       balance      = balance,

@@ -200,6 +200,10 @@ object ReconciliationDetailPage:
             )
         )
       case AppliedRules.Manual   => span("Manual match")
+      case s: AppliedRules.Suggested =>
+        span(
+          s"Accepted suggestion from ${s.model} (${(s.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)}% confident): ${s.reason}"
+        )
       case AppliedRules.Reversal => span("System reversal")
 
   // A side's account name(s), or its role while it has no movements yet (e.g. a OneToMany group

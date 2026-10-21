@@ -33,7 +33,7 @@ case class MatchContext(
   // What the spec's rule compares, e.g. "transaction_id = txn_id": the movement's field on the
   // left, the candidates' on the right. The rule's miss is why the movement is being asked about.
   ruleCondition: String,
-  // Recent pairs the rule missed that a person matched by hand, or accepted as a suggestion.
+  // Recent pairs the rule missed that a person matched by hand or accepted as a suggestion.
   pastMatches: Seq[MatchExample],
   // Recent suggestions a person rejected: pairs that looked alike but weren't the same transaction.
   pastNonMatches: Seq[MatchExample]

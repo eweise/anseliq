@@ -1,5 +1,6 @@
 package anseliq.domain.service
 
+import anseliq.common.model.AppliedRules
 import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
 import anseliq.domain.model.{MatchSuggestionStatus, UserRole, createID}
@@ -122,6 +123,11 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
       val recon      = service.accept(suggestion.id, reviewer)
 
       assertEquals(recon.status, anseliq.domain.model.ReconciliationStatus.Final)
+      assertEquals(
+        recon.appliedRules,
+        AppliedRules.Suggested(suggestion.id.toString, "fake-model", "v1", BigDecimal("0.900"), "same reference"),
+        "the reconciliation records which model proposed it, not just Manual"
+      )
       val matched = (suggestion.movementId +: suggestion.suggestedMovementIds).flatMap(app.movementRepo.findById)
       assert(matched.forall(_.reconciliationId.contains(recon.id)), "both movements are in the new reconciliation")
       val accepted = app.matchSuggestionRepo.findById(suggestion.id).get
@@ -192,3 +198,13 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
         context.pastNonMatches.map(e => e.movement.properties("name") -> named(e.matchedWith)),
         Seq("rejected-in" -> Seq("rejected-out"))
       )
+
+  test("an accepted suggestion becomes a past-match example, like a hand-made match"):
+    withService: (app, data, service) =>
+      val accepted = twoSuggestionsForOneMovement(app, data, service).head
+      service.accept(accepted.id, newReviewer(app))
+
+      postIn(app, data, 30, "anchor")
+      postOut(app, data, 30, "candidate")
+      val context = service.findRequests(data.reconAccount.id).map(_._2).find(_.movement.properties("name") == "anchor").get.context
+      assertEquals(context.pastMatches.map(e => named(e.matchedWith)), Seq(Seq("shared")))
