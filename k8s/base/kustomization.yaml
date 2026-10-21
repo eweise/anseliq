@@ -1,0 +1,37 @@
+# The AnselIQ app, split into deployments by the services each runs (see `services` in
+# backend/src/main/resources/application.conf):
+#   backend-api     HTTP only, scaled on request load
+#   backend-worker  job workers and the scheduler, scaled on queue depth
+#   frontend        the static SPA, served by nginx
+# Any number of replicas of each is safe: the job queue gives each job to one worker, and the
+# scheduler's submissions dedupe.
+#
+# An overlay supplies what differs per environment: the anseliq-secrets Secret, DB_HOST and anything
+# else in anseliq-config, and the image tags. See overlays/local.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: anseliq
+    includeSelectors: false
+
+resources:
+  - service-account.yaml
+  - backend-api.yaml
+  - backend-worker.yaml
+  - frontend.yaml
+  - ingress.yaml
+
+# Non-secret settings for both backend deployments; the env var names are application.conf's.
+configMapGenerator:
+  - name: anseliq-config
+    literals:
+      - DB_PORT=5432
+      - DB_NAME=recon_db
+      - DB_SCHEMA=recon
+      # Per pod. Across every backend pod, this plus 2 (the reconciler's cursor connections) has to
+      # stay under Postgres's max_connections.
+      - DB_MAX_CONNECTIONS=10
+      - S3_REGION=us-east-1
+      - JAVA_OPTS=-XX:MaxRAMPercentage=75

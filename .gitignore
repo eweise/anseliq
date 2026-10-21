@@ -37,3 +37,6 @@ website/node_modules
 
 # macOS
 .DS_Store
+
+# Kubernetes secrets (see k8s/overlays/*/secrets.env.example)
+k8s/**/secrets.env

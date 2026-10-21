@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend-api
+    spec:
+      serviceAccountName: anseliq-backend
+      # preStop's sleep plus shutdown, which has no jobs to drain here.
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: backend
+          image: anseliq-backend
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: health
+              containerPort: 8081
+          env:
+            - name: HTTP_ENABLED
+              value: "true"
+            - name: SCHEDULER_ENABLED
+              value: "false"
+            - name: WORKERS_ENABLED
+              value: "false"
+          envFrom:
+            - configMapRef:
+                name: anseliq-config
+            - secretRef:
+                name: anseliq-secrets
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 3
+          lifecycle:
+            # Keeps serving while the endpoint removal reaches every node and the ingress, so
+            # requests still being routed here don't hit a closed port. The HTTP server can't drain
+            # in-flight requests itself.
+            preStop:
+              exec:
+                command: ["sleep", "10"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-api
+spec:
+  selector:
+    app.kubernetes.io/name: backend-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend-api

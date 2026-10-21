@@ -1,0 +1,46 @@
+# A local cluster (minikube, Docker Desktop, kind) with the Bitnami Postgres chart from the README
+# installed as my-release in the default namespace, and LocalStack on the host for S3.
+#
+#   cp k8s/overlays/local/secrets.env.example k8s/overlays/local/secrets.env   # then fill it in
+#   kubectl apply -k k8s/overlays/local
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: anseliq
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+# Built into the cluster's own image store, e.g. after `eval $(minikube docker-env)`:
+#   sbt backend/Docker/publishLocal frontend/Docker/publishLocal
+images:
+  - name: anseliq-backend
+    newName: myrepo/anseliq
+    newTag: backend-0.1.0
+  - name: anseliq-frontend
+    newName: myrepo/anseliq
+    newTag: frontend-0.1.0
+
+replicas:
+  - name: backend-api
+    count: 1
+  - name: backend-worker
+    count: 1
+  - name: frontend
+    count: 1
+
+configMapGenerator:
+  - name: anseliq-config
+    behavior: merge
+    literals:
+      - DB_HOST=my-release-postgresql.default.svc.cluster.local
+      # The host machine as seen from a pod: host.minikube.internal on minikube,
+      # host.docker.internal on Docker Desktop.
+      - S3_ENDPOINT=http://host.minikube.internal:4566
+
+# secrets.env is gitignored; secrets.env.example lists what goes in it.
+secretGenerator:
+  - name: anseliq-secrets
+    envs:
+      - secrets.env

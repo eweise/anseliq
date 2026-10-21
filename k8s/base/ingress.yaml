@@ -1,0 +1,24 @@
+# One origin for the browser: the API under /api, the SPA everywhere else.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anseliq
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-api
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http

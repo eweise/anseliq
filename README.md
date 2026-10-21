@@ -38,6 +38,21 @@ For IntelliJ, point the backend run configuration's environment variables at the
 
 ## Docker
 
+## Kubernetes
+
+Manifests are in `k8s/` (Kustomize, built into `kubectl`). `k8s/base` runs the backend as two
+deployments, `backend-api` (HTTP) and `backend-worker` (jobs and scheduler), plus the frontend, behind
+one Ingress that sends `/api` to the backend. `k8s/overlays/local` points it at the Bitnami Postgres
+below and at LocalStack on the host:
+
+```bash
+cp k8s/overlays/local/secrets.env.example k8s/overlays/local/secrets.env   # then fill it in
+kubectl apply -k k8s/overlays/local
+```
+
+The schema isn't created for you: `backend/db/schema.sql` drops and recreates the database, so run it
+by hand once against a new one.
+
 ## Minikube
 
 ## llm
