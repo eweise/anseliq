@@ -60,7 +60,9 @@ Database migrations below), so the database itself only has to exist.
 
 The build uses sbt 2, where `sbt test` only reruns the tests that failed or whose code changed since
 the last run; `sbt testFull` runs them all. sbt 2 also keeps a server running in the background
-between commands; `sbt shutdown` stops it.
+between commands, and that server is what runs the app and the tests. It keeps the environment
+variables it started with, so after changing one (e.g. reloading `.env`), run `sbt shutdown` for the
+next command to start a server that sees it.
 
 ## CI
 

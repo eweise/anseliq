@@ -38,8 +38,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # -java-home overrides .sbtopts's, which points at a developer's local JDK.
+      # -java-home overrides .sbtopts's, which points at a developer's local JDK. The commands are
+      # one ";"-separated argument because sbt 2's client reads its arguments as a single command line.
       - name: Build and push the images
         env:
           DOCKER_REGISTRY: ghcr.io/${{ github.repository_owner }}
-        run: sbt -java-home "$JAVA_HOME" backend/Docker/publish frontend/Docker/publish
+        run: sbt -java-home "$JAVA_HOME" "backend/Docker/publish; frontend/Docker/publish"

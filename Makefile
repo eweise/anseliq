@@ -34,12 +34,16 @@ delete-db:
 
 # Adds a "Happy Path <id>" fund flow with ten days of history ending today (see
 # HappyPathScenario). Stop the backend first: its workers would race the seeder for its jobs.
+# Both seed targets restart sbt's background server first: the seeder runs in it, and it keeps the
+# environment it started with, so DEMO_SUGGESTER would otherwise be whatever it was back then.
 seed-demo:
+	sbt --client shutdown
 	sbt "backend/testOnly anseliq.testing.SeedHappyPathDemo"
 
 # Same, with the match suggestions from a local model served by Ollama (see
 # match-suggestions.local-llm in application.conf): `ollama serve`, `ollama pull qwen2.5:7b`.
 seed-demo-llm:
+	sbt --client shutdown
 	DEMO_SUGGESTER=local-llm sbt "backend/testOnly anseliq.testing.SeedHappyPathDemo"
 
 # A fresh database with the demo data in it.
