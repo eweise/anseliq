@@ -201,8 +201,9 @@ class InMemoryReconciler(
   // bracket indexing and (when a modifier is present) cast that to ::text, which preserves JSON
   // quoting (e.g. "20" with literal quote characters) — that doesn't match the plain unquoted
   // Scala string that matchKeyValue/afterKey use, so it's built here as ->> text extraction plus
-  // an explicit modifier translation instead. StringAttribute's SubstringModifier has no real
-  // implementation upstream (its own .apply is `???`), so it's unsupported here too.
+  // an explicit modifier translation instead. A StringModifier's own modify works over plain text,
+  // so it's applied to the ->> extraction here; it agrees with the Scala apply that matchKeyValue
+  // uses (see StringModifierSqlSuite).
   // The composite key expression is spliced into raw SQL as a literal (SqlLiteral in
   // MovementRepoLive), not bound as a parameter, so a constant containing a quote must be escaped
   // here or it would break the generated SQL.
@@ -211,13 +212,10 @@ class InMemoryReconciler(
   private def attrSqlExpr(attr: StringAttribute | DateAttribute, tableAlias: String): String =
     attr match
       case s: StringAttribute =>
-        s.modifier match
-          case None if s.isConstant => s"'${escapeSqlLiteral(s.key)}'"
-          case None                 => s"($tableAlias.properties['props'] ->> '${s.key}')"
-          case Some(m) =>
-            throw UnsupportedOperationException(
-              s"reconcileAccountResumable does not support string modifier ${m.getClass.getSimpleName}"
-            )
+        val base =
+          if s.isConstant then s"'${escapeSqlLiteral(s.key)}'"
+          else s"($tableAlias.properties['props'] ->> '${escapeSqlLiteral(s.key)}')"
+        s.modifier.fold(base)(_.modify(base))
       case d: DateAttribute =>
         val base =
           if d.isConstant then s"'${escapeSqlLiteral(d.key)}'::date"

@@ -21,7 +21,8 @@ case class RuleMatch(rule: Rule, value: String) derives ReadWriter:
 
 object RuleMatch:
   private def describe(attr: StringAttribute): String =
-    if attr.isConstant then s"'${attr.key}'" else attr.key
+    val base = if attr.isConstant then s"'${attr.key}'" else attr.key
+    attr.modifier.fold(base)(_.describe(base))
 
   private def describe(attr: DateAttribute): String =
     val base = if attr.isConstant then s"'${attr.key}'" else attr.key

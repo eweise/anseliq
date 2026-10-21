@@ -54,6 +54,38 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assert(movements.forall(_.reconciliationId.nonEmpty), "every movement should be reconciled")
     finally teardown(data)
 
+  test("a rule with string modifiers matches references that differ only in formatting"):
+    val data = transact(app.transactor)(DataSetup(app))
+    try
+      val normalized = StringAttributeMatchRule(
+        inKey  = StringAttribute("id", Some(Normalize)),
+        outKey = StringAttribute("id", Some(Chain(List(StripPrefix("REF "), Normalize))))
+      )
+      transact(app.transactor):
+        data.reconSpecRepo.update(data.reconSpec.copy(ruleJson = upickle.write[Rule](normalized)))
+        for (in, out) <- Seq("INV-2026-0042" -> "REF inv20260042", "PO 7781/A" -> "REF PO7781A", "A-1" -> "REF b1")
+        do
+          insertMovement(data, data.journalToRecon, in)
+          insertMovement(data, data.reportToRecon, out)
+
+      // A batch size of 1 pages through the SQL-ordered keys, so every comparison between a key
+      // built in SQL and one built in Scala is exercised.
+      val result = app.reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 1)
+      assertEquals(result.reconciliationSpecInsertCount(data.reconSpec.id), 2)
+
+      transact(app.transactor):
+        val matched = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.appliedRules)
+        assertEquals(
+          matched.map(_.summary).toSet,
+          Set(
+            "normalize(id) = normalize(stripPrefix(id, 'REF ')): inv20260042",
+            "normalize(id) = normalize(stripPrefix(id, 'REF ')): po7781a"
+          )
+        )
+        val unmatched = data.movementRepo.findUnReconciledByAccount(data.reconAccount.id).map(_.props("id")).toSet
+        assertEquals(unmatched, Set("A-1", "REF b1"))
+    finally teardown(data)
+
   test("OneToOne verifies amount balance: a key match with mismatched amounts is Mismatched, not Final"):
     // A OneToOne pair is inherently a single, final judgment — there's no third movement that could
     // ever arrive to close the gap under a OneToOne rule — but "stays InProgress" (rather than
