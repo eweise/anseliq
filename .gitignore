@@ -34,3 +34,6 @@ backend/db/snapshot.dump
 
 # website
 website/node_modules
+
+# macOS
+.DS_Store
