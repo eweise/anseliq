@@ -31,7 +31,9 @@ object HttpPath:
   val reports         = s"$prefix/reports"
   val fileInventory   = s"$prefix/file-inventory"
 
-  def url(path: String) = s"http://localhost:8080$path"
+  // Same-origin: the frontend's own server routes /api to the backend (the Ingress in a cluster, the
+  // Vite dev server's proxy locally), so it never needs to know where the backend is.
+  def url(path: String) = path
 // Get rid of this crap
 object PathDef {
 

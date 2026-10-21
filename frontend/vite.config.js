@@ -15,6 +15,10 @@ export default defineConfig(({ command }) => {
       port: 9876,
       historyApiFallback: true,
       cors: true,
+      // The frontend calls the API on its own origin (HttpPath.url), so pass it to the backend.
+      proxy: {
+        '/api': 'http://localhost:8080',
+      },
     },
   };
 });
