@@ -34,31 +34,49 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
   private val FileInventoryScanId = UUID.fromString("00000000-0000-0000-0000-000000000001")
   private val ReconStatsScanId    = UUID.fromString("00000000-0000-0000-0000-000000000002")
 
-  /** Starts every background job fork plus the HTTP server, and blocks until shutdown. */
+  private val services = app.config.getConfig("services")
+
+  /**
+   * Starts the services enabled under `services` in the config — the scheduler, each job type's
+   * worker, and the HTTP server — and blocks until shutdown.
+   */
   def run(args: Array[String]): Unit =
     val shutdownLatch = java.util.concurrent.CountDownLatch(1)
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdownLatch.countDown()))
 
     supervised:
-      fork(app.jobManager.submitEvery(JobType.CreateFileInventory, FileInventoryScanId, 1.minute))
-      // Every minute rather than once every 24 hours because "due" depends on each fund flow's own
-      // dailyCutoffHours, not on when the app happened to start — computeAndStoreDailySnapshots is
-      // the cheap no-op once a fund flow's snapshot for today already exists.
-      fork(app.jobManager.submitEvery(JobType.GenerateReconStats, ReconStatsScanId, 1.minute))
+      if services.getBoolean("scheduler.enabled") then
+        logger.info("Starting scheduler")
+        fork(app.jobManager.submitEvery(JobType.CreateFileInventory, FileInventoryScanId, 1.minute))
+        // Every minute rather than once every 24 hours because "due" depends on each fund flow's own
+        // dailyCutoffHours, not on when the app happened to start — computeAndStoreDailySnapshots is
+        // the cheap no-op once a fund flow's snapshot for today already exists.
+        fork(app.jobManager.submitEvery(JobType.GenerateReconStats, ReconStatsScanId, 1.minute))
+      else logger.info("Scheduler disabled")
 
-      fork(app.jobManager.runWorker(JobType.CreateFileInventory, 3)(_ => scanFileFeeds()))
-      fork(app.jobManager.runWorker(JobType.Ingestion, 1)(ingest))
-      fork(
-        app.jobManager.runWorker(JobType.Reconciliation, 1)(job =>
-          app.reconciliationRunner.runJob(job.referenceId, job.id)
-        )
+      startWorker(JobType.CreateFileInventory, "create-file-inventory")(_ => scanFileFeeds())
+      startWorker(JobType.Ingestion, "ingestion")(ingest)
+      startWorker(JobType.Reconciliation, "reconciliation")(job =>
+        app.reconciliationRunner.runJob(job.referenceId, job.id)
       )
-      fork(app.jobManager.runWorker(JobType.GenerateReconStats, 3)(_ => generateReconStats()))
-      fork(app.jobManager.runWorker(JobType.SuggestMatches, 3)(job => app.matchSuggestionService.suggestForAccount(job.referenceId)))
+      startWorker(JobType.GenerateReconStats, "generate-recon-stats")(_ => generateReconStats())
+      startWorker(JobType.SuggestMatches, "suggest-matches")(job =>
+        app.matchSuggestionService.suggestForAccount(job.referenceId)
+      )
 
-      HttpServer(app).main(args)
+      if services.getBoolean("http.enabled") then HttpServer(app).main(args)
+      else logger.info("HTTP server disabled")
       shutdownLatch.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
+
+  /** Forks jobType's worker loop if `services.workers.<key>` enables it. */
+  private def startWorker(jobType: JobType, key: String)(handler: Job => JobInfo)(using Ox): Unit =
+    val worker = services.getConfig(s"workers.$key")
+    if worker.getBoolean("enabled") then
+      val pollingSeconds = worker.getInt("polling-seconds")
+      logger.info(s"Starting $jobType worker, polling every ${pollingSeconds}s")
+      fork(app.jobManager.runWorker(jobType, pollingSeconds)(handler))
+    else logger.info(s"$jobType worker disabled")
 
   /** Finds new files on every feed and queues an Ingestion job for each, with its inventory row. */
   private def scanFileFeeds(): FileInventoryInfo =
