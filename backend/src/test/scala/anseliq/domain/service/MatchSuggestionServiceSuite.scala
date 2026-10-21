@@ -21,6 +21,7 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
     val app = TestAppContainer()
     val service = MatchSuggestionService(
       reconSpecRepo       = app.reconSpecRepo,
+      reconRepo           = app.reconRepo,
       movementRepo        = app.movementRepo,
       matchSuggestionRepo = app.matchSuggestionRepo,
       suggester           = FakeSuggester(),
@@ -145,3 +146,49 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
 
       service.accept(suggestions.head.id, newReviewer(app))
       assertEquals(service.pendingForSpec(data.reconSpec.id), Vector.empty, "the other one's out-side movement is now reconciled")
+
+  private def unreconciledId(app: TestAppContainer, data: DataSetup, name: String): Txn[ID] =
+    app.movementRepo.findUnReconciledByAccount(data.reconAccount.id).find(_.props.get("name").contains(name)).get.id
+
+  test("a rejected pair isn't offered again, but the movement's other candidates still are"):
+    withService: (app, data, service) =>
+      postIn(app, data, 100, "anchor")
+      postOut(app, data, 100, "wrong")
+      postOut(app, data, 100, "right")
+      val (spec, request) = service.findRequests(data.reconAccount.id).head
+      val rejected = service.record(spec, request, ProposedMatch(Seq(idOf(request, "wrong")), BigDecimal("0.6"), "?")).get
+      service.reject(rejected.id, newReviewer(app))
+
+      val requests = service.findRequests(data.reconAccount.id)
+      assertEquals(requests.flatMap((_, r) => named(r.candidates)), Vector("right"))
+
+  test("each request carries the rule in words, recent hand-made matches, and rejected suggestions"):
+    withService: (app, data, service) =>
+      postIn(app, data, 10, "matched-in")
+      postOut(app, data, 10, "matched-out")
+      app.manualReconciler.matchMovements(
+        data.reconSpec.id,
+        Seq(unreconciledId(app, data, "matched-in")),
+        Seq(unreconciledId(app, data, "matched-out")),
+        "Manual match"
+      )
+
+      postIn(app, data, 20, "rejected-in")
+      postOut(app, data, 20, "rejected-out")
+      val (spec, request) = service.findRequests(data.reconAccount.id).head
+      val rejected = service.record(spec, request, ProposedMatch(Seq(idOf(request, "rejected-out")), BigDecimal("0.6"), "?")).get
+      service.reject(rejected.id, newReviewer(app))
+
+      postIn(app, data, 30, "anchor")
+      postOut(app, data, 30, "candidate")
+      val context = service.findRequests(data.reconAccount.id).map(_._2).find(_.movement.properties("name") == "anchor").get.context
+
+      assertEquals(context.ruleCondition, "id = id", "DataSetup's rule compares id with id")
+      assertEquals(
+        context.pastMatches.map(e => e.movement.properties("name") -> named(e.matchedWith)),
+        Seq("matched-in" -> Seq("matched-out"))
+      )
+      assertEquals(
+        context.pastNonMatches.map(e => e.movement.properties("name") -> named(e.matchedWith)),
+        Seq("rejected-in" -> Seq("rejected-out"))
+      )

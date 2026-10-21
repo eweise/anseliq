@@ -1,6 +1,6 @@
 package anseliq.domain.service
 
-import anseliq.common.model.MatchSuggestionInfo
+import anseliq.common.model.{AndRule, MatchSuggestionInfo, NoOpRule, ORRule, Rule, RuleMatch}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
@@ -17,7 +17,9 @@ import java.time.temporal.ChronoUnit
  * Only OneToOne specs for now. A movement on the spec's in side is matched against unreconciled
  * movements on its out side with the same amount, created within candidateWindowDays of it, at
  * most maxCandidates of them. The suggester only judges between those, and its answer is checked
- * against them again before it's stored.
+ * against them again before it's stored. Each request also carries the spec's context (what its rule
+ * compares, and recent pairs people matched or rejected) so a general model can pick up this
+ * account's reference conventions from examples rather than training.
  *
  * A person then reviews each pending suggestion: accepting it matches the movements through
  * ManualReconciler, exactly as a manual match would; rejecting it just records that. Either way the
@@ -25,13 +27,17 @@ import java.time.temporal.ChronoUnit
  */
 class MatchSuggestionService(
   reconSpecRepo:       ReconciliationSpecRepo,
+  reconRepo:           ReconciliationRepo,
   movementRepo:        MovementRepo,
   matchSuggestionRepo: MatchSuggestionRepo,
   suggester:           MatchSuggester,
   manualReconciler:    ManualReconciler,
   transactor:          Transactor,
   candidateWindowDays: Int,
-  maxCandidates:       Int
+  maxCandidates:       Int,
+  // Of each kind (past matches, past non-matches): a few is enough, and small models get less
+  // accurate as the prompt grows.
+  maxExamples: Int = 3
 ) extends StrictLogging:
 
   /**
@@ -53,7 +59,8 @@ class MatchSuggestionService(
 
   /**
    * A request for each of the account's unmatched movements that has candidates and no pending
-   * suggestion yet.
+   * suggestion yet. A candidate a person already rejected for that movement isn't offered again, so
+   * a rejected pair isn't suggested on every run.
    */
   def findRequests(accountId: ID): Txn[Vector[(ReconciliationSpec, MatchRequest)]] =
     val unreconciled = movementRepo.findUnReconciledByAccount(accountId)
@@ -62,12 +69,41 @@ class MatchSuggestionService(
       .filter(_.relationship == Relationship.OneToOne)
       .flatMap: spec =>
         val alreadySuggested = matchSuggestionRepo.findPendingByReconSpecId(spec.id).map(_.movementId).toSet
+        val rejectedPairs = matchSuggestionRepo
+          .findRejectedByReconSpecId(spec.id)
+          .flatMap(s => s.suggestedMovementIds.map(s.movementId -> _))
+          .toSet
         val outSide          = unreconciled.filter(_.movementSpecId == spec.outMovementSpecId)
+        lazy val context     = contextFor(spec) // only looked up if some movement has candidates
         unreconciled
           .filter(m => m.movementSpecId == spec.inMovementSpecId && !alreadySuggested.contains(m.id))
           .flatMap: movement =>
-            val candidates = outSide.filter(isCandidate(movement, _)).take(maxCandidates)
-            Option.when(candidates.nonEmpty)(spec -> MatchRequest(toCandidate(movement), candidates.map(toCandidate)))
+            val candidates = outSide
+              .filter(other => isCandidate(movement, other) && !rejectedPairs.contains(movement.id -> other.id))
+              .take(maxCandidates)
+            Option.when(candidates.nonEmpty)(spec -> MatchRequest(toCandidate(movement), candidates.map(toCandidate), context))
+
+  /** The spec's rule in words, and its most recent hand-made matches and rejected suggestions. */
+  def contextFor(spec: ReconciliationSpec): Txn[MatchContext] =
+    val pastMatches = reconRepo
+      .findRecentManual(spec.id, maxExamples)
+      .flatMap: recon =>
+        val movements = movementRepo.findByReconciliationID(recon.id)
+        val outSide   = movements.filter(_.movementSpecId == spec.outMovementSpecId).map(toCandidate)
+        movements.find(_.movementSpecId == spec.inMovementSpecId).map(m => MatchExample(toCandidate(m), outSide))
+    val pastNonMatches = matchSuggestionRepo
+      .findRecentRejected(spec.id, maxExamples)
+      .flatMap: suggestion =>
+        movementRepo
+          .findById(suggestion.movementId)
+          .map(m => MatchExample(toCandidate(m), suggestion.suggestedMovementIds.flatMap(movementRepo.findById).map(toCandidate)))
+    MatchContext(describeRule(spec.rule()), pastMatches, pastNonMatches)
+
+  private def describeRule(rule: Rule): String = rule match
+    case and: AndRule => and.rules.map(describeRule).mkString(" and ")
+    case or: ORRule   => or.rules.map(describeRule).mkString("(", " or ", ")")
+    case NoOpRule     => "nothing"
+    case leaf         => RuleMatch(leaf, "").condition
 
   private def isCandidate(movement: Movement, other: Movement): Boolean =
     other.amount.compare(movement.amount) == 0 &&

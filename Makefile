@@ -35,6 +35,11 @@ delete-db:
 seed-demo:
 	sbt "backend/testOnly anseliq.testing.SeedHappyPathDemo"
 
+# Same, with the match suggestions from a local model served by Ollama (see
+# match-suggestions.local-llm in application.conf): `ollama serve`, `ollama pull qwen2.5:7b`.
+seed-demo-llm:
+	DEMO_SUGGESTER=local-llm sbt "backend/testOnly anseliq.testing.SeedHappyPathDemo"
+
 # A fresh database with the demo data in it.
 reset-demo: create-db seed-demo
 

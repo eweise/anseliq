@@ -28,3 +28,19 @@ class MatchSuggestionRepoLive(clock: ClockService)
       WHERE recon_spec_id = $reconSpecId AND status = ${MatchSuggestionStatus.Pending}
       ORDER BY created_at
     """.query[MatchSuggestion].run()
+
+  def findRejectedByReconSpecId(reconSpecId: ID)(using DbCon): Vector[MatchSuggestion] =
+    sql"""
+      SELECT ${s.all}
+      FROM $s
+      WHERE recon_spec_id = $reconSpecId AND status = ${MatchSuggestionStatus.Rejected}
+    """.query[MatchSuggestion].run()
+
+  def findRecentRejected(reconSpecId: ID, limit: Int)(using DbCon): Vector[MatchSuggestion] =
+    sql"""
+      SELECT ${s.all}
+      FROM $s
+      WHERE recon_spec_id = $reconSpecId AND status = ${MatchSuggestionStatus.Rejected}
+      ORDER BY updated_at DESC
+      LIMIT $limit
+    """.query[MatchSuggestion].run()

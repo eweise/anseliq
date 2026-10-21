@@ -12,3 +12,8 @@ trait MatchSuggestionRepo extends DomainRepo[MatchSuggestion, MatchSuggestion]:
   def insertIfNoPending(suggestion: MatchSuggestion)(using DbCon): Option[MatchSuggestion]
 
   def findPendingByReconSpecId(reconSpecId: ID)(using DbCon): Vector[MatchSuggestion]
+
+  def findRejectedByReconSpecId(reconSpecId: ID)(using DbCon): Vector[MatchSuggestion]
+
+  /** The spec's most recently rejected suggestions, newest first. */
+  def findRecentRejected(reconSpecId: ID, limit: Int)(using DbCon): Vector[MatchSuggestion]

@@ -1,5 +1,6 @@
 package anseliq.testing
 
+import anseliq.adapter.driven.LocalLlmMatchSuggester
 import anseliq.app.AppEnv
 import anseliq.common.model.*
 import anseliq.common.model.model.ID
@@ -64,11 +65,13 @@ object HappyPathScenario:
   )
 
 // The production wiring with files coming from memory instead of S3, and match suggestions turned
-// on with ReferenceFormatSuggester standing in for a local model.
-class HappyPathApp extends TestAppContainer:
+// on: by ReferenceFormatSuggester standing in for a model, or with useLocalLlm the configured local
+// model (match-suggestions.local-llm), for demos.
+class HappyPathApp(useLocalLlm: Boolean = false) extends TestAppContainer:
   lazy val files: InMemoryFileSources                   = InMemoryFileSources(clock)
   override lazy val fileSourceFactory: FileSourceFactory = files
-  override lazy val matchSuggester: MatchSuggester       = ReferenceFormatSuggester()
+  override lazy val matchSuggester: MatchSuggester =
+    if useLocalLlm then LocalLlmMatchSuggester.fromConfig(config) else ReferenceFormatSuggester()
   override protected def configOverrides: Config         = ConfigFactory.parseString("match-suggestions.enabled = true")
 
 class HappyPathScenario(app: HappyPathApp):

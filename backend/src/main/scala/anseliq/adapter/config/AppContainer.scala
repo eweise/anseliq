@@ -96,10 +96,14 @@ trait AppContainer:
     suggestMatches   = config.getBoolean("match-suggestions.enabled")
   )
   lazy val matchSuggestionRepo: MatchSuggestionRepo = MatchSuggestionRepoLive(clock)
-  // Swap for a local-model adapter; see MatchSuggester for why it must not call out.
-  lazy val matchSuggester: MatchSuggester = DisabledMatchSuggester()
+  // See MatchSuggester for why an adapter must not call out of the install.
+  lazy val matchSuggester: MatchSuggester = config.getString("match-suggestions.adapter") match
+    case "local-llm" => LocalLlmMatchSuggester.fromConfig(config)
+    case "disabled"  => DisabledMatchSuggester()
+    case other       => throw IllegalArgumentException(s"unknown match-suggestions.adapter: $other")
   lazy val matchSuggestionService: MatchSuggestionService = MatchSuggestionService(
     reconSpecRepo       = reconSpecRepo,
+    reconRepo           = reconRepo,
     movementRepo        = movementRepo,
     matchSuggestionRepo = matchSuggestionRepo,
     suggester           = matchSuggester,

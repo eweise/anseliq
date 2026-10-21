@@ -25,7 +25,24 @@ case class MatchCandidate(
   properties: Properties
 )
 
-case class MatchRequest(movement: MatchCandidate, candidates: Seq[MatchCandidate])
+case class MatchRequest(movement: MatchCandidate, candidates: Seq[MatchCandidate], context: MatchContext = MatchContext.empty)
+
+// What a suggester knows about the spec beyond the movement in hand, so a general model can learn
+// this account's reference conventions without being trained on them.
+case class MatchContext(
+  // What the spec's rule compares, e.g. "transaction_id = txn_id": the movement's field on the
+  // left, the candidates' on the right. The rule's miss is why the movement is being asked about.
+  ruleCondition: String,
+  // Recent pairs the rule missed that a person matched by hand, or accepted as a suggestion.
+  pastMatches: Seq[MatchExample],
+  // Recent suggestions a person rejected: pairs that looked alike but weren't the same transaction.
+  pastNonMatches: Seq[MatchExample]
+)
+
+object MatchContext:
+  val empty: MatchContext = MatchContext("", Seq.empty, Seq.empty)
+
+case class MatchExample(movement: MatchCandidate, matchedWith: Seq[MatchCandidate])
 
 // confidence is 0 to 1; rationale is a short reason a reviewer can check.
 case class ProposedMatch(movementIds: Seq[ID], confidence: BigDecimal, rationale: String)

@@ -10,6 +10,9 @@ case class StatusTotals(status: ReconciliationStatus, count: Int, balance: Money
 
 trait ReconciliationRepo extends DomainRepo[Reconciliation, Reconciliation]:
   def findByReconSpecID(reconSpecID: ID): Txn[Vector[Reconciliation]]
+
+  /** The spec's most recent Final reconciliations made by hand (AppliedRules.Manual), newest first. */
+  def findRecentManual(reconSpecID: ID, limit: Int): Txn[Vector[Reconciliation]]
   def findBySpecIdAndStatus(specId:  ID, status: ReconciliationStatus): Txn[Vector[Reconciliation]]
 
   // Spans every reconciliation spec belonging to the account (not just one), most recent first —
