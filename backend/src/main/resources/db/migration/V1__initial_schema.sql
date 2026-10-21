@@ -27,11 +27,8 @@ create table recon.app_user
     updated_at    timestamptz default CURRENT_TIMESTAMP not null
 );
 
--- Seed one default Admin so the app is usable right after `make create-db`. Password is
--- "changeme123" (bcrypt, cost 12) — rotate it immediately via the Users & Roles admin page.
-insert into recon.app_user (id, email, password_hash, first_name, last_name, role)
-values ('00000000-0000-0000-0000-000000000001', 'admin@onparity.local',
-        '$2y$12$/w6Sva4dYXUtPOrWuveq3O/lTdh6uVXa3IYDpklb4NK.6JGkPOiPm', 'Admin', 'User', 'admin');
+-- No users are seeded: the first Admin comes from ADMIN_EMAIL/ADMIN_PASSWORD when the app starts
+-- (see AppEnv.ensureAdmin), so no install has a password that's written down in this repo.
 
 create table recon.fund_flow_config
 (

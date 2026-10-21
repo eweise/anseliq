@@ -60,7 +60,9 @@ The schema is managed by [Flyway](https://documentation.red-gate.com/flyway). Mi
 (`db.migrate-on-start`). To change the schema, add a new `V<n>__<description>.sql` there; never edit
 one that has already been applied anywhere.
 
-- `make create-db` creates an empty `recon_db` and migrates it.
+- `make create-db` creates an empty `recon_db` and migrates it. No users are seeded: the backend
+  creates the first Admin from `ADMIN_EMAIL`/`ADMIN_PASSWORD` (set in `.env` by `scripts/dev-env.sh`)
+  when it starts and there isn't one.
 - `sbt "backend/runMain anseliq.app.Main migrate"` migrates without starting the app.
 
 A database created from the old `schema.sql` is recorded as already at V1 the first time it's migrated.

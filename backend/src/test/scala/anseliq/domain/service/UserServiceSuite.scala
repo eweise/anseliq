@@ -2,7 +2,7 @@ package anseliq.domain.service
 
 import anseliq.domain.model.{IllegalArgumentError, NotFoundError, UserRole, createID}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
-import com.augustnagro.magnum.transact
+import com.augustnagro.magnum.{sql, transact}
 
 import java.util.UUID
 
@@ -94,3 +94,26 @@ class UserServiceSuite extends munit.FunSuite:
         userService.createUser(randomEmail, "B", "Two", UserRole.Viewer, "a-real-password")
 
         assertEquals(userService.listUsers().size, initialCount + 2)
+
+  // The shared test database may already have an Admin, so this deactivates every user first; the
+  // rollback puts them back.
+  test("createInitialAdmin creates an Admin when there's no active one"):
+    transact(app.transactor):
+      rollBackOnly:
+        sql"update recon.app_user set active = false".update.run()
+        val email = randomEmail
+
+        val created = app.userService.createInitialAdmin(email, "first-admin-password")
+
+        assertEquals(created.map(_.email), Some(email))
+        assertEquals(created.map(_.role), Some(UserRole.Admin))
+        assert(app.userService.hasActiveAdmin)
+
+  test("createInitialAdmin creates nothing once there's an active Admin"):
+    transact(app.transactor):
+      rollBackOnly:
+        app.userService.createUser(randomEmail, "Existing", "Admin", UserRole.Admin, "existing-password")
+        val email = randomEmail
+
+        assertEquals(app.userService.createInitialAdmin(email, "first-admin-password"), None)
+        assertEquals(app.userRepo.findByEmail(email), None)

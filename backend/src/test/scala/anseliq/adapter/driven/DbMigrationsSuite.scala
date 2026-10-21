@@ -31,11 +31,11 @@ class DbMigrationsSuite extends munit.FunSuite:
     query(database, "select version, type from recon.flyway_schema_history where version is not null order by installed_rank"):
       rs => (rs.getString(1), rs.getString(2))
 
-  test("an empty database gets every migration, the schema and the seeded admin"):
+  test("an empty database gets every migration, and no users"):
     withScratchDatabase: database =>
       DbMigrations.migrate(configFor(database))
       assertEquals(appliedVersions(database), Vector("1" -> "SQL"))
-      assertEquals(query(database, "select email from recon.app_user")(_.getString(1)), Vector("admin@onparity.local"))
+      assertEquals(query(database, "select count(*) from recon.app_user")(_.getInt(1)), Vector(0))
 
   test("a database that predates Flyway is baselined at V1 rather than having V1 run over it"):
     withScratchDatabase: database =>

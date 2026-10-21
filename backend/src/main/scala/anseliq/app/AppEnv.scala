@@ -15,6 +15,7 @@ import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.*
+import scala.util.control.NonFatal
 
 /**
  * Runs the background jobs and HTTP server against an AppContainer, the production wiring by
@@ -47,6 +48,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
     // Fail now, not on the first login, if the HTTP server is missing its JWT secret.
     if services.getBoolean("http.enabled") then app.jwtSecret
     if app.config.getBoolean("db.migrate-on-start") then DbMigrations.migrate(app.config)
+    if services.getBoolean("http.enabled") then ensureAdmin()
     val shutdownRequested = CountDownLatch(1)
     val stopped           = CountDownLatch(1)
 
@@ -96,6 +98,26 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
       shutdownRequested.await() // block until SIGTERM/SIGINT
       drainWorkers(workers)
       // the scope ends here, cancelling the scheduler
+
+  /**
+   * Creates the first Admin from admin.email/admin.password if there's no active one. A failure is
+   * logged rather than stopping the app, which other users can still log in to: e.g. another
+   * instance starting at the same moment created it first.
+   */
+  private def ensureAdmin(): Unit =
+    def optional(path: String) = Option.when(app.config.hasPath(path))(app.config.getString(path))
+    try
+      (optional("admin.email"), optional("admin.password")) match
+        case (Some(email), Some(password)) =>
+          transact(app.transactor)(app.userService.createInitialAdmin(email, password))
+            .foreach(admin => logger.info(s"Created the initial Admin, ${admin.email}"))
+        case _ =>
+          if !transact(app.transactor)(app.userService.hasActiveAdmin) then
+            logger.warn("There's no active Admin: set ADMIN_EMAIL and ADMIN_PASSWORD to create one")
+    catch
+      case NonFatal(ex) =>
+        if !transact(app.transactor)(app.userService.hasActiveAdmin) then
+          logger.error("Couldn't create the initial Admin", ex)
 
   /** Forks jobType's worker loop if `services.workers.<key>` enables it. */
   private def startWorker(jobType: JobType, key: String)(handler: Job => JobInfo)(using

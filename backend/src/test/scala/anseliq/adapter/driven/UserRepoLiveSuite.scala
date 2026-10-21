@@ -2,7 +2,7 @@ package anseliq.adapter.driven
 
 import anseliq.domain.model.*
 import anseliq.testing.{TestAppContainer, rollBackOnly}
-import com.augustnagro.magnum.transact
+import com.augustnagro.magnum.{sql, transact}
 
 import java.util.UUID
 
@@ -103,14 +103,16 @@ class UserRepoLiveSuite extends munit.FunSuite:
         intercept[Exception]:
           userRepo.insert(user.copy(id = createID()))
 
-  // Confirms the admin row seeded by the V1 migration (inserted as raw SQL, not through the DbCodec) is
-  // actually readable — @Table(..., SqlNameMapper.CamelToSnakeCase) on UserRole lowercases enum
-  // case names for storage/lookup ("Admin" -> "admin"), so a raw-SQL seed value must be lowercase
-  // to round-trip; this regression-tests that the seed row in V1__initial_schema.sql matches.
-  test("the migration-seeded admin user is readable and has the Admin role"):
+  // A row written as raw SQL, not through the DbCodec (by a migration, say) is readable —
+  // @Table(..., SqlNameMapper.CamelToSnakeCase) on UserRole lowercases enum case names for
+  // storage/lookup ("Admin" -> "admin"), so a raw-SQL role value must be lowercase to round-trip.
+  test("a user inserted as raw SQL with a lowercase role reads back with that role"):
     val userRepo = app.userRepo
+    val email    = s"raw-${UUID.randomUUID()}@example.com"
     transact(app.transactor):
       rollBackOnly:
-        val found = userRepo.findByEmail("admin@onparity.local")
+        sql"""insert into recon.app_user (id, email, password_hash, first_name, last_name, role)
+              values (${UUID.randomUUID()}, $email, 'not-a-real-hash', 'Raw', 'Sql', 'admin')""".update.run()
+        val found = userRepo.findByEmail(email)
         assert(found.isDefined)
         assertEquals(found.get.role, UserRole.Admin)

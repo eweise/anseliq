@@ -13,6 +13,16 @@ class UserService(userRepo: UserRepo, clock: ClockService):
 
   def listUsers(): Txn[Vector[User]] = userRepo.findAll
 
+  def hasActiveAdmin: Txn[Boolean] = userRepo.findAll.exists(user => user.active && user.role == UserRole.Admin)
+
+  /**
+   * Creates an Admin for an install that has no active one, and so no way to manage users; None,
+   * with nothing created, once one exists.
+   */
+  def createInitialAdmin(email: String, password: String): Txn[Option[User]] =
+    if hasActiveAdmin then None
+    else Some(createUser(email, firstName = "Admin", lastName = "User", UserRole.Admin, password))
+
   def createUser(
     email:     String,
     firstName: String,

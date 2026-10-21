@@ -26,6 +26,9 @@ ensure() {
 }
 
 ensure JWT_SECRET "$(openssl rand -base64 48)"
+# The Admin created on a new database's first start (`make create-db`); log in with these.
+ensure ADMIN_EMAIL "admin@onparity.local"
+ensure ADMIN_PASSWORD "$(openssl rand -base64 18)"
 # LocalStack, which accepts any key (see `make start-localstack`).
 ensure S3_ENDPOINT "http://localhost:4566"
 ensure S3_USERNAME "test"
