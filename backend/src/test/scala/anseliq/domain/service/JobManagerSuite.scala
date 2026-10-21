@@ -481,3 +481,60 @@ class JobManagerSuite extends munit.FunSuite:
     finally
       transact(transactor):
         jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).foreach(j => jobRepo.deleteById(j.id))
+
+  // Runs a Reconciliation worker loop on its own JobManager (stopClaiming can't be undone) that
+  // hands referenceID's job to `onJob`, and completes any other queued Reconciliation job at once.
+  private def workerFor(referenceID: ID)(onJob: => Unit)(using Ox): (JobManager, CancellableFork[Unit]) =
+    val manager = JobManager(jobRepo, clock, app.dataSource)
+    val worker = forkCancellable:
+      manager.runWorker(Reconciliation, 1): job =>
+        if job.referenceId == referenceID then onJob
+        ReconciliationInfo(
+          accountId                   = UUID.randomUUID().toString,
+          accountName                 = "test",
+          reconciliationsCreatedCount = 0,
+          processingTimeSeconds       = 0
+        )
+    (manager, worker)
+
+  private def findJob(referenceID: ID): Job =
+    transact(transactor)(jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).head)
+
+  test("stopClaiming lets the running job finish, then the worker loop returns"):
+    // Committed, not rolled back: the worker runs the job in its own transactions.
+    val referenceID = UUID.randomUUID()
+    transact(transactor)(jobManager.submitJob(Reconciliation, referenceID))
+    val started = CountDownLatch(1)
+    val finish  = CountDownLatch(1)
+
+    supervised:
+      val (manager, worker) = workerFor(referenceID):
+        started.countDown()
+        finish.await()
+      started.await()
+      manager.stopClaiming()
+      finish.countDown()
+      assert(timeoutOption(10.seconds)(worker.join()).isDefined, "worker loop didn't return")
+
+    val job = findJob(referenceID)
+    assertEquals(job.jobStatus, JobStatus.Complete)
+    transact(transactor)(jobRepo.deleteById(job.id))
+
+  test("abandonRunningJobs interrupts the running job and requeues it without counting the attempt"):
+    val referenceID = UUID.randomUUID()
+    transact(transactor)(jobManager.submitJob(Reconciliation, referenceID))
+    val started = CountDownLatch(1)
+
+    supervised:
+      val (manager, worker) = workerFor(referenceID):
+        started.countDown()
+        Thread.sleep(60_000) // runs until interrupted
+      started.await()
+      manager.stopClaiming()
+      manager.abandonRunningJobs(() => worker.cancel())
+
+    val job = findJob(referenceID)
+    assertEquals(job.jobStatus, Submitted)
+    assertEquals(job.attempts, 0)
+    assertEquals(job.lockedUntil, None)
+    transact(transactor)(jobRepo.deleteById(job.id))

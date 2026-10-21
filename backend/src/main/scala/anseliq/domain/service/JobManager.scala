@@ -12,8 +12,10 @@ import org.postgresql.util.PSQLException
 import ox.scheduling.{Schedule, repeat}
 
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.{ConcurrentHashMap, CountDownLatch, TimeUnit}
 import javax.sql.DataSource
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{Duration, DurationInt, DurationLong, FiniteDuration}
+import scala.jdk.CollectionConverters.*
 import scala.util.control.NonFatal
 
 // A claimed (InProgress) job holds a lease that withLease's heartbeat keeps renewing while the work
@@ -22,6 +24,10 @@ import scala.util.control.NonFatal
 //
 // A failed attempt, or an abandoned one, is retried after a backoff (retryBaseDelay, doubling each
 // attempt) until maxAttempts, then the job is marked Error.
+//
+// To shut down, stopClaiming lets each worker loop finish the job it's running and return. A
+// shutdown that can't wait that long calls abandonRunningJobs, which puts the unfinished jobs
+// straight back in the queue for another instance, rather than leaving them until their lease lapses.
 class JobManager(
   jobRepo:        JobRepo,
   clock:          ClockService,
@@ -34,6 +40,12 @@ class JobManager(
   private val MaxRetryDelay           = 30.minutes
   private val leaseSeconds            = leaseDuration.toSeconds
   private val heartbeatInterval       = leaseDuration / 3
+
+  private val claimingStopped = CountDownLatch(1)
+  // The jobs this instance's worker loops are running, for abandonRunningJobs to hand back.
+  private val runningJobs = ConcurrentHashMap.newKeySet[ID]()
+  // Set while abandonRunningJobs interrupts the workers, so an interrupted job isn't counted as failed.
+  private val abandoning = AtomicBoolean(false)
 
   def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
     val jobId = submitJob(jobType, referenceID)
@@ -194,6 +206,9 @@ class JobManager(
           val jobInfo = handler(job)
           transact(transactor)(completeJob(job.id, jobInfo))
         catch
+          // abandonRunningJobs puts it back in the queue once the worker has stopped.
+          case _: Exception if abandoning.get() =>
+            logger.info(s"$jobType job ${job.id} interrupted by shutdown")
           case ex: Exception =>
             logger.error(s"$jobType job failed", ex)
             transact(transactor)(retryOrFail(job.id, ex))
@@ -213,17 +228,65 @@ class JobManager(
           logger.error(s"Error submitting $jobType job, will retry in $interval", ex)
     }
 
+  /**
+   * Every pollingSeconds, claims the next queued job of jobType and runs `fn` on it under a lease,
+   * until stopClaiming is called: then it returns, after finishing the job it's running.
+   */
   def pollForJob(jobType: JobType, pollingSeconds: Int)(fn: Job => Unit): Unit =
     val transactor = Transactor(dataSource)
-    repeat(Schedule.fixedInterval(pollingSeconds.seconds)) {
+    val interval   = pollingSeconds.seconds
+    while claimingStopped.getCount > 0 do
+      val started = System.nanoTime()
       try
         transact(transactor)(releaseExpiredLeases(jobType))
         val jobOpt = transact(transactor)(getNextAvailableJob(jobType))
-        jobOpt.foreach(job => withLease(job.id)(fn(job)))
+        jobOpt.foreach: job =>
+          runningJobs.add(job.id)
+          try withLease(job.id)(fn(job))
+          finally runningJobs.remove(job.id)
       catch
+        case ex: InterruptedException => throw ex
         case ex: Exception =>
           logger.error(s"Error polling for $jobType job, will retry in ${pollingSeconds}s", ex)
-    }
+      // Waits out the rest of the interval, waking early if stopClaiming is called.
+      val remaining = interval - (System.nanoTime() - started).nanos
+      if remaining > Duration.Zero then claimingStopped.await(remaining.toNanos, TimeUnit.NANOSECONDS)
+
+  /** Makes every worker loop return once it has finished the job it's running. */
+  def stopClaiming(): Unit = claimingStopped.countDown()
+
+  /**
+   * For a shutdown that can't wait for the running jobs to finish: `cancelWorkers` must interrupt
+   * the worker loops and wait for them to stop, then each job they were running goes straight back
+   * in the queue. The attempt isn't counted against the job, since it didn't fail.
+   */
+  def abandonRunningJobs(cancelWorkers: () => Unit): Unit =
+    abandoning.set(true)
+    val abandoned = runningJobs.asScala.toVector
+    cancelWorkers()
+    val transactor = Transactor(dataSource)
+    abandoned.foreach: jobId =>
+      try transact(transactor)(requeueAbandoned(jobId))
+      catch
+        case NonFatal(ex) =>
+          logger.error(s"Couldn't requeue job $jobId abandoned by shutdown; it's retried once its lease lapses", ex)
+
+  // Also Error if a newer job for the same target is already queued, as in requeueOrFail.
+  private def requeueAbandoned(jobId: ID): Txn[Unit] =
+    jobRepo.findById(jobId).filter(_.jobStatus == InProgress).foreach: job =>
+      findQueuedJob(job.jobType, job.referenceId) match
+        case Some(queued) =>
+          jobRepo.update(
+            job.copy(
+              jobStatus    = JobStatus.Error,
+              errorMessage = Some(s"Interrupted by shutdown; superseded by job ${queued.id}"),
+              lockedUntil  = None,
+              updatedAt    = Some(clock.now)
+            )
+          )
+        case None =>
+          jobRepo.requeueAbandoned(job.id, clock.now)
+          logger.info(s"${job.jobType} job ${job.id} interrupted by shutdown, requeued")
 
   def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =
     jobRepo

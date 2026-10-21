@@ -11,7 +11,9 @@ import com.typesafe.scalalogging.Logger
 import ox.*
 
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
 import scala.concurrent.duration.DurationInt
+import scala.jdk.DurationConverters.*
 
 /**
  * Runs the background jobs and HTTP server against an AppContainer, the production wiring by
@@ -41,18 +43,25 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
    * worker, and the HTTP server — and blocks until shutdown.
    */
   def run(args: Array[String]): Unit =
-    val shutdownLatch = java.util.concurrent.CountDownLatch(1)
+    val shutdownRequested = CountDownLatch(1)
+    val stopped           = CountDownLatch(1)
 
-    Runtime.getRuntime.addShutdownHook(Thread(() => shutdownLatch.countDown()))
+    Runtime.getRuntime.addShutdownHook(Thread(() =>
+      shutdownRequested.countDown()
+      // The JVM halts as soon as its shutdown hooks return, so this one waits for the drain.
+      stopped.await()
+    ))
 
     // Not behind a services flag: every instance needs its probes, whatever else it runs.
     val healthServer = HealthServer(app.dataSource, services.getInt("health.port"))
     healthServer.start()
 
-    try runServices(args, shutdownLatch)
-    finally healthServer.stop()
+    try runServices(args, shutdownRequested)
+    finally
+      healthServer.stop()
+      stopped.countDown()
 
-  private def runServices(args: Array[String], shutdownLatch: java.util.concurrent.CountDownLatch): Unit =
+  private def runServices(args: Array[String], shutdownRequested: CountDownLatch): Unit =
     supervised:
       if services.getBoolean("scheduler.enabled") then
         logger.info("Starting scheduler")
@@ -63,28 +72,50 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
         fork(app.jobManager.submitEvery(JobType.GenerateReconStats, ReconStatsScanId, 1.minute))
       else logger.info("Scheduler disabled")
 
-      startWorker(JobType.CreateFileInventory, "create-file-inventory")(_ => scanFileFeeds())
-      startWorker(JobType.Ingestion, "ingestion")(ingest)
-      startWorker(JobType.Reconciliation, "reconciliation")(job =>
-        app.reconciliationRunner.runJob(job.referenceId, job.id)
-      )
-      startWorker(JobType.GenerateReconStats, "generate-recon-stats")(_ => generateReconStats())
-      startWorker(JobType.SuggestMatches, "suggest-matches")(job =>
-        app.matchSuggestionService.suggestForAccount(job.referenceId)
-      )
+      val workers = Vector(
+        startWorker(JobType.CreateFileInventory, "create-file-inventory")(_ => scanFileFeeds()),
+        startWorker(JobType.Ingestion, "ingestion")(ingest),
+        startWorker(JobType.Reconciliation, "reconciliation")(job =>
+          app.reconciliationRunner.runJob(job.referenceId, job.id)
+        ),
+        startWorker(JobType.GenerateReconStats, "generate-recon-stats")(_ => generateReconStats()),
+        startWorker(JobType.SuggestMatches, "suggest-matches")(job =>
+          app.matchSuggestionService.suggestForAccount(job.referenceId)
+        )
+      ).flatten
 
       if services.getBoolean("http.enabled") then HttpServer(app).main(args)
       else logger.info("HTTP server disabled")
-      shutdownLatch.await() // block until SIGTERM/SIGINT, then scope ends and forks are cancelled
+      shutdownRequested.await() // block until SIGTERM/SIGINT
+      drainWorkers(workers)
+      // the scope ends here, cancelling the scheduler
 
   /** Forks jobType's worker loop if `services.workers.<key>` enables it. */
-  private def startWorker(jobType: JobType, key: String)(handler: Job => JobInfo)(using Ox): Unit =
+  private def startWorker(jobType: JobType, key: String)(handler: Job => JobInfo)(using
+    Ox
+  ): Option[CancellableFork[Unit]] =
     val worker = services.getConfig(s"workers.$key")
     if worker.getBoolean("enabled") then
       val pollingSeconds = worker.getInt("polling-seconds")
       logger.info(s"Starting $jobType worker, polling every ${pollingSeconds}s")
-      fork(app.jobManager.runWorker(jobType, pollingSeconds)(handler))
-    else logger.info(s"$jobType worker disabled")
+      Some(forkCancellable(app.jobManager.runWorker(jobType, pollingSeconds)(handler)))
+    else
+      logger.info(s"$jobType worker disabled")
+      None
+
+  /**
+   * Stops the workers claiming jobs and waits up to the drain timeout for the ones they're running
+   * to finish; any still running then are interrupted and put back in the queue.
+   */
+  private def drainWorkers(workers: Vector[CancellableFork[Unit]]): Unit =
+    val drainTimeout = services.getDuration("shutdown.drain-timeout").toScala
+    logger.info(s"Shutting down: waiting up to $drainTimeout for running jobs to finish")
+    app.jobManager.stopClaiming()
+    timeoutOption(drainTimeout)(workers.foreach(_.join())) match
+      case Some(_) => logger.info("Running jobs finished")
+      case None =>
+        logger.warn(s"Jobs still running after $drainTimeout, requeueing them")
+        app.jobManager.abandonRunningJobs(() => workers.foreach(_.cancel()))
 
   /** Finds new files on every feed and queues an Ingestion job for each, with its inventory row. */
   private def scanFileFeeds(): FileInventoryInfo =

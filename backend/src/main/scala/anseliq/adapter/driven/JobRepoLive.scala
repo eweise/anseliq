@@ -74,6 +74,18 @@ class JobRepoLive(clock: ClockService) extends AuditedRepo[Job, UUID](clock) wit
         AND job_status = ${JobStatus.InProgress}
       """.update.run() == 1
 
+  override def requeueAbandoned(jobId: ID, now: OffsetDateTime): Txn[Boolean] =
+    sql"""
+        UPDATE $j
+        SET job_status = ${JobStatus.Submitted},
+            run_at = NULL,
+            locked_until = NULL,
+            attempts = attempts - 1,
+            updated_at = $now
+        WHERE id = $jobId
+        AND job_status = ${JobStatus.InProgress}
+      """.update.run() == 1
+
   override def extendLease(jobId: ID, leaseSeconds: Long): Txn[Boolean] =
     sql"""
         UPDATE $j
