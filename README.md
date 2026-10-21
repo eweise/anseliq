@@ -56,9 +56,15 @@ an ALB with an ACM certificate); its `README.md` covers the AWS setup and what t
 An init container in each backend pod applies the database migrations before the app starts (see
 Database migrations below), so the database itself only has to exist.
 
+## CI
+
+The CI workflow (`.github/workflows/ci.yml`) runs the tests on every push to `main` and every pull
+request, against a fresh Postgres and LocalStack. LocalStack needs an auth token: set it as the
+repository secret `LOCALSTACK_AUTH_TOKEN` (Settings → Secrets and variables → Actions).
+
 ## Releases
 
-Pushing a version tag publishes that release's images:
+Pushing a version tag publishes that release's images. Tag a commit whose CI run passed:
 
 ```bash
 git tag v1.2.3
