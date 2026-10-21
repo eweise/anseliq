@@ -30,6 +30,12 @@ sbt
 
 ## Minikube
 
+## llm
+- brew install ollama
+- ollama serve              # in its own terminal
+- ollama pull qwen2.5:7b    # about 4.7 GB
+- make seed-demo-llm
+
 ## Localstack
 
 ### Start localstack
