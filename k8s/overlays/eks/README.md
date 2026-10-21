@@ -64,6 +64,34 @@ and its trust policy, with the cluster's OIDC provider:
 }
 ```
 
+## Scaling
+
+The backend scales itself between 2 and 4 API pods and 1 and 4 worker pods on CPU, which needs the
+cluster's metrics-server (the EKS add-on of that name). The database has to allow about 100
+connections for that (each pod holds up to 12); raise `maxReplicas` in `base/autoscaling.yaml` only
+together with its `max_connections`.
+
+Where [KEDA](https://keda.sh) is installed, workers can scale on how many jobs are queued or running
+instead, which tracks their load better than CPU. Add to `kustomization.yaml`:
+
+```yaml
+components:
+  - ../../components/worker-queue-autoscaling
+
+patches:
+  # ...the existing patches, then:
+  - target:
+      kind: ScaledObject
+      name: backend-worker
+    patch: |-
+      - op: replace
+        path: /spec/triggers/0/metadata/host
+        value: <the RDS endpoint>
+      - op: replace
+        path: /spec/triggers/0/metadata/userName
+        value: <DB_USER from secrets.env>
+```
+
 ## Installing
 
 ```bash

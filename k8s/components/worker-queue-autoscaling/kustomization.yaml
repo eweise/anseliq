@@ -1,0 +1,35 @@
+# Scales backend-worker on how much work is queued or running, instead of on CPU, for clusters with
+# KEDA (https://keda.sh) installed. An overlay opts in with
+#
+#   components:
+#     - ../../components/worker-queue-autoscaling
+#
+# and a patch giving the ScaledObject's trigger its database host and user. It has to be a JSON
+# patch: kustomize can't merge into KEDA's triggers list, so a plain patch would replace the whole
+# trigger, query and all.
+#
+#   patches:
+#     - target:
+#         kind: ScaledObject
+#         name: backend-worker
+#       patch: |-
+#         - op: replace
+#           path: /spec/triggers/0/metadata/host
+#           value: <database host>
+#         - op: replace
+#           path: /spec/triggers/0/metadata/userName
+#           value: <database user>
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - scaledobject.yaml
+
+# KEDA creates its own HorizontalPodAutoscaler for the ScaledObject; two on one deployment fight.
+patches:
+  - patch: |-
+      $patch: delete
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: backend-worker

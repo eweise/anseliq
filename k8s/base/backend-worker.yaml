@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend-worker
 spec:
-  replicas: 2
+  # No replicas: the backend-worker HorizontalPodAutoscaler (autoscaling.yaml) sets it.
   selector:
     matchLabels:
       app.kubernetes.io/name: backend-worker

@@ -1,0 +1,44 @@
+# One worker per 3 jobs that are running or ready to run, between 1 and 4 workers. Running jobs
+# count too, so a long reconciliation keeps its worker even once nothing else is queued.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: backend-worker
+spec:
+  scaleTargetRef:
+    name: backend-worker
+  # At least one, since the workers also run the scheduler that queues the periodic jobs. The
+  # maximum matches base/autoscaling.yaml's, which the database's max_connections is sized for.
+  minReplicaCount: 1
+  maxReplicaCount: 4
+  pollingInterval: 30
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        # Stopping a worker interrupts its running jobs, so scale down slowly (as in
+        # base/autoscaling.yaml).
+        scaleDown:
+          stabilizationWindowSeconds: 600
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 300
+  triggers:
+    - type: postgresql
+      metadata:
+        # The overlay sets these two (see kustomization.yaml). KEDA connects from its own namespace,
+        # so host has to be reachable from there (an RDS endpoint is; an in-cluster service needs
+        # its full DNS name).
+        host: REPLACE_ME_DB_HOST
+        userName: REPLACE_ME_DB_USER
+        port: "5432"
+        dbName: recon_db
+        # require for RDS; disable for a Postgres without TLS.
+        sslmode: require
+        # Read from the worker pods' own environment (anseliq-secrets).
+        passwordFromEnv: DB_PASSWORD
+        query: >-
+          SELECT count(*) FROM recon.job
+          WHERE job_status = 'in_progress'
+          OR (job_status = 'submitted' AND (run_at IS NULL OR run_at <= now()))
+        targetQueryValue: "3"

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend-api
 spec:
-  replicas: 2
+  # No replicas: the backend-api HorizontalPodAutoscaler (autoscaling.yaml) sets it.
   selector:
     matchLabels:
       app.kubernetes.io/name: backend-api

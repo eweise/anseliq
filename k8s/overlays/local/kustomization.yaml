@@ -23,6 +23,7 @@ images:
     newName: ghcr.io/eweise/anseliq-frontend
     newTag: dev
 
+# One of each, rather than the base's autoscaling: a local cluster often has no metrics-server.
 replicas:
   - name: backend-api
     count: 1
@@ -45,3 +46,17 @@ secretGenerator:
   - name: anseliq-secrets
     envs:
       - secrets.env
+
+patches:
+  - patch: |-
+      $patch: delete
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: backend-api
+  - patch: |-
+      $patch: delete
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: backend-worker

@@ -1,0 +1,55 @@
+# Scales the backend deployments on CPU, which needs only metrics-server in the cluster (an EKS
+# add-on). These own the deployments' replica counts, so the deployments don't set one.
+#
+# Every backend pod holds up to DB_MAX_CONNECTIONS (10) pooled connections plus 2, so the maximums
+# here (4 + 4 pods, 96 connections) assume Postgres allows at least ~100; raise them together with
+# the database's max_connections.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-api
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+# CPU is only a rough signal for workers: one waiting on S3 or the database looks idle. The
+# worker-queue-autoscaling component scales them on queue depth instead, where KEDA is installed.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-worker
+  # At least one, since the workers also run the scheduler that queues the periodic jobs.
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    # Stopping a worker interrupts its running jobs (they drain for SHUTDOWN_DRAIN_TIMEOUT, then are
+    # requeued), so scale down slowly, one pod at a time, and only after 10 minutes of less load.
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 300
