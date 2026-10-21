@@ -6,7 +6,7 @@
     <title>AnselIQ — Reconciliation at scale</title>
     <meta
       name="description"
-      content="AnselIQ matches financial data automatically, at the volume payments teams actually run, and when something doesn't tie out, shows you the difference, the records behind it, and how to resolve it."
+      content="AnselIQ matches financial data automatically, at the volume payments teams actually run, with AI on your own servers suggesting the matches rules miss. When something doesn't tie out, it shows you the difference, the records behind it, and how to resolve it."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -34,6 +34,7 @@
         <div class="hidden items-center gap-8 text-sm text-ink-200 md:flex">
           <a href="#how" class="hover:text-paper-100">How it works</a>
           <a href="#features" class="hover:text-paper-100">Capabilities</a>
+          <a href="#ai" class="hover:text-paper-100">AI matching</a>
           <a href="#early-access" class="hover:text-paper-100">Early access</a>
         </div>
         <a href="#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
@@ -51,8 +52,9 @@
             </h1>
             <p class="max-w-prose text-lg leading-relaxed text-ink-200">
               AnselIQ matches financial data automatically,
-              down to every record, millions of them in minutes. When something doesn't tie out, AnselIQ shows you the
-              difference, the movements behind it, and the fix, with every step recorded.
+              down to every record, millions of them in minutes, and its AI suggests the matches your rules miss.
+              When something doesn't tie out, AnselIQ shows you the difference, the movements behind it, and the
+              fix, with every step recorded.
             </p>
             <div class="flex flex-wrap items-center gap-3">
               <a href="#early-access" class="btn-primary">Request early access</a>
@@ -154,10 +156,11 @@
             </li>
             <li class="flex flex-col gap-3 bg-paper-100 p-7">
               <span class="figure relative inline-flex h-9 w-12 items-center justify-center text-sm text-safelight-deep">02<svg class="mark pencil-amber-deep inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>
-              <h3 class="text-lg font-semibold">Match with rules</h3>
+              <h3 class="text-lg font-semibold">Match with rules and AI</h3>
               <p class="text-sm leading-relaxed text-ink-400">
                 Define how two sides relate, one-to-one or one-to-many, and which fields and dates
-                must agree, including offsets like "settles two days later."
+                must agree, including offsets like "settles two days later." What the rules miss, AI
+                suggests for your team to approve.
               </p>
             </li>
             <li class="flex flex-col gap-3 bg-paper-100 p-7">
@@ -255,8 +258,8 @@
             <div>
               <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Rules on any field</h3>
               <p class="mt-2 text-sm leading-relaxed text-ink-400">
-                Match on IDs, references and dates from either side, with fixed values and date windows,
-                and see exactly which values each reconciliation was matched on.
+                Match on IDs, references and dates from either side, with fixed values, date windows and
+                formatting differences ignored, and see exactly which values each reconciliation was matched on.
               </p>
             </div>
             <div>
@@ -283,6 +286,44 @@
               <p class="mt-2 text-sm leading-relaxed text-ink-400">
                 Mismatches and missing files resolve automatically when the real fix happens. People
                 handle the judgment calls, with assignment and a discussion thread.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AI matching -->
+      <section id="ai" class="bg-paper-100 scroll-mt-16">
+        <div class="container-page py-24">
+          <div class="max-w-2xl">
+            <p class="eyebrow text-safelight-deep">AI matching</p>
+            <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">AI for the matches your rules miss.</h2>
+            <p class="mt-4 leading-relaxed text-ink-400">
+              Rules handle the clean cases. When the two sides don't line up exactly, like an invoice
+              number the bank reformatted or a reference with an extra prefix, AnselIQ's AI suggests the
+              likely match. Someone on your team accepts or rejects it, and every decision is recorded.
+            </p>
+          </div>
+          <div class="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Runs on your servers</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                The model runs inside your own environment, so transaction data never leaves your
+                network and no outside AI service is called.
+              </p>
+            </div>
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Checked, not trusted</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                Each suggestion comes with a reason and, where it can, the exact rule that makes the two
+                references equal, verified against the records before anyone sees it.
+              </p>
+            </div>
+            <div>
+              <h3 class="flex items-center gap-2.5 text-lg font-semibold"><svg class="mark-inline pencil-amber-deep h-5 w-6" viewBox="0 0 24 20" aria-hidden="true"><path pathLength="1" d="M3 11.5c2 1.2 3.9 3.4 5.3 5.8C10.6 11 15 5.4 21 2.6" /></svg>Learns your rules</h3>
+              <p class="mt-2 text-sm leading-relaxed text-ink-400">
+                As your team accepts suggestions, recurring patterns are offered as matching rules. Add
+                one, and those pairs match automatically from then on, with no AI involved.
               </p>
             </div>
           </div>
