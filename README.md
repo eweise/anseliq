@@ -103,9 +103,9 @@ A database created from the old `schema.sql` is recorded as already at V1 the fi
 
 ### Start localstack
 
-- Get the token
+- Get your auth token from the Auth Tokens page at https://app.localstack.cloud (never commit it)
 - Add the token locally
-    - localstack auth set-token ls-YaDEZADA-9583-SoKu-RAKA-tuQo9565e887
+    - localstack auth set-token <your auth token>
 - Start localstack
     - localstack start
 
