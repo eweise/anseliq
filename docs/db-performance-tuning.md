@@ -1,10 +1,10 @@
 # DB performance tuning notes
 
 Local `recon_db` was slow on large ingestion/reconciliation runs. These changes fixed it,
-in order of impact. The schema changes live in `backend/db/schema.sql` and apply automatically;
+in order of impact. The schema changes are in the `backend/src/main/resources/db/migration/V1__initial_schema.sql` migration and apply automatically;
 the `postgresql.conf` changes are host-level and must be reapplied manually per environment.
 
-## Schema changes (`backend/db/schema.sql`)
+## Schema changes (`V1__initial_schema.sql`)
 
 - `movement_unreconciled_by_spec` — partial index `(movement_spec_id) WHERE reconciliation_id IS NULL`,
   matching the `WHERE` clause `findUnreconciledPage`/`findUnreconciledByExactMatchKey` actually use.
@@ -38,5 +38,5 @@ speed is still a bottleneck after the above.
 
 ## Reapplying on a new environment
 
-1. `make create-db` picks up the schema changes automatically from `backend/db/schema.sql`.
+1. The backend's Flyway migrations apply the schema changes (`make create-db` for a new local database).
 2. Manually set the four `postgresql.conf` values above and restart the Postgres service.

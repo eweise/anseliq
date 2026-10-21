@@ -1,6 +1,7 @@
 package anseliq.app
 
 import anseliq.adapter.config.AppContainer
+import anseliq.adapter.driven.DbMigrations
 import anseliq.adapter.driving.*
 import anseliq.common.model.*
 import anseliq.common.model.model.ID
@@ -45,6 +46,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
   def run(args: Array[String]): Unit =
     // Fail now, not on the first login, if the HTTP server is missing its JWT secret.
     if services.getBoolean("http.enabled") then app.jwtSecret
+    if app.config.getBoolean("db.migrate-on-start") then DbMigrations.migrate(app.config)
     val shutdownRequested = CountDownLatch(1)
     val stopped           = CountDownLatch(1)
 

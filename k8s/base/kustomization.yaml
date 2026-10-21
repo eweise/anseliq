@@ -30,6 +30,8 @@ configMapGenerator:
       - DB_PORT=5432
       - DB_NAME=recon_db
       - DB_SCHEMA=recon
+      # The migrate init container does it instead (see backend-api.yaml).
+      - DB_MIGRATE_ON_START=false
       # Per pod. Across every backend pod, this plus 2 (the reconciler's cursor connections) has to
       # stay under Postgres's max_connections.
       - DB_MAX_CONNECTIONS=10

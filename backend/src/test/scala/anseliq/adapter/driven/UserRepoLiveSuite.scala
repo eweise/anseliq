@@ -103,11 +103,11 @@ class UserRepoLiveSuite extends munit.FunSuite:
         intercept[Exception]:
           userRepo.insert(user.copy(id = createID()))
 
-  // Confirms the seeded schema.sql admin row (inserted as raw SQL, not through the DbCodec) is
+  // Confirms the admin row seeded by the V1 migration (inserted as raw SQL, not through the DbCodec) is
   // actually readable — @Table(..., SqlNameMapper.CamelToSnakeCase) on UserRole lowercases enum
   // case names for storage/lookup ("Admin" -> "admin"), so a raw-SQL seed value must be lowercase
-  // to round-trip; this regression-tests that the seed row in schema.sql matches.
-  test("the schema.sql-seeded admin user is readable and has the Admin role"):
+  // to round-trip; this regression-tests that the seed row in V1__initial_schema.sql matches.
+  test("the migration-seeded admin user is readable and has the Admin role"):
     val userRepo = app.userRepo
     transact(app.transactor):
       rollBackOnly:

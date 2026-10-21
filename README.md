@@ -50,8 +50,20 @@ cp k8s/overlays/local/secrets.env.example k8s/overlays/local/secrets.env   # the
 kubectl apply -k k8s/overlays/local
 ```
 
-The schema isn't created for you: `backend/db/schema.sql` drops and recreates the database, so run it
-by hand once against a new one.
+An init container in each backend pod applies the database migrations before the app starts (see
+Database migrations below), so the database itself only has to exist.
+
+## Database migrations
+
+The schema is managed by [Flyway](https://documentation.red-gate.com/flyway). Migrations are in
+`backend/src/main/resources/db/migration`, and the backend applies any pending ones when it starts
+(`db.migrate-on-start`). To change the schema, add a new `V<n>__<description>.sql` there; never edit
+one that has already been applied anywhere.
+
+- `make create-db` creates an empty `recon_db` and migrates it.
+- `sbt "backend/runMain anseliq.app.Main migrate"` migrates without starting the app.
+
+A database created from the old `schema.sql` is recorded as already at V1 the first time it's migrated.
 
 ## Minikube
 

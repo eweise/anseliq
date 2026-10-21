@@ -23,9 +23,11 @@ stop-localstack:
 	localstack stop
 
 
+# A new, empty recon_db with the schema from the backend's Flyway migrations
+# (backend/src/main/resources/db/migration).
 create-db: delete-db
-	@echo "$(CURRENT_DIR)"
-	$(POSTGRES_BIN)/psql -p 5432 -Upostgres -f $(CURRENT_DIR)/backend/db/schema.sql
+	$(POSTGRES_BIN)/createdb -p 5432 -Upostgres $(DB_NAME)
+	sbt "backend/runMain anseliq.app.Main migrate"
 
 delete-db:
 	$(POSTGRES_BIN)/psql -p 5432 -Upostgres -c "drop database if exists recon_db"

@@ -17,6 +17,25 @@ spec:
       terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
+      initContainers:
+        # Applies pending database migrations before the app starts. Pods starting together are
+        # safe: Flyway's advisory lock makes the rest wait, then find nothing left to do.
+        - name: migrate
+          image: anseliq-backend
+          args: ["migrate"]
+          envFrom:
+            - configMapRef:
+                name: anseliq-config
+            - secretRef:
+                name: anseliq-secrets
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
       containers:
         - name: backend
           image: anseliq-backend

@@ -63,9 +63,10 @@ trait MovementRepo extends DomainRepo[Movement, Movement]:
   def setReconciliationIds(idPairs: Iterable[(ID, ID)]): Txn[Unit]
 
   // Exact match on the same meta_data.file_source_entry tag Ingestor writes on every movement — see
-  // movement_meta_data_index in schema.sql, which this needs to stay index-backed rather than a
-  // full table scan. Unlike search's fileSourceQuery (ILIKE, capped at 1000), this has no cap: it's
-  // meant to find every movement from one specific file, e.g. for ManualReconciler.bulkUnreconcileByFile.
+  // movement_meta_data_index in V1__initial_schema.sql, which this needs to stay index-backed rather
+  // than a full table scan. Unlike search's fileSourceQuery (ILIKE, capped at 1000), this has no cap:
+  // it's meant to find every movement from one specific file, e.g. for
+  // ManualReconciler.bulkUnreconcileByFile.
   def findByFileSourceEntry(fileSourceEntry: String): Txn[Vector[Movement]]
 
   def search(criteria: MovementSearchCriteria): Txn[Vector[Movement]]

@@ -1,8 +1,7 @@
-drop database if exists recon_db;
-
-create database recon_db;
-
-\c recon_db;
+-- The schema as of adopting Flyway: the old backend/db/schema.sql without its drop/create database
+-- and \c lines, since Flyway runs inside a database that already exists. A database created from
+-- schema.sql before Flyway is baselined at this version instead of running it (see DbMigrations).
+-- Never edit an applied migration: add a new V<n>__<description>.sql for every change.
 
 create schema if not exists recon;
 
