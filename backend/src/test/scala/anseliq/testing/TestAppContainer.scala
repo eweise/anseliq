@@ -1,7 +1,10 @@
 package anseliq.testing
 
 import anseliq.adapter.config.AppContainer
+import anseliq.adapter.driven.DbDataSource
 import com.typesafe.config.{Config, ConfigFactory}
+
+import javax.sql.DataSource
 
 /**
  * The production AppContainer wiring, pointed at the test database: test-application.conf wins,
@@ -21,3 +24,11 @@ class TestAppContainer extends AppContainer:
     configOverrides
       .withFallback(ConfigFactory.load("test-application.conf"))
       .withFallback(ConfigFactory.load("application.conf"))
+
+  // One pool for every container in the test run, rather than a pool each holding its own
+  // connections open, which across the suites would run past Postgres's max_connections.
+  override lazy val dataSource: DataSource = TestAppContainer.sharedPool
+
+object TestAppContainer:
+  private lazy val sharedPool: DataSource =
+    DbDataSource.pooled(ConfigFactory.load("test-application.conf").withFallback(ConfigFactory.load("application.conf")))

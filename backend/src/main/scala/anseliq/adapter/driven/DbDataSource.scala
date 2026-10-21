@@ -1,17 +1,34 @@
 package anseliq.adapter.driven
 
 import com.typesafe.config.Config
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import org.postgresql.ds.PGSimpleDataSource
 
 import javax.sql.DataSource
 
-// todo use pooled datasource — note that MovementRepoLive.withUnreconciledCursor deliberately
-// holds a raw connection open for the life of a whole reconciliation pass (one per side being
-// merge-joined), separate from the short-lived borrow/return every transact(...)/connect(...) call
-// elsewhere does. If this becomes a real pool, that usage needs to explicitly bypass it — or the
-// pool needs enough headroom for those long-held connections — rather than borrowing from it.
-object DbDataSource {
-  def create(config: Config): DataSource =
+object DbDataSource:
+
+  /**
+   * A HikariCP pool of at most db.max-connections, for every transact(...)/connect(...) call. Each
+   * instance holds up to that many, so the replicas' total must stay under Postgres's
+   * max_connections.
+   */
+  def pooled(config: Config): HikariDataSource =
+    val pool = HikariConfig()
+    pool.setPoolName("anseliq")
+    pool.setDataSource(unpooled(config))
+    pool.setMaximumPoolSize(config.getInt("db.max-connections"))
+    pool.setMinimumIdle(config.getInt("db.min-idle"))
+    pool.setConnectionTimeout(config.getDuration("db.connection-timeout").toMillis)
+    HikariDataSource(pool)
+
+  /**
+   * A new connection per getConnection, really closed on close(). For MovementRepoLive's
+   * withUnreconciledCursor, which holds a connection for a whole reconciliation pass and leaves a
+   * WITH HOLD cursor on it if its CLOSE never runs (an interrupted pass): from a pool, that cursor,
+   * and the temp file it materialized, would outlive the pass on a connection handed to someone else.
+   */
+  def unpooled(config: Config): DataSource =
     val source = PGSimpleDataSource()
     source.setCurrentSchema(config.getString("db.schema"))
     source.setServerNames(Array(config.getString("db.host")))
@@ -20,4 +37,3 @@ object DbDataSource {
     source.setUser(config.getString("db.user"))
     source.setPassword(config.getString("db.password"))
     source
-}

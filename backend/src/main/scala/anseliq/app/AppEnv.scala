@@ -59,6 +59,9 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
     try runServices(args, shutdownRequested)
     finally
       healthServer.stop()
+      app.dataSource match
+        case pool: AutoCloseable => pool.close()
+        case _                   => ()
       stopped.countDown()
 
   private def runServices(args: Array[String], shutdownRequested: CountDownLatch): Unit =

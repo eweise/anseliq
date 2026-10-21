@@ -88,7 +88,7 @@ class InMemoryReconciler(
   val transactor:         Transactor,
   val jobRepo:            JobRepo,
   val disputeService:     DisputeService,
-  val dataSource:         DataSource
+  val cursorDataSource:   DataSource
 ):
 
   private val pageSize = 10000
@@ -328,14 +328,14 @@ class InMemoryReconciler(
     // are nested here rather than opened as simple fields: Magnum only ever hands out the DbCon a
     // cursor needs through a callback like this one, not as a standalone handle.
     movementRepo.withUnreconciledCursor(
-      dataSource,
+      cursorDataSource,
       reconSpec.inMovementSpecId,
       matchKeyExpr(rule, IN, "a"),
       startCheckpoint.lastInMatchKey,
       pageSize
     ): inRawCursor =>
       movementRepo.withUnreconciledCursor(
-        dataSource,
+        cursorDataSource,
         reconSpec.outMovementSpecId,
         matchKeyExpr(rule, OUT, "a"),
         startCheckpoint.lastOutMatchKey,

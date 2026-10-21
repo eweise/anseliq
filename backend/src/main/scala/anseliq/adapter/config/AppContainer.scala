@@ -5,23 +5,15 @@ import anseliq.domain.port.driven.*
 import anseliq.domain.service.*
 import com.augustnagro.magnum.Transactor
 import com.typesafe.config.{Config, ConfigFactory}
-import org.postgresql.ds.PGSimpleDataSource
 
 import javax.sql.DataSource
 
 trait AppContainer:
   lazy val config: Config = ConfigFactory.load("application.conf")
 
-  lazy val dataSource: DataSource = {
-    val source = PGSimpleDataSource()
-    source.setCurrentSchema(config.getString("db.schema"))
-    source.setServerNames(Array(config.getString("db.host")))
-    source.setPortNumber(config.getInt("db.port"))
-    source.setDatabaseName(config.getString("db.database_name"))
-    source.setUser(config.getString("db.user"))
-    source.setPassword(config.getString("db.password"))
-    source
-  }
+  lazy val dataSource: DataSource = DbDataSource.pooled(config)
+  // Only for the reconciler's cursors; see DbDataSource.unpooled.
+  lazy val cursorDataSource: DataSource = DbDataSource.unpooled(config)
 
   lazy val transactor: Transactor = Transactor(dataSource = dataSource)
 
@@ -85,7 +77,7 @@ trait AppContainer:
     transactor         = transactor,
     jobRepo            = jobRepo,
     disputeService     = disputeService,
-    dataSource         = dataSource
+    cursorDataSource   = cursorDataSource
   )
   lazy val reconciliationRunner: ReconciliationRunner = ReconciliationRunner(
     accountRepo      = accountRepo,

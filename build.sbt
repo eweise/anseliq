@@ -115,6 +115,7 @@ lazy val backend = (project in file("backend"))
       "org.scalatest"              %% "scalatest"           % Dependencies.Scalatest % Test,
       "com.augustnagro"            %% "magnum"              % "2.0.0-M3",
       "org.postgresql"              % "postgresql"          % "42.7.4",
+      "com.zaxxer"                  % "HikariCP"            % "6.3.0",
       "org.scalamock"              %% "scalamock"           % "6.0.0"                % Test,
       "com.augustnagro"            %% "magnumpg"            % "2.0.0-M3",
       "com.typesafe"                % "config"              % "1.4.3",
