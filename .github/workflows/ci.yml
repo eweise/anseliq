@@ -34,18 +34,14 @@ jobs:
           --health-retries 20
 
       # For CreateFileInventoryTrackerS3Suite. LocalStack needs an auth token: set it as the
-      # repository secret LOCALSTACK_AUTH_TOKEN.
+      # repository secret LOCALSTACK_AUTH_TOKEN. The image's own health check (python3 against
+      # /_localstack/health) is what the job waits on; the image has no curl to write another with.
       localstack:
         image: localstack/localstack
         env:
           LOCALSTACK_AUTH_TOKEN: ${{ secrets.LOCALSTACK_AUTH_TOKEN }}
           SERVICES: s3
         ports: ["4566:4566"]
-        options: >-
-          --health-cmd "curl -sf http://localhost:4566/_localstack/health"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 30
 
     steps:
       - uses: actions/checkout@v4
