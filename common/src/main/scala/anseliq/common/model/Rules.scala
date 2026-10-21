@@ -115,7 +115,7 @@ case class DateAttribute(
 
   override def compare(xProps: Properties, yProps: Properties): Int =
     val x = getValue(xProps)
-    val y = getValue(xProps)
+    val y = getValue(yProps)
     x.compareTo(y)
 
   def getValue(props: Properties): LocalDate =
