@@ -45,6 +45,14 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
 
     Runtime.getRuntime.addShutdownHook(Thread(() => shutdownLatch.countDown()))
 
+    // Not behind a services flag: every instance needs its probes, whatever else it runs.
+    val healthServer = HealthServer(app.dataSource, services.getInt("health.port"))
+    healthServer.start()
+
+    try runServices(args, shutdownLatch)
+    finally healthServer.stop()
+
+  private def runServices(args: Array[String], shutdownLatch: java.util.concurrent.CountDownLatch): Unit =
     supervised:
       if services.getBoolean("scheduler.enabled") then
         logger.info("Starting scheduler")
