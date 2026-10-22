@@ -21,13 +21,16 @@ object DockerSettings {
 
 
   /**
-   * * support build x86 - intel CPU image on Mac M1 chip required run 'docker buildx install' to
-   * set docker buildx up
+   * Builds the image for DOCKER_PLATFORM (e.g. linux/amd64) when it's set, and otherwise for this
+   * machine's own architecture. Releases are built on amd64 CI runners, so a Mac only needs it to
+   * build an amd64 image by hand (with `docker buildx install` done once); left unset there, the
+   * image matches the Mac, which is what Docker Desktop's Kubernetes runs.
    */
-  lazy val x86ArchSetting = Docker / dockerBuildCommand := {
-    val armArch = List("aarch64", "arm64") // Mac ARM chip M
-    if (armArch.contains(sys.props("os.arch"))) {
-      dockerExecCommand.value ++ Seq("buildx", "build", "--platform=linux/amd64", "--load") ++ dockerBuildOptions.value :+ "."
-    } else dockerBuildCommand.value
+  lazy val platformSetting = Docker / dockerBuildCommand := {
+    sys.env.get("DOCKER_PLATFORM") match {
+      case Some(platform) =>
+        dockerExecCommand.value ++ Seq("buildx", "build", s"--platform=$platform", "--load") ++ dockerBuildOptions.value :+ "."
+      case None => dockerBuildCommand.value
+    }
   }
 }

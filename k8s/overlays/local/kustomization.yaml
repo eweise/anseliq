@@ -1,8 +1,13 @@
-# A local cluster (minikube, Docker Desktop, kind) with the Bitnami Postgres chart from the README
-# installed as my-release in the default namespace, and LocalStack on the host for S3.
+# Docker Desktop's Kubernetes, with everything in the cluster except S3: a Postgres of its own
+# (postgres.yaml), LocalStack on the Mac for S3, images built into Docker Desktop's own image store,
+# and the app at http://localhost:8088.
 #
 #   cp k8s/overlays/local/secrets.env.example k8s/overlays/local/secrets.env   # then fill it in
+#   sbt "backend/Docker/publishLocal; frontend/Docker/publishLocal"
 #   kubectl apply -k k8s/overlays/local
+#
+# After rebuilding the images, `kubectl -n anseliq rollout restart deployment` picks them up: the
+# tag stays "dev", so the deployments don't change on their own.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -11,10 +16,9 @@ namespace: anseliq
 resources:
   - namespace.yaml
   - ../../base
+  - postgres.yaml
 
-# Built into the cluster's own image store, e.g. after `eval $(minikube docker-env)`:
-#   sbt backend/Docker/publishLocal frontend/Docker/publishLocal
-# which tags a build that isn't a release "dev" as well as with its version.
+# publishLocal tags a build that isn't a release "dev" as well as with its version.
 images:
   - name: anseliq-backend
     newName: ghcr.io/eweise/anseliq-backend
@@ -23,7 +27,7 @@ images:
     newName: ghcr.io/eweise/anseliq-frontend
     newTag: dev
 
-# One of each, rather than the base's autoscaling: a local cluster often has no metrics-server.
+# One of each, rather than the base's autoscaling: Docker Desktop has no metrics-server.
 replicas:
   - name: backend-api
     count: 1
@@ -36,10 +40,12 @@ configMapGenerator:
   - name: anseliq-config
     behavior: merge
     literals:
-      - DB_HOST=my-release-postgresql.default.svc.cluster.local
-      # The host machine as seen from a pod: host.minikube.internal on minikube,
-      # host.docker.internal on Docker Desktop.
-      - S3_ENDPOINT=http://host.minikube.internal:4566
+      - DB_HOST=postgres
+      # The Mac, as seen from a pod.
+      - S3_ENDPOINT=http://host.docker.internal:4566
+  - name: frontend-nginx
+    files:
+      - nginx.conf=frontend-nginx.conf
 
 # secrets.env is gitignored; secrets.env.example lists what goes in it.
 secretGenerator:
@@ -60,3 +66,41 @@ patches:
       kind: HorizontalPodAutoscaler
       metadata:
         name: backend-worker
+  # No ingress controller here: the frontend's nginx passes /api to the backend instead
+  # (frontend-nginx.conf), and the frontend Service is the way in.
+  - patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: anseliq
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: frontend
+      spec:
+        template:
+          spec:
+            containers:
+              - name: frontend
+                volumeMounts:
+                  - name: nginx-conf
+                    mountPath: /etc/nginx/nginx.conf
+                    subPath: nginx.conf
+            volumes:
+              - name: nginx-conf
+                configMap:
+                  name: frontend-nginx
+  # Docker Desktop serves a LoadBalancer Service on the Mac's localhost. A JSON patch, since a
+  # Service's ports merge by port number: a merge patch would add 8088 beside 80 rather than replace it.
+  - target:
+      kind: Service
+      name: frontend
+    patch: |-
+      - op: add
+        path: /spec/type
+        value: LoadBalancer
+      - op: replace
+        path: /spec/ports/0/port
+        value: 8088

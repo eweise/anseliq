@@ -45,7 +45,7 @@ lazy val frontend = project.in(file("frontend"))
     dockerRepository      := Some(DockerSettings.repository),
     dockerAlias           := DockerAlias(dockerRepository.value, None, "anseliq-frontend", Some(version.value)),
     dockerAliases ++= DockerSettings.devAlias(dockerAlias.value, isSnapshot.value),
-    DockerSettings.x86ArchSetting,
+    DockerSettings.platformSetting,
     Docker / defaultLinuxInstallLocation := "/usr/share/nginx/html",
     dockerCommands := dockerCommands.value.filter {
       case ExecCmd(cmd, _) => cmd != "ENTRYPOINT" && cmd != "CMD" && cmd != "USER"
@@ -172,7 +172,7 @@ lazy val backend = project.in(file("backend"))
     dockerRepository   := Some(DockerSettings.repository),
     dockerAlias        := DockerAlias(dockerRepository.value, None, "anseliq-backend", Some(version.value)),
     dockerAliases ++= DockerSettings.devAlias(dockerAlias.value, isSnapshot.value),
-    DockerSettings.x86ArchSetting
+    DockerSettings.platformSetting
   )
   .dependsOn(common.jvm)
 

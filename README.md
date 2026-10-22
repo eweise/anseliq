@@ -42,13 +42,20 @@ For IntelliJ, point the backend run configuration's environment variables at the
 
 Manifests are in `k8s/` (Kustomize, built into `kubectl`). `k8s/base` runs the backend as two
 deployments, `backend-api` (HTTP) and `backend-worker` (jobs and scheduler), plus the frontend, behind
-one Ingress that sends `/api` to the backend. `k8s/overlays/local` points it at the Bitnami Postgres
-below and at LocalStack on the host:
+one Ingress that sends `/api` to the backend.
+
+`k8s/overlays/local` runs it all on Docker Desktop's Kubernetes (Settings → Kubernetes → Enable
+Kubernetes), with a Postgres of its own in the cluster and LocalStack on the Mac for S3:
 
 ```bash
 cp k8s/overlays/local/secrets.env.example k8s/overlays/local/secrets.env   # then fill it in
+sbt "backend/Docker/publishLocal; frontend/Docker/publishLocal"
 kubectl apply -k k8s/overlays/local
 ```
+
+The app is then at http://localhost:8088; sign in as `ADMIN_EMAIL` from `secrets.env`. After
+rebuilding the images, `kubectl -n anseliq rollout restart deployment` picks them up, and
+`kubectl delete namespace anseliq` removes everything, the database included.
 
 `k8s/overlays/eks` is the template for a customer install on AWS EKS (RDS, S3 through an IAM role,
 an ALB with an ACM certificate); its `README.md` covers the AWS setup and what to fill in.
