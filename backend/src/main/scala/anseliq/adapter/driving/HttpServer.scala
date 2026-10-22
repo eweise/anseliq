@@ -96,6 +96,9 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
 
   override def port: Int = sys.env.get("CASK_PORT").map(_.toInt).getOrElse(8080)
 
+  // cask binds to localhost by default, which nothing outside a container can reach.
+  override def host: String = app.config.getString("services.http.host")
+
   // authDecorator must come after corsDecorator: a CORS preflight (OPTIONS) request is
   // short-circuited by corsDecorator before it ever reaches authDecorator, so preflight requests
   // never need a token. Order also determines which curried parameter list a decorator's injected
