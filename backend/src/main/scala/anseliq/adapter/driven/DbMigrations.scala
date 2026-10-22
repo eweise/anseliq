@@ -24,6 +24,11 @@ object DbMigrations extends StrictLogging:
       // recorded as already at V1 instead of having V1 run against tables that exist.
       .baselineOnMigrate(true)
       .baselineVersion("1")
+      // Waits for a database that isn't up yet (one starting alongside the app, or restarting for
+      // maintenance) rather than failing at once: retries at 1, 2, 4, 8, then every 10 seconds,
+      // about a minute and a half in all.
+      .connectRetries(12)
+      .connectRetriesInterval(10)
       .load()
     val result = flyway.migrate()
     logger.info(

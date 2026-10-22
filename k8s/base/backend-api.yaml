@@ -56,6 +56,14 @@ spec:
                 name: anseliq-config
             - secretRef:
                 name: anseliq-secrets
+          # Until the API port accepts a connection from outside the pod, the other probes don't
+          # run, so the pod gets no traffic; after 2 minutes the container is restarted. The health
+          # endpoints are a separate server, so passing them doesn't show the API is reachable.
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 2
+            failureThreshold: 60
           readinessProbe:
             httpGet:
               path: /health/ready
