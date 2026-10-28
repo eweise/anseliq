@@ -60,6 +60,111 @@
   }
 }
 
+/* Documentation pages (docs/*.html): a sidebar of pages and sections beside long-form text. The
+   .doc styles cover the plain elements the pages are written in, so their markup stays unclassed. */
+@layer components {
+  .docs-sidebar a {
+    @apply block rounded-md px-3 py-1.5 text-sm text-ink-400 hover:bg-paper-200 hover:text-ink;
+  }
+  .docs-sidebar a[aria-current='page'] {
+    @apply bg-paper-200 font-semibold text-ink;
+  }
+  .docs-sidebar .docs-toc a {
+    @apply py-1 pl-6 text-[13px];
+  }
+  .doc {
+    @apply max-w-3xl text-[15px] leading-relaxed text-ink;
+  }
+  .doc > h1 {
+    @apply text-3xl font-extrabold tracking-tight sm:text-4xl;
+  }
+  .doc .lede {
+    @apply mt-4 text-lg leading-relaxed text-ink-400;
+  }
+  .doc h2 {
+    @apply mt-14 scroll-mt-24 border-t border-paper-300 pt-8 text-2xl font-bold tracking-tight;
+  }
+  .doc h3 {
+    @apply mt-9 scroll-mt-24 text-lg font-semibold;
+  }
+  .doc h4 {
+    @apply mt-6 font-display font-semibold;
+  }
+  .doc p,
+  .doc ul,
+  .doc ol,
+  .doc dl,
+  .doc pre,
+  .doc .table-wrap,
+  .doc .note {
+    @apply mt-4;
+  }
+  .doc ul {
+    @apply list-disc space-y-1.5 pl-6;
+  }
+  .doc ol {
+    @apply list-decimal space-y-1.5 pl-6;
+  }
+  .doc li > ul,
+  .doc li > ol {
+    @apply mt-1.5;
+  }
+  .doc a {
+    @apply font-medium text-safelight-deep underline decoration-safelight/40 underline-offset-2 hover:decoration-safelight-deep;
+  }
+  .doc strong {
+    @apply font-semibold;
+  }
+  .doc code {
+    @apply rounded bg-paper-200 px-1.5 py-0.5 font-mono text-[0.85em];
+  }
+  .doc pre {
+    @apply overflow-x-auto rounded-lg bg-ink-800 p-4 font-mono text-[13px] leading-relaxed text-paper-200;
+  }
+  .doc pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+  .doc dt {
+    @apply mt-4 font-semibold;
+  }
+  .doc dd {
+    @apply mt-1 pl-4 text-ink-400;
+  }
+  .doc .table-wrap {
+    @apply overflow-x-auto rounded-lg border border-paper-300;
+  }
+  .doc table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+  .doc th {
+    @apply whitespace-nowrap border-b border-paper-300 bg-paper-200 px-3 py-2 font-semibold;
+  }
+  .doc td {
+    @apply border-b border-paper-300 px-3 py-2 align-top;
+  }
+  .doc td code {
+    @apply whitespace-nowrap;
+  }
+  .doc tr:last-child td {
+    @apply border-b-0;
+  }
+  .doc .note {
+    @apply rounded-lg border-l-4 border-safelight bg-safelight-soft/40 px-4 py-3 text-sm;
+  }
+  .doc .card-grid {
+    @apply mt-6 grid gap-4 sm:grid-cols-2;
+  }
+  .doc .card-grid a {
+    @apply block rounded-xl border border-paper-300 bg-paper-100 p-5 no-underline transition-colors hover:border-safelight;
+  }
+  .doc .card-grid a strong {
+    @apply block font-display text-base text-ink;
+  }
+  .doc .card-grid a span {
+    @apply mt-1 block text-sm font-normal text-ink-400;
+  }
+}
+
 /* Tick-and-tie marks: the hand-drawn annotations auditors put on statements (ticks for verified
    figures, circles for exceptions, a double rule under a total). Drawn as inline SVG strokes over
    the page; each path uses pathLength="1" so the draw-on animation works regardless of its size. */

@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User guide — AnselIQ docs</title>
+    <meta
+      name="description"
+      content="How to use AnselIQ: set up file feeds, ledgers and matching rules, run reconciliations, resolve mismatches and exceptions, and read the reports."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@600;700;800&display=swap"
+    />
+    <script type="module" src="/src/docs.js"></script>
+  </head>
+  <body>
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-paper-100 focus:px-3 focus:py-2">Skip to content</a>
+
+    <header class="sticky top-0 z-40 border-b border-ink-700/60 bg-ink/90 backdrop-blur">
+      <nav class="container-page flex h-16 items-center justify-between gap-6" aria-label="Main">
+        <a href="/" class="flex items-center gap-2.5 text-paper-100" aria-label="AnselIQ home">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#212830" />
+            <circle cx="16" cy="16" r="9" fill="none" stroke="#9aa4ae" stroke-width="2" />
+            <circle cx="16" cy="16" r="3.5" fill="#e8992f" />
+          </svg>
+          <span class="font-display text-lg font-bold tracking-tight">Ansel<span class="text-safelight">IQ</span></span>
+          <span class="ml-1 hidden border-l border-ink-600 pl-3 text-sm text-ink-300 sm:inline">Docs</span>
+        </a>
+        <div class="hidden items-center gap-8 text-sm text-ink-200 md:flex">
+          <a href="/" class="hover:text-paper-100">Product</a>
+          <a href="/docs/" class="text-paper-100">Documentation</a>
+        </div>
+        <a href="/#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
+      </nav>
+    </header>
+
+    <div class="container-page gap-12 py-10 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-14">
+      <aside class="docs-sidebar mb-10 lg:mb-0">
+        <nav class="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto" aria-label="Documentation">
+          <p class="eyebrow mb-3 px-3 text-ink-400">Documentation</p>
+          <ul class="space-y-0.5">
+            <li><a href="/docs/">Overview &amp; concepts</a></li>
+            <li>
+              <a href="/docs/user-guide.html" aria-current="page">User guide</a>
+              <ul class="docs-toc mt-0.5 hidden space-y-0.5 lg:block">
+                <li><a href="#getting-around">Getting around</a></li>
+                <li><a href="#file-feeds">Setting up a file feed</a></li>
+                <li><a href="#ledgers">Setting up a ledger</a></li>
+                <li><a href="#rules">Matching rules</a></li>
+                <li><a href="#getting-files-in">Getting files in</a></li>
+                <li><a href="#running">Running reconciliation</a></li>
+                <li><a href="#reviewing">Reviewing a ledger</a></li>
+                <li><a href="#resolving">Resolving mismatches</a></li>
+                <li><a href="#manual-match">Manual matching</a></li>
+                <li><a href="#ai">AI match suggestions</a></li>
+                <li><a href="#exceptions">Working exceptions</a></li>
+                <li><a href="#bad-file">Fixing a bad file</a></li>
+                <li><a href="#reports">Reports</a></li>
+                <li><a href="#activity">Jobs, events &amp; inventory</a></li>
+                <li><a href="#users">Managing users</a></li>
+              </ul>
+            </li>
+            <li><a href="/docs/install.html">Installation &amp; operations</a></li>
+            <li><a href="/docs/developers.html">Developers</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main id="main" class="doc">
+        <p class="eyebrow text-safelight-deep">User guide</p>
+        <h1 class="mt-3">Using AnselIQ</h1>
+        <p class="lede">
+          This guide follows the order you'll work in: describe your files, build a ledger, tell
+          AnselIQ how to match, then review and resolve what it finds. If the terms are new, read
+          <a href="/docs/#model">how AnselIQ models money</a> first.
+        </p>
+
+        <h2 id="getting-around">Getting around</h2>
+        <h3 id="signing-in">Signing in and roles</h3>
+        <p>
+          Sign in with the email and password an administrator created for you. Each user has one
+          role:
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>For</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Admin</strong></td><td>Everything an Analyst does, plus managing users, reversing write-offs and fixing badly ingested files.</td></tr>
+              <tr><td><strong>Analyst</strong></td><td>Day-to-day reconciliation: setting up feeds and ledgers, matching, writing off, and working exceptions.</td></tr>
+              <tr><td><strong>Viewer</strong></td><td>People who need to look but not do the work. Viewers can't be assigned exceptions.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="navigation">The navigation</h3>
+        <dl>
+          <dt>Work</dt>
+          <dd><strong>Dashboard</strong>: for Analysts, the exceptions assigned to you or raised by you, and how long unreconciled movements have been waiting. <strong>Exceptions</strong>: every exception, across all ledgers.</dd>
+          <dt>Ledgers</dt>
+          <dd>Your ledgers, and from each one its balances, reconciliations, movements and setup.</dd>
+          <dt>Data</dt>
+          <dd><strong>File Feeds</strong>, <strong>File Inventory</strong> (every file found), <strong>Jobs</strong> (background work) and <strong>Events</strong> (the activity log).</dd>
+          <dt>Insights</dt>
+          <dd><strong>Reports</strong>: match rates, coverage, backlog and exceptions over time.</dd>
+          <dt>Admin</dt>
+          <dd><strong>Users</strong>, shown to Admins only.</dd>
+        </dl>
+
+        <h2 id="file-feeds">Setting up a file feed</h2>
+        <p>
+          A file feed tells AnselIQ where a family of files arrives and how to read it. Create one for
+          each source, such as one processor report and one bank statement, under
+          <strong>Data → File Feeds → Create</strong>.
+        </p>
+        <dl>
+          <dt>Name</dt>
+          <dd>Shown wherever the feed is picked or reported on.</dd>
+          <dt>S3 Connection: Bucket and File Path</dt>
+          <dd>The S3 bucket and the folder inside it where the files land. AnselIQ picks up every file in that folder. Your administrator grants AnselIQ read access to the bucket.</dd>
+          <dt>Expected File Cadence (hours)</dt>
+          <dd>Optional. How often a new file should arrive. If none arrives within this many hours, AnselIQ raises a FileMissing exception on the feed, which closes itself when the next file arrives. Leave it empty for feeds without a schedule.</dd>
+          <dt>File Format</dt>
+          <dd>One of the four formats below, and the fields to keep from each row.</dd>
+        </dl>
+
+        <h3 id="formats">File formats</h3>
+        <p>
+          For every format you choose which values to keep and the name to store each one under. Those
+          names become the movement's properties: they're what matching rules compare and what you
+          search on. Exactly one value must be the amount.
+        </p>
+        <h4>CSV</h4>
+        <ul>
+          <li><strong>Has Header Row</strong>: skip the first line.</li>
+          <li>For each column to keep, its <strong>Column #</strong>, counting from 0 for the first column, and the <strong>Field Name</strong> to store it as.</li>
+          <li>Mark one column as the amount. Amounts are plain decimals such as <code>1250.00</code> or <code>-31.20</code>.</li>
+        </ul>
+        <h4>BAI2</h4>
+        <ul>
+          <li>The standard BAI2 cash-management format from banks. The fields are fixed: account number, type code, funds type, bank reference number, customer reference number and text.</li>
+          <li>Tick <strong>Include</strong> for each one to keep and set its stored name. The defaults are <code>account_number</code>, <code>type_code</code>, <code>funds_type</code>, <code>bank_reference_number</code>, <code>customer_reference_number</code> and <code>text</code>.</li>
+          <li>The amount is read from each transaction record automatically.</li>
+        </ul>
+        <h4>JSON (one record per line)</h4>
+        <ul>
+          <li>Each line of the file is one complete JSON document (JSON Lines), not one array covering the whole file.</li>
+          <li>For each value, a <strong>JSON Path</strong> such as <code>$.transaction.customerRef</code> and the name to store it as. Mark one as the amount.</li>
+        </ul>
+        <h4>Fixed width</h4>
+        <ul>
+          <li>Every line has the same layout at fixed character positions, as in many bank and mainframe file specifications.</li>
+          <li>For each field, a name and its <strong>Start</strong> and <strong>End</strong> positions. Positions start at 1 and include both ends: Start 1, End 10 is the first ten characters. Fields can't overlap.</li>
+          <li>Define at least two fields, mark one as the amount, and tick <strong>Has Header Row</strong> if the first line is a header.</li>
+        </ul>
+
+        <h3 id="test-parser">Testing a feed before going live</h3>
+        <p>
+          On the File Feeds list, <strong>Test Parser</strong> lets you upload a sample file and see
+          how the feed's configuration reads it: the parsed rows with their stored fields and amount,
+          and every line that failed with the reason. Nothing is saved, so try it as often as you
+          like. Large files are cut off after their first lines, which the page tells you.
+        </p>
+
+        <h2 id="ledgers">Setting up a ledger</h2>
+        <ol>
+          <li>Go to <strong>Ledgers → Create</strong>. Give the ledger a name and a <strong>Daily Report Cutoff</strong>: the hour of the day (0–23) after which the day's reporting snapshot is taken.</li>
+          <li>Open the ledger and go to its <strong>Setup</strong> tab. The diagram shows the ledger's accounts and the links between them, with Primary accounts on the left, Recon accounts in the middle and Secondary accounts on the right.</li>
+          <li>Add the accounts with <strong>New Account</strong>: a name and its type (Primary, Secondary or Recon). A typical ledger has one of each.</li>
+          <li>Link each Primary and Secondary account to the Recon account. A link is a <a href="/docs/#feeds">movement spec</a>: choose the file feed whose rows post across this link, and give it a name.</li>
+        </ol>
+
+        <h3 id="routing">Feeds that cover several accounts</h3>
+        <p>
+          Some files carry rows for several accounts, such as a BAI2 statement for every bank account
+          you hold. Link each of those accounts to the same feed and give each link a
+          <strong>Routing Filter</strong>: a field and the value it must equal, such as
+          <code>account_number</code> equals <code>000123456</code>. Each row then posts only to the
+          link whose filter it matches. A link with no filter takes every row its feed has that no
+          other link claims.
+        </p>
+        <div class="note">
+          Rows that match no link aren't dropped silently. AnselIQ raises an UnroutedRecord exception
+          on the feed so someone can add the missing link. Close it by hand once that's done.
+        </div>
+
+        <h2 id="rules">Matching rules</h2>
+        <p>
+          Each Recon account has one reconciliation rule. On the account's card on the Overview tab,
+          choose <strong>Set up</strong> (or <strong>Configure Reconciliation</strong>), then fill in:
+        </p>
+        <dl>
+          <dt>Primary and secondary movement spec</dt>
+          <dd>The two links whose movements are matched against each other.</dd>
+          <dt>Relationship</dt>
+          <dd>
+            <strong>OneToOne</strong>: one movement on each side, such as a payout and its bank deposit.
+            <br />
+            <strong>OneToMany</strong>: one movement on one side against any number on the other, such
+            as a settlement total and the card transactions behind it. A group that doesn't balance yet
+            stays In progress while more of it may still arrive.
+          </dd>
+          <dt>Aging Limit</dt>
+          <dd>For OneToMany, how many days an In progress group may wait for the rest of its movements before it's marked Mismatched and an exception is raised.</dd>
+          <dt>Reconciliation rule</dt>
+          <dd>Which fields must agree, described below.</dd>
+        </dl>
+
+        <h3 id="conditions">Conditions</h3>
+        <p>A rule is made of conditions that compare one field from each side:</p>
+        <ul>
+          <li><strong>String Match</strong>: the two fields' text is equal, such as the processor's <code>payout_id</code> and the bank's <code>bank_reference_number</code>.</li>
+          <li><strong>Date Match</strong>: the two fields hold the same date, written as <code>yyyy-MM-dd</code>.</li>
+          <li><strong>And</strong>: several conditions that must all hold. Use <strong>+ Add Rule</strong> to add each one.</li>
+        </ul>
+        <p>
+          Either side of a condition can be a fixed value instead of a field: tick <strong>Match a
+          constant value instead of a field</strong>. For example, match only bank rows whose
+          <code>type_code</code> is <code>475</code>.
+        </p>
+
+        <h3 id="transforms">Ignoring formatting differences</h3>
+        <p>
+          Two systems often write the same reference differently. Each text field can have
+          <strong>transforms</strong>, applied in order before the two sides are compared:
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Transform</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td>Normalize (ignore case and punctuation)</td><td><code>INV-2026/0042</code> → <code>inv20260042</code></td></tr>
+              <tr><td>Strip prefix</td><td>With prefix <code>ACH </code>: <code>ACH 12345</code> → <code>12345</code></td></tr>
+              <tr><td>Trim leading zeros</td><td><code>000420</code> → <code>420</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="alternatives">Alternatives</h3>
+        <p>
+          A rule can have <strong>alternatives</strong>: other ways for the two sides to match. They're
+          tried in order after the main rule, each only on what is still unmatched, so adding one never
+          changes what the rules above it match. Use them for a second reference that some rows carry,
+          or for rules <a href="#learned-rules">learned from AI suggestions</a>.
+        </p>
+
+        <h2 id="getting-files-in">Getting files in</h2>
+        <p>
+          Once a feed is linked to a ledger, AnselIQ checks its S3 folder every minute. Each new file
+          appears in <strong>File Inventory</strong> and is ingested in the background, and the Recon
+          accounts it touches are reconciled automatically afterwards. Large files are read in
+          batches, and an interrupted ingestion resumes from the last line it committed.
+        </p>
+        <p>
+          To load a one-off file without putting it in S3, open the ledger and choose
+          <strong>Ingest file</strong>. Pick the movement spec the file belongs to and upload it. Its
+          feed's parser reads the file and the movements are posted to the ledger.
+        </p>
+        <div class="note">
+          If a file has so many unreadable rows that ingestion stops, AnselIQ raises an
+          ExcessiveParseErrors exception on the feed. Rows from batches committed before it stopped
+          stay on the ledger. That usually means the feed's configuration doesn't fit the file: check
+          it with Test Parser.
+        </div>
+
+        <h2 id="running">Running reconciliation</h2>
+        <p>
+          Reconciliation runs on its own after every ingestion. To run it now, for example after
+          changing a rule, choose <strong>Run reconciliation</strong> at the top of the ledger. Every
+          Recon account in the ledger is reconciled, and an interrupted run continues where it left
+          off.
+        </p>
+        <p>Each run:</p>
+        <ul>
+          <li>groups unreconciled movements whose rule fields agree into reconciliations, Final if they net to zero and otherwise Mismatched (OneToOne) or In progress (OneToMany);</li>
+          <li>adds late movements to open OneToMany groups, closing them and their exceptions if they now balance;</li>
+          <li>marks OneToMany groups older than the aging limit as Mismatched and raises an AmountMismatch exception for each;</li>
+          <li>if AI matching is turned on, asks it about what's still unmatched.</li>
+        </ul>
+
+        <h2 id="reviewing">Reviewing a ledger</h2>
+        <p>A ledger has four tabs.</p>
+        <dl>
+          <dt>Overview</dt>
+          <dd>
+            A card for each Recon account with its cash balance and the
+            <a href="/docs/#balance">three figures that explain it</a>: <strong>Unreconciled</strong>,
+            <strong>In progress</strong> and <strong>Mismatched</strong>. Each figure opens what's behind
+            it: Unreconciled opens a search of those movements, the other two open the matching
+            reconciliations. The card also has Manual Match and the account's rule.
+          </dd>
+          <dt>Reconciliations</dt>
+          <dd>Every reconciliation in the ledger, filtered by status.</dd>
+          <dt>Movements</dt>
+          <dd>
+            Search movements by account, whether they're reconciled, type (ingested, manual adjustment
+            or reversal), adjustment type and date created. Once you pick a movement spec, you can also
+            search on the file name and on that spec's fields, such as a particular
+            <code>payout_id</code>.
+          </dd>
+          <dt>Setup</dt>
+          <dd>The accounts and links described in <a href="#ledgers">Setting up a ledger</a>, plus each Recon account's rule.</dd>
+        </dl>
+        <p>
+          Opening a reconciliation shows its movements on each side, its balance and, for a mismatch,
+          <strong>Why it doesn't balance</strong>: the primary total, the secondary total, the
+          difference, and the exact values it <strong>Matched on</strong>. A manual match or an accepted
+          AI suggestion says so instead. Any open exceptions appear alongside, with a link to their
+          thread.
+        </p>
+
+        <h2 id="resolving">Resolving mismatches</h2>
+        <p>A Mismatched or In progress reconciliation offers three ways forward.</p>
+        <h3 id="write-off">Write off</h3>
+        <p>
+          Use it when the difference is real and accepted, such as a bank fee. Choose
+          <strong>Write off…</strong>, pick the movement to post the adjustment against and give a
+          reason. AnselIQ posts the difference as a manual adjustment movement, the reconciliation
+          becomes Final, and its AmountMismatch exception closes. Adjustments can be found on the
+          Movements tab by type and adjustment type.
+        </p>
+        <p>
+          An Admin can undo a write-off with <strong>Reverse write-off…</strong>. AnselIQ posts a
+          correcting entry (the original adjustment stays on the books), the reconciliation goes back to
+          Mismatched, and a new exception is raised and linked to the old one.
+        </p>
+        <h3 id="unmatch">Unmatch</h3>
+        <p>
+          Use it when the movements shouldn't have been matched together. The reconciliation becomes
+          Voided and its movements return to the unreconciled pool, to be matched again by the next run
+          or by hand. Final reconciliations can be unmatched too, except a written-off one: reverse the
+          write-off first.
+        </p>
+        <h3 id="wait">Wait</h3>
+        <p>
+          A OneToMany group can still be completed by a late movement. If one arrives that brings it
+          into balance, the next run makes it Final and closes its exception.
+        </p>
+
+        <h2 id="manual-match">Manual matching</h2>
+        <p>
+          For movements the rule can't match, open <strong>Manual Match</strong> from the Recon
+          account's card. It lists the account's unreconciled movements on each side. Select the ones
+          that belong together and choose <strong>Match Selected</strong>. If they don't balance, the
+          match is saved as In progress (OneToMany) or Mismatched (otherwise), and you resolve it like
+          any other.
+        </p>
+
+        <h2 id="ai">AI match suggestions</h2>
+        <p>
+          When your administrator has turned on AI matching, AnselIQ looks at what each run left
+          unmatched and suggests likely pairs, such as an invoice number the bank reformatted. The
+          model runs inside your own environment. Suggestions are made for OneToOne rules, only between
+          movements with the same amount created within a few days of each other.
+        </p>
+        <p>
+          Suggestions appear under <strong>Suggested matches</strong> on the Manual Match page, each
+          with a confidence and a reason. When the model can show exactly why the two references are
+          equal, the explanation is checked against the movements and shown as well.
+          <strong>Accept</strong> matches the pair exactly as a manual match would.
+          <strong>Reject</strong> records that they don't belong together, and that pair isn't
+          suggested again. Who reviewed each suggestion is recorded.
+        </p>
+        <h3 id="learned-rules">Learned rules</h3>
+        <p>
+          When the same explanation has been behind several accepted suggestions, the rule form offers
+          it under <strong>Learned from accepted suggestions</strong>, with how many suggestions it
+          explained and how many unmatched pairs it would match now. Choose <strong>Add as
+          alternative</strong> and those pairs match automatically from then on, without the AI.
+        </p>
+
+        <h2 id="exceptions">Working exceptions</h2>
+        <p>
+          The <strong>Exceptions</strong> page lists every exception, with what it's about and its
+          status. Open one to see the movement, reconciliation or feed it concerns, with a link to it,
+          and its thread. From there you can:
+        </p>
+        <ul>
+          <li><strong>Assign to me</strong>, or assign it to someone else.</li>
+          <li>Change its status between New, Investigating, Escalated and Resolved.</li>
+          <li>Comment. A comment is required to post without a status change or reassignment, and to resolve.</li>
+        </ul>
+        <p>
+          To raise an exception yourself, open a movement and choose a category: Missing counterpart,
+          Duplicate, Timing difference or Data quality, with an optional detail.
+        </p>
+        <div class="note">
+          AmountMismatch and FileMissing exceptions are closed by AnselIQ when the problem is fixed,
+          so they can't be resolved or reopened by hand. The exception page says what will close it.
+          If a write-off was wrong, reverse it; if a match was wrong, unmatch it.
+        </div>
+
+        <h2 id="bad-file">Fixing a bad file</h2>
+        <p>
+          If a file was ingested with the wrong configuration, such as the wrong column marked as the
+          amount, an Admin can undo it. On <strong>File Inventory</strong>, choose
+          <strong>Fix bad ingest…</strong> on the file's row. <strong>Preview</strong> shows what will
+          change, and <strong>Confirm</strong> posts a reversing entry for each of the file's movements
+          and voids the reconciliations they were in. Nothing is deleted. Correct the feed, then ingest
+          the file again.
+        </p>
+
+        <h2 id="reports">Reports</h2>
+        <p>
+          <strong>Reports</strong> shows reconciliation health for all ledgers or one. Trends come from
+          a daily snapshot of each ledger, taken after its daily cutoff hour.
+        </p>
+        <ul>
+          <li><strong>Balance coverage</strong>: how much of each Recon account's balance is reconciled, and over time.</li>
+          <li><strong>Match rate over time</strong>.</li>
+          <li><strong>Unreconciled aging</strong>: how long unreconciled movements have waited, and how many are past their rule's aging limit.</li>
+          <li><strong>Unreconciled backlog over time</strong>.</li>
+          <li><strong>Open exceptions</strong> by category and over time.</li>
+        </ul>
+
+        <h2 id="activity">Jobs, events and file inventory</h2>
+        <dl>
+          <dt>File Inventory</dt>
+          <dd>Every file found on every feed: its size, when it was last modified, its status (QUEUED, PROCESSING or COMPLETED), when it was processed and the last line read.</dd>
+          <dt>Jobs</dt>
+          <dd>The background work: ingestions, reconciliations, file scans, daily reporting snapshots and AI suggestions, with each job's status, attempts and any error. A failed job is retried automatically before it's marked as an error.</dd>
+          <dt>Events</dt>
+          <dd>The activity log: files detected and ingested (with record counts and timings), accounts reconciled, manual matches, unmatches, write-offs and their reversals, and exception changes.</dd>
+        </dl>
+
+        <h2 id="users">Managing users</h2>
+        <p>
+          Admins manage users under <strong>Admin → Users</strong>: create a user with an email, name,
+          role and password (at least 8 characters), change a role, deactivate a user who has left with
+          <strong>Active</strong>, or <strong>Reset Password</strong>. The first Admin is created when
+          AnselIQ is installed.
+        </p>
+      </main>
+    </div>
+
+    <footer class="border-t border-ink-700 bg-ink-900 text-ink-300">
+      <div class="container-page flex flex-col gap-4 py-10 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span class="font-display font-bold text-paper-100">Ansel<span class="text-safelight">IQ</span></span>
+        <p>© <span id="year">2026</span> AnselIQ. Reconciliation at scale.</p>
+      </div>
+    </footer>
+  </body>
+</html>

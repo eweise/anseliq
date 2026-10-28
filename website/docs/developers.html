@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Developers — AnselIQ docs</title>
+    <meta
+      name="description"
+      content="How AnselIQ is built: its architecture and code layout, building and testing it from source, database migrations, releases, and the HTTP API."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@600;700;800&display=swap"
+    />
+    <script type="module" src="/src/docs.js"></script>
+  </head>
+  <body>
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-paper-100 focus:px-3 focus:py-2">Skip to content</a>
+
+    <header class="sticky top-0 z-40 border-b border-ink-700/60 bg-ink/90 backdrop-blur">
+      <nav class="container-page flex h-16 items-center justify-between gap-6" aria-label="Main">
+        <a href="/" class="flex items-center gap-2.5 text-paper-100" aria-label="AnselIQ home">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#212830" />
+            <circle cx="16" cy="16" r="9" fill="none" stroke="#9aa4ae" stroke-width="2" />
+            <circle cx="16" cy="16" r="3.5" fill="#e8992f" />
+          </svg>
+          <span class="font-display text-lg font-bold tracking-tight">Ansel<span class="text-safelight">IQ</span></span>
+          <span class="ml-1 hidden border-l border-ink-600 pl-3 text-sm text-ink-300 sm:inline">Docs</span>
+        </a>
+        <div class="hidden items-center gap-8 text-sm text-ink-200 md:flex">
+          <a href="/" class="hover:text-paper-100">Product</a>
+          <a href="/docs/" class="text-paper-100">Documentation</a>
+        </div>
+        <a href="/#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
+      </nav>
+    </header>
+
+    <div class="container-page gap-12 py-10 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-14">
+      <aside class="docs-sidebar mb-10 lg:mb-0">
+        <nav class="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto" aria-label="Documentation">
+          <p class="eyebrow mb-3 px-3 text-ink-400">Documentation</p>
+          <ul class="space-y-0.5">
+            <li><a href="/docs/">Overview &amp; concepts</a></li>
+            <li><a href="/docs/user-guide.html">User guide</a></li>
+            <li><a href="/docs/install.html">Installation &amp; operations</a></li>
+            <li>
+              <a href="/docs/developers.html" aria-current="page">Developers</a>
+              <ul class="docs-toc mt-0.5 hidden space-y-0.5 lg:block">
+                <li><a href="#stack">Stack</a></li>
+                <li><a href="#layout">Code layout</a></li>
+                <li><a href="#pipeline">How data flows</a></li>
+                <li><a href="#local">Running it locally</a></li>
+                <li><a href="#tests">Tests</a></li>
+                <li><a href="#migrations">Database migrations</a></li>
+                <li><a href="#kubernetes">Local Kubernetes</a></li>
+                <li><a href="#releases">CI and releases</a></li>
+                <li><a href="#api">HTTP API</a></li>
+              </ul>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main id="main" class="doc">
+        <p class="eyebrow text-safelight-deep">Developers</p>
+        <h1 class="mt-3">Building AnselIQ</h1>
+        <p class="lede">
+          How AnselIQ is put together, how to build, run and test it from source, and the HTTP API its
+          web app is built on.
+        </p>
+
+        <h2 id="stack">Stack</h2>
+        <ul>
+          <li><strong>Backend</strong>: Scala 3 on the JVM (JDK 26), the cask HTTP server, Magnum for SQL, PostgreSQL, Flyway migrations, and the AWS SDK for S3.</li>
+          <li><strong>Frontend</strong>: Scala.js with Laminar, bundled by Vite and styled with Tailwind CSS.</li>
+          <li><strong>Common</strong>: models and validation compiled for both the JVM and Scala.js, so the backend and the browser share request and response types, matching rules and parser validation.</li>
+          <li><strong>Build</strong>: sbt 2. Container images are built by sbt; the backend's runs on a JRE 26 base image and the frontend's on nginx.</li>
+        </ul>
+
+        <h2 id="layout">Code layout</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Path</th><th>Contents</th></tr></thead>
+            <tbody>
+              <tr><td><code>backend/</code></td><td>The API, background workers and scheduler, as one application.</td></tr>
+              <tr><td><code>common/</code></td><td>Shared models: rules and their transforms, parser configurations, API payloads.</td></tr>
+              <tr><td><code>frontend/</code></td><td>The web app: pages, components, routing and the API client.</td></tr>
+              <tr><td><code>k8s/</code></td><td>Kustomize manifests: <code>base</code>, plus <code>overlays/local</code> (Docker Desktop) and <code>overlays/eks</code> (the customer install template).</td></tr>
+              <tr><td><code>website/</code></td><td>This site.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The backend follows a hexagonal (ports and adapters) architecture under <code>backend/src/main/scala/anseliq</code>:</p>
+        <dl>
+          <dt><code>domain/model</code></dt>
+          <dd>Accounts, movements, reconciliations, specs, file feeds, disputes (exceptions), jobs and events.</dd>
+          <dt><code>domain/service</code></dt>
+          <dd>The business logic: <code>Ingestor</code> and the file parsers, <code>Ledger</code>, <code>InMemoryReconciler</code>, <code>ManualReconciler</code> (manual matches, unmatch, write-offs), <code>DisputeService</code>, <code>MatchSuggestionService</code>, <code>JobManager</code> and <code>ReportingService</code>.</dd>
+          <dt><code>domain/port</code></dt>
+          <dd>Interfaces the domain needs from the outside world: repositories, file sources, the match suggester.</dd>
+          <dt><code>adapter/driving</code></dt>
+          <dd>The HTTP routes, health server, and mapping between API payloads and domain models.</dd>
+          <dt><code>adapter/driven</code></dt>
+          <dd>Implementations of the ports: PostgreSQL repositories, the S3 file source, the local LLM client, migrations.</dd>
+          <dt><code>app</code></dt>
+          <dd>Startup: which services this instance runs (HTTP, scheduler, each worker), wired from configuration.</dd>
+        </dl>
+
+        <h2 id="pipeline">How data flows</h2>
+        <ol>
+          <li>Every minute the scheduler queues a <strong>CreateFileInventory</strong> job, which lists each feed's S3 folder, records new files in the file inventory and queues an <strong>Ingestion</strong> job for each.</li>
+          <li>Ingestion parses the file in batches and posts each row as a movement through the movement spec whose routing filter claims it. It checkpoints the last committed line, so a retried job resumes rather than starting over, and raises feed exceptions for unrouted rows or too many parse errors.</li>
+          <li>Ingestion queues a <strong>Reconciliation</strong> job for each Recon account it touched. The reconciler streams unreconciled movements from both sides ordered by match key, groups equal keys, and commits reconciliations in batches, also checkpointed. Each alternative of the rule is its own pass over what's left.</li>
+          <li>If AI matching is on, reconciliation queues a <strong>SuggestMatches</strong> job for what it left unmatched.</li>
+          <li>Every minute the scheduler also queues <strong>GenerateReconStats</strong>, which takes each ledger's daily snapshot once its cutoff hour has passed. Reports read those snapshots.</li>
+        </ol>
+        <p>
+          Jobs live in a PostgreSQL table. A worker claims a job under a lease that a heartbeat renews,
+          so a crashed worker's job is requeued when its lease lapses. Failed attempts are retried with
+          exponential backoff. Unique indexes keep at most one queued and one running job per job type
+          and target, which is what makes it safe to run any number of workers.
+        </p>
+        <p>
+          The ledger is append-only: corrections are new movements (adjustments and reversals), and
+          every significant change is also recorded as an event in the event store.
+        </p>
+
+        <h2 id="local">Running it locally</h2>
+        <h3 id="prerequisites">Prerequisites</h3>
+        <ul>
+          <li><a href="https://jdk.java.net/26/">JDK 26</a>. The backend uses <code>UUID.ofEpochMillis</code>, new in 26, and sbt itself needs JDK 23 or later.</li>
+          <li><a href="https://www.scala-sbt.org/download.html">sbt</a></li>
+          <li>Node.js 22</li>
+          <li>PostgreSQL 18</li>
+          <li><a href="https://www.localstack.cloud">LocalStack</a> for S3, or a real bucket</li>
+          <li>Optionally <a href="https://ollama.com">Ollama</a> with <code>qwen2.5:7b</code> for AI matching</li>
+        </ul>
+        <h3 id="first-run">First run</h3>
+        <pre><code># JWT secret, admin user and LocalStack settings in .env (created the first time), loaded into this shell
+eval "$(scripts/dev-env.sh)"
+
+localstack start -d          # S3
+make create-db               # an empty recon_db, migrated
+
+sbt backend/run              # API on :8080, health on :8081, workers and scheduler
+sbt frontend/devServer       # the web app on :9876, proxying /api to :8080</code></pre>
+        <p>
+          Sign in at <code>http://localhost:9876</code> as the <code>ADMIN_EMAIL</code> from
+          <code>.env</code>. For a ledger with ten days of history already in it, stop the backend and
+          run <code>make seed-demo</code>, or <code>make seed-demo-llm</code> to include AI suggestions
+          from a local Ollama.
+        </p>
+        <div class="note">
+          sbt 2 keeps a server running between commands, with the environment it started with. After
+          changing an environment variable, run <code>sbt shutdown</code> so the next command starts
+          a server that sees it.
+        </div>
+
+        <h2 id="tests">Tests</h2>
+        <pre><code>sbt test        # tests that failed or whose code changed since the last run
+sbt testFull    # every test</code></pre>
+        <p>
+          Backend tests use munit against the local PostgreSQL, each rolling back its own transaction.
+          They share the development database, so stop a running backend first: its workers would
+          claim the tests' jobs.
+        </p>
+        <p>
+          A local database on macOS sorts text bytewise, while PostgreSQL on Linux (CI, RDS) sorts
+          linguistically by default. Anything that depends on sort order must say which it wants
+          (match keys use byte order explicitly), or tests can pass locally and fail in CI.
+        </p>
+
+        <h2 id="migrations">Database migrations</h2>
+        <p>
+          The schema is managed by Flyway, with migrations in
+          <code>backend/src/main/resources/db/migration</code>. Add a new
+          <code>V&lt;n&gt;__&lt;description&gt;.sql</code> to change it, and never edit one that has been
+          applied anywhere. The backend applies pending migrations at start
+          (<code>DB_MIGRATE_ON_START</code>); <code>sbt "backend/runMain anseliq.app.Main migrate"</code>
+          migrates without starting the app, which is what the Kubernetes init container runs.
+        </p>
+
+        <h2 id="kubernetes">Local Kubernetes</h2>
+        <p>
+          <code>k8s/overlays/local</code> runs the full install on Docker Desktop's Kubernetes
+          (Settings → Kubernetes → Enable Kubernetes), with its own PostgreSQL in the cluster and
+          LocalStack on the host for S3:
+        </p>
+        <pre><code>cp k8s/overlays/local/secrets.env.example k8s/overlays/local/secrets.env   # then fill it in
+sbt "backend/Docker/publishLocal; frontend/Docker/publishLocal"
+kubectl apply -k k8s/overlays/local</code></pre>
+        <p>
+          The app is then at <code>http://localhost:8088</code>. After rebuilding the images,
+          <code>kubectl -n anseliq rollout restart deployment</code> picks them up, and
+          <code>kubectl delete namespace anseliq</code> removes everything, the database included.
+        </p>
+
+        <h2 id="releases">CI and releases</h2>
+        <p>
+          CI runs the tests on every push to <code>main</code> and on pull requests, against a fresh
+          PostgreSQL and LocalStack. Pushing a version tag such as <code>v1.2.3</code> on a commit whose
+          CI passed builds and publishes <code>anseliq-backend:1.2.3</code> and
+          <code>anseliq-frontend:1.2.3</code>. Versions come from git: any other build is versioned like
+          <code>1.2.3-4-abcd1234</code> and also tagged <code>dev</code>, which the local overlay
+          deploys.
+        </p>
+
+        <h2 id="api">HTTP API</h2>
+        <p>
+          The web app is built entirely on a JSON API under <code>/api/v1</code>, served on the same
+          origin as the app. Some names differ from the app's: a ledger is a <em>fund flow</em>, a
+          reconciliation rule a <em>recon spec</em>, and an exception a <em>dispute</em>.
+        </p>
+        <h3 id="auth">Authentication</h3>
+        <p>Sign in to get a token, then send it as a bearer token on every other request:</p>
+        <pre><code>curl -s https://anseliq.example.com/api/v1/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "you@example.com", "password": "..."}'
+# {"accessToken": "eyJ...", "refreshToken": "..."}
+
+curl -s https://anseliq.example.com/api/v1/fund-flows \
+  -H 'Authorization: Bearer eyJ...'</code></pre>
+        <p>A missing or invalid token gets <code>401</code>, and an Admin-only action by anyone else gets <code>403</code>.</p>
+
+        <h3 id="endpoints">Endpoints</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Area</th><th>Endpoints</th></tr></thead>
+            <tbody>
+              <tr><td>Ledgers</td><td><code>GET /fund-flows</code>, <code>POST /fund-flow</code>, <code>PUT /fund-flow/:id</code>, <code>GET /fund-flow/:id/summary</code></td></tr>
+              <tr><td>Accounts</td><td><code>GET /fund-flows/:id/accounts</code>, <code>GET /accounts</code>, <code>GET|PUT /account/:id</code>, <code>POST /account</code></td></tr>
+              <tr><td>Reconciling</td><td><code>POST /account/:id/reconcile</code>, <code>GET /account/:id/reconciliations</code>, <code>GET /account/:id/reconciliation-counts</code></td></tr>
+              <tr><td>Movement specs</td><td><code>GET /fund-flows/:id/movement-specs</code>, <code>POST /movement-spec</code>, <code>PUT|DELETE /movement-spec/:id</code></td></tr>
+              <tr><td>File feeds</td><td><code>GET /file-feeds</code>, <code>POST /file-feed</code>, <code>PUT|DELETE /file-feed/:id</code>, <code>POST /file-feed/:id/test-parse</code>, <code>GET /file-inventory</code></td></tr>
+              <tr><td>Movements</td><td><code>POST /movements/search</code>, <code>GET /movement/:id</code>, <code>GET /movements/:movementSpecId/unreconciled</code>, <code>POST /movements/bad-file-preview</code>, <code>POST /movements/bad-file-fix</code></td></tr>
+              <tr><td>Rules</td><td><code>GET /account/:id/recon-specs</code>, <code>POST /recon-spec</code>, <code>PUT|DELETE /recon-spec/:id</code>, <code>GET /recon-spec/:id/rule-proposals</code></td></tr>
+              <tr><td>Reconciliations</td><td><code>GET /reconciliation/:id</code>, <code>GET /recon-spec/:id/reconciliations</code>, <code>POST /recon-spec/:id/manual-match</code>, <code>POST /reconciliation/:id/unmatch</code>, <code>POST /reconciliation/:id/write-off</code>, <code>POST /reconciliation/:id/reverse-write-off</code> (Admin)</td></tr>
+              <tr><td>AI suggestions</td><td><code>GET /recon-spec/:id/match-suggestions</code>, <code>POST /match-suggestion/:id/accept</code>, <code>POST /match-suggestion/:id/reject</code></td></tr>
+              <tr><td>Exceptions</td><td><code>GET /disputes</code>, <code>POST /dispute</code>, <code>GET /dispute/:id</code>, <code>POST /dispute/:id/comments</code>, <code>POST /dispute/:id/assign</code></td></tr>
+              <tr><td>Reports</td><td><code>GET /reports/summary</code>, <code>GET /reports/trend</code>, <code>GET /reports/unreconciled-movements</code></td></tr>
+              <tr><td>Activity</td><td><code>GET /jobs/:jobType</code>, <code>GET /events/:eventType</code></td></tr>
+              <tr><td>Users</td><td><code>GET /users/assignable</code>; Admin only: <code>GET /users</code>, <code>POST /users</code>, <code>PUT /users/:id</code>, <code>POST /users/:id/reset-password</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Request and response bodies are the payload types in
+          <code>common/src/main/scala/anseliq/common/model/Payload.scala</code>.
+        </p>
+      </main>
+    </div>
+
+    <footer class="border-t border-ink-700 bg-ink-900 text-ink-300">
+      <div class="container-page flex flex-col gap-4 py-10 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span class="font-display font-bold text-paper-100">Ansel<span class="text-safelight">IQ</span></span>
+        <p>© <span id="year">2026</span> AnselIQ. Reconciliation at scale.</p>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Documentation — AnselIQ</title>
+    <meta
+      name="description"
+      content="AnselIQ documentation: the concepts behind ledgers, accounts, movements and reconciliations, and guides for using, installing and developing AnselIQ."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@600;700;800&display=swap"
+    />
+    <script type="module" src="/src/docs.js"></script>
+  </head>
+  <body>
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-paper-100 focus:px-3 focus:py-2">Skip to content</a>
+
+    <header class="sticky top-0 z-40 border-b border-ink-700/60 bg-ink/90 backdrop-blur">
+      <nav class="container-page flex h-16 items-center justify-between gap-6" aria-label="Main">
+        <a href="/" class="flex items-center gap-2.5 text-paper-100" aria-label="AnselIQ home">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#212830" />
+            <circle cx="16" cy="16" r="9" fill="none" stroke="#9aa4ae" stroke-width="2" />
+            <circle cx="16" cy="16" r="3.5" fill="#e8992f" />
+          </svg>
+          <span class="font-display text-lg font-bold tracking-tight">Ansel<span class="text-safelight">IQ</span></span>
+          <span class="ml-1 hidden border-l border-ink-600 pl-3 text-sm text-ink-300 sm:inline">Docs</span>
+        </a>
+        <div class="hidden items-center gap-8 text-sm text-ink-200 md:flex">
+          <a href="/" class="hover:text-paper-100">Product</a>
+          <a href="/docs/" class="text-paper-100">Documentation</a>
+        </div>
+        <a href="/#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
+      </nav>
+    </header>
+
+    <div class="container-page gap-12 py-10 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-14">
+      <aside class="docs-sidebar mb-10 lg:mb-0">
+        <nav class="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto" aria-label="Documentation">
+          <p class="eyebrow mb-3 px-3 text-ink-400">Documentation</p>
+          <ul class="space-y-0.5">
+            <li>
+              <a href="/docs/" aria-current="page">Overview &amp; concepts</a>
+              <ul class="docs-toc mt-0.5 hidden space-y-0.5 lg:block">
+                <li><a href="#guides">The guides</a></li>
+                <li><a href="#model">How AnselIQ models money</a></li>
+                <li><a href="#example">A worked example</a></li>
+                <li><a href="#statuses">Reconciliation statuses</a></li>
+                <li><a href="#balance">Explaining a balance</a></li>
+                <li><a href="#exceptions">Exceptions</a></li>
+                <li><a href="#audit">Corrections, never edits</a></li>
+                <li><a href="#glossary">Glossary</a></li>
+              </ul>
+            </li>
+            <li><a href="/docs/user-guide.html">User guide</a></li>
+            <li><a href="/docs/install.html">Installation &amp; operations</a></li>
+            <li><a href="/docs/developers.html">Developers</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main id="main" class="doc">
+        <p class="eyebrow text-safelight-deep">Documentation</p>
+        <h1 class="mt-3">AnselIQ documentation</h1>
+        <p class="lede">
+          AnselIQ ingests processor, bank and internal ledger files, matches their records with rules you
+          define, and explains whatever doesn't tie out. This page introduces the ideas the rest of the
+          documentation builds on.
+        </p>
+
+        <h2 id="guides">The guides</h2>
+        <div class="card-grid">
+          <a href="/docs/user-guide.html">
+            <strong>User guide</strong>
+            <span>For finance and operations teams: set up file feeds, ledgers and matching rules, then work reconciliations and exceptions day to day.</span>
+          </a>
+          <a href="/docs/install.html">
+            <strong>Installation &amp; operations</strong>
+            <span>For the people who run AnselIQ: requirements, installing on Kubernetes, configuration, scaling and upgrades.</span>
+          </a>
+          <a href="/docs/developers.html">
+            <strong>Developers</strong>
+            <span>How AnselIQ is built, building and testing it from source, and the HTTP API the web app uses.</span>
+          </a>
+          <a href="#glossary">
+            <strong>Glossary</strong>
+            <span>Every AnselIQ term in one place.</span>
+          </a>
+        </div>
+
+        <h2 id="model">How AnselIQ models money</h2>
+        <p>
+          AnselIQ records everything it ingests on a double-entry ledger. Instead of comparing two
+          spreadsheets row by row, it posts both sides of a reconciliation into one shared account and
+          then pairs off the entries that cancel each other out. Whatever is left over is the
+          difference you need to explain.
+        </p>
+
+        <h3 id="ledgers">Ledgers</h3>
+        <p>
+          A <strong>ledger</strong> groups the accounts for one flow of money, such as card settlement
+          or payouts to merchants. Each ledger has its own accounts, its own reconciliations and a
+          daily reporting cutoff hour.
+        </p>
+
+        <h3 id="accounts">Accounts</h3>
+        <p>Every account in a ledger has one of three types:</p>
+        <dl>
+          <dt>Primary</dt>
+          <dd>One side of the reconciliation, usually the system you treat as the source of truth: your payment processor or internal ledger.</dd>
+          <dt>Secondary</dt>
+          <dd>The other side, usually what you check against: a bank account or a card network.</dd>
+          <dt>Recon</dt>
+          <dd>
+            The account where the two sides meet, like a clearing or suspense account. Its balance is
+            everything that hasn't yet been matched off, and its matching rule says how entries from
+            the two sides pair up.
+          </dd>
+        </dl>
+
+        <h3 id="movements">Movements</h3>
+        <p>
+          A <strong>movement</strong> is one ledger entry: an amount moved from one account to another.
+          Each row AnselIQ reads from a file becomes one movement, and the row's fields (references,
+          dates, account numbers) are stored on it as <strong>properties</strong>, which the matching
+          rules compare.
+        </p>
+
+        <h3 id="feeds">File feeds and movement specs</h3>
+        <p>
+          A <strong>file feed</strong> says where files come from (an S3 folder) and how to read them
+          (CSV, BAI2, JSON lines or fixed width). A <strong>movement spec</strong> connects a feed to a
+          ledger: it links a Recon account to a Primary or Secondary account, so that every row from
+          the feed posts a movement between those two accounts. One feed can serve several movement
+          specs, for example a BAI2 file that covers several bank accounts, with a routing filter
+          deciding which rows belong to which.
+        </p>
+
+        <h3 id="rules">Reconciliation rules</h3>
+        <p>
+          A Recon account's <strong>reconciliation rule</strong> says which movements belong together:
+          which movement spec is each side, whether they pair one-to-one or one-to-many, and which
+          fields have to agree. When movements match, AnselIQ groups them into a
+          <strong>reconciliation</strong> and records exactly which values they matched on.
+        </p>
+
+        <h2 id="example">A worked example</h2>
+        <p>
+          A marketplace receives card payouts from its payment processor, which arrive in its bank
+          account a day or two later. It wants to know that every payout landed, and to explain any
+          that didn't land in full.
+        </p>
+        <ol>
+          <li>
+            Two file feeds: the processor's daily payout report (CSV with <code>payout_id</code>,
+            <code>amount</code>, <code>payout_date</code>) and the bank's BAI2 statement.
+          </li>
+          <li>
+            A ledger, <em>Card payouts</em>, with three accounts: <em>Processor</em> (Primary),
+            <em>Bank</em> (Secondary) and <em>Payout clearing</em> (Recon).
+          </li>
+          <li>
+            Two movement specs: processor payouts post between <em>Processor</em> and
+            <em>Payout clearing</em>; bank deposits post between <em>Bank</em> and
+            <em>Payout clearing</em>. The two sides land in the clearing account with opposite signs.
+          </li>
+          <li>
+            A one-to-one rule on the clearing account: the processor's <code>payout_id</code> equals the
+            bank's <code>bank_reference_number</code>.
+          </li>
+        </ol>
+        <p>
+          When both files have been ingested, reconciliation pairs each payout with its deposit. A pair
+          whose amounts net to zero is <strong>Final</strong>. A pair that matched on the reference but
+          is $31.20 short, because the bank deducted a fee, is <strong>Mismatched</strong>, and AnselIQ
+          raises an exception for it showing the two totals, the difference and the matched reference.
+          A payout with no deposit yet stays <strong>unreconciled</strong> on the clearing account
+          until its deposit arrives.
+        </p>
+
+        <h2 id="statuses">Reconciliation statuses</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Status</th><th>What it means</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Final</strong></td><td>The movements net to zero. Nothing left to do.</td></tr>
+              <tr>
+                <td><strong>In progress</strong></td>
+                <td>
+                  A one-to-many group that doesn't balance yet but may still be completed: more of the
+                  "many" side can arrive in a later file. It becomes Mismatched once it's older than
+                  the rule's aging limit.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Mismatched</strong></td>
+                <td>
+                  Matched on the rule's fields, but the amounts don't net to zero and nothing more is
+                  expected. Always has an open AmountMismatch exception. Resolved by writing off the
+                  difference, unmatching, or (one-to-many only) a late movement that closes the gap.
+                </td>
+              </tr>
+              <tr><td><strong>Voided</strong></td><td>Unmatched. Its movements went back to the unreconciled pool to be matched again.</td></tr>
+              <tr>
+                <td><strong>Reversed</strong></td>
+                <td>A system record pairing a movement with the correcting entry that reversed it. Both stay out of matching for good, and it can't be changed.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="balance">Explaining a balance</h2>
+        <p>Every Recon account's balance breaks down exactly into three parts:</p>
+        <pre><code>Cash balance = Unreconciled + In progress + Mismatched</code></pre>
+        <p>
+          Final reconciliations always net to zero, so whatever is on the account is either waiting
+          for a match, waiting for the rest of a group, or matched but wrong. The ledger's Overview
+          tab shows each figure, and each one opens the movements or reconciliations behind it.
+        </p>
+
+        <h2 id="exceptions">Exceptions</h2>
+        <p>
+          An <strong>exception</strong> is a problem someone has to look at. AnselIQ raises some
+          automatically and people can raise others on a movement. Each has a status
+          (<em>New</em>, <em>Investigating</em>, <em>Escalated</em>, <em>Resolved</em>), an optional
+          assignee and a discussion thread.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Category</th><th>Raised on</th><th>Raised by</th><th>Closes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>AmountMismatch</td><td>Reconciliation</td><td>AnselIQ, when a reconciliation becomes Mismatched</td><td>Automatically, when it's written off, unmatched or balanced</td></tr>
+              <tr><td>FileMissing</td><td>File feed</td><td>AnselIQ, when a feed's expected file is overdue</td><td>Automatically, when the file arrives</td></tr>
+              <tr><td>UnroutedRecord</td><td>File feed</td><td>AnselIQ, when file rows match no movement spec</td><td>By a person, once a spec covers them</td></tr>
+              <tr><td>ExcessiveParseErrors</td><td>File feed</td><td>AnselIQ, when ingestion stops because too many rows couldn't be read</td><td>By a person</td></tr>
+              <tr><td>MissingCounterpart, Duplicate, TimingDifference, DataQuality</td><td>Movement</td><td>A person</td><td>By a person</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The ones AnselIQ closes automatically can't be resolved by hand: marking an AmountMismatch
+          resolved would leave the difference on the books with no one looking at it. Fix the
+          underlying problem instead, and the exception closes itself.
+        </p>
+
+        <h2 id="audit">Corrections, never edits</h2>
+        <p>
+          Nothing that reaches the ledger is edited or deleted. A write-off posts an adjustment
+          movement. Reversing a write-off posts a correcting entry. A file ingested with the wrong
+          configuration is reversed movement by movement, voiding whatever it was matched into. The
+          originals stay in place, so the ledger always shows what happened, when, and why, and the
+          Events page lists every ingestion, match, write-off and exception change.
+        </p>
+
+        <h2 id="glossary">Glossary</h2>
+        <dl>
+          <dt>Account</dt><dd>A balance within a ledger: Primary, Secondary or Recon.</dd>
+          <dt>Aging limit</dt><dd>How many days an in-progress one-to-many group may wait for the rest of its movements before it's marked Mismatched.</dd>
+          <dt>Exception</dt><dd>A problem raised for someone to resolve, with a status, assignee and thread. Called a dispute in the API.</dd>
+          <dt>File feed</dt><dd>Where a family of files arrives (an S3 folder) and how to parse it.</dd>
+          <dt>File inventory</dt><dd>Every file AnselIQ has found on a feed, with its processing status.</dd>
+          <dt>Ledger</dt><dd>A group of accounts for one flow of money. Called a fund flow in the API.</dd>
+          <dt>Manual match</dt><dd>A reconciliation a person formed by selecting movements by hand.</dd>
+          <dt>Match suggestion</dt><dd>A match proposed by AnselIQ's AI for movements the rule left unmatched, for a person to accept or reject.</dd>
+          <dt>Movement</dt><dd>One ledger entry: an amount moved between two accounts, with the properties of the file row it came from.</dd>
+          <dt>Movement spec</dt><dd>The link between a Recon account and another account that a file feed's rows post to.</dd>
+          <dt>Reconciliation</dt><dd>A group of movements matched together, with a status and a record of why they matched.</dd>
+          <dt>Reconciliation rule</dt><dd>How a Recon account's movements are matched: the two sides, the relationship, and the fields that must agree. Called a recon spec in the API.</dd>
+          <dt>Routing filter</dt><dd>On a movement spec, a field and value that pick out the rows of a shared feed that belong to it.</dd>
+          <dt>Write-off</dt><dd>Closing a mismatched reconciliation's difference with an adjustment movement and a reason.</dd>
+        </dl>
+      </main>
+    </div>
+
+    <footer class="border-t border-ink-700 bg-ink-900 text-ink-300">
+      <div class="container-page flex flex-col gap-4 py-10 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span class="font-display font-bold text-paper-100">Ansel<span class="text-safelight">IQ</span></span>
+        <p>© <span id="year">2026</span> AnselIQ. Reconciliation at scale.</p>
+      </div>
+    </footer>
+  </body>
+</html>

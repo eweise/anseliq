@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Installation &amp; operations — AnselIQ docs</title>
+    <meta
+      name="description"
+      content="Installing AnselIQ on Kubernetes in your own AWS account: requirements, database and S3 setup, configuration, AI matching, scaling, upgrades and health checks."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@600;700;800&display=swap"
+    />
+    <script type="module" src="/src/docs.js"></script>
+  </head>
+  <body>
+    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-paper-100 focus:px-3 focus:py-2">Skip to content</a>
+
+    <header class="sticky top-0 z-40 border-b border-ink-700/60 bg-ink/90 backdrop-blur">
+      <nav class="container-page flex h-16 items-center justify-between gap-6" aria-label="Main">
+        <a href="/" class="flex items-center gap-2.5 text-paper-100" aria-label="AnselIQ home">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#212830" />
+            <circle cx="16" cy="16" r="9" fill="none" stroke="#9aa4ae" stroke-width="2" />
+            <circle cx="16" cy="16" r="3.5" fill="#e8992f" />
+          </svg>
+          <span class="font-display text-lg font-bold tracking-tight">Ansel<span class="text-safelight">IQ</span></span>
+          <span class="ml-1 hidden border-l border-ink-600 pl-3 text-sm text-ink-300 sm:inline">Docs</span>
+        </a>
+        <div class="hidden items-center gap-8 text-sm text-ink-200 md:flex">
+          <a href="/" class="hover:text-paper-100">Product</a>
+          <a href="/docs/" class="text-paper-100">Documentation</a>
+        </div>
+        <a href="/#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
+      </nav>
+    </header>
+
+    <div class="container-page gap-12 py-10 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-14">
+      <aside class="docs-sidebar mb-10 lg:mb-0">
+        <nav class="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto" aria-label="Documentation">
+          <p class="eyebrow mb-3 px-3 text-ink-400">Documentation</p>
+          <ul class="space-y-0.5">
+            <li><a href="/docs/">Overview &amp; concepts</a></li>
+            <li><a href="/docs/user-guide.html">User guide</a></li>
+            <li>
+              <a href="/docs/install.html" aria-current="page">Installation &amp; operations</a>
+              <ul class="docs-toc mt-0.5 hidden space-y-0.5 lg:block">
+                <li><a href="#architecture">Architecture</a></li>
+                <li><a href="#requirements">Requirements</a></li>
+                <li><a href="#aws">Preparing AWS</a></li>
+                <li><a href="#install">Installing</a></li>
+                <li><a href="#configuration">Configuration reference</a></li>
+                <li><a href="#ai">Turning on AI matching</a></li>
+                <li><a href="#scaling">Scaling</a></li>
+                <li><a href="#upgrading">Upgrading</a></li>
+                <li><a href="#operating">Health, logs &amp; backups</a></li>
+                <li><a href="#security">Security notes</a></li>
+              </ul>
+            </li>
+            <li><a href="/docs/developers.html">Developers</a></li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main id="main" class="doc">
+        <p class="eyebrow text-safelight-deep">Installation &amp; operations</p>
+        <h1 class="mt-3">Installing and running AnselIQ</h1>
+        <p class="lede">
+          AnselIQ runs inside your own environment, so transaction data never leaves your network. This
+          guide installs it on Kubernetes in your AWS account (Amazon EKS, RDS and S3) and covers
+          running it afterwards.
+        </p>
+
+        <h2 id="architecture">Architecture</h2>
+        <p>An install runs three deployments behind one Ingress:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Deployment</th><th>What it runs</th><th>Scales on</th></tr></thead>
+            <tbody>
+              <tr><td><code>backend-api</code></td><td>The HTTP API on port 8080, served at <code>/api</code>.</td><td>CPU, 2–4 pods</td></tr>
+              <tr><td><code>backend-worker</code></td><td>Background jobs (file scans, ingestion, reconciliation, reporting snapshots, AI suggestions) and the scheduler that queues the periodic ones.</td><td>CPU, or queued jobs with KEDA, 1–4 pods</td></tr>
+              <tr><td><code>frontend</code></td><td>The web app, as static files served by nginx.</td><td>Fixed at 2 pods</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Both backend deployments run the same image with different services switched on. All state
+          lives in PostgreSQL, including the job queue, so any number of replicas is safe: each job is
+          claimed by one worker, and a job whose worker dies is picked up by another and resumes from
+          its last checkpoint. AnselIQ reads feed files from S3 and, if AI matching is on, calls a
+          model served inside the cluster.
+        </p>
+
+        <h2 id="requirements">Requirements</h2>
+        <ul>
+          <li><strong>Kubernetes</strong>: an EKS cluster with the <a href="https://kubernetes-sigs.github.io/aws-load-balancer-controller/">AWS Load Balancer Controller</a> and the metrics-server add-on. <code>kubectl</code> with Kustomize (built in).</li>
+          <li><strong>PostgreSQL</strong>: RDS or Aurora PostgreSQL, reachable from the cluster, allowing about 100 connections. AnselIQ is tested on PostgreSQL 18.</li>
+          <li><strong>S3</strong>: the buckets your file feeds read, in one region.</li>
+          <li><strong>TLS</strong>: an ACM certificate for the hostname users will open AnselIQ at.</li>
+          <li><strong>Images</strong>: access to the <code>anseliq-backend</code> and <code>anseliq-frontend</code> release images, which your AnselIQ contact provides. You can pull them directly or copy them to your own registry such as ECR.</li>
+          <li><strong>Optional</strong>: <a href="https://keda.sh">KEDA</a>, to scale workers on queue depth, and a GPU or large-CPU node for <a href="#ai">AI matching</a>.</li>
+        </ul>
+        <p>Default resource requests per pod:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Pod</th><th>CPU request</th><th>Memory request / limit</th></tr></thead>
+            <tbody>
+              <tr><td><code>backend-api</code></td><td>250m</td><td>512 Mi / 1 Gi</td></tr>
+              <tr><td><code>backend-worker</code></td><td>500m</td><td>1 Gi / 2 Gi</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Workers need more memory because reconciliation holds each pass's matching groups in memory.</p>
+
+        <h2 id="aws">Preparing AWS</h2>
+        <h3 id="database">Database</h3>
+        <p>
+          Create an empty database and a user that owns it. AnselIQ creates its <code>recon</code>
+          schema and everything in it the first time it starts, so nothing else needs running by hand.
+        </p>
+        <pre><code>CREATE USER anseliq WITH PASSWORD '...';
+CREATE DATABASE recon_db OWNER anseliq;</code></pre>
+        <p>RDS requires TLS by default, and AnselIQ uses it when the server asks for it.</p>
+
+        <h3 id="s3">S3 access</h3>
+        <p>
+          AnselIQ reads S3 with an IAM role that only its service account can assume (IAM Roles for
+          Service Accounts). It needs only to list and read the feed buckets:
+        </p>
+        <pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [
+    { "Effect": "Allow", "Action": "s3:ListBucket", "Resource": "arn:aws:s3:::&lt;feed-bucket&gt;" },
+    { "Effect": "Allow", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::&lt;feed-bucket&gt;/*" }
+  ]
+}</code></pre>
+        <p>Its trust policy, with your cluster's OIDC provider:</p>
+        <pre><code>{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::&lt;account&gt;:oidc-provider/&lt;oidc-provider&gt;" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": { "&lt;oidc-provider&gt;:sub": "system:serviceaccount:anseliq:anseliq-backend" }
+    }
+  }]
+}</code></pre>
+
+        <h2 id="install">Installing</h2>
+        <p>
+          AnselIQ ships as a Kustomize overlay for EKS. Copy it for your install and replace every
+          <code>REPLACE_ME_</code> value; <code>grep -rn REPLACE_ME .</code> lists what's left.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Placeholder</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td><code>REPLACE_ME_REGISTRY</code></td><td>Where the cluster pulls the images from, e.g. <code>&lt;account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com</code>.</td></tr>
+              <tr><td><code>REPLACE_ME_VERSION</code></td><td>The release to install, e.g. <code>1.2.3</code> (without a <code>v</code>).</td></tr>
+              <tr><td><code>REPLACE_ME_RDS_ENDPOINT</code></td><td>The database endpoint.</td></tr>
+              <tr><td><code>REPLACE_ME_AWS_REGION</code></td><td>The region of the feed buckets.</td></tr>
+              <tr><td><code>REPLACE_ME_AWS_ACCOUNT_ID</code>, <code>REPLACE_ME_S3_READ_ROLE</code></td><td>The S3 read role above.</td></tr>
+              <tr><td><code>REPLACE_ME_ACM_CERTIFICATE_ARN</code></td><td>The certificate for AnselIQ's hostname.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Then create <code>secrets.env</code> from <code>secrets.env.example</code>:</p>
+        <pre><code># The application's database user
+DB_USER=anseliq
+DB_PASSWORD=...
+# Signs sign-in tokens. At least 32 bytes: openssl rand -base64 48
+JWT_SECRET=...
+# The first Admin, created on first start when there's none; ignored after that.
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD=...   # at least 8 characters</code></pre>
+        <p>Apply it:</p>
+        <pre><code>kubectl apply -k .
+kubectl -n anseliq get pods        # wait for every pod to be Ready
+kubectl -n anseliq get ingress     # the load balancer's address</code></pre>
+        <p>
+          Point your hostname's DNS at the load balancer, then sign in as <code>ADMIN_EMAIL</code> and
+          create the other users under <strong>Admin → Users</strong>.
+        </p>
+        <div class="note">
+          The load balancer is internal, reachable only from your network. If users reach AnselIQ over
+          the internet, change <code>scheme</code> in <code>ingress-alb.yaml</code> to
+          <code>internet-facing</code>.
+        </div>
+
+        <h2 id="configuration">Configuration reference</h2>
+        <p>
+          The backend is configured with environment variables, set in the overlay's
+          <code>anseliq-config</code> ConfigMap or, for secrets, in <code>secrets.env</code>.
+        </p>
+        <h3 id="config-core">Database, S3 and sign-in</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>DB_HOST</code>, <code>DB_PORT</code></td><td><code>localhost</code>, <code>5432</code></td><td>The PostgreSQL server.</td></tr>
+              <tr><td><code>DB_NAME</code></td><td><code>recon_db</code></td><td>The database.</td></tr>
+              <tr><td><code>DB_SCHEMA</code></td><td><code>recon</code></td><td>The schema AnselIQ creates and uses.</td></tr>
+              <tr><td><code>DB_USER</code>, <code>DB_PASSWORD</code></td><td></td><td>The database user.</td></tr>
+              <tr><td><code>DB_MAX_CONNECTIONS</code></td><td><code>10</code></td><td>Connection pool size per pod. Each pod uses up to this plus 2.</td></tr>
+              <tr><td><code>DB_MIGRATE_ON_START</code></td><td><code>true</code></td><td>Apply schema migrations at start. The Kubernetes install sets it to <code>false</code> and migrates in an init container instead.</td></tr>
+              <tr><td><code>S3_REGION</code></td><td><code>us-east-1</code></td><td>The feed buckets' region.</td></tr>
+              <tr><td><code>S3_USERNAME</code>, <code>S3_PASSWORD</code></td><td></td><td>A fixed access key and secret. Leave unset to use the pod's IAM role or the AWS default credentials chain.</td></tr>
+              <tr><td><code>S3_ENDPOINT</code></td><td></td><td>An S3-compatible endpoint to use instead of AWS.</td></tr>
+              <tr><td><code>JWT_SECRET</code></td><td></td><td>Required. Signs sign-in tokens; at least 32 bytes.</td></tr>
+              <tr><td><code>ADMIN_EMAIL</code>, <code>ADMIN_PASSWORD</code></td><td></td><td>The first Admin, created at start if there's no active Admin.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 id="config-services">Services</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>HTTP_ENABLED</code></td><td><code>true</code></td><td>Serve the API.</td></tr>
+              <tr><td><code>HTTP_HOST</code></td><td><code>0.0.0.0</code></td><td>The address the API listens on.</td></tr>
+              <tr><td><code>SCHEDULER_ENABLED</code></td><td><code>true</code></td><td>Queue the periodic jobs: the file scan and the daily reporting snapshot, checked every minute.</td></tr>
+              <tr><td><code>WORKERS_ENABLED</code></td><td><code>true</code></td><td>Run background jobs. Each kind can be switched separately with <code>WORKER_INGESTION_ENABLED</code>, <code>WORKER_RECONCILIATION_ENABLED</code>, <code>WORKER_CREATE_FILE_INVENTORY_ENABLED</code>, <code>WORKER_GENERATE_RECON_STATS_ENABLED</code> and <code>WORKER_SUGGEST_MATCHES_ENABLED</code>.</td></tr>
+              <tr><td><code>HEALTH_PORT</code></td><td><code>8081</code></td><td>The health check port.</td></tr>
+              <tr><td><code>SHUTDOWN_DRAIN_TIMEOUT</code></td><td><code>25s</code></td><td>How long running jobs get to finish on shutdown before they're handed back to the queue. Keep it under the pod's termination grace period.</td></tr>
+              <tr><td><code>JAVA_OPTS</code></td><td><code>-XX:MaxRAMPercentage=75</code></td><td>JVM options.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="ai">Turning on AI matching</h2>
+        <p>
+          AI match suggestions are off by default. They use a language model served inside your
+          cluster through an OpenAI-compatible chat completions API that supports structured (JSON
+          schema) output, such as <a href="https://ollama.com">Ollama</a>. No outside AI service is
+          called. The default model is <code>qwen2.5:7b</code> (about 4.7 GB).
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Variable</th><th>Set to</th></tr></thead>
+            <tbody>
+              <tr><td><code>MATCH_SUGGESTIONS_ENABLED</code></td><td><code>true</code></td></tr>
+              <tr><td><code>MATCH_SUGGESTIONS_ADAPTER</code></td><td><code>local-llm</code></td></tr>
+              <tr><td><code>LOCAL_LLM_BASE_URL</code></td><td>The model server's API, e.g. <code>http://ollama.anseliq.svc:11434/v1</code>. Default <code>http://localhost:11434/v1</code>.</td></tr>
+              <tr><td><code>LOCAL_LLM_MODEL</code></td><td>The model name. Default <code>qwen2.5:7b</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Set them on the <code>backend-worker</code> deployment. After each reconciliation, a
+          suggestion job asks the model about the movements left unmatched; suggestions then wait for
+          a person to review them.
+        </p>
+
+        <h2 id="scaling">Scaling</h2>
+        <p>
+          The backend scales itself on CPU between 2 and 4 API pods and 1 and 4 worker pods, using
+          metrics-server. At the maximum, the pods hold about 100 database connections, so raise
+          <code>maxReplicas</code> in <code>base/autoscaling.yaml</code> only together with the
+          database's <code>max_connections</code>.
+        </p>
+        <p>
+          With KEDA installed, workers can scale on how many jobs are queued or running instead, which
+          tracks their load better than CPU. Add the component to the overlay's
+          <code>kustomization.yaml</code> and point it at your database:
+        </p>
+        <pre><code>components:
+  - ../../components/worker-queue-autoscaling
+
+patches:
+  # ...the existing patches, then:
+  - target:
+      kind: ScaledObject
+      name: backend-worker
+    patch: |-
+      - op: replace
+        path: /spec/triggers/0/metadata/host
+        value: &lt;the RDS endpoint&gt;
+      - op: replace
+        path: /spec/triggers/0/metadata/userName
+        value: &lt;DB_USER from secrets.env&gt;</code></pre>
+
+        <h2 id="upgrading">Upgrading</h2>
+        <p>
+          Change both image <code>newTag</code>s in <code>kustomization.yaml</code> to the new release
+          and run <code>kubectl apply -k .</code> again. Each backend pod applies any pending database
+          migrations before it starts, and running jobs drain (or go back to the queue) before old pods
+          stop. If you keep your overlay in your own repository, you can reference the base at a
+          release tag instead of copying it.
+        </p>
+
+        <h2 id="operating">Health, logs and backups</h2>
+        <dl>
+          <dt>Health checks</dt>
+          <dd>Every backend pod serves <code>/health/live</code> and <code>/health/ready</code> on port 8081, which the Kubernetes probes use.</dd>
+          <dt>Logs</dt>
+          <dd>The backend logs JSON to standard output, ready for CloudWatch or any log collector. It logs its version when it starts.</dd>
+          <dt>Background work</dt>
+          <dd>The <strong>Jobs</strong> page shows every job's status, attempts and errors. Failed jobs are retried with an increasing delay before they're marked as an error.</dd>
+          <dt>Backups</dt>
+          <dd>The database holds everything AnselIQ knows: configuration, the ledger, reconciliations and exceptions. Back it up with RDS automated backups or snapshots. Feed files stay in your S3 buckets and are only read.</dd>
+        </dl>
+
+        <h2 id="security">Security notes</h2>
+        <ul>
+          <li>Every API request needs a sign-in token signed with <code>JWT_SECRET</code>. Keep the secret in <code>secrets.env</code>, which is never committed, and rotate it by changing it and restarting the backend; everyone signs in again.</li>
+          <li>The S3 role can only list and read the feed buckets, and only AnselIQ's service account can assume it.</li>
+          <li>The load balancer is internal by default and terminates TLS with your ACM certificate.</li>
+          <li>With AI matching on, the model runs in your cluster and transaction data isn't sent anywhere else.</li>
+        </ul>
+      </main>
+    </div>
+
+    <footer class="border-t border-ink-700 bg-ink-900 text-ink-300">
+      <div class="container-page flex flex-col gap-4 py-10 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span class="font-display font-bold text-paper-100">Ansel<span class="text-safelight">IQ</span></span>
+        <p>© <span id="year">2026</span> AnselIQ. Reconciliation at scale.</p>
+      </div>
+    </footer>
+  </body>
+</html>
