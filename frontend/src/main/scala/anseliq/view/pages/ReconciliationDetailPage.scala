@@ -74,7 +74,7 @@ object ReconciliationDetailPage:
               agingLimit = d.spec.map(_.agingLimit)
             ),
             balanceSection(d),
-            if d.openDisputes.isEmpty then emptyNode else disputesSection(d),
+            if d.openExceptions.isEmpty then emptyNode else exceptionsSection(d),
             movementsSection(d.movements),
             detailsSection(d)
           )
@@ -85,8 +85,8 @@ object ReconciliationDetailPage:
   // belongs to no ledger, so its trail is just its own name.
   private def breadcrumb(d: ReconciliationDetailPayload): HtmlElement =
     PageHeader.ledgerBreadcrumb(
-      d.fundFlow,
-      d.fundFlow.map(_ => "Reconciliations" -> "Reconciliations"),
+      d.ledger,
+      d.ledger.map(_ => "Reconciliations" -> "Reconciliations"),
       shortId(d.reconciliation.id) -> None
     )
 
@@ -138,17 +138,17 @@ object ReconciliationDetailPage:
       )
     )
 
-  private def disputesSection(d: ReconciliationDetailPayload): HtmlElement =
+  private def exceptionsSection(d: ReconciliationDetailPayload): HtmlElement =
     div(
       cls := s"${Card.cls} p-5 flex flex-col gap-3",
-      h3(cls := "font-medium text-md-on-surface dark:text-white", "Open disputes"),
-      d.openDisputes.map { dispute =>
+      h3(cls := "font-medium text-md-on-surface dark:text-white", "Open exceptions"),
+      d.openExceptions.map { exception =>
         div(
           cls := "flex flex-wrap items-center gap-3 text-sm",
-          span(cls := "font-medium text-md-on-surface dark:text-white", dispute.category.toString),
-          Pill(dispute.status.toString, ExceptionDetailPage.statusTone(dispute.status)),
-          span(cls := Form.mutedTextCls, dispute.assignedToName.fold("Unassigned")(n => s"Assigned to $n")),
-          Buttons.textButton("Open thread", Observer[Unit](_ => Nav.toExceptionDetail(dispute.id)))
+          span(cls := "font-medium text-md-on-surface dark:text-white", exception.category.toString),
+          Pill(exception.status.toString, ExceptionDetailPage.statusTone(exception.status)),
+          span(cls := Form.mutedTextCls, exception.assignedToName.fold("Unassigned")(n => s"Assigned to $n")),
+          Buttons.textButton("Open thread", Observer[Unit](_ => Nav.toExceptionDetail(exception.id)))
         )
       }
     )
@@ -183,7 +183,7 @@ object ReconciliationDetailPage:
     if amount < 0 then f"-$$${-amount}%.2f" else f"$$${amount}%.2f"
 
   // One line per leaf rule: the condition both sides were compared on, then the value they matched.
-  // Also used by ExceptionDetailPage for a disputed reconciliation.
+  // Also used by ExceptionDetailPage for an exception's reconciliation.
   def appliedRulesView(rules: AppliedRules): HtmlElement =
     rules match
       case AppliedRules.Matched(matches) => ul(cls := "space-y-1", matches.map(ruleMatchLine))
@@ -218,7 +218,7 @@ object ReconciliationDetailPage:
     try ujson.read(json).render(indent = 2)
     catch case _: Exception => json
 
-  // Also used by ExceptionDetailPage for a disputed reconciliation.
+  // Also used by ExceptionDetailPage for an exception's reconciliation.
   def movementsSection(movements: Seq[ReconciliationMovementPayload]): HtmlElement =
     div(
       cls := s"${Card.cls} p-4",

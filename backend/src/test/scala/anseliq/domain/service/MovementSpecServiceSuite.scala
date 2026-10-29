@@ -54,7 +54,7 @@ class MovementSpecServiceSuite extends munit.FunSuite:
       rollBackOnly:
         val data = DataSetup(app)
         val otherRecon =
-          Account(name = "other-recon", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Recon)
+          Account(name = "other-recon", ledgerId = data.ledger.id, accountType = AccountType.Recon)
         data.accountRepo.insert(otherRecon)
         intercept[IllegalArgumentError]:
           app.movementSpecService.createMovementSpec(link(data, data.reconAccount, otherRecon))

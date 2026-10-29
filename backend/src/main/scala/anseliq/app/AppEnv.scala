@@ -76,9 +76,9 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
       if services.getBoolean("scheduler.enabled") then
         logger.info("Starting scheduler")
         fork(app.jobManager.submitEvery(JobType.CreateFileInventory, FileInventoryScanId, 1.minute))
-        // Every minute rather than once every 24 hours because "due" depends on each fund flow's own
+        // Every minute rather than once every 24 hours because "due" depends on each ledger's own
         // dailyCutoffHours, not on when the app happened to start — computeAndStoreDailySnapshots is
-        // the cheap no-op once a fund flow's snapshot for today already exists.
+        // the cheap no-op once a ledger's snapshot for today already exists.
         fork(app.jobManager.submitEvery(JobType.GenerateReconStats, ReconStatsScanId, 1.minute))
       else logger.info("Scheduler disabled")
 
@@ -156,7 +156,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
   /**
    * Finds the feed's new files and queues an Ingestion job for each, returning the job ids, then
    * checks whether the feed is overdue. New files are looked for first so a file that has just
-   * landed counts toward the feed's cadence, rather than raising a FileMissing dispute that the
+   * landed counts toward the feed's cadence, rather than raising a FileMissing exception that the
    * next scan resolves.
    */
   def scanFileFeed(feed: FileFeed): Txn[Vector[ID]] =
@@ -185,20 +185,20 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
     )
 
   /**
-   * Computes and stores today's per-fund-flow analytics snapshot, and raises stale-mismatch
-   * disputes.
+   * Computes and stores today's per-ledger analytics snapshot, and raises stale-mismatch
+   * exceptions.
    */
   private def generateReconStats(): ReconStatsInfo =
     transact(Transactor(dataSource = app.dataSource)):
       val beginTime = System.currentTimeMillis()
       val count     = app.reportingService.computeAndStoreDailySnapshots()
 
-      val staleMismatchCount = app.reconSpecRepo.findAll.map(app.reconciler.raiseStaleMismatchDisputes).sum
+      val staleMismatchCount = app.reconSpecRepo.findAll.map(app.reconciler.raiseStaleMismatchExceptions).sum
       if staleMismatchCount > 0 then
-        logger.info(s"raised $staleMismatchCount stale OneToMany AmountMismatch dispute(s)")
+        logger.info(s"raised $staleMismatchCount stale OneToMany AmountMismatch exception(s)")
 
       ReconStatsInfo(
-        fundFlowsSnapshotted  = count,
+        ledgersSnapshotted  = count,
         processingTimeSeconds = (System.currentTimeMillis() - beginTime) / 1000
       )
 

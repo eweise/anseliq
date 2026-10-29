@@ -17,7 +17,7 @@ class MovementSearchSuite extends munit.FunSuite:
   private def teardown(data: DataSetup): Unit =
     transact(app.transactor):
       data.reconSpecRepo.deleteById(data.reconSpec.id)
-      data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+      data.ledgerRepo.deleteById(data.ledger.id)
 
   private def insertMovement(
     spec:         MovementSpec,
@@ -71,43 +71,43 @@ class MovementSearchSuite extends munit.FunSuite:
       // Account: journalAccount sits on the "out" side of journalToRecon's movements (m1, m2) only
       assertEquals(
         searchFor(
-          MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, accountId = Some(data.journalAccount.id))
+          MovementSearchCriteria(ledgerId = data.ledger.id, accountId = Some(data.journalAccount.id))
         ),
         Set(m1.id, m2.id)
       )
 
       // Amount: exact match
       assertEquals(
-        searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, amount = Some(BigDecimal(100)))),
+        searchFor(MovementSearchCriteria(ledgerId = data.ledger.id, amount = Some(BigDecimal(100)))),
         Set(m1.id, m3.id)
       )
 
       // Movement spec
       assertEquals(
         searchFor(
-          MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, movementSpecId = Some(data.reportToRecon.id))
+          MovementSearchCriteria(ledgerId = data.ledger.id, movementSpecId = Some(data.reportToRecon.id))
         ),
         Set(m3.id)
       )
 
       // Properties: jsonb containment, only m1 has category=fee
       assertEquals(
-        searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, properties = Map("category" -> "fee"))),
+        searchFor(MovementSearchCriteria(ledgerId = data.ledger.id, properties = Map("category" -> "fee"))),
         Set(m1.id)
       )
 
       // Metadata: substring match against the whole "bucket|key" value, case-insensitive, matching
       // anywhere — not anchored to the start, since the bucket portion is no longer user-visible.
       assertEquals(
-        searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, fileSourceQuery = Some("bucketA"))),
+        searchFor(MovementSearchCriteria(ledgerId = data.ledger.id, fileSourceQuery = Some("bucketA"))),
         Set(m1.id, m2.id)
       )
       assertEquals(
-        searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, fileSourceQuery = Some("fileB"))),
+        searchFor(MovementSearchCriteria(ledgerId = data.ledger.id, fileSourceQuery = Some("fileB"))),
         Set(m2.id)
       )
       assertEquals(
-        searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, fileSourceQuery = Some("|filec"))),
+        searchFor(MovementSearchCriteria(ledgerId = data.ledger.id, fileSourceQuery = Some("|filec"))),
         Set(m3.id)
       )
 
@@ -115,13 +115,13 @@ class MovementSearchSuite extends munit.FunSuite:
       // specific-type searches, not swept in by a null-matches-anything comparison.
       assertEquals(
         searchFor(
-          MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, movementType = Some(MovementType.Ingestion))
+          MovementSearchCriteria(ledgerId = data.ledger.id, movementType = Some(MovementType.Ingestion))
         ),
         Set(m1.id)
       )
       assertEquals(
         searchFor(
-          MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, movementType = Some(MovementType.ManualAdjustment))
+          MovementSearchCriteria(ledgerId = data.ledger.id, movementType = Some(MovementType.ManualAdjustment))
         ),
         Set(m2.id)
       )
@@ -129,7 +129,7 @@ class MovementSearchSuite extends munit.FunSuite:
       // Adjustment type: m2 is a ManualAdjustment with no adjustmentType yet, so a write-off search
       // finds nothing until it's marked as one.
       def writeOffs = searchFor(
-        MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, adjustmentType = Some(AdjustmentType.WriteOff))
+        MovementSearchCriteria(ledgerId = data.ledger.id, adjustmentType = Some(AdjustmentType.WriteOff))
       )
       assertEquals(writeOffs, Set.empty)
       transact(app.transactor)(app.movementRepo.update(m2.copy(adjustmentType = Some(AdjustmentType.WriteOff))))
@@ -143,7 +143,7 @@ class MovementSearchSuite extends munit.FunSuite:
       assertEquals(
         searchFor(
           MovementSearchCriteria(
-            fundFlowId  = data.fundFlowConfig.id,
+            ledgerId  = data.ledger.id,
             createdFrom = Some(now.minusDays(1)),
             createdTo   = Some(now.plusDays(1))
           )
@@ -153,7 +153,7 @@ class MovementSearchSuite extends munit.FunSuite:
       assertEquals(
         searchFor(
           MovementSearchCriteria(
-            fundFlowId  = data.fundFlowConfig.id,
+            ledgerId  = data.ledger.id,
             createdFrom = Some(now.minusDays(400)),
             createdTo   = Some(now.minusDays(300))
           )
@@ -175,7 +175,7 @@ class MovementSearchSuite extends munit.FunSuite:
         app.reconRepo.insert(inProgressRecon)
         app.movementRepo.setReconciliationIds(Seq(m1.id -> finalRecon.id, m2.id -> inProgressRecon.id))
       def searchByRecon(filter: ReconciliationFilter) =
-        searchFor(MovementSearchCriteria(fundFlowId = data.fundFlowConfig.id, reconciliation = filter))
+        searchFor(MovementSearchCriteria(ledgerId = data.ledger.id, reconciliation = filter))
       try
         assertEquals(searchByRecon(ReconciliationFilter.All), Set(m1.id, m2.id, m3.id))
         assertEquals(searchByRecon(ReconciliationFilter.Unreconciled), Set(m3.id))

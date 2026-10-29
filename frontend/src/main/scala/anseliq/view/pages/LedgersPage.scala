@@ -2,7 +2,7 @@ package anseliq.view.pages
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
-import anseliq.common.model.FundFlowPayload
+import anseliq.common.model.LedgerPayload
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
@@ -11,15 +11,15 @@ import anseliq.view.ViewHelper
 import anseliq.view.components.{Buttons, PageHeader, Table}
 import upickle.default.*
 
-object FundFlowsPage:
+object LedgersPage:
 
   def apply(): HtmlElement =
-    val fundFlows = Var(Seq.empty[FundFlowPayload])
+    val ledgers = Var(Seq.empty[LedgerPayload])
 
     PageHeader.page(
-      ApiClient.get[Seq[FundFlowPayload]](HttpPath.url(HttpPath.fundFlows), SessionStore.token).apiBind { ffs =>
-        fundFlows.set(ffs)
-        AppState.fundFlows.set(ffs)
+      ApiClient.get[Seq[LedgerPayload]](HttpPath.url(HttpPath.ledgers), SessionStore.token).apiBind { ffs =>
+        ledgers.set(ffs)
+        AppState.ledgers.set(ffs)
       },
       PageHeader.titleRow(
         cls := "flex justify-between items-center",
@@ -28,15 +28,15 @@ object FundFlowsPage:
           Buttons.linkButton(
             "Create",
             Observer[Unit](_ =>
-              AppState.activeFundFlow.set(None)
-              Nav.toMaintainFundFlow()
+              AppState.activeLedger.set(None)
+              Nav.toMaintainLedger()
             )
           )
         )
       ),
       div(
         cls := "w-full px-8",
-        child <-- fundFlows.signal.map { ffs =>
+        child <-- ledgers.signal.map { ffs =>
           // Every cell (not just Name) carries its own click-to-navigate handler, so the whole row
           // is clickable — Table is a shared component with no row-level click plumbing, and adding
           // it there would need to survive this page's own sort-by-column reordering, whereas
@@ -44,13 +44,13 @@ object FundFlowsPage:
           // with that cell when Table re-sorts the display order. The hover *highlight* is still
           // driven by Table itself (hoverableRows), so the whole row lights up as one bar rather
           // than three separately-hovering cells.
-          def cell(content: String, ff: FundFlowPayload): HtmlElement =
+          def cell(content: String, ff: LedgerPayload): HtmlElement =
             a(
-              href := "/components/fund-flow",
+              href := "/components/ledger",
               cls  := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300",
               onClick --> { e =>
                 e.preventDefault()
-                Nav.toFundFlow(ff)
+                Nav.toLedger(ff)
               },
               content
             )

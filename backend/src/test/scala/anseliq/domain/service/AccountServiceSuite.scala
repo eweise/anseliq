@@ -22,10 +22,10 @@ class AccountServiceSuite extends munit.FunSuite:
           properties   = properties
         )
 
-        val fundFlowAccounts = dataSetup.accountRepo.findByFundFlow(dataSetup.fundFlowConfig.id)
+        val ledgerAccounts = dataSetup.accountRepo.findByLedger(dataSetup.ledger.id)
 
         // make sure the non clearing accounts balance
-        assertEquals(BigDecimal(0), fundFlowAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))
+        assertEquals(BigDecimal(0), ledgerAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))
 
         app.accountService.postAmount(
           movementSpec = dataSetup.reportToRecon,
@@ -34,4 +34,4 @@ class AccountServiceSuite extends munit.FunSuite:
           properties   = properties
         )
 
-        assertEquals(BigDecimal(0), fundFlowAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))
+        assertEquals(BigDecimal(0), ledgerAccounts.foldLeft(BigDecimal(0))((bal, account) => bal + account.balance))

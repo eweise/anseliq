@@ -10,7 +10,7 @@ import com.augustnagro.magnum.transact
 import com.typesafe.config.{Config, ConfigFactory}
 
 /**
- * One fund flow run day by day through the real pipeline, for HappyPathScenarioSuite to check and
+ * One ledger run day by day through the real pipeline, for HappyPathScenarioSuite to check and
  * SeedHappyPathDemo to leave in the dev DB.
  *
  * A Journal account posts into a Recon account and the Recon account settles out to a Bank
@@ -63,7 +63,7 @@ object HappyPathScenario:
 
   case class Setup(
     runId:        String,
-    fundFlow:     FundFlowConfig,
+    ledger:     Ledger,
     journal:      Account,
     recon:        Account,
     bank:         Account,
@@ -91,15 +91,15 @@ class HappyPathScenario(app: HappyPathApp):
 
   private val env = AppEnv(app)
 
-  /** Moves the clock back to day 0 and creates the fund flow, committed. */
+  /** Moves the clock back to day 0 and creates the ledger, committed. */
   def start(): Setup =
     app.clock.addHours(-24 * (Days - 1))
     val runId = java.util.UUID.randomUUID().toString.take(8)
     transact(app.transactor):
-      val fundFlow = app.fundFlowService.createFundFlow(FundFlowConfig(name = s"Happy Path $runId"))
-      val journal  = app.accountService.createAccount(Account(name = "Journal", fundFlowId = fundFlow.id, accountType = AccountType.Primary))
-      val recon    = app.accountService.createAccount(Account(name = "Recon", fundFlowId = fundFlow.id, accountType = AccountType.Recon))
-      val bank     = app.accountService.createAccount(Account(name = "Bank", fundFlowId = fundFlow.id, accountType = AccountType.Secondary))
+      val ledger = app.ledgerService.createLedger(Ledger(name = s"Happy Path $runId"))
+      val journal  = app.accountService.createAccount(Account(name = "Journal", ledgerId = ledger.id, accountType = AccountType.Primary))
+      val recon    = app.accountService.createAccount(Account(name = "Recon", ledgerId = ledger.id, accountType = AccountType.Recon))
+      val bank     = app.accountService.createAccount(Account(name = "Bank", ledgerId = ledger.id, accountType = AccountType.Secondary))
 
       def feed(name: String, idColumn: String) = app.fileFeedService.createFileFeed(
         FileFeed(
@@ -144,7 +144,7 @@ class HappyPathScenario(app: HappyPathApp):
         UserRole.Analyst,
         java.util.UUID.randomUUID().toString
       )
-      Setup(runId, fundFlow, journal, recon, bank, journalFeed, bankFeed, journalSpec, bankSpec, reconSpec, reviewer)
+      Setup(runId, ledger, journal, recon, bank, journalFeed, bankFeed, journalSpec, bankSpec, reconSpec, reviewer)
 
   /** Runs every day, calling `afterDay` with each day's number once it's done, before the clock moves on. */
   def runDays(s: Setup)(afterDay: Int => Unit = _ => ()): Unit =
@@ -187,8 +187,8 @@ class HappyPathScenario(app: HappyPathApp):
     suggestJobs.foreach(job => runJob(job.id)(j => app.matchSuggestionService.suggestForAccount(j.referenceId)))
 
     transact(app.transactor):
-      app.reportingService.storeDailySnapshot(s.fundFlow)
-      app.reconciler.raiseStaleMismatchDisputes(s.reconSpec)
+      app.reportingService.storeDailySnapshot(s.ledger)
+      app.reconciler.raiseStaleMismatchExceptions(s.reconSpec)
 
   // Claims and runs a queued job the way JobManager.runWorker does, but synchronously and only for
   // this scenario's jobs, so other queued jobs in the shared DB are left alone.
@@ -212,17 +212,17 @@ class HappyPathScenario(app: HappyPathApp):
       val inventoryIds = app.fileInventoryRepo.findAll.filter(fi => feedIds.contains(fi.fileFeedId)).map(_.id).toSet
       val recons       = app.reconRepo.findByReconSpecID(s.reconSpec.id)
       val movementIds  = accountIds.flatMap(app.movementRepo.findByAccount(_).map(_.id))
-      val disputes = app.disputeRepo.findAll.filter: d =>
+      val exceptions = app.exceptionRepo.findAll.filter: d =>
         (feedIds ++ recons.map(_.id) ++ movementIds + s.journalSpec.id + s.bankSpec.id).contains(d.referenceId)
 
       // Events only carry ids in their JSON payload.
       val idsInEvents =
-        (accountIds ++ inventoryIds ++ disputes.map(_.id) ++ recons.map(_.id) + s.journalSpec.id + s.bankSpec.id).map(_.toString)
+        (accountIds ++ inventoryIds ++ exceptions.map(_.id) ++ recons.map(_.id) + s.journalSpec.id + s.bankSpec.id).map(_.toString)
       app.eventRepo.findAll
         .filter(e => idsInEvents.exists(e.payload.contains))
         .foreach(e => app.eventRepo.deleteById(e.id))
 
-      disputes.foreach(d => app.disputeRepo.deleteById(d.id))
+      exceptions.foreach(d => app.exceptionRepo.deleteById(d.id))
       inventoryIds.foreach: id =>
         app.jobRepo.findByJobTypeAndReferenceId(JobType.Ingestion, id).foreach(j => app.jobRepo.deleteById(j.id))
         app.fileInventoryRepo.deleteById(id)
@@ -233,6 +233,6 @@ class HappyPathScenario(app: HappyPathApp):
       app.reconSpecRepo.deleteById(s.reconSpec.id)
       // Cascades to the accounts, and from them to the movement specs, remaining movements (and their
       // match suggestions) and daily snapshots.
-      app.fundFlowConfigRepo.deleteById(s.fundFlow.id)
+      app.ledgerRepo.deleteById(s.ledger.id)
       feedIds.foreach(app.fileFeedRepo.deleteById)
       app.userRepo.deleteById(s.reviewer.id)

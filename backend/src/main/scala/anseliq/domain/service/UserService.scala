@@ -5,7 +5,7 @@ import anseliq.domain.model.*
 import anseliq.domain.port.driven.{Txn, UserRepo}
 
 // Deliberately does not check the caller's role/permission itself — matches every other service
-// in this app (e.g. DisputeService), where authorization is the route's responsibility, not the
+// in this app (e.g. ExceptionService), where authorization is the route's responsibility, not the
 // service's. The route layer checks currentUser.role before calling into these Admin-only actions.
 class UserService(userRepo: UserRepo, clock: ClockService):
 

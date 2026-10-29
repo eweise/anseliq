@@ -74,4 +74,4 @@ class LargeFileIngestionReconciliationSuite extends munit.FunSuite:
 //        // reconciliations reconcileAccount created must go before the spec they reference.
 //        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
 //        data.reconSpecRepo.deleteById(data.reconSpec.id)
-//        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+//        data.ledgerRepo.deleteById(data.ledger.id)

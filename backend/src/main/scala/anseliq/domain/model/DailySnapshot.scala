@@ -9,7 +9,7 @@ import java.util.UUID
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class DailySnapshot(
   @Id id:         ID     = createID(),
-  fundFlowId:     ID,
+  ledgerId:     ID,
   snapshotDate:   LocalDate,
   matchRatesJson: String = "[]",
   // Renamed in place from avgMatchRatePercent (same physical column, ALTER TABLE RENAME COLUMN) —

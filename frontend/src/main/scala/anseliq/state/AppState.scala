@@ -2,13 +2,13 @@ package anseliq.state
 
 import com.raquo.laminar.api.L.*
 import org.scalajs.dom
-import anseliq.common.model.FundFlowPayload
+import anseliq.common.model.LedgerPayload
 
 object AppState:
   val darkMode:       Var[Boolean]                 = Var(dom.window.localStorage.getItem("darkMode") == "true")
   val globalError:    Var[Option[String]]          = Var(None)
-  val fundFlows:      Var[Seq[FundFlowPayload]]    = Var(Seq.empty)
-  val activeFundFlow: Var[Option[FundFlowPayload]] = Var(None)
+  val ledgers:      Var[Seq[LedgerPayload]]    = Var(Seq.empty)
+  val activeLedger: Var[Option[LedgerPayload]] = Var(None)
 
   def toggleDarkMode(): Unit =
     darkMode.update(!_)

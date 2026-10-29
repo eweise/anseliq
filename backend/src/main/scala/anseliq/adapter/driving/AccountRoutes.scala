@@ -17,10 +17,10 @@ class AccountRoutes(
   accountService: AccountService
 ) extends ApiRoutes:
 
-  @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/accounts", methods = HttpCmd.GET)
-  def accountsByFundFlowID(fundFlowID: String): String =
+  @cask.route(s"${HttpPath.ledgers}/:ledgerID/accounts", methods = HttpCmd.GET)
+  def accountsByLedgerID(ledgerID: String): String =
     transact(transactor):
-      val accounts = accountRepo.findByFundFlow(UUID.fromString(fundFlowID))
+      val accounts = accountRepo.findByLedger(UUID.fromString(ledgerID))
       val payload  = accounts.map(PayloadMapper.accountPayloadFromDomain)
       write(payload)
 

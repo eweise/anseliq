@@ -20,10 +20,6 @@ object DbMigrations extends StrictLogging:
       // Unpooled: this runs once, before the pool is wanted, and shouldn't keep connections open.
       .dataSource(DbDataSource.unpooled(config))
       .schemas(config.getString("db.schema"))
-      // A database created from the old schema.sql has the V1 schema but no history table: it's
-      // recorded as already at V1 instead of having V1 run against tables that exist.
-      .baselineOnMigrate(true)
-      .baselineVersion("1")
       // Waits for a database that isn't up yet (one starting alongside the app, or restarting for
       // maintenance) rather than failing at once: retries at 1, 2, 4, 8, then every 10 seconds,
       // about a minute and a half in all.

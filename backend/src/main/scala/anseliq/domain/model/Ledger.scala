@@ -7,7 +7,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
-case class FundFlowConfig(
+case class Ledger(
   @Id id:        ID                     = createID(),
   name:          String,
   var createdAt: Option[OffsetDateTime] = None,
@@ -18,5 +18,5 @@ case class FundFlowConfig(
   dailyCutoffHours: Int = 0
 ) extends Audited derives DbCodec
 
-object FundFlowConfig:
-  val Table: TableInfo[FundFlowConfig, FundFlowConfig, UUID] = TableInfo[FundFlowConfig, FundFlowConfig, UUID]
+object Ledger:
+  val Table: TableInfo[Ledger, Ledger, UUID] = TableInfo[Ledger, Ledger, UUID]

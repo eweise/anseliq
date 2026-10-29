@@ -10,14 +10,14 @@ import anseliq.domain.service.Ingestor
 // test (or ControlTimeMain) that moves the clock forward controls when files appear to have landed.
 class ControlTimeIngestor(app: AppContainer)
     extends Ingestor(
-      ledger            = app.ledger,
+      bookkeeper            = app.bookkeeper,
       movementRepo      = app.movementRepo,
       movementSpecRepo  = app.movementSpecRepo,
       fileFeedRepo      = app.fileFeedRepo,
       eventStore        = app.eventStore,
       fileInventoryRepo = app.fileInventoryRepo,
       fileSourceFactory = app.fileSourceFactory,
-      disputeService    = app.disputeService,
+      exceptionService    = app.exceptionService,
       clock             = app.clock,
       transactor        = app.transactor
     ):

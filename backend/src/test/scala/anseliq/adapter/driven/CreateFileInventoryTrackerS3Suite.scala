@@ -180,4 +180,4 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
           .foreach(es => app.eventRepo.deleteById(es.id))
         app.fileInventoryRepo.deleteById(fileInventory.id)
         data.reconSpecRepo.deleteById(data.reconSpec.id)
-        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+        data.ledgerRepo.deleteById(data.ledger.id)

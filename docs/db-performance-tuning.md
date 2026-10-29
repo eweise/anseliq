@@ -15,7 +15,7 @@ the `postgresql.conf` changes are host-level and must be reapplied manually per 
 - `movement_props_index` — `WITH (fastupdate = false)`. GIN's `fastupdate` buffers new entries in a
   pending list and periodically flushes them via an expensive synchronous merge, whose cost grows
   with index size — this produced ingestion's "fast, then a long stall" pattern. Ingestion already
-  batches thousands of rows per transaction (`Ledger.recordMovements`), so `fastupdate`'s intended
+  batches thousands of rows per transaction (`Bookkeeper.recordMovements`), so `fastupdate`'s intended
   benefit (amortizing cost across many small individual inserts) doesn't apply here. Measured 3.7x
   faster total ingestion time on a 1M-row synthetic run, with worst-case batch latency dropping from
   1.6s (a merge stall) to under 100ms.

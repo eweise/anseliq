@@ -46,7 +46,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         data.accountRepo.update(data.reconAccount.copy(balance = 300, reconciledBalance = 100))
         val zeroBalance = Account(
           name        = "zero-balance-recon",
-          fundFlowId  = data.fundFlowConfig.id,
+          ledgerId  = data.ledger.id,
           accountType = AccountType.Recon
         )
         data.accountRepo.insert(zeroBalance)
@@ -101,7 +101,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         assert(!result.matchRates.exists(_.accountId == data.journalAccount.id))
         assert(!result.matchRates.exists(_.accountId == data.reportAccount.id))
 
-  test("exceptions: groups open disputes by category and status, excludes Resolved"):
+  test("exceptions: groups open exceptions by category and status, excludes Resolved"):
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
@@ -112,40 +112,40 @@ class ReportingServiceSuite extends munit.FunSuite:
 
         val m =
           createMovement(data.journalToRecon.inAccountId, data.journalToRecon.outAccountId, data.journalToRecon.id, 100)
-        data.disputeRepo.insert(
-          Dispute(
+        data.exceptionRepo.insert(
+          ExceptionCase(
             referenceId = m.id,
-            targetType  = DisputeTarget.Movement,
-            category    = DisputeCategory.AmountMismatch,
-            status      = DisputeStatus.New,
+            targetType  = ExceptionTarget.Movement,
+            category    = ExceptionCategory.AmountMismatch,
+            status      = ExceptionStatus.New,
             createdAt   = Some(clock.now),
             updatedAt   = Some(clock.now)
           )
         )
-        data.disputeRepo.insert(
-          Dispute(
+        data.exceptionRepo.insert(
+          ExceptionCase(
             referenceId = m.id,
-            targetType  = DisputeTarget.Movement,
-            category    = DisputeCategory.Duplicate,
-            status      = DisputeStatus.Investigating,
+            targetType  = ExceptionTarget.Movement,
+            category    = ExceptionCategory.Duplicate,
+            status      = ExceptionStatus.Investigating,
             createdAt   = Some(clock.now),
             updatedAt   = Some(clock.now)
           )
         )
-        data.disputeRepo.insert(
-          Dispute(
+        data.exceptionRepo.insert(
+          ExceptionCase(
             referenceId = m.id,
-            targetType  = DisputeTarget.Movement,
-            category    = DisputeCategory.AmountMismatch,
-            status      = DisputeStatus.Resolved,
+            targetType  = ExceptionTarget.Movement,
+            category    = ExceptionCategory.AmountMismatch,
+            status      = ExceptionStatus.Resolved,
             createdAt   = Some(clock.now),
             updatedAt   = Some(clock.now)
           )
         )
 
-        // Scoped to this test's own fund flow: the shared dev database this suite runs against also has
-        // real dispute data from manual QA testing, which would otherwise leak into an unscoped count.
-        val result = service.summary(Some(data.fundFlowConfig.id))
+        // Scoped to this test's own ledger: the shared dev database this suite runs against also has
+        // real exception data from manual QA testing, which would otherwise leak into an unscoped count.
+        val result = service.summary(Some(data.ledger.id))
 
         assertEquals(result.exceptions.byCategory.get("AmountMismatch"), Some(1))
         assertEquals(result.exceptions.byCategory.get("Duplicate"), Some(1))
@@ -171,8 +171,8 @@ class ReportingServiceSuite extends munit.FunSuite:
         createMovementAgedDays(spec.inAccountId, spec.outAccountId, spec.id, 14) // 8-14
         createMovementAgedDays(spec.inAccountId, spec.outAccountId, spec.id, 15) // 15+
 
-        // Scoped to this test's own fund flow, for the same reason as the exceptions test above.
-        val result  = service.summary(Some(data.fundFlowConfig.id))
+        // Scoped to this test's own ledger, for the same reason as the exceptions test above.
+        val result  = service.summary(Some(data.ledger.id))
         val buckets = result.aging.buckets.toMap
 
         assertEquals(buckets("0-3"), 1)
@@ -196,7 +196,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         createMovementAgedDays(spec.inAccountId, spec.outAccountId, spec.id, 10) // overdue
 
         val orphanAccount =
-          Account(name = "orphan-recon", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Recon)
+          Account(name = "orphan-recon", ledgerId = data.ledger.id, accountType = AccountType.Recon)
         data.accountRepo.insert(orphanAccount)
         val orphanFeed = FileFeed()
         data.fileFeedRepo.insert(orphanFeed)
@@ -213,12 +213,12 @@ class ReportingServiceSuite extends munit.FunSuite:
           20
         ) // no recon spec exists for orphanAccount
 
-        // Scoped to this test's own fund flow, for the same reason as the exceptions test above.
-        val result = service.summary(Some(data.fundFlowConfig.id)) // must not throw
+        // Scoped to this test's own ledger, for the same reason as the exceptions test above.
+        val result = service.summary(Some(data.ledger.id)) // must not throw
 
         assertEquals(result.aging.overdueCount, 1)
 
-  test("summary(fundFlowId) scopes matchRates and aging to that fund flow's accounts only"):
+  test("summary(ledgerId) scopes matchRates and aging to that ledger's accounts only"):
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
@@ -229,24 +229,24 @@ class ReportingServiceSuite extends munit.FunSuite:
 
         data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
-        val otherFundFlow = FundFlowConfig(name = "other-ff")
-        data.fundFlowConfigRepo.insert(otherFundFlow)
+        val otherLedger = Ledger(name = "other-ff")
+        data.ledgerRepo.insert(otherLedger)
         val otherAccount = Account(
           name              = "other-recon",
-          fundFlowId        = otherFundFlow.id,
+          ledgerId        = otherLedger.id,
           accountType       = AccountType.Recon,
           balance           = 200,
           reconciledBalance = 200
         )
         data.accountRepo.insert(otherAccount)
 
-        val scoped = service.summary(Some(data.fundFlowConfig.id))
+        val scoped = service.summary(Some(data.ledger.id))
         assertEquals(scoped.matchRates.map(_.accountId), Seq(data.reconAccount.id))
 
         val unscoped = service.summary(None)
         assert(unscoped.matchRates.exists(_.accountId == otherAccount.id))
 
-  test("summary with an unknown fundFlowId throws NotFoundError"):
+  test("summary with an unknown ledgerId throws NotFoundError"):
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
@@ -261,14 +261,14 @@ class ReportingServiceSuite extends munit.FunSuite:
   test(
     "aggregateSnapshotsByDate: weighted-averages avgBalanceCoveragePercent by ratedAccountCount, and derives avgMatchRatePercent as a ratio of summed movement counts"
   ):
-    // Pure function, no DB — two fund flows' snapshots sharing a date: one rated on 3 accounts
+    // Pure function, no DB — two ledgers' snapshots sharing a date: one rated on 3 accounts
     // averaging 90%, the other on 1 account at 50%. Weighted average = (90*3 + 50*1) / 4 = 80.
-    // Movement counts: fund flow A has 8 reconciled of 10 total, fund flow B has 1 of 2 — ratio of
+    // Movement counts: ledger A has 8 reconciled of 10 total, ledger B has 1 of 2 — ratio of
     // sums = (8+1)/(10+2) = 75.00%.
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        fundFlowId                = createID(),
+        ledgerId                = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(90)),
         ratedAccountCount         = 3,
@@ -280,7 +280,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         totalMovementCount        = 10
       ),
       DailySnapshot(
-        fundFlowId                = createID(),
+        ledgerId                = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(50)),
         ratedAccountCount         = 1,
@@ -304,16 +304,16 @@ class ReportingServiceSuite extends munit.FunSuite:
     assertEquals(p.unreconciledBacklogCount, 5) // 1+1+2+1
     assertEquals(p.overdueCount, 4)
 
-  test("aggregateSnapshotsByDate: sums openExceptionsByCategory across fund flows sharing a date, per category"):
+  test("aggregateSnapshotsByDate: sums openExceptionsByCategory across ledgers sharing a date, per category"):
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        fundFlowId               = createID(),
+        ledgerId               = createID(),
         snapshotDate             = date,
         exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 2, "FileMissing" -> 1))
       ),
       DailySnapshot(
-        fundFlowId               = createID(),
+        ledgerId               = createID(),
         snapshotDate             = date,
         exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 3, "Duplicate" -> 1))
       )
@@ -328,18 +328,18 @@ class ReportingServiceSuite extends munit.FunSuite:
     )
 
   test(
-    "aggregateSnapshotsByDate: a fund flow with no rated accounts that day (None) is excluded from the weighted average, not treated as 0"
+    "aggregateSnapshotsByDate: a ledger with no rated accounts that day (None) is excluded from the weighted average, not treated as 0"
   ):
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        fundFlowId                = createID(),
+        ledgerId                = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(80)),
         ratedAccountCount         = 2
       ),
       DailySnapshot(
-        fundFlowId                = createID(),
+        ledgerId                = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = None,
         ratedAccountCount         = 0
@@ -365,10 +365,10 @@ class ReportingServiceSuite extends munit.FunSuite:
         service.computeAndStoreDailySnapshots() // second run same day must overwrite, not duplicate
 
         val today = clock.now.toLocalDate
-        val rows  = app.dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today)
-        assertEquals(rows.size, 1, "idempotent upsert: exactly one row for this fund flow today")
+        val rows  = app.dailySnapshotRepo.findTrend(data.ledger.id, today, today)
+        assertEquals(rows.size, 1, "idempotent upsert: exactly one row for this ledger today")
 
-        val expected = service.summary(Some(data.fundFlowConfig.id))
+        val expected = service.summary(Some(data.ledger.id))
         assertEquals(rows.head.avgBalanceCoveragePercent, expected.matchRates.head.balanceCoveragePercent)
         assertEquals(rows.head.avgMatchRatePercent, expected.matchRates.head.matchRatePercent)
         assertEquals(rows.head.ratedAccountCount, 1)
@@ -396,13 +396,13 @@ class ReportingServiceSuite extends munit.FunSuite:
         service.computeAndStoreDailySnapshots()
         val day2 = clock.now.toLocalDate
 
-        val trend  = service.trend(Some(data.fundFlowConfig.id), days = 30)
+        val trend  = service.trend(Some(data.ledger.id), days = 30)
         val byDate = trend.points.map(p => p.date -> p).toMap
 
         assertEquals(byDate(day1).avgBalanceCoveragePercent, Some(BigDecimal("25.00")))
         assertEquals(byDate(day2).avgBalanceCoveragePercent, Some(BigDecimal("75.00")))
 
-  test("computeAndStoreDailySnapshots: a fund flow isn't due until its dailyCutoffHours, then becomes due"):
+  test("computeAndStoreDailySnapshots: a ledger isn't due until its dailyCutoffHours, then becomes due"):
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
@@ -416,29 +416,29 @@ class ReportingServiceSuite extends munit.FunSuite:
         // happens to run at.
         clock.addHours(24 - clock.now.getHour)
 
-        data.fundFlowConfigRepo.update(data.fundFlowConfig.copy(dailyCutoffHours = 3))
+        data.ledgerRepo.update(data.ledger.copy(dailyCutoffHours = 3))
         data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
         // Not assertEquals(..., 0/1) on the raw return value: computeAndStoreDailySnapshots counts
-        // every due fund flow in the whole database, not just this test's own — fragile against
-        // any other fund flow that happens to exist (e.g. DataSetupScenario1's permanent demo
+        // every due ledger in the whole database, not just this test's own — fragile against
+        // any other ledger that happens to exist (e.g. DataSetupScenario1's permanent demo
         // data, deliberately never cleaned up since it's meant for manual UI testing). Checking
-        // existsForDate for this test's own fundFlowConfig.id is the properly-scoped equivalent.
+        // existsForDate for this test's own ledger.id is the properly-scoped equivalent.
         clock.addHours(1) // ~01:xx — before the 3am cutoff
         service.computeAndStoreDailySnapshots()
         assert(
-          !app.dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
-          "not due yet: before this fund flow's cutoff hour"
+          !app.dailySnapshotRepo.existsForDate(data.ledger.id, clock.now.toLocalDate),
+          "not due yet: before this ledger's cutoff hour"
         )
 
         clock.addHours(3) // ~04:xx — past the 3am cutoff
         service.computeAndStoreDailySnapshots()
         assert(
-          app.dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, clock.now.toLocalDate),
-          "due now: past this fund flow's cutoff hour"
+          app.dailySnapshotRepo.existsForDate(data.ledger.id, clock.now.toLocalDate),
+          "due now: past this ledger's cutoff hour"
         )
 
-  test("computeAndStoreDailySnapshots: a fund flow already snapshotted today is skipped on a later poll"):
+  test("computeAndStoreDailySnapshots: a ledger already snapshotted today is skipped on a later poll"):
     val app = TestAppContainer()
     transact(app.transactor):
       rollBackOnly:
@@ -450,15 +450,15 @@ class ReportingServiceSuite extends munit.FunSuite:
         data.accountRepo.update(data.reconAccount.copy(balance = 100, reconciledBalance = 50))
 
         // Same reasoning as the cutoff-hours test above: the raw return count isn't scoped to this
-        // test's own fund flow, so it's compared here via the actual persisted snapshot row instead
-        // of an exact 1/0 count — robust to any other fund flow in the database also being due.
+        // test's own ledger, so it's compared here via the actual persisted snapshot row instead
+        // of an exact 1/0 count — robust to any other ledger in the database also being due.
         service.computeAndStoreDailySnapshots()
         val today = clock.now.toLocalDate
-        assert(app.dailySnapshotRepo.existsForDate(data.fundFlowConfig.id, today), "first poll today: due")
-        val afterFirstPoll = app.dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
+        assert(app.dailySnapshotRepo.existsForDate(data.ledger.id, today), "first poll today: due")
+        val afterFirstPoll = app.dailySnapshotRepo.findTrend(data.ledger.id, today, today).head
 
         service.computeAndStoreDailySnapshots() // a later poll the same day
-        val afterSecondPoll = app.dailySnapshotRepo.findTrend(data.fundFlowConfig.id, today, today).head
+        val afterSecondPoll = app.dailySnapshotRepo.findTrend(data.ledger.id, today, today).head
         assertEquals(
           afterSecondPoll,
           afterFirstPoll,

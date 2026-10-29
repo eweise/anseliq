@@ -56,7 +56,7 @@ object LeftNav:
     ),
     NavGroup(
       "Ledgers",
-      Seq(NavItem("Ledgers", "/components/fund-flows", Icons.document))
+      Seq(NavItem("Ledgers", "/components/ledgers", Icons.document))
     ),
     NavGroup(
       "Data",

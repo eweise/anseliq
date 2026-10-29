@@ -24,7 +24,7 @@ trait AppContainer:
 
   lazy val jobRepo:             JobRepo                = JobRepoLive(clock)
   lazy val jobManager:          JobManager             = JobManager(jobRepo, clock, dataSource)
-  lazy val fundFlowConfigRepo:  FundFlowConfigRepo     = FundFlowConfigRepoLive(clock)
+  lazy val ledgerRepo:  LedgerRepo     = LedgerRepoLive(clock)
   lazy val reconRepo:           ReconciliationRepo     = ReconciliationRepoLive(clock)
   lazy val movementSpecRepo:    MovementSpecRepo       = MovementSpecRepoLive(clock)
   lazy val fileFeedRepo:        FileFeedRepo           = FileFeedRepoLive(clock)
@@ -32,26 +32,26 @@ trait AppContainer:
   lazy val accountRepo:         AccountRepo            = AccountRepoLive(clock)
   lazy val movementRepo:        MovementRepo           = MovementRepoLive(clock)
   lazy val eventRepo:           EventRepo              = EventRepoLive()
-  lazy val fundFlowService:     FundFlowService        = FundFlowService(fundFlowConfigRepo)
+  lazy val ledgerService:     LedgerService        = LedgerService(ledgerRepo)
   lazy val accountService:      AccountService         = AccountService(accountRepo, movementRepo)
   lazy val movementSpecService: MovementSpecService    = MovementSpecService(movementSpecRepo, accountRepo)
   lazy val fileFeedService:     FileFeedService        = FileFeedService(fileFeedRepo)
   lazy val reconSpecService:    ReconSpecService       = ReconSpecService(reconSpecRepo, movementSpecRepo, accountRepo)
   lazy val eventStore:          EventStore             = EventStore(eventRepo, clock)
   lazy val fileInventoryRepo:   FileInventoryRepo      = FileInventoryRepoLive()
-  lazy val ledger: Ledger =
-    Ledger(
+  lazy val bookkeeper: Bookkeeper =
+    Bookkeeper(
       movementRepo = movementRepo,
       accountRepo  = accountRepo,
       reconRepo    = reconRepo,
       clock        = clock
     )
-  lazy val disputeRepo:        DisputeRepo        = DisputeRepoLive()
-  lazy val disputeCommentRepo: DisputeCommentRepo = DisputeCommentRepoLive()
+  lazy val exceptionRepo:        ExceptionRepo        = ExceptionRepoLive()
+  lazy val exceptionCommentRepo: ExceptionCommentRepo = ExceptionCommentRepoLive()
   lazy val userRepo:           UserRepo           = UserRepoLive(clock)
-  lazy val disputeService: DisputeService = DisputeService(
-    disputeRepo      = disputeRepo,
-    commentRepo      = disputeCommentRepo,
+  lazy val exceptionService: ExceptionService = ExceptionService(
+    exceptionRepo      = exceptionRepo,
+    commentRepo      = exceptionCommentRepo,
     movementRepo     = movementRepo,
     reconRepo        = reconRepo,
     movementSpecRepo = movementSpecRepo,
@@ -61,17 +61,17 @@ trait AppContainer:
     clock            = clock
   )
   lazy val reconciler: InMemoryReconciler = InMemoryReconciler(
-    ledger             = ledger,
+    bookkeeper             = bookkeeper,
     movementRepo       = movementRepo,
     reconSpecRepo      = reconSpecRepo,
     movementSpecRepo   = movementSpecRepo,
     reconRepo          = reconRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo,
+    ledgerRepo = ledgerRepo,
     eventStore         = eventStore,
     clock              = clock,
     transactor         = transactor,
     jobRepo            = jobRepo,
-    disputeService     = disputeService,
+    exceptionService     = exceptionService,
     cursorDataSource   = cursorDataSource
   )
   lazy val reconciliationRunner: ReconciliationRunner = ReconciliationRunner(
@@ -101,11 +101,11 @@ trait AppContainer:
     ruleProposalMinExamples = config.getInt("match-suggestions.rule-proposal-min-examples")
   )
   lazy val manualReconciler: ManualReconciler = ManualReconciler(
-    ledger         = ledger,
+    bookkeeper         = bookkeeper,
     movementRepo   = movementRepo,
     reconRepo      = reconRepo,
     reconSpecRepo  = reconSpecRepo,
-    disputeService = disputeService,
+    exceptionService = exceptionService,
     eventStore     = eventStore,
     clock          = clock,
     transactor     = transactor
@@ -113,12 +113,12 @@ trait AppContainer:
   lazy val dailySnapshotRepo: DailySnapshotRepo = DailySnapshotRepoLive(clock)
   lazy val reportingService: ReportingService = ReportingService(
     accountRepo        = accountRepo,
-    disputeRepo        = disputeRepo,
+    exceptionRepo        = exceptionRepo,
     movementRepo       = movementRepo,
     reconRepo          = reconRepo,
     reconSpecRepo      = reconSpecRepo,
     movementSpecRepo   = movementSpecRepo,
-    fundFlowConfigRepo = fundFlowConfigRepo,
+    ledgerRepo = ledgerRepo,
     dailySnapshotRepo  = dailySnapshotRepo,
     clock              = clock
   )
@@ -135,14 +135,14 @@ trait AppContainer:
     JwtSecret(secret)
   lazy val authService: AuthService = AuthService(userRepo, jwtSecret)
   lazy val ingestor = Ingestor(
-    ledger            = ledger,
+    bookkeeper            = bookkeeper,
     movementRepo      = movementRepo,
     movementSpecRepo  = movementSpecRepo,
     fileFeedRepo      = fileFeedRepo,
     eventStore        = eventStore,
     fileInventoryRepo = fileInventoryRepo,
     fileSourceFactory = fileSourceFactory,
-    disputeService    = disputeService,
+    exceptionService    = exceptionService,
     clock             = clock,
     transactor        = transactor
   )

@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 
 object Modal:
 
-  // Fixed full-viewport backdrop + centered card, so the page underneath (e.g. the fund flow
+  // Fixed full-viewport backdrop + centered card, so the page underneath (e.g. the ledger
   // diagram) stays mounted and visible instead of being navigated away from. Clicking the backdrop
   // itself (not the card) closes it — checking target == currentTarget rather than stopping
   // propagation on the card, since a click that starts and ends inside the card never has the

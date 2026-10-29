@@ -9,10 +9,10 @@ import anseliq.state.AppState.apiBind
 import anseliq.state.SessionStore
 import anseliq.view.components.{PageHeader, Pill, Table}
 
-// The Dashboard's aging chart aggregates unreconciled movements across every account/fund flow,
+// The Dashboard's aging chart aggregates unreconciled movements across every account/ledger,
 // unlike UnreconciledMovementsPage (which is scoped to one account) — this is the drill-through
 // target for that chart, listing every row /reports/unreconciled-movements returns with no
-// account/fund-flow filter, so a bucket's count on the chart always matches the row count here.
+// account/ledger filter, so a bucket's count on the chart always matches the row count here.
 object AllUnreconciledMovementsPage:
 
   def apply(): HtmlElement =

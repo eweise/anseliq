@@ -16,24 +16,24 @@ class ReportRoutes(
 
   // Reports
   @cask.route(s"${HttpPath.reports}/summary", methods = HttpCmd.GET)
-  def getReportsSummary(fundFlowId: Option[String] = None): String =
+  def getReportsSummary(ledgerId: Option[String] = None): String =
     transact(transactor):
-      val report = reportingService.summary(fundFlowId.map(UUID.fromString))
+      val report = reportingService.summary(ledgerId.map(UUID.fromString))
       write(PayloadMapper.reportsSummaryPayloadFromDomain(report))
 
   @cask.route(s"${HttpPath.reports}/trend", methods = HttpCmd.GET)
-  def getReportsTrend(fundFlowId: Option[String] = None, days: Int = 30): String =
+  def getReportsTrend(ledgerId: Option[String] = None, days: Int = 30): String =
     transact(transactor):
-      val report = reportingService.trend(fundFlowId.map(UUID.fromString), days)
+      val report = reportingService.trend(ledgerId.map(UUID.fromString), days)
       write(PayloadMapper.trendReportPayloadFromDomain(report))
 
-  // Drill-through list backing the aging chart's click-through — same fundFlowId scoping as
-  // /reports/summary (omitted -> every fund flow), one row per (recon account, unreconciled
+  // Drill-through list backing the aging chart's click-through — same ledgerId scoping as
+  // /reports/summary (omitted -> every ledger), one row per (recon account, unreconciled
   // movement).
   @cask.route(s"${HttpPath.reports}/unreconciled-movements", methods = HttpCmd.GET)
-  def getReportsUnreconciledMovements(fundFlowId: Option[String] = None): String =
+  def getReportsUnreconciledMovements(ledgerId: Option[String] = None): String =
     transact(transactor):
-      val rows = reportingService.unreconciledMovements(fundFlowId.map(UUID.fromString))
+      val rows = reportingService.unreconciledMovements(ledgerId.map(UUID.fromString))
       write(rows.map(PayloadMapper.unreconciledMovementPayloadFromDomain))
 
   initialize()

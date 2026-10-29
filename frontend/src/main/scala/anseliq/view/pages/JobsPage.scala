@@ -204,7 +204,7 @@ object JobsPage:
       Seq("Account" -> ri.accountName, "Reconciliations created" -> ri.reconciliationsCreatedCount.toString)
     case Some(ii: IngestionInfo)     => Seq("Records ingested" -> ii.numberOfRecordsIngested.toString)
     case Some(fi: FileInventoryInfo) => Seq("Files queued" -> fi.filesQueued.toString)
-    case Some(rs: ReconStatsInfo)    => Seq("Fund flows snapshotted" -> rs.fundFlowsSnapshotted.toString)
+    case Some(rs: ReconStatsInfo)    => Seq("Ledgers snapshotted" -> rs.ledgersSnapshotted.toString)
     case Some(ms: MatchSuggestionInfo) =>
       Seq("Movements considered" -> ms.movementsConsidered.toString, "Suggestions created" -> ms.suggestionsCreated.toString)
     case None                        => Seq.empty

@@ -11,7 +11,7 @@ enum ReconciliationFilter:
   case All, Unreconciled, OpenBalance
 
 case class MovementSearchCriteria(
-  fundFlowId:     ID,
+  ledgerId:     ID,
   accountId:      Option[ID]          = None,
   amount:         Option[Money]       = None,
   movementSpecId: Option[ID]          = None,

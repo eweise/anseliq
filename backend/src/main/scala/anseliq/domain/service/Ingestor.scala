@@ -40,14 +40,14 @@ enum BatchDecision:
 private case object IngestionStopped extends RuntimeException
 
 class Ingestor(
-  val ledger:            Ledger,
+  val bookkeeper:            Bookkeeper,
   val movementRepo:      MovementRepo,
   val movementSpecRepo:  MovementSpecRepo,
   val fileFeedRepo:      FileFeedRepo,
   val eventStore:        EventStore,
   val fileInventoryRepo: FileInventoryRepo,
   val fileSourceFactory: FileSourceFactory,
-  val disputeService:    DisputeService,
+  val exceptionService:    ExceptionService,
   val clock:             ClockService,
   val transactor:        Transactor
 ):
@@ -135,7 +135,7 @@ class Ingestor(
               parseErrorCount += 1
               if parseErrorSamples.size < 10 then parseErrorSamples += ParseErrorResult(idx, e.getMessage)
               // Stop-in-place, not all-or-nothing: batches already committed before this point stay
-              // ledgered (see raiseExcessiveParseErrorsDispute's doc). A genuinely systemic parsing
+              // ledgered (see raiseExcessiveParseErrorsException's doc). A genuinely systemic parsing
               // problem (wrong delimiter, bad column mapping) surfaces its errors from line 1, so in
               // the common case this behaves like rejecting the whole file anyway.
               if fileFeed.maxParseErrors.exists(cutoff => parseErrorCount > cutoff) then
@@ -166,13 +166,13 @@ class Ingestor(
           val lastLineInBatch = batch.last._1
           // Split the batch by which spec (if any) each row's routing key matched, so a batch
           // spanning multiple accounts (a multi-account BAI-style feed) posts each group to its
-          // own account pair via a separate ledger.recordMovements call instead of forcing every
+          // own account pair via a separate bookkeeper.recordMovements call instead of forcing every
           // row in the batch through one spec.
           val byMatchedSpec = batch.groupMap(_._2)(_._3)
 
           val decision = transact(transactor):
             byMatchedSpec.foreach:
-              case (Some(spec), requests) => ledger.recordMovements(movementSpec = spec, movementRequests = requests)
+              case (Some(spec), requests) => bookkeeper.recordMovements(movementSpec = spec, movementRequests = requests)
               case (None, _)              => () // unrouted rows aren't recorded as movements
 
             fileInventoryID.foreach: id =>
@@ -220,14 +220,14 @@ class Ingestor(
               recordCount          = count
             )
           )
-        if unroutedRows.nonEmpty then raiseUnroutedRecordDispute(fileFeed, movementSpecs, unroutedRows.toSeq)
+        if unroutedRows.nonEmpty then raiseUnroutedRecordException(fileFeed, movementSpecs, unroutedRows.toSeq)
 
     // Not gated on lastCommittedLine.isDefined like the block above: the cutoff can be crossed
-    // before a single batch ever commits (a bad file fails from line 1), and the dispute still
+    // before a single batch ever commits (a bad file fails from line 1), and the exception still
     // needs to be raised in that case.
     if fileFeed.maxParseErrors.exists(cutoff => parseErrorCount > cutoff) then
       transact(transactor):
-        raiseExcessiveParseErrorsDispute(fileFeed, parseErrorCount, parseErrorSamples.toSeq)
+        raiseExcessiveParseErrorsException(fileFeed, parseErrorCount, parseErrorSamples.toSeq)
 
     IngestionResult(
       recordCount          = recordCount,
@@ -251,7 +251,7 @@ class Ingestor(
   // configured a spec for: those rows now surface as an exception instead of vanishing. Unlike
   // FileMissing there's no clean signal to auto-resolve on, so this stays open until a human
   // configures a matching spec and resolves it explicitly.
-  private def raiseUnroutedRecordDispute(
+  private def raiseUnroutedRecordException(
     fileFeed:      FileFeed,
     movementSpecs: Seq[MovementSpec],
     unroutedRows:  Seq[Map[String, String]]
@@ -265,7 +265,7 @@ class Ingestor(
       s"${unroutedRows.size} row(s) in '${fileFeed.name}' matched no configured MovementSpec." +
         (if valuesSummary.nonEmpty then s" Unmatched value(s): $valuesSummary" else "")
 
-    disputeService.raiseSystemDispute(fileFeed.id, DisputeTarget.FileFeed, DisputeCategory.UnroutedRecord, detail)
+    exceptionService.raiseSystemException(fileFeed.id, ExceptionTarget.FileFeed, ExceptionCategory.UnroutedRecord, detail)
 
   // Raised once ingestion stops because a file's parse-error count crossed fileFeed.maxParseErrors
   // (see the .map step in ingestResumable above) — a signal the file has a general parsing problem
@@ -274,7 +274,7 @@ class Ingestor(
   // cutoff was crossed stay ledgered — only rows from the point the cutoff was crossed onward are
   // never parsed/ledgered. Targets the FileFeed for the same reason FileMissing/UnroutedRecord do:
   // there's no clean single row to blame for "this file is too dirty."
-  private def raiseExcessiveParseErrorsDispute(
+  private def raiseExcessiveParseErrorsException(
     fileFeed:   FileFeed,
     errorCount: Int,
     samples:    Seq[ParseErrorResult]
@@ -285,7 +285,7 @@ class Ingestor(
         s"configured cutoff (${fileFeed.maxParseErrors.get})." +
         (if sampleSummary.nonEmpty then s" Sample error(s): $sampleSummary" else "")
 
-    disputeService.raiseSystemDispute(fileFeed.id, DisputeTarget.FileFeed, DisputeCategory.ExcessiveParseErrors, detail)
+    exceptionService.raiseSystemException(fileFeed.id, ExceptionTarget.FileFeed, ExceptionCategory.ExcessiveParseErrors, detail)
 
   /**
    * Lets a user try a feed's parser config against a real sample file before wiring up real
@@ -358,7 +358,7 @@ class Ingestor(
   }
 
   /**
-   * Auto-raises (or auto-resolves) a FileMissing dispute against the FileFeed itself, based on
+   * Auto-raises (or auto-resolves) a FileMissing exception against the FileFeed itself, based on
    * whether a new file has been detected within its expectedCadenceHours window. Unlike
    * AmountMismatch (which always targets a real Reconciliation row), a missing file has no
    * FileInventory row to reference — there's nothing to point at except the feed that expected it.
@@ -374,25 +374,25 @@ class Ingestor(
           .map(_.lastModifiedAt)
           .orElse(fileFeed.createdAt)
       lastSeenAt.foreach: since =>
-        if clock.now.isAfter(since.plusHours(cadenceHours)) then raiseFileMissingDispute(fileFeed, cadenceHours, since)
-        else resolveFileMissingDispute(fileFeed)
+        if clock.now.isAfter(since.plusHours(cadenceHours)) then raiseFileMissingException(fileFeed, cadenceHours, since)
+        else resolveFileMissingException(fileFeed)
 
-  // raiseSystemDispute is idempotent, so repeated scans don't stack disputes: a rerun of this feed,
-  // or a feed that's still overdue on a later cycle, leaves the one open dispute as it is.
-  private def raiseFileMissingDispute(fileFeed: FileFeed, cadenceHours: Int, since: OffsetDateTime): Txn[Unit] =
-    disputeService.raiseSystemDispute(
+  // raiseSystemException is idempotent, so repeated scans don't stack exceptions: a rerun of this feed,
+  // or a feed that's still overdue on a later cycle, leaves the one open exception as it is.
+  private def raiseFileMissingException(fileFeed: FileFeed, cadenceHours: Int, since: OffsetDateTime): Txn[Unit] =
+    exceptionService.raiseSystemException(
       fileFeed.id,
-      DisputeTarget.FileFeed,
-      DisputeCategory.FileMissing,
+      ExceptionTarget.FileFeed,
+      ExceptionCategory.FileMissing,
       s"No new file detected for '${fileFeed.name}' since $since (expected every $cadenceHours hours)"
     )
 
-  // The mirror image of raiseFileMissingDispute: once a file shows up within cadence again, any
-  // open FileMissing dispute for this feed is stale and resolves itself.
-  private def resolveFileMissingDispute(fileFeed: FileFeed): Txn[Unit] =
-    disputeService.resolveAutomatically(
+  // The mirror image of raiseFileMissingException: once a file shows up within cadence again, any
+  // open FileMissing exception for this feed is stale and resolves itself.
+  private def resolveFileMissingException(fileFeed: FileFeed): Txn[Unit] =
+    exceptionService.resolveAutomatically(
       fileFeed.id,
-      DisputeCategory.FileMissing,
+      ExceptionCategory.FileMissing,
       s"Auto-resolved: a new file was detected for '${fileFeed.name}'."
     )
 

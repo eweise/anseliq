@@ -31,22 +31,16 @@ class DbMigrationsSuite extends munit.FunSuite:
     query(database, "select version, type from recon.flyway_schema_history where version is not null order by installed_rank"):
       rs => (rs.getString(1), rs.getString(2))
 
+  private val allMigrations = Vector("1" -> "SQL", "2" -> "SQL")
+
   test("an empty database gets every migration, and no users"):
     withScratchDatabase: database =>
       DbMigrations.migrate(configFor(database))
-      assertEquals(appliedVersions(database), Vector("1" -> "SQL"))
+      assertEquals(appliedVersions(database), allMigrations)
       assertEquals(query(database, "select count(*) from recon.app_user")(_.getInt(1)), Vector(0))
-
-  test("a database that predates Flyway is baselined at V1 rather than having V1 run over it"):
-    withScratchDatabase: database =>
-      // Stands in for a schema.sql-built database: a non-empty recon schema with no history table.
-      Using.resource(DbDataSource.unpooled(configFor(database)).getConnection):
-        _.createStatement().execute("create schema recon; create table recon.app_user (id uuid primary key)")
-      DbMigrations.migrate(configFor(database))
-      assertEquals(appliedVersions(database), Vector("1" -> "BASELINE"))
 
   test("migrating again is a no-op"):
     withScratchDatabase: database =>
       DbMigrations.migrate(configFor(database))
       DbMigrations.migrate(configFor(database))
-      assertEquals(appliedVersions(database), Vector("1" -> "SQL"))
+      assertEquals(appliedVersions(database), allMigrations)

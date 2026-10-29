@@ -30,10 +30,10 @@ class AuditedRepoSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data    = DataSetup(app)
-        val created = app.fundFlowConfigRepo.findById(data.fundFlowConfig.id).get
+        val created = app.ledgerRepo.findById(data.ledger.id).get
         app.clock.addHours(24)
-        app.fundFlowConfigRepo.update(created.copy(name = "renamed"))
-        val updated = app.fundFlowConfigRepo.findById(data.fundFlowConfig.id).get
+        app.ledgerRepo.update(created.copy(name = "renamed"))
+        val updated = app.ledgerRepo.findById(data.ledger.id).get
         assertEquals(updated.createdAt.map(_.toInstant), created.createdAt.map(_.toInstant))
         assertNearClock(updated.updatedAt)
 

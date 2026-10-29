@@ -24,7 +24,7 @@ case class FileInventoryInfo(
 ) extends JobInfo
 
 case class ReconStatsInfo(
-  fundFlowsSnapshotted:  Int,
+  ledgersSnapshotted:  Int,
   processingTimeSeconds: Long
 ) extends JobInfo
 

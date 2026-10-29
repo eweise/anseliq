@@ -3,11 +3,11 @@ package anseliq.view.pages
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
 import anseliq.common.model.{
-  DisputeCategoryPayload,
-  DisputePayload,
-  DisputeTargetPayload,
+  ExceptionCategoryPayload,
+  ExceptionPayload,
+  ExceptionTargetPayload,
   MovementDetailPayload,
-  RaiseDisputeRequest
+  RaiseExceptionRequest
 }
 import anseliq.common.model.model.Money
 import anseliq.http.ApiClient
@@ -36,8 +36,8 @@ object MovementDetailPage:
           div(
             cls := "relative flex flex-col gap-6",
             PageHeader.ledgerBreadcrumb(
-              d.fundFlow,
-              d.fundFlow.map(_ => "Movements" -> "Movements"),
+              d.ledger,
+              d.ledger.map(_ => "Movements" -> "Movements"),
               ReconciliationDetailPage.shortId(d.id) -> None
             ),
             div(
@@ -51,9 +51,9 @@ object MovementDetailPage:
               d.movementType.map(_ => Pill(MovementLabels.typeLabel(d.movementType, d.adjustmentType), Pill.Tone.Neutral))
                 .getOrElse(emptyNode)
             ),
-            raiseDispute(d.id, Observer[Unit](_ => loadBus.emit(()))),
+            raiseException(d.id, Observer[Unit](_ => loadBus.emit(()))),
             reconciliationSection(d),
-            if d.openDisputes.isEmpty then emptyNode else disputesSection(d.openDisputes),
+            if d.openExceptions.isEmpty then emptyNode else exceptionsSection(d.openExceptions),
             movementSection(d),
             propertiesSection("Properties", d.properties, last = false),
             propertiesSection("Metadata", d.metaData, last     = true)
@@ -91,31 +91,31 @@ object MovementDetailPage:
           )
     )
 
-  private def disputesSection(disputes: Seq[DisputePayload]): HtmlElement =
+  private def exceptionsSection(exceptions: Seq[ExceptionPayload]): HtmlElement =
     div(
       cls := s"${Card.cls} p-5 flex flex-col gap-3",
-      h3(cls := "font-medium text-md-on-surface dark:text-white", "Open disputes"),
-      disputes.map { dispute =>
+      h3(cls := "font-medium text-md-on-surface dark:text-white", "Open exceptions"),
+      exceptions.map { exception =>
         div(
           cls := "flex flex-wrap items-center gap-3 text-sm",
-          span(cls := "font-medium text-md-on-surface dark:text-white", dispute.category.toString),
-          Pill(dispute.status.toString, ExceptionDetailPage.statusTone(dispute.status)),
-          span(cls := Form.mutedTextCls, dispute.assignedToName.fold("Unassigned")(n => s"Assigned to $n")),
-          Buttons.textButton("Open thread", Observer[Unit](_ => Nav.toExceptionDetail(dispute.id)))
+          span(cls := "font-medium text-md-on-surface dark:text-white", exception.category.toString),
+          Pill(exception.status.toString, ExceptionDetailPage.statusTone(exception.status)),
+          span(cls := Form.mutedTextCls, exception.assignedToName.fold("Unassigned")(n => s"Assigned to $n")),
+          Buttons.textButton("Open thread", Observer[Unit](_ => Nav.toExceptionDetail(exception.id)))
         )
       }
     )
 
-  // The categories a person can raise against a single movement (see DisputeCategory.validTargets
+  // The categories a person can raise against a single movement (see ExceptionCategory.validTargets
   // on the backend); the reconciliation- and file-level ones are raised by the system.
   private val movementCategories = Seq(
-    DisputeCategoryPayload.MissingCounterpart -> "Missing counterpart",
-    DisputeCategoryPayload.Duplicate          -> "Duplicate",
-    DisputeCategoryPayload.TimingDifference   -> "Timing difference",
-    DisputeCategoryPayload.DataQuality        -> "Data quality"
+    ExceptionCategoryPayload.MissingCounterpart -> "Missing counterpart",
+    ExceptionCategoryPayload.Duplicate          -> "Duplicate",
+    ExceptionCategoryPayload.TimingDifference   -> "Timing difference",
+    ExceptionCategoryPayload.DataQuality        -> "Data quality"
   )
 
-  private def raiseDispute(movementId: String, onRaised: Observer[Unit]): HtmlElement =
+  private def raiseException(movementId: String, onRaised: Observer[Unit]): HtmlElement =
     val open     = Var(false)
     val category = Var(movementCategories.head._1)
     val detail   = Var("")
@@ -123,11 +123,11 @@ object MovementDetailPage:
     div(
       cls := "flex flex-col gap-3",
       raiseBus.events.flatMapSwitch { _ =>
-        ApiClient.post[DisputePayload, RaiseDisputeRequest](
-          HttpPath.url(HttpPath.dispute),
-          RaiseDisputeRequest(
+        ApiClient.post[ExceptionPayload, RaiseExceptionRequest](
+          HttpPath.url(HttpPath.exception),
+          RaiseExceptionRequest(
             referenceId = movementId,
-            targetType  = DisputeTargetPayload.Movement,
+            targetType  = ExceptionTargetPayload.Movement,
             category    = category.now(),
             detail      = Option(detail.now().trim).filter(_.nonEmpty)
           ),
@@ -140,19 +140,19 @@ object MovementDetailPage:
       child <-- open.signal.map {
         case false if !SessionStore.canEdit => emptyNode
         case false =>
-          div(Buttons.textButton("Raise dispute", Observer[Unit](_ => open.set(true))))
+          div(Buttons.textButton("Raise exception", Observer[Unit](_ => open.set(true))))
         case true =>
           div(
             cls := "flex flex-col gap-3 p-4 rounded-lg border border-md-outline dark:border-gray-700 bg-md-surface-variant dark:bg-md-surface-alt-dark max-w-xl",
-            div(cls := "font-medium text-md-on-surface dark:text-white", "Raise a dispute on this movement"),
+            div(cls := "font-medium text-md-on-surface dark:text-white", "Raise an exception on this movement"),
             Form.selectField(
-              "disputeCategory",
+              "exceptionCategory",
               "Category",
               movementCategories.map((c, label) => c.toString -> label),
               category.now().toString,
-              v => category.set(DisputeCategoryPayload.valueOf(v))
+              v => category.set(ExceptionCategoryPayload.valueOf(v))
             ),
-            Form.field("disputeDetail", "Detail (optional)", "", detail.set),
+            Form.field("exceptionDetail", "Detail (optional)", "", detail.set),
             div(
               cls := "flex gap-2",
               Buttons.linkButton("Raise", Observer[Unit](_ => raiseBus.emit(()))),

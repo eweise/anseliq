@@ -12,26 +12,26 @@ import com.typesafe.scalalogging.StrictLogging
 class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
   private val transactor = app.transactor
   private val views = ViewAssembler(
-    fundFlowConfigRepo = app.fundFlowConfigRepo,
-    disputeRepo        = app.disputeRepo,
+    ledgerRepo = app.ledgerRepo,
+    exceptionRepo        = app.exceptionRepo,
     accountRepo        = app.accountRepo,
     movementRepo       = app.movementRepo,
     reconRepo          = app.reconRepo,
     movementSpecRepo   = app.movementSpecRepo,
     fileFeedRepo       = app.fileFeedRepo,
     reconSpecRepo      = app.reconSpecRepo,
-    disputeCommentRepo = app.disputeCommentRepo,
+    exceptionCommentRepo = app.exceptionCommentRepo,
     userRepo           = app.userRepo
   )
 
   val allRoutes = Seq(
-    FundFlowRoutes(
+    LedgerRoutes(
       transactor         = transactor,
-      fundFlowConfigRepo = app.fundFlowConfigRepo,
+      ledgerRepo = app.ledgerRepo,
       accountRepo        = app.accountRepo,
       movementRepo       = app.movementRepo,
       reconRepo          = app.reconRepo,
-      fundFlowService    = app.fundFlowService
+      ledgerService    = app.ledgerService
     ),
     AccountRoutes(
       transactor     = transactor,
@@ -71,11 +71,11 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
       movementRepo     = app.movementRepo,
       manualReconciler = app.manualReconciler
     ),
-    DisputeRoutes(
+    ExceptionRoutes(
       transactor     = transactor,
       views          = views,
-      disputeRepo    = app.disputeRepo,
-      disputeService = app.disputeService
+      exceptionRepo    = app.exceptionRepo,
+      exceptionService = app.exceptionService
     ),
     UserRoutes(
       transactor  = transactor,

@@ -45,7 +45,7 @@ class HappyPathScenarioSuite extends munit.FunSuite:
   )
 
 
-  test("a fund flow reconciles, ages and snapshots correctly day by day"):
+  test("a ledger reconciles, ages and snapshots correctly day by day"):
     assertEquals(expectedByDay.size, Days)
     val app      = HappyPathApp()
     val scenario = HappyPathScenario(app)
@@ -65,17 +65,17 @@ class HappyPathScenarioSuite extends munit.FunSuite:
             .toSet
           assertEquals(unreconciled, expected.unreconciled, clue)
 
-          val summary   = app.reportingService.summary(Some(s.fundFlow.id))
+          val summary   = app.reportingService.summary(Some(s.ledger.id))
           val matchRate = summary.matchRates.find(_.accountId == s.recon.id).get
           assertEquals(matchRate.totalMovementCount, expected.movements, clue)
           assertEquals(matchRate.reconciledMovementCount, expected.movements - expected.unreconciled.size, clue)
           val (a, b, c, d) = expected.aging
           assertEquals(summary.aging.buckets, Seq("0-3" -> a, "4-7" -> b, "8-14" -> c, "15+" -> d), clue)
           assertEquals(summary.aging.overdueCount, expected.overdue, clue)
-          assertEquals(summary.exceptions.byStatus, Map.empty[String, Int], s"$clue: no disputes on the happy path")
+          assertEquals(summary.exceptions.byStatus, Map.empty[String, Int], s"$clue: no exceptions on the happy path")
 
           val today    = app.clock.now.toLocalDate
-          val snapshot = app.dailySnapshotRepo.findTrend(s.fundFlow.id, today, today)
+          val snapshot = app.dailySnapshotRepo.findTrend(s.ledger.id, today, today)
           assertEquals(snapshot.size, 1, s"$clue: one snapshot for $today")
           assertEquals(
             (snapshot.head.agingZeroToThree, snapshot.head.agingFourToSeven, snapshot.head.agingEightToFourteen, snapshot.head.agingFifteenPlus),
@@ -98,7 +98,7 @@ class HappyPathScenarioSuite extends munit.FunSuite:
       transact(app.transactor):
         val today = app.clock.now.toLocalDate
         assertEquals(
-          app.dailySnapshotRepo.findTrend(s.fundFlow.id, today.minusDays(Days - 1), today).size,
+          app.dailySnapshotRepo.findTrend(s.ledger.id, today.minusDays(Days - 1), today).size,
           Days,
           "one snapshot per day"
         )

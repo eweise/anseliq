@@ -18,9 +18,9 @@ class FileFeedRoutes(
 ) extends ApiRoutes:
 
   // FileFeed — owns "where the file comes from and how to parse it"; a MovementSpec routes off
-  // one of these to claim the rows for one account pair. Not scoped to a fund flow (a feed has no
-  // notion of which fund flow it belongs to until a MovementSpec attaches accounts to it), so this
-  // lists every feed rather than joining through accounts the way movement-specs-by-fund-flow does.
+  // one of these to claim the rows for one account pair. Not scoped to a ledger (a feed has no
+  // notion of which ledger it belongs to until a MovementSpec attaches accounts to it), so this
+  // lists every feed rather than joining through accounts the way movement-specs-by-ledger does.
   @cask.route(s"${HttpPath.fileFeeds}", methods = HttpCmd.GET)
   def listFileFeeds(): String =
     transact(transactor):

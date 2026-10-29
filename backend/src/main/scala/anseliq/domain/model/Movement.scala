@@ -9,7 +9,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum MovementType derives DbCodec:
-  // ManualAdjustment: a correction entry posted by Ledger.recordAdjustment, not ingested from a
+  // ManualAdjustment: a correction entry posted by Bookkeeper.recordAdjustment, not ingested from a
   // file. Why it was posted is its adjustmentType (see AdjustmentType below), not implied by this.
   case Ingestion, ManualAdjustment, Reversal
 
@@ -37,7 +37,7 @@ case class Movement(
   // None only for a row that predates this field — no backfill has been run (see
   // feedback_no_backfill_until_migration_strategy memory); every new write sets it explicitly.
   // Classification only — NOT the mechanism that excludes a reversal from matching (that's still
-  // Ledger.isReversal, based on the metaData reversal_of_movement_id tag, which is already correct
+  // Bookkeeper.isReversal, based on the metaData reversal_of_movement_id tag, which is already correct
   // on every reversal ever created, past and future; switching that check to movementType would
   // silently stop excluding pre-existing reversal rows that have no movementType set).
   movementType: Option[MovementType] = None,

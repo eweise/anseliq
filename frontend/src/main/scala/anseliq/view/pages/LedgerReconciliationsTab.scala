@@ -15,7 +15,7 @@ import anseliq.view.components.{Card, Form, ReconStatus, Table}
  * old account-scoped and spec-scoped list pages. Status chips (with counts) filter it; each row
  * links to the reconciliation's own page, which is where every action on it lives — the list
  * itself carries no forms. The chosen status comes from and goes to the page's ?status=, owned by
- * FundFlowPage, so a link like the Overview's "Mismatched" tile can open it pre-filtered.
+ * LedgerPage, so a link like the Overview's "Mismatched" tile can open it pre-filtered.
  */
 object LedgerReconciliationsTab:
 

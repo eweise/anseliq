@@ -91,7 +91,7 @@ case class JobInfoPayload(
   updatedAt:    Option[OffsetDateTime] = None
 ) derives ReadWriter
 
-case class FundFlowPayload(
+case class LedgerPayload(
   id:               Option[String]         = None,
   name:             String                 = "",
   accounts:         Seq[AccountPayload]    = Seq(),
@@ -159,9 +159,9 @@ case class ReconciliationDetailPayload(
   spec:      Option[ReconciliationSpecSummaryPayload],
   movements: Seq[ReconciliationMovementPayload],
   // The ledger the spec's account belongs to, for the page's breadcrumb; None alongside spec.
-  fundFlow: Option[FundFlowPayload] = None,
-  // Unresolved disputes raised against this reconciliation (any category).
-  openDisputes: Seq[DisputePayload] = Seq.empty
+  ledger: Option[LedgerPayload] = None,
+  // Unresolved exceptions raised against this reconciliation (any category).
+  openExceptions: Seq[ExceptionPayload] = Seq.empty
 ) derives ReadWriter
 
 // A pending secondary-match suggestion: reconcile movementId (the spec's in side) with
@@ -216,8 +216,8 @@ case class FixBadFileResultPayload(
   movementsReversed:     Int
 ) derives ReadWriter
 
-case class FundFlowSummaryViewPayload(
-  fundFlow: FundFlowPayload,
+case class LedgerSummaryViewPayload(
+  ledger: LedgerPayload,
   accounts: Seq[AccountSummaryViewPayload]
 ) derives ReadWriter
 
@@ -239,7 +239,7 @@ enum AccountTypePayload derives ReadWriter:
 case class AccountPayload(
   id:         Option[String] = None,
   name:       String         = "",
-  fundFlowId: String         = "",
+  ledgerId: String         = "",
   properties: Properties     = Map(),
   accountType:         AccountTypePayload = AccountTypePayload.Primary,
   balance:             Money              = 0,
@@ -320,9 +320,9 @@ case class MovementDetailPayload(
   // The reconciliation this movement belongs to, if it's been reconciled.
   reconciliation: Option[ReconciliationPayload] = None,
   // The ledger its accounts belong to, for the page's breadcrumb.
-  fundFlow: Option[FundFlowPayload] = None,
-  // Unresolved disputes raised against this movement.
-  openDisputes: Seq[DisputePayload] = Seq.empty
+  ledger: Option[LedgerPayload] = None,
+  // Unresolved exceptions raised against this movement.
+  openExceptions: Seq[ExceptionPayload] = Seq.empty
 ) derives ReadWriter
 
 // See backend's ReconciliationFilter.
@@ -330,7 +330,7 @@ enum ReconciliationFilterPayload derives ReadWriter:
   case All, Unreconciled, OpenBalance
 
 case class MovementSearchRequest(
-  fundFlowId:       String,
+  ledgerId:       String,
   accountId:        Option[String]         = None,
   amount:           Option[Money]          = None,
   movementSpecId:   Option[String]         = None,
@@ -377,30 +377,30 @@ case class MovementSpecAndAccounts(
   outAccount: AccountPayload
 ) derives ReadWriter
 
-enum DisputeTargetPayload derives ReadWriter:
+enum ExceptionTargetPayload derives ReadWriter:
   case Movement, Reconciliation, MovementSpec, FileFeed
 
-enum DisputeCategoryPayload derives ReadWriter:
+enum ExceptionCategoryPayload derives ReadWriter:
   case AmountMismatch, MissingCounterpart, Duplicate, TimingDifference, DataQuality, FileMissing,
     UnroutedRecord, ExcessiveParseErrors
 
-enum DisputeStatusPayload derives ReadWriter:
+enum ExceptionStatusPayload derives ReadWriter:
   case New, Investigating, Escalated, Resolved
 
-case class RaiseDisputeRequest(
+case class RaiseExceptionRequest(
   referenceId: String,
-  targetType:  DisputeTargetPayload,
-  category:    DisputeCategoryPayload,
+  targetType:  ExceptionTargetPayload,
+  category:    ExceptionCategoryPayload,
   detail:      Option[String] = None
 ) derives ReadWriter
 
-case class DisputePayload(
+case class ExceptionPayload(
   id:               String,
   referenceId:      String,
-  targetType:       DisputeTargetPayload,
-  category:         DisputeCategoryPayload,
+  targetType:       ExceptionTargetPayload,
+  category:         ExceptionCategoryPayload,
   detail:           Option[String],
-  status:           DisputeStatusPayload,
+  status:           ExceptionStatusPayload,
   accountId:        String,
   accountName:      String,
   referenceLabel:   String,
@@ -411,35 +411,35 @@ case class DisputePayload(
   assignedToUserId: Option[String] = None,
   assignedToName:   Option[String] = None,
   // Set when a person can't resolve it by hand: what resolves it instead (see backend's
-  // DisputeCategory.automaticResolution).
+  // ExceptionCategory.automaticResolution).
   automaticResolution: Option[String] = None,
   // For the same categories once resolved: why it can't be reopened and what to do instead (see
-  // backend's DisputeCategory.insteadOfReopening).
+  // backend's ExceptionCategory.insteadOfReopening).
   insteadOfReopening: Option[String] = None
 ) derives ReadWriter
 
-case class DisputeCommentPayload(
+case class ExceptionCommentPayload(
   id:                String,
   body:              Option[String],
-  newStatus:         Option[DisputeStatusPayload],
+  newStatus:         Option[ExceptionStatusPayload],
   newAssignedToName: Option[String],
   createdAt:         OffsetDateTime,
-  // Another dispute this entry links to (see backend's DisputeComment.relatedDisputeId).
-  relatedDisputeId: Option[String] = None
+  // Another exception this entry links to (see backend's ExceptionComment.relatedExceptionId).
+  relatedExceptionId: Option[String] = None
 ) derives ReadWriter
 
-case class DisputeDetailPayload(
-  dispute:        DisputePayload,
+case class ExceptionDetailPayload(
+  exception:        ExceptionPayload,
   movement:       Option[MovementPayload],
   reconciliation: Option[ReconciliationPayload],
-  comments:       Seq[DisputeCommentPayload],
-  // The disputed reconciliation's movements; empty unless the target is a Reconciliation.
+  comments:       Seq[ExceptionCommentPayload],
+  // The target reconciliation's movements; empty unless the target is a Reconciliation.
   reconciliationMovements: Seq[ReconciliationMovementPayload] = Seq.empty
 ) derives ReadWriter
 
-case class AddDisputeCommentRequest(
+case class AddExceptionCommentRequest(
   body:                Option[String]               = None,
-  newStatus:           Option[DisputeStatusPayload] = None,
+  newStatus:           Option[ExceptionStatusPayload] = None,
   newAssignedToUserId: Option[String]               = None
 ) derives ReadWriter
 

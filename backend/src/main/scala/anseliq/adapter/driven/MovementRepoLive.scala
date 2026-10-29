@@ -257,8 +257,8 @@ class MovementRepoLive(clock: ClockService) extends AuditedRepo[Movement, UUID](
       SELECT ${m.all}
       FROM $m AS a
       WHERE (
-        a.in_account_id IN (SELECT id FROM $acct WHERE fund_flow_id = ${c.fundFlowId})
-        OR a.out_account_id IN (SELECT id FROM $acct WHERE fund_flow_id = ${c.fundFlowId})
+        a.in_account_id IN (SELECT id FROM $acct WHERE ledger_id = ${c.ledgerId})
+        OR a.out_account_id IN (SELECT id FROM $acct WHERE ledger_id = ${c.ledgerId})
       )
       AND (${c.accountId}::uuid IS NULL OR a.in_account_id = ${c.accountId} OR a.out_account_id = ${c.accountId})
       AND (${c.amount}::numeric IS NULL OR a.amount = ${c.amount})

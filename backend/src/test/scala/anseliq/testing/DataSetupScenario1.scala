@@ -13,8 +13,8 @@ class DataSetupScenario1 extends munit.FunSuite:
 
   // The scenario is written in payload terms, as the UI would send it, so each step goes through
   // the same Payload conversions the HTTP routes use on either side of the service call.
-  private def createFundFlow(p: FundFlowPayload): Txn[FundFlowPayload] =
-    PayloadMapper.fundFlowPayloadFromDomain(app.fundFlowService.createFundFlow(PayloadMapper.fundFlowPayloadToDomain(p)))
+  private def createLedger(p: LedgerPayload): Txn[LedgerPayload] =
+    PayloadMapper.ledgerPayloadFromDomain(app.ledgerService.createLedger(PayloadMapper.ledgerPayloadToDomain(p)))
   private def createAccount(p: AccountPayload): Txn[AccountPayload] =
     PayloadMapper.accountPayloadFromDomain(app.accountService.createAccount(PayloadMapper.accountPayloadToDomain(p)))
   private def createFileFeed(p: FileFeedPayload): Txn[FileFeedPayload] =
@@ -26,10 +26,10 @@ class DataSetupScenario1 extends munit.FunSuite:
   private def createReconSpec(p: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
     PayloadMapper.reconSpecPayloadFromDomain(app.reconSpecService.createReconSpec(PayloadMapper.reconSpecPayloadToDomain(p)))
 
-  test("Setup data for a complete Fund flow scenario"):
+  test("Setup data for a complete Ledger scenario"):
     transact(app.transactor):
-      val fundFlowConfig = createFundFlow(
-        FundFlowPayload(
+      val ledger = createLedger(
+        LedgerPayload(
           name             = s"Scenario1-${UUID.randomUUID()}",
           dailyCutoffHours = 0
         )
@@ -39,18 +39,18 @@ class DataSetupScenario1 extends munit.FunSuite:
         createAccount(
           AccountPayload(
             name        = "Journal",
-            fundFlowId  = fundFlowConfig.id.get,
+            ledgerId  = ledger.id.get,
             accountType = AccountTypePayload.Primary
           )
         )
 
       val reconAccount =
         createAccount(
-          AccountPayload(name = "Recon", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Recon)
+          AccountPayload(name = "Recon", ledgerId = ledger.id.get, accountType = AccountTypePayload.Recon)
         )
 
       val bankAccount = createAccount(
-        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
+        AccountPayload(name = "Bank", ledgerId = ledger.id.get, accountType = AccountTypePayload.Secondary)
       )
 
       // tmp_journal.csv: record_date, transaction_id, amount, description (header row present)
@@ -126,8 +126,8 @@ class DataSetupScenario1 extends munit.FunSuite:
 
   test("Setup For many to one with multiple accounts using BAI"):
     transact(app.transactor):
-      val fundFlowConfig = createFundFlow(
-        FundFlowPayload(
+      val ledger = createLedger(
+        LedgerPayload(
           name             = s"Scenario1-${UUID.randomUUID()}",
           dailyCutoffHours = 0
         )
@@ -135,16 +135,16 @@ class DataSetupScenario1 extends munit.FunSuite:
 
       val visa =
         createAccount(
-          AccountPayload(name = "Visa", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Primary)
+          AccountPayload(name = "Visa", ledgerId = ledger.id.get, accountType = AccountTypePayload.Primary)
         )
 
       val reconAccount =
         createAccount(
-          AccountPayload(name = "BAI Recon", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Recon)
+          AccountPayload(name = "BAI Recon", ledgerId = ledger.id.get, accountType = AccountTypePayload.Recon)
         )
 
       val bankAccount = createAccount(
-        AccountPayload(name = "Bank", fundFlowId = fundFlowConfig.id.get, accountType = AccountTypePayload.Secondary)
+        AccountPayload(name = "Bank", ledgerId = ledger.id.get, accountType = AccountTypePayload.Secondary)
       )
 
       // A single BAI2 feed covers visa's account activity; reconToBank stays on its own CSV feed.

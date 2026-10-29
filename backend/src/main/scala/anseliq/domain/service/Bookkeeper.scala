@@ -14,7 +14,7 @@ case class MovementRequest(
   metaData:    Properties = Map()
 )
 
-class Ledger(
+class Bookkeeper(
   movementRepo: MovementRepo,
   accountRepo:  AccountRepo,
   reconRepo:    ReconciliationRepo,

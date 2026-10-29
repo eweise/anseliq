@@ -9,28 +9,28 @@ import java.time.temporal.ChronoUnit
 
 class ReportingService(
   accountRepo:        AccountRepo,
-  disputeRepo:        DisputeRepo,
+  exceptionRepo:        ExceptionRepo,
   movementRepo:       MovementRepo,
   reconRepo:          ReconciliationRepo,
   reconSpecRepo:      ReconciliationSpecRepo,
   movementSpecRepo:   MovementSpecRepo,
-  fundFlowConfigRepo: FundFlowConfigRepo,
+  ledgerRepo: LedgerRepo,
   dailySnapshotRepo:  DailySnapshotRepo,
   clock:              ClockService
 ):
   private val agingBucketOrder = Seq("0-3", "4-7", "8-14", "15+")
 
-  def summary(fundFlowId: Option[ID]): Txn[ReportsSummaryReport] =
-    fundFlowId.foreach(id => fundFlowConfigRepo.findById(id).ErrIfNotFound("fund flow", id))
+  def summary(ledgerId: Option[ID]): Txn[ReportsSummaryReport] =
+    ledgerId.foreach(id => ledgerRepo.findById(id).ErrIfNotFound("ledger", id))
 
-    val accounts = fundFlowId match
-      case Some(id) => accountRepo.findByFundFlow(id)
+    val accounts = ledgerId match
+      case Some(id) => accountRepo.findByLedger(id)
       case None     => accountRepo.findAll()
     val reconAccounts = accounts.filter(_.accountType == AccountType.Recon)
 
     ReportsSummaryReport(
       matchRates = matchRates(reconAccounts),
-      exceptions = exceptionBreakdown(fundFlowId, accounts.map(_.id).toSet),
+      exceptions = exceptionBreakdown(ledgerId, accounts.map(_.id).toSet),
       aging      = agingBuckets(reconAccounts)
     )
 
@@ -71,34 +71,34 @@ class ReportingService(
       val ratio = BigDecimal(reconciled) / BigDecimal(total)
       Some((ratio * 100).setScale(2, BigDecimal.RoundingMode.HALF_UP))
 
-  private def exceptionBreakdown(fundFlowId: Option[ID], accountIdsInScope: Set[ID]): Txn[ExceptionBreakdownReport] =
-    val allOpen = disputeRepo.findAll.filter(_.status != DisputeStatus.Resolved)
-    val inScope = fundFlowId match
+  private def exceptionBreakdown(ledgerId: Option[ID], accountIdsInScope: Set[ID]): Txn[ExceptionBreakdownReport] =
+    val allOpen = exceptionRepo.findAll.filter(_.status != ExceptionStatus.Resolved)
+    val inScope = ledgerId match
       case None    => allOpen
-      case Some(_) => allOpen.filter(d => disputeAccountId(d).exists(accountIdsInScope.contains))
+      case Some(_) => allOpen.filter(d => exceptionAccountId(d).exists(accountIdsInScope.contains))
 
     ExceptionBreakdownReport(
       byCategory = inScope.groupBy(_.category).map((k, v) => k.toString -> v.size),
       byStatus   = inScope.groupBy(_.status).map((k, v) => k.toString -> v.size)
     )
 
-  private def disputeAccountId(d: Dispute): Txn[Option[ID]] =
+  private def exceptionAccountId(d: ExceptionCase): Txn[Option[ID]] =
     d.targetType match
-      case DisputeTarget.Movement =>
+      case ExceptionTarget.Movement =>
         movementRepo.findById(d.referenceId).map(_.inAccountId)
-      case DisputeTarget.Reconciliation =>
+      case ExceptionTarget.Reconciliation =>
         for
           recon  <- reconRepo.findById(d.referenceId)
           specId <- recon.specId
           spec   <- reconSpecRepo.findById(specId)
         yield spec.accountId
-      case DisputeTarget.MovementSpec =>
+      case ExceptionTarget.MovementSpec =>
         movementSpecRepo.findById(d.referenceId).map(_.inAccountId)
-      case DisputeTarget.FileFeed =>
+      case ExceptionTarget.FileFeed =>
         // A feed can route to several accounts (a multi-account BAI-style feed), so there's no
         // single owning account — scope by whichever spec happens to be first, same best-effort
         // fallback as an empty result: a feed with zero specs configured yet just has no account
-        // to scope by, and the dispute is only visible in the unscoped (all fund flows) view.
+        // to scope by, and the exception is only visible in the unscoped (all ledgers) view.
         movementSpecRepo.findByFileFeedId(d.referenceId).headOption.map(_.inAccountId)
 
   private def agingBucketFor(ageDays: Long): String =
@@ -123,13 +123,13 @@ class ReportingService(
     AgingBucketsReport(agingBucketOrder.map(b => b -> counts(b)), overdue)
 
   // Drill-through row list backing the aging chart on the Dashboard/Reports pages — same account
-  // scoping (Recon-typed accounts, optionally narrowed to one fund flow) and the same per-account
+  // scoping (Recon-typed accounts, optionally narrowed to one ledger) and the same per-account
   // iteration as agingBuckets above, so a bucket's count here always matches the chart.
-  def unreconciledMovements(fundFlowId: Option[ID]): Txn[Seq[UnreconciledMovementDetail]] =
-    fundFlowId.foreach(id => fundFlowConfigRepo.findById(id).ErrIfNotFound("fund flow", id))
+  def unreconciledMovements(ledgerId: Option[ID]): Txn[Seq[UnreconciledMovementDetail]] =
+    ledgerId.foreach(id => ledgerRepo.findById(id).ErrIfNotFound("ledger", id))
 
-    val accounts = fundFlowId match
-      case Some(id) => accountRepo.findByFundFlow(id)
+    val accounts = ledgerId match
+      case Some(id) => accountRepo.findByLedger(id)
       case None     => accountRepo.findAll()
     val reconAccounts = accounts.filter(_.accountType == AccountType.Recon)
 
@@ -165,10 +165,10 @@ class ReportingService(
 
   /**
    * Meant to be polled frequently (e.g. every minute) rather than run once on a fixed schedule,
-   * since "the right time to snapshot" depends on each fund flow's own dailyCutoffHours, not on
-   * when the app happened to start. For each fund flow, today's snapshot becomes due once
-   * clock.now's time-of-day passes that fund flow's cutoff hour — letting a fund flow that expects
-   * late-arriving data delay its snapshot instead of capturing a partial day. A fund flow already
+   * since "the right time to snapshot" depends on each ledger's own dailyCutoffHours, not on
+   * when the app happened to start. For each ledger, today's snapshot becomes due once
+   * clock.now's time-of-day passes that ledger's cutoff hour — letting a ledger that expects
+   * late-arriving data delay its snapshot instead of capturing a partial day. A ledger already
    * snapshotted for today is skipped (checked via existsForDate) so a 1-minute poll cadence doesn't
    * recompute summary() every minute for the rest of the day once it's already run. Doesn't
    * backfill: a period whose cutoff passed while the app was down is never generated retroactively,
@@ -178,16 +178,16 @@ class ReportingService(
     val now   = clock.now
     val today = now.toLocalDate
 
-    val dueFundFlows = fundFlowConfigRepo.findAll.filter { ff =>
+    val dueLedgers = ledgerRepo.findAll.filter { ff =>
       val cutoff = today.atStartOfDay.atOffset(now.getOffset).plusHours(ff.dailyCutoffHours)
       !now.isBefore(cutoff) && !dailySnapshotRepo.existsForDate(ff.id, today)
     }
 
-    dueFundFlows.foreach(storeDailySnapshot)
-    dueFundFlows.size
+    dueLedgers.foreach(storeDailySnapshot)
+    dueLedgers.size
 
-  /** Computes and stores (or replaces) the fund flow's snapshot for clock.now's date. */
-  def storeDailySnapshot(ff: FundFlowConfig): Txn[Unit] =
+  /** Computes and stores (or replaces) the ledger's snapshot for clock.now's date. */
+  def storeDailySnapshot(ff: Ledger): Txn[Unit] =
     val today  = clock.now.toLocalDate
     val report = summary(Some(ff.id))
     val rated  = report.matchRates.flatMap(m => m.balanceCoveragePercent.map(pct => pct -> m))
@@ -196,7 +196,7 @@ class ReportingService(
       else Some((rated.map(_._1).sum / rated.size).setScale(2, BigDecimal.RoundingMode.HALF_UP))
     // Ratio of sums, not an average of per-account percentages — the correct way to combine
     // counts across accounts (an account with 1000 movements shouldn't count the same as one
-    // with 2 when computing the fund flow's overall match rate).
+    // with 2 when computing the ledger's overall match rate).
     val totalReconciled = report.matchRates.map(_.reconciledMovementCount).sum
     val totalMovements  = report.matchRates.map(_.totalMovementCount).sum
     val avgMatchRate =
@@ -210,7 +210,7 @@ class ReportingService(
 
     dailySnapshotRepo.upsert(
       DailySnapshot(
-        fundFlowId   = ff.id,
+        ledgerId   = ff.id,
         snapshotDate = today,
         matchRatesJson = upickle.write(
           report.matchRates.map(m =>
@@ -243,19 +243,19 @@ class ReportingService(
     )
 
   /**
-   * Reads back the last `days` days of stored snapshots. When fundFlowId is None, aggregates across
-   * every fund flow's snapshot for each date: counts sum, avgBalanceCoveragePercent is a weighted
-   * average (weighted by each fund flow's ratedAccountCount that day) — equivalent to averaging
-   * balanceCoveragePercent over every rated account across all fund flows — and avgMatchRatePercent
-   * is a ratio of summed reconciled/total movement counts across all fund flows.
+   * Reads back the last `days` days of stored snapshots. When ledgerId is None, aggregates across
+   * every ledger's snapshot for each date: counts sum, avgBalanceCoveragePercent is a weighted
+   * average (weighted by each ledger's ratedAccountCount that day) — equivalent to averaging
+   * balanceCoveragePercent over every rated account across all ledgers — and avgMatchRatePercent
+   * is a ratio of summed reconciled/total movement counts across all ledgers.
    */
-  def trend(fundFlowId: Option[ID], days: Int = 30): Txn[TrendReport] =
+  def trend(ledgerId: Option[ID], days: Int = 30): Txn[TrendReport] =
     val today = clock.now.toLocalDate
     val from  = today.minusDays(days - 1)
 
-    val scopeIds = fundFlowId match
+    val scopeIds = ledgerId match
       case Some(id) => Vector(id)
-      case None     => fundFlowConfigRepo.findAll.map(_.id)
+      case None     => ledgerRepo.findAll.map(_.id)
 
     val rows = scopeIds.flatMap(id => dailySnapshotRepo.findTrend(id, from, today))
 
@@ -264,9 +264,9 @@ class ReportingService(
 object ReportingService:
 
   // Pure, DB-free so it's cheap to unit test the weighted-average math directly. Groups arbitrary
-  // (possibly multi-fund-flow) snapshot rows by date, summing the count fields, weighted-averaging
+  // (possibly multi-ledger) snapshot rows by date, summing the count fields, weighted-averaging
   // avgBalanceCoveragePercent by ratedAccountCount (equivalent to averaging balanceCoveragePercent
-  // over every rated account across all snapshotted fund flows for that date), and deriving
+  // over every rated account across all snapshotted ledgers for that date), and deriving
   // avgMatchRatePercent as a ratio of summed reconciledMovementCount/totalMovementCount (not a
   // weighted average of percentages — the correct way to combine counts).
   private[service] def aggregateSnapshotsByDate(rows: Seq[DailySnapshot]): Seq[TrendPoint] =

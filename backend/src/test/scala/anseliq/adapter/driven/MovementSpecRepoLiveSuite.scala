@@ -9,15 +9,15 @@ import java.util.UUID
 class MovementSpecRepoLiveSuite extends munit.FunSuite:
   private val app = TestAppContainer()
 
-  test("findByFundFlowId returns movement specs belonging to the fund flow"):
-    val fundFlowRepo = app.fundFlowConfigRepo
+  test("findByLedgerId returns movement specs belonging to the ledger"):
+    val ledgerRepo = app.ledgerRepo
     transact(app.transactor):
       rollBackOnly:
-        val fundFlow = FundFlowConfig(name = UUID.randomUUID().toString)
-        fundFlowRepo.insert(fundFlow)
+        val ledger = Ledger(name = UUID.randomUUID().toString)
+        ledgerRepo.insert(ledger)
 
-        val inAccount  = Account(name = "in", fundFlowId = fundFlow.id, accountType = AccountType.Recon)
-        val outAccount = Account(name = "out", fundFlowId = fundFlow.id, accountType = AccountType.Primary)
+        val inAccount  = Account(name = "in", ledgerId = ledger.id, accountType = AccountType.Recon)
+        val outAccount = Account(name = "out", ledgerId = ledger.id, accountType = AccountType.Primary)
         app.accountRepo.insert(inAccount)
         app.accountRepo.insert(outAccount)
 
@@ -27,22 +27,22 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         val spec = MovementSpec(inAccountId = inAccount.id, outAccountId = outAccount.id, fileFeedId = feed.id)
         app.movementSpecRepo.insert(spec)
 
-        val results = app.movementSpecRepo.findByFundFlowId(fundFlow.id)
+        val results = app.movementSpecRepo.findByLedgerId(ledger.id)
         assertEquals(results.size, 1)
 
-  test("findByFundFlowId does not return movement specs from other fund flows"):
-    val fundFlowRepo = app.fundFlowConfigRepo
+  test("findByLedgerId does not return movement specs from other ledgers"):
+    val ledgerRepo = app.ledgerRepo
     transact(app.transactor):
       rollBackOnly:
-        val fundFlowA = FundFlowConfig(name = UUID.randomUUID().toString)
-        val fundFlowB = FundFlowConfig(name = UUID.randomUUID().toString)
-        fundFlowRepo.insert(fundFlowA)
-        fundFlowRepo.insert(fundFlowB)
+        val ledgerA = Ledger(name = UUID.randomUUID().toString)
+        val ledgerB = Ledger(name = UUID.randomUUID().toString)
+        ledgerRepo.insert(ledgerA)
+        ledgerRepo.insert(ledgerB)
 
-        val inA  = Account(name = "in-a", fundFlowId = fundFlowA.id, accountType = AccountType.Recon)
-        val outA = Account(name = "out-a", fundFlowId = fundFlowA.id, accountType = AccountType.Primary)
-        val inB  = Account(name = "in-b", fundFlowId = fundFlowB.id, accountType = AccountType.Recon)
-        val outB = Account(name = "out-b", fundFlowId = fundFlowB.id, accountType = AccountType.Primary)
+        val inA  = Account(name = "in-a", ledgerId = ledgerA.id, accountType = AccountType.Recon)
+        val outA = Account(name = "out-a", ledgerId = ledgerA.id, accountType = AccountType.Primary)
+        val inB  = Account(name = "in-b", ledgerId = ledgerB.id, accountType = AccountType.Recon)
+        val outB = Account(name = "out-b", ledgerId = ledgerB.id, accountType = AccountType.Primary)
         app.accountRepo.insert(inA); app.accountRepo.insert(outA)
         app.accountRepo.insert(inB); app.accountRepo.insert(outB)
 
@@ -54,19 +54,19 @@ class MovementSpecRepoLiveSuite extends munit.FunSuite:
         app.movementSpecRepo.insert(MovementSpec(inAccountId = inA.id, outAccountId = outA.id, fileFeedId = feedA.id))
         app.movementSpecRepo.insert(MovementSpec(inAccountId = inB.id, outAccountId = outB.id, fileFeedId = feedB.id))
 
-        val results = app.movementSpecRepo.findByFundFlowId(fundFlowA.id)
+        val results = app.movementSpecRepo.findByLedgerId(ledgerA.id)
         assertEquals(results.size, 1)
 
   test("findByFileFeedId returns every movement spec routed off a feed"):
-    val fundFlowRepo = app.fundFlowConfigRepo
+    val ledgerRepo = app.ledgerRepo
     transact(app.transactor):
       rollBackOnly:
-        val fundFlow = FundFlowConfig(name = UUID.randomUUID().toString)
-        fundFlowRepo.insert(fundFlow)
+        val ledger = Ledger(name = UUID.randomUUID().toString)
+        ledgerRepo.insert(ledger)
 
-        val accountA = Account(name = "a", fundFlowId = fundFlow.id, accountType = AccountType.Primary)
-        val accountB = Account(name = "b", fundFlowId = fundFlow.id, accountType = AccountType.Primary)
-        val recon    = Account(name = "recon", fundFlowId = fundFlow.id, accountType = AccountType.Recon)
+        val accountA = Account(name = "a", ledgerId = ledger.id, accountType = AccountType.Primary)
+        val accountB = Account(name = "b", ledgerId = ledger.id, accountType = AccountType.Primary)
+        val recon    = Account(name = "recon", ledgerId = ledger.id, accountType = AccountType.Recon)
         app.accountRepo.insert(accountA)
         app.accountRepo.insert(accountB)
         app.accountRepo.insert(recon)

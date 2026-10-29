@@ -97,9 +97,9 @@
         <p>The backend follows a hexagonal (ports and adapters) architecture under <code>backend/src/main/scala/anseliq</code>:</p>
         <dl>
           <dt><code>domain/model</code></dt>
-          <dd>Accounts, movements, reconciliations, specs, file feeds, disputes (exceptions), jobs and events.</dd>
+          <dd>Accounts, movements, reconciliations, specs, file feeds, exceptions, jobs and events.</dd>
           <dt><code>domain/service</code></dt>
-          <dd>The business logic: <code>Ingestor</code> and the file parsers, <code>Ledger</code>, <code>InMemoryReconciler</code>, <code>ManualReconciler</code> (manual matches, unmatch, write-offs), <code>DisputeService</code>, <code>MatchSuggestionService</code>, <code>JobManager</code> and <code>ReportingService</code>.</dd>
+          <dd>The business logic: <code>Ingestor</code> and the file parsers, <code>Bookkeeper</code> (posting movements), <code>InMemoryReconciler</code>, <code>ManualReconciler</code> (manual matches, unmatch, write-offs), <code>ExceptionService</code>, <code>MatchSuggestionService</code>, <code>JobManager</code> and <code>ReportingService</code>.</dd>
           <dt><code>domain/port</code></dt>
           <dd>Interfaces the domain needs from the outside world: repositories, file sources, the match suggester.</dd>
           <dt><code>adapter/driving</code></dt>
@@ -217,8 +217,7 @@ kubectl apply -k k8s/overlays/local</code></pre>
         <h2 id="api">HTTP API</h2>
         <p>
           The web app is built entirely on a JSON API under <code>/api/v1</code>, served on the same
-          origin as the app. Some names differ from the app's: a ledger is a <em>fund flow</em>, a
-          reconciliation rule a <em>recon spec</em>, and an exception a <em>dispute</em>.
+          origin as the app. One name differs from the app's: a reconciliation rule is a <em>recon spec</em>.
         </p>
         <h3 id="auth">Authentication</h3>
         <p>Sign in to get a token, then send it as a bearer token on every other request:</p>
@@ -227,7 +226,7 @@ kubectl apply -k k8s/overlays/local</code></pre>
   -d '{"email": "you@example.com", "password": "..."}'
 # {"accessToken": "eyJ...", "refreshToken": "..."}
 
-curl -s https://anseliq.example.com/api/v1/fund-flows \
+curl -s https://anseliq.example.com/api/v1/ledgers \
   -H 'Authorization: Bearer eyJ...'</code></pre>
         <p>A missing or invalid token gets <code>401</code>, and an Admin-only action by anyone else gets <code>403</code>.</p>
 
@@ -236,16 +235,16 @@ curl -s https://anseliq.example.com/api/v1/fund-flows \
           <table>
             <thead><tr><th>Area</th><th>Endpoints</th></tr></thead>
             <tbody>
-              <tr><td>Ledgers</td><td><code>GET /fund-flows</code>, <code>POST /fund-flow</code>, <code>PUT /fund-flow/:id</code>, <code>GET /fund-flow/:id/summary</code></td></tr>
-              <tr><td>Accounts</td><td><code>GET /fund-flows/:id/accounts</code>, <code>GET /accounts</code>, <code>GET|PUT /account/:id</code>, <code>POST /account</code></td></tr>
+              <tr><td>Ledgers</td><td><code>GET /ledgers</code>, <code>POST /ledger</code>, <code>PUT /ledger/:id</code>, <code>GET /ledger/:id/summary</code></td></tr>
+              <tr><td>Accounts</td><td><code>GET /ledgers/:id/accounts</code>, <code>GET /accounts</code>, <code>GET|PUT /account/:id</code>, <code>POST /account</code></td></tr>
               <tr><td>Reconciling</td><td><code>POST /account/:id/reconcile</code>, <code>GET /account/:id/reconciliations</code>, <code>GET /account/:id/reconciliation-counts</code></td></tr>
-              <tr><td>Movement specs</td><td><code>GET /fund-flows/:id/movement-specs</code>, <code>POST /movement-spec</code>, <code>PUT|DELETE /movement-spec/:id</code></td></tr>
+              <tr><td>Movement specs</td><td><code>GET /ledgers/:id/movement-specs</code>, <code>POST /movement-spec</code>, <code>PUT|DELETE /movement-spec/:id</code></td></tr>
               <tr><td>File feeds</td><td><code>GET /file-feeds</code>, <code>POST /file-feed</code>, <code>PUT|DELETE /file-feed/:id</code>, <code>POST /file-feed/:id/test-parse</code>, <code>GET /file-inventory</code></td></tr>
               <tr><td>Movements</td><td><code>POST /movements/search</code>, <code>GET /movement/:id</code>, <code>GET /movements/:movementSpecId/unreconciled</code>, <code>POST /movements/bad-file-preview</code>, <code>POST /movements/bad-file-fix</code></td></tr>
               <tr><td>Rules</td><td><code>GET /account/:id/recon-specs</code>, <code>POST /recon-spec</code>, <code>PUT|DELETE /recon-spec/:id</code>, <code>GET /recon-spec/:id/rule-proposals</code></td></tr>
               <tr><td>Reconciliations</td><td><code>GET /reconciliation/:id</code>, <code>GET /recon-spec/:id/reconciliations</code>, <code>POST /recon-spec/:id/manual-match</code>, <code>POST /reconciliation/:id/unmatch</code>, <code>POST /reconciliation/:id/write-off</code>, <code>POST /reconciliation/:id/reverse-write-off</code> (Admin)</td></tr>
               <tr><td>AI suggestions</td><td><code>GET /recon-spec/:id/match-suggestions</code>, <code>POST /match-suggestion/:id/accept</code>, <code>POST /match-suggestion/:id/reject</code></td></tr>
-              <tr><td>Exceptions</td><td><code>GET /disputes</code>, <code>POST /dispute</code>, <code>GET /dispute/:id</code>, <code>POST /dispute/:id/comments</code>, <code>POST /dispute/:id/assign</code></td></tr>
+              <tr><td>Exceptions</td><td><code>GET /exceptions</code>, <code>POST /exception</code>, <code>GET /exception/:id</code>, <code>POST /exception/:id/comments</code>, <code>POST /exception/:id/assign</code></td></tr>
               <tr><td>Reports</td><td><code>GET /reports/summary</code>, <code>GET /reports/trend</code>, <code>GET /reports/unreconciled-movements</code></td></tr>
               <tr><td>Activity</td><td><code>GET /jobs/:jobType</code>, <code>GET /events/:eventType</code></td></tr>
               <tr><td>Users</td><td><code>GET /users/assignable</code>; Admin only: <code>GET /users</code>, <code>POST /users</code>, <code>PUT /users/:id</code>, <code>POST /users/:id/reset-password</code></td></tr>

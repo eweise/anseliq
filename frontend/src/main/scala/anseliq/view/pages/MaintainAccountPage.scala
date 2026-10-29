@@ -13,14 +13,14 @@ object MaintainAccountPage:
 
   private val accountTypeOptions = AccountTypePayload.values.toSeq.map(t => t.toString -> t.toString)
 
-  // Rendered inside Modal by FundFlowPage (its only caller) — onClose defaults to Nav.back() so
+  // Rendered inside Modal by LedgerPage (its only caller) — onClose defaults to Nav.back() so
   // this still works if ever reached directly via its route (/components/accounts/:id/maintain).
   def apply(accountId: String, onClose: () => Unit = () => Nav.back()): HtmlElement =
-    val fundFlow = AppState.activeFundFlow.now()
-    val ffId     = fundFlow.flatMap(_.id).getOrElse("")
+    val ledger = AppState.activeLedger.now()
+    val ffId     = ledger.flatMap(_.id).getOrElse("")
     val initial = AccountPayload(
       id          = if accountId == "new" then None else Some(accountId),
-      fundFlowId  = ffId,
+      ledgerId  = ffId,
       accountType = AccountTypePayload.Primary
     )
     val account        = Var(initial)
@@ -33,7 +33,7 @@ object MaintainAccountPage:
       // a separate onMountCallback + EventBus.emit: EventBus has no replay buffer, so an emit that
       // happens before the flatMapSwitch below has actually subscribed is silently dropped. That
       // race wasn't observable while this rendered as a plain routed page (mount ordering happened
-      // to work out), but became real once it started being constructed inside FundFlowPage's
+      // to work out), but became real once it started being constructed inside LedgerPage's
       // reactive Modal block. Matches the same pattern searchMovementsTab uses.
       (if accountId != "new" then EventStream.fromValue(()) else EventStream.empty).flatMapSwitch { _ =>
         ApiClient.get[AccountPayload](HttpPath.url(s"${HttpPath.account}/$accountId"), SessionStore.token)

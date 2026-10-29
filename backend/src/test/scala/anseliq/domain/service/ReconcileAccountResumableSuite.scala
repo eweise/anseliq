@@ -22,7 +22,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         .foreach(es => app.eventRepo.deleteById(es.id))
       data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
       data.reconSpecRepo.deleteById(data.reconSpec.id)
-      data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+      data.ledgerRepo.deleteById(data.ledger.id)
 
   private def insertMovement(data: DataSetup, spec: MovementSpec, idValue: String): Txn[Movement] =
     val m = Movement(
@@ -194,23 +194,23 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       // The mismatch must be surfaced as an exception, not just sit as a nonzero Reconciliation.balance
       // that nothing else queries.
-      val disputes = transact(app.transactor)(app.disputeRepo.findAll.filter(_.referenceId == reconciliations.head.id))
-      assertEquals(disputes.size, 1)
-      assertEquals(disputes.head.targetType, DisputeTarget.Reconciliation)
-      assertEquals(disputes.head.category, DisputeCategory.AmountMismatch)
-      assertEquals(disputes.head.status, DisputeStatus.New)
+      val exceptions = transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == reconciliations.head.id))
+      assertEquals(exceptions.size, 1)
+      assertEquals(exceptions.head.targetType, ExceptionTarget.Reconciliation)
+      assertEquals(exceptions.head.category, ExceptionCategory.AmountMismatch)
+      assertEquals(exceptions.head.status, ExceptionStatus.New)
 
-      // Rerunning reconciliation must not raise a second dispute for the same mismatch.
+      // Rerunning reconciliation must not raise a second exception for the same mismatch.
       reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
-      val disputesAfterRerun =
-        transact(app.transactor)(app.disputeRepo.findAll.filter(_.referenceId == reconciliations.head.id))
-      assertEquals(disputesAfterRerun.size, 1, "rerunning reconciliation must not duplicate the open dispute")
+      val exceptionsAfterRerun =
+        transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == reconciliations.head.id))
+      assertEquals(exceptionsAfterRerun.size, 1, "rerunning reconciliation must not duplicate the open exception")
     finally
       transact(app.transactor):
         val reconIds = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.id).toSet
-        app.disputeRepo.findAll
+        app.exceptionRepo.findAll
           .filter(d => reconIds.contains(d.referenceId))
-          .foreach(d => app.disputeRepo.deleteById(d.id))
+          .foreach(d => app.exceptionRepo.deleteById(d.id))
       teardown(data)
 
   test("OneToOne match with equal amounts is Final with a zero balance"):
@@ -499,11 +499,11 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       // Unlike OneToOne, a OneToMany group landing InProgress on its first formation doesn't mean
       // anything is actually wrong yet — the rest of the "many" side could simply still be in
-      // transit (a delayed file, a later batch). No dispute should be raised until aging says
+      // transit (a delayed file, a later batch). No exception should be raised until aging says
       // otherwise, so this must not create one just because the reconciliation exists.
-      val disputesAfterFirstRun =
-        transact(app.transactor)(app.disputeRepo.findAll.filter(_.referenceId == recons1.head.id))
-      assert(disputesAfterFirstRun.isEmpty, "a fresh OneToMany InProgress reconciliation must not auto-raise a dispute")
+      val exceptionsAfterFirstRun =
+        transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == recons1.head.id))
+      assert(exceptionsAfterFirstRun.isEmpty, "a fresh OneToMany InProgress reconciliation must not auto-raise an exception")
 
       transact(app.transactor):
         app.accountService.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g2"))
@@ -530,7 +530,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       teardown(data)
 
   test(
-    "raiseStaleMismatchDisputes: a OneToMany reconciliation past agingLimit becomes Mismatched with an AmountMismatch dispute, but not before; a late movement closing the gap then makes it Final and resolves the dispute"
+    "raiseStaleMismatchExceptions: a OneToMany reconciliation past agingLimit becomes Mismatched with an AmountMismatch exception, but not before; a late movement closing the gap then makes it Final and resolves the exception"
   ):
     // Its own container: this test moves the clock, and the reconciler has to see that clock.
     val app                     = TestAppContainer()
@@ -549,14 +549,14 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(recon.status, ReconciliationStatus.InProgress)
 
       // still fresh: well within the 2-day aging window, so not stale yet
-      val raisedTooEarly = transact(app.transactor)(reconciler.raiseStaleMismatchDisputes(spec))
+      val raisedTooEarly = transact(app.transactor)(reconciler.raiseStaleMismatchExceptions(spec))
       assertEquals(raisedTooEarly, 0, "not due yet: hasn't sat InProgress past agingLimit")
-      val disputesTooEarly = transact(app.transactor)(app.disputeRepo.findAll.filter(_.referenceId == recon.id))
-      assert(disputesTooEarly.isEmpty)
+      val exceptionsTooEarly = transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == recon.id))
+      assert(exceptionsTooEarly.isEmpty)
 
       // simulate 3 days passing, past the 2-day agingLimit
       clock.addHours(72)
-      val raisedNow = transact(app.transactor)(reconciler.raiseStaleMismatchDisputes(spec))
+      val raisedNow = transact(app.transactor)(reconciler.raiseStaleMismatchExceptions(spec))
       assertEquals(raisedNow, 1, "due now: InProgress past agingLimit with a real (non-zero) balance")
       assertEquals(
         transact(app.transactor)(data.reconRepo.findById(recon.id)).get.status,
@@ -564,17 +564,17 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         "no longer waiting on more data, so it's flagged rather than left InProgress"
       )
 
-      val disputes = transact(app.transactor)(app.disputeRepo.findAll.filter(_.referenceId == recon.id))
-      assertEquals(disputes.size, 1)
-      assertEquals(disputes.head.category, DisputeCategory.AmountMismatch)
-      assertEquals(disputes.head.targetType, DisputeTarget.Reconciliation)
+      val exceptions = transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == recon.id))
+      assertEquals(exceptions.size, 1)
+      assertEquals(exceptions.head.category, ExceptionCategory.AmountMismatch)
+      assertEquals(exceptions.head.targetType, ExceptionTarget.Reconciliation)
 
-      // idempotent: a later poll finds the dispute already open and raises nothing new
-      val raisedAgain = transact(app.transactor)(reconciler.raiseStaleMismatchDisputes(spec))
+      // idempotent: a later poll finds the exception already open and raises nothing new
+      val raisedAgain = transact(app.transactor)(reconciler.raiseStaleMismatchExceptions(spec))
       assertEquals(raisedAgain, 0, "already Mismatched: nothing left to flag")
 
       // Mismatched isn't terminal for OneToMany: the missing 40 turning up late still completes
-      // the group, which moves it to Final and auto-resolves the dispute it had been carrying.
+      // the group, which moves it to Final and auto-resolves the exception it had been carrying.
       transact(app.transactor):
         app.accountService.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g3"))
       reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10)
@@ -583,25 +583,25 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(completed.status, ReconciliationStatus.Final)
       assertEquals(completed.balance, BigDecimal(0))
       assertEquals(
-        transact(app.transactor)(app.disputeRepo.findById(disputes.head.id)).get.status,
-        DisputeStatus.Resolved
+        transact(app.transactor)(app.exceptionRepo.findById(exceptions.head.id)).get.status,
+        ExceptionStatus.Resolved
       )
     finally
       transact(app.transactor):
         data.reconRepo.findByReconSpecID(spec.id).foreach { r =>
-          app.disputeRepo.findAll.filter(_.referenceId == r.id).foreach(d => app.disputeRepo.deleteById(d.id))
+          app.exceptionRepo.findAll.filter(_.referenceId == r.id).foreach(d => app.exceptionRepo.deleteById(d.id))
           data.reconRepo.deleteById(r.id)
         }
         data.reconSpecRepo.deleteById(spec.id)
       teardown(data)
 
   test(
-    "raiseStaleMismatchDisputes: a no-op for OneToOne specs, which already raise immediately and never get more data"
+    "raiseStaleMismatchExceptions: a no-op for OneToOne specs, which already raise immediately and never get more data"
   ):
     val data = transact(app.transactor)(DataSetup(app))
     try
       val reconciler = app.reconciler
-      val raised     = transact(app.transactor)(reconciler.raiseStaleMismatchDisputes(data.reconSpec))
+      val raised     = transact(app.transactor)(reconciler.raiseStaleMismatchExceptions(data.reconSpec))
       assertEquals(raised, 0)
     finally teardown(data)
 
@@ -757,7 +757,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       assertEquals(resumed.map(_.props.get("id")), Vector(Some("2"), Some("3")))
     finally teardown(data)
 
-  // The actual point of Ledger.reverseMovement linking a movement to its reversal via a real
+  // The actual point of Bookkeeper.reverseMovement linking a movement to its reversal via a real
   // ReconciliationStatus.Reversed reconciliation (see its doc): the reversal necessarily carries
   // the same match-key properties as the movement it reverses, so without that link permanently
   // excluding both from every "unreconciled movement" query, a real reconciliation run could match
@@ -768,7 +768,7 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     try
       val counterpart = transact(app.transactor):
         val original = insertMovement(data, data.journalToRecon, "reversal-test-key")
-        reversal = data.ledger.reverseMovement(original)
+        reversal = data.bookkeeper.reverseMovement(original)
         insertMovement(data, data.reportToRecon, "reversal-test-key") // the real match, once corrected
 
       app.reconciler.reconcileAccountResumable(data.reconAccount.id)

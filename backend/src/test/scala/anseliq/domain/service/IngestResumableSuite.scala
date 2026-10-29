@@ -41,7 +41,7 @@ class IngestResumableSuite extends munit.FunSuite:
         .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
         .foreach(es => app.eventRepo.deleteById(es.id))
       data.reconSpecRepo.deleteById(data.reconSpec.id)
-      data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+      data.ledgerRepo.deleteById(data.ledger.id)
 
   test("earlier batches commit durably even when a later batch is rolled back"):
     val data = transact(app.transactor)(DataSetup(app))
@@ -69,7 +69,7 @@ class IngestResumableSuite extends munit.FunSuite:
       assertEquals(committedMovements.map(_.amount).sum, BigDecimal(10 + 20 + 30 + 40))
     finally teardown(data)
 
-  test("exceeding maxParseErrors stops ingestion and raises a dispute, without discarding earlier batches"):
+  test("exceeding maxParseErrors stops ingestion and raises an exception, without discarding earlier batches"):
     val data = transact(app.transactor)(DataSetup(app))
     val feed = csvFeed().copy(maxParseErrors = Some(2))
     try
@@ -94,21 +94,21 @@ class IngestResumableSuite extends munit.FunSuite:
       val committedMovements = transact(app.transactor)(data.movementRepo.findByAccount(data.reconAccount.id))
       assertEquals(committedMovements.map(_.amount).sum, BigDecimal(10 + 20 + 30))
 
-      val dispute = transact(app.transactor):
-        app.disputeRepo.findAll.filter(d =>
-          d.referenceId == feed.id && d.category == DisputeCategory.ExcessiveParseErrors
+      val exception = transact(app.transactor):
+        app.exceptionRepo.findAll.filter(d =>
+          d.referenceId == feed.id && d.category == ExceptionCategory.ExcessiveParseErrors
         )
-      assertEquals(dispute.size, 1)
-      assertEquals(dispute.head.targetType, DisputeTarget.FileFeed)
+      assertEquals(exception.size, 1)
+      assertEquals(exception.head.targetType, ExceptionTarget.FileFeed)
       assert(
-        dispute.head.detail.exists(_.contains("3")),
+        exception.head.detail.exists(_.contains("3")),
         "detail should surface the error count that crossed the cutoff"
       )
     finally
       transact(app.transactor):
-        app.disputeRepo.findAll
-          .filter(d => d.referenceId == feed.id && d.category == DisputeCategory.ExcessiveParseErrors)
-          .foreach(d => app.disputeRepo.deleteById(d.id))
+        app.exceptionRepo.findAll
+          .filter(d => d.referenceId == feed.id && d.category == ExceptionCategory.ExcessiveParseErrors)
+          .foreach(d => app.exceptionRepo.deleteById(d.id))
       teardown(data)
 
   test("resuming from lastProcessedLine processes remaining rows exactly once"):
@@ -145,13 +145,13 @@ class IngestResumableSuite extends munit.FunSuite:
     finally teardown(data)
 
   test(
-    "a multi-account feed routes each row to its matching spec's account pair, and unmatched rows raise one UnroutedRecord dispute"
+    "a multi-account feed routes each row to its matching spec's account pair, and unmatched rows raise one UnroutedRecord exception"
   ):
     val data = transact(app.transactor)(DataSetup(app))
     val accountA =
-      Account(name = "sub-account-a", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Primary)
+      Account(name = "sub-account-a", ledgerId = data.ledger.id, accountType = AccountType.Primary)
     val accountB =
-      Account(name = "sub-account-b", fundFlowId = data.fundFlowConfig.id, accountType = AccountType.Primary)
+      Account(name = "sub-account-b", ledgerId = data.ledger.id, accountType = AccountType.Primary)
     val feed = FileFeed(
       dataSourceJson = upickle.write(
         DataSourceConfig(
@@ -204,9 +204,9 @@ class IngestResumableSuite extends munit.FunSuite:
       assertEquals(movementsB.head.amount, BigDecimal(200))
 
       val unrouted = transact(app.transactor):
-        app.disputeRepo.findAll.filter(d => d.referenceId == feed.id && d.category == DisputeCategory.UnroutedRecord)
-      assertEquals(unrouted.size, 1, "exactly one dispute for the whole run, not one per unrouted row")
-      assertEquals(unrouted.head.targetType, DisputeTarget.FileFeed)
+        app.exceptionRepo.findAll.filter(d => d.referenceId == feed.id && d.category == ExceptionCategory.UnroutedRecord)
+      assertEquals(unrouted.size, 1, "exactly one exception for the whole run, not one per unrouted row")
+      assertEquals(unrouted.head.targetType, ExceptionTarget.FileFeed)
       assert(unrouted.head.detail.exists(_.contains("999")), "detail should surface the unmatched account_number value")
     finally
       transact(app.transactor):
@@ -215,9 +215,9 @@ class IngestResumableSuite extends munit.FunSuite:
           .findByEventType("MoneyMovementsIngested")
           .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
           .foreach(es => app.eventRepo.deleteById(es.id))
-        app.disputeRepo.findAll
-          .filter(d => d.referenceId == feed.id && d.category == DisputeCategory.UnroutedRecord)
-          .foreach(d => app.disputeRepo.deleteById(d.id))
+        app.exceptionRepo.findAll
+          .filter(d => d.referenceId == feed.id && d.category == ExceptionCategory.UnroutedRecord)
+          .foreach(d => app.exceptionRepo.deleteById(d.id))
         app.accountRepo.deleteById(accountA.id) // cascades: its movements + specA
         app.accountRepo.deleteById(accountB.id) // cascades: its movements + specB
         app.fileFeedRepo.deleteById(feed.id)

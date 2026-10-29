@@ -31,7 +31,7 @@ class MovementRoutes(
     val req = read[MovementSearchRequest](request.text())
     transact(transactor):
       val criteria = MovementSearchCriteria(
-        fundFlowId      = UUID.fromString(req.fundFlowId),
+        ledgerId      = UUID.fromString(req.ledgerId),
         accountId       = req.accountId.map(UUID.fromString),
         amount          = req.amount,
         movementSpecId  = req.movementSpecId.map(UUID.fromString),
@@ -66,7 +66,7 @@ class MovementRoutes(
     write(PayloadMapper.fixBadFileResultPayloadFromDomain(result))
 
   @cask.get("/account/:id/movements")
-  def movements(fundFlowName: String, accountIdStr: String): String =
+  def movements(ledgerName: String, accountIdStr: String): String =
     val accountID = Try {
       UUID.fromString(accountIdStr)
     }.getOrElse(

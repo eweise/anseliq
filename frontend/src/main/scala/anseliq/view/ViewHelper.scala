@@ -11,7 +11,7 @@ object ViewHelper:
   def formatDateTime(dt: OffsetDateTime): String =
     dt.format(customFormatter)
 
-  // The standard fund flow setup: a Primary account settles OUT to Recon, and Recon settles OUT to
+  // The standard ledger setup: a Primary account settles OUT to Recon, and Recon settles OUT to
   // a Secondary account — so Recon receives from Primary and pays out to Secondary, netting to zero
   // when the amounts match. Returns (outAccountId, inAccountId) for a MovementSpec linking the two.
   def accountLinkFields(nonRecon: AccountPayload, recon: AccountPayload): (String, String) =

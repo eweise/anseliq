@@ -38,14 +38,14 @@ object PayloadMapper:
       createdAt            = s.createdAt
     )
 
-  def fundFlowPayloadToDomain(payload: FundFlowPayload): FundFlowConfig =
-    FundFlowConfig(
+  def ledgerPayloadToDomain(payload: LedgerPayload): Ledger =
+    Ledger(
       name             = payload.name,
       dailyCutoffHours = payload.dailyCutoffHours
     )
 
-  def fundFlowPayloadFromDomain(ff: FundFlowConfig): FundFlowPayload =
-    FundFlowPayload(
+  def ledgerPayloadFromDomain(ff: Ledger): LedgerPayload =
+    LedgerPayload(
       id               = Some(ff.id.toString),
       name             = ff.name,
       createdAt        = ff.createdAt,
@@ -56,14 +56,14 @@ object PayloadMapper:
   def accountPayloadToDomain(payload: AccountPayload): Account =
     Account(
       name        = payload.name,
-      fundFlowId  = UUID.fromString(payload.fundFlowId),
+      ledgerId  = UUID.fromString(payload.ledgerId),
       accountType = accountTypeToDomain(payload.accountType),
       properties  = JSONBProps(payload.properties)
     )
 
   def accountPayloadFromDomain(account: Account): AccountPayload =
     AccountPayload(
-      fundFlowId          = account.fundFlowId.toString,
+      ledgerId          = account.ledgerId.toString,
       id                  = Some(account.id.toString),
       name                = account.name,
       accountType         = accountTypeFromDomain(account.accountType),
@@ -163,8 +163,8 @@ object PayloadMapper:
     recon:        Reconciliation,
     spec:         Option[(ReconciliationSpec, String)], // (spec, its account's name)
     movements:    Seq[ReconciliationMovementPayload],
-    fundFlow:     Option[FundFlowConfig],
-    openDisputes: Seq[DisputePayload]
+    ledger:     Option[Ledger],
+    openExceptions: Seq[ExceptionPayload]
   ): ReconciliationDetailPayload =
     ReconciliationDetailPayload(
       reconciliation = reconFromDomain(recon),
@@ -179,8 +179,8 @@ object PayloadMapper:
         )
       },
       movements    = movements,
-      fundFlow     = fundFlow.map(fundFlowPayloadFromDomain),
-      openDisputes = openDisputes
+      ledger     = ledger.map(ledgerPayloadFromDomain),
+      openExceptions = openExceptions
     )
 
   // reconAccountId: the reconciliation spec's account, None for a spec-less Reversed reconciliation.
@@ -343,92 +343,92 @@ object PayloadMapper:
     case AccountType.Secondary => AccountTypePayload.Secondary
     case AccountType.Recon     => AccountTypePayload.Recon
 
-  def disputeTargetToDomain(p: DisputeTargetPayload): DisputeTarget = p match
-    case DisputeTargetPayload.Movement       => DisputeTarget.Movement
-    case DisputeTargetPayload.Reconciliation => DisputeTarget.Reconciliation
-    case DisputeTargetPayload.MovementSpec   => DisputeTarget.MovementSpec
-    case DisputeTargetPayload.FileFeed       => DisputeTarget.FileFeed
+  def exceptionTargetToDomain(p: ExceptionTargetPayload): ExceptionTarget = p match
+    case ExceptionTargetPayload.Movement       => ExceptionTarget.Movement
+    case ExceptionTargetPayload.Reconciliation => ExceptionTarget.Reconciliation
+    case ExceptionTargetPayload.MovementSpec   => ExceptionTarget.MovementSpec
+    case ExceptionTargetPayload.FileFeed       => ExceptionTarget.FileFeed
 
-  def disputeCategoryToDomain(p: DisputeCategoryPayload): DisputeCategory = p match
-    case DisputeCategoryPayload.AmountMismatch       => DisputeCategory.AmountMismatch
-    case DisputeCategoryPayload.MissingCounterpart   => DisputeCategory.MissingCounterpart
-    case DisputeCategoryPayload.Duplicate            => DisputeCategory.Duplicate
-    case DisputeCategoryPayload.TimingDifference     => DisputeCategory.TimingDifference
-    case DisputeCategoryPayload.DataQuality          => DisputeCategory.DataQuality
-    case DisputeCategoryPayload.FileMissing          => DisputeCategory.FileMissing
-    case DisputeCategoryPayload.UnroutedRecord       => DisputeCategory.UnroutedRecord
-    case DisputeCategoryPayload.ExcessiveParseErrors => DisputeCategory.ExcessiveParseErrors
+  def exceptionCategoryToDomain(p: ExceptionCategoryPayload): ExceptionCategory = p match
+    case ExceptionCategoryPayload.AmountMismatch       => ExceptionCategory.AmountMismatch
+    case ExceptionCategoryPayload.MissingCounterpart   => ExceptionCategory.MissingCounterpart
+    case ExceptionCategoryPayload.Duplicate            => ExceptionCategory.Duplicate
+    case ExceptionCategoryPayload.TimingDifference     => ExceptionCategory.TimingDifference
+    case ExceptionCategoryPayload.DataQuality          => ExceptionCategory.DataQuality
+    case ExceptionCategoryPayload.FileMissing          => ExceptionCategory.FileMissing
+    case ExceptionCategoryPayload.UnroutedRecord       => ExceptionCategory.UnroutedRecord
+    case ExceptionCategoryPayload.ExcessiveParseErrors => ExceptionCategory.ExcessiveParseErrors
 
-  def disputeStatusToDomain(p: DisputeStatusPayload): DisputeStatus = p match
-    case DisputeStatusPayload.New           => DisputeStatus.New
-    case DisputeStatusPayload.Investigating => DisputeStatus.Investigating
-    case DisputeStatusPayload.Escalated     => DisputeStatus.Escalated
-    case DisputeStatusPayload.Resolved      => DisputeStatus.Resolved
+  def exceptionStatusToDomain(p: ExceptionStatusPayload): ExceptionStatus = p match
+    case ExceptionStatusPayload.New           => ExceptionStatus.New
+    case ExceptionStatusPayload.Investigating => ExceptionStatus.Investigating
+    case ExceptionStatusPayload.Escalated     => ExceptionStatus.Escalated
+    case ExceptionStatusPayload.Resolved      => ExceptionStatus.Resolved
 
   /**
    * accountId/accountName/referenceLabel must be resolved by the caller (see Routes.scala) since
-   * which repos to query depends on dispute.targetType. raisedByName/assignedToName are likewise
+   * which repos to query depends on exception.targetType. raisedByName/assignedToName are likewise
    * resolved by the caller (via userRepo) rather than looked up here, so this stays a pure mapping
    * function with no repo access of its own — same reasoning as the other three.
    */
-  def disputePayloadFromDomain(
-    dispute:        Dispute,
+  def exceptionPayloadFromDomain(
+    exception:        ExceptionCase,
     accountId:      String,
     accountName:    String,
     referenceLabel: String,
     raisedByName:   Option[String] = None,
     assignedToName: Option[String] = None
-  ): DisputePayload =
-    DisputePayload(
-      id                  = dispute.id.toString,
-      referenceId         = dispute.referenceId.toString,
-      targetType          = disputeTargetFromDomain(dispute.targetType),
-      category            = disputeCategoryFromDomain(dispute.category),
-      detail              = dispute.detail,
-      status              = disputeStatusFromDomain(dispute.status),
+  ): ExceptionPayload =
+    ExceptionPayload(
+      id                  = exception.id.toString,
+      referenceId         = exception.referenceId.toString,
+      targetType          = exceptionTargetFromDomain(exception.targetType),
+      category            = exceptionCategoryFromDomain(exception.category),
+      detail              = exception.detail,
+      status              = exceptionStatusFromDomain(exception.status),
       accountId           = accountId,
       accountName         = accountName,
       referenceLabel      = referenceLabel,
-      createdAt           = dispute.createdAt.get,
-      updatedAt           = dispute.updatedAt.get,
-      raisedByUserId      = dispute.raisedByUserId.map(_.toString),
+      createdAt           = exception.createdAt.get,
+      updatedAt           = exception.updatedAt.get,
+      raisedByUserId      = exception.raisedByUserId.map(_.toString),
       raisedByName        = raisedByName,
-      assignedToUserId    = dispute.assignedToUserId.map(_.toString),
+      assignedToUserId    = exception.assignedToUserId.map(_.toString),
       assignedToName      = assignedToName,
-      automaticResolution = dispute.category.automaticResolution,
-      insteadOfReopening  = dispute.category.insteadOfReopening
+      automaticResolution = exception.category.automaticResolution,
+      insteadOfReopening  = exception.category.insteadOfReopening
     )
 
-  def disputeTargetFromDomain(d: DisputeTarget): DisputeTargetPayload = d match
-    case DisputeTarget.Movement       => DisputeTargetPayload.Movement
-    case DisputeTarget.Reconciliation => DisputeTargetPayload.Reconciliation
-    case DisputeTarget.MovementSpec   => DisputeTargetPayload.MovementSpec
-    case DisputeTarget.FileFeed       => DisputeTargetPayload.FileFeed
+  def exceptionTargetFromDomain(d: ExceptionTarget): ExceptionTargetPayload = d match
+    case ExceptionTarget.Movement       => ExceptionTargetPayload.Movement
+    case ExceptionTarget.Reconciliation => ExceptionTargetPayload.Reconciliation
+    case ExceptionTarget.MovementSpec   => ExceptionTargetPayload.MovementSpec
+    case ExceptionTarget.FileFeed       => ExceptionTargetPayload.FileFeed
 
-  def disputeCategoryFromDomain(d: DisputeCategory): DisputeCategoryPayload = d match
-    case DisputeCategory.AmountMismatch       => DisputeCategoryPayload.AmountMismatch
-    case DisputeCategory.MissingCounterpart   => DisputeCategoryPayload.MissingCounterpart
-    case DisputeCategory.Duplicate            => DisputeCategoryPayload.Duplicate
-    case DisputeCategory.TimingDifference     => DisputeCategoryPayload.TimingDifference
-    case DisputeCategory.DataQuality          => DisputeCategoryPayload.DataQuality
-    case DisputeCategory.FileMissing          => DisputeCategoryPayload.FileMissing
-    case DisputeCategory.UnroutedRecord       => DisputeCategoryPayload.UnroutedRecord
-    case DisputeCategory.ExcessiveParseErrors => DisputeCategoryPayload.ExcessiveParseErrors
+  def exceptionCategoryFromDomain(d: ExceptionCategory): ExceptionCategoryPayload = d match
+    case ExceptionCategory.AmountMismatch       => ExceptionCategoryPayload.AmountMismatch
+    case ExceptionCategory.MissingCounterpart   => ExceptionCategoryPayload.MissingCounterpart
+    case ExceptionCategory.Duplicate            => ExceptionCategoryPayload.Duplicate
+    case ExceptionCategory.TimingDifference     => ExceptionCategoryPayload.TimingDifference
+    case ExceptionCategory.DataQuality          => ExceptionCategoryPayload.DataQuality
+    case ExceptionCategory.FileMissing          => ExceptionCategoryPayload.FileMissing
+    case ExceptionCategory.UnroutedRecord       => ExceptionCategoryPayload.UnroutedRecord
+    case ExceptionCategory.ExcessiveParseErrors => ExceptionCategoryPayload.ExcessiveParseErrors
 
-  def disputeStatusFromDomain(d: DisputeStatus): DisputeStatusPayload = d match
-    case DisputeStatus.New           => DisputeStatusPayload.New
-    case DisputeStatus.Investigating => DisputeStatusPayload.Investigating
-    case DisputeStatus.Escalated     => DisputeStatusPayload.Escalated
-    case DisputeStatus.Resolved      => DisputeStatusPayload.Resolved
+  def exceptionStatusFromDomain(d: ExceptionStatus): ExceptionStatusPayload = d match
+    case ExceptionStatus.New           => ExceptionStatusPayload.New
+    case ExceptionStatus.Investigating => ExceptionStatusPayload.Investigating
+    case ExceptionStatus.Escalated     => ExceptionStatusPayload.Escalated
+    case ExceptionStatus.Resolved      => ExceptionStatusPayload.Resolved
 
-  def disputeCommentPayloadFromDomain(c: DisputeComment, newAssignedToName: Option[String]): DisputeCommentPayload =
-    DisputeCommentPayload(
+  def exceptionCommentPayloadFromDomain(c: ExceptionComment, newAssignedToName: Option[String]): ExceptionCommentPayload =
+    ExceptionCommentPayload(
       id                = c.id.toString,
       body              = c.body,
-      newStatus         = c.newStatus.map(disputeStatusFromDomain),
+      newStatus         = c.newStatus.map(exceptionStatusFromDomain),
       newAssignedToName = newAssignedToName,
       createdAt         = c.createdAt.get,
-      relatedDisputeId  = c.relatedDisputeId.map(_.toString)
+      relatedExceptionId  = c.relatedExceptionId.map(_.toString)
     )
 
   def reportsSummaryPayloadFromDomain(r: ReportsSummaryReport): ReportsSummaryPayload =

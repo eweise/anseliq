@@ -17,11 +17,11 @@ case class BadFilePreview(
 case class FixBadFileResult(unreconcile: BulkUnreconcileResult, reversal: BulkReversalResult)
 
 class ManualReconciler(
-  val ledger:         Ledger,
+  val bookkeeper:         Bookkeeper,
   val movementRepo:   MovementRepo,
   val reconRepo:      ReconciliationRepo,
   val reconSpecRepo:  ReconciliationSpecRepo,
-  val disputeService: DisputeService,
+  val exceptionService: ExceptionService,
   val eventStore:     EventStore,
   val clock:          ClockService,
   val transactor:     Transactor
@@ -79,13 +79,13 @@ class ManualReconciler(
     )
     reconRepo.insert(reconciliation)
 
-    ledger.reconcile(inMovements ++ outMovements, reconciliation.id, reconSpec.accountId)
+    bookkeeper.reconcile(inMovements ++ outMovements, reconciliation.id, reconSpec.accountId)
 
     if status == ReconciliationStatus.Mismatched then
-      disputeService.raiseSystemDispute(
+      exceptionService.raiseSystemException(
         reconciliation.id,
-        DisputeTarget.Reconciliation,
-        DisputeCategory.AmountMismatch,
+        ExceptionTarget.Reconciliation,
+        ExceptionCategory.AmountMismatch,
         s"Balance mismatch of $balance"
       )
 
@@ -110,7 +110,7 @@ class ManualReconciler(
       )
     if reconciliation.status == ReconciliationStatus.Voided then
       throw IllegalStateError(s"reconciliation $reconciliationId is already voided")
-    // A Reversed reconciliation permanently links a movement to its Ledger.reverseMovement
+    // A Reversed reconciliation permanently links a movement to its Bookkeeper.reverseMovement
     // contra-entry (see ReconciliationStatus.Reversed) specifically so both stay excluded from
     // every "unreconciled movement" query forever. Unmatching it would undo that on purpose,
     // putting both back in the matching pool — exactly the bug this status exists to prevent.
@@ -121,19 +121,19 @@ class ManualReconciler(
     val reconSpec = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
     val movements = movementRepo.findByReconciliationID(reconciliationId)
 
-    ledger.unreconcile(movements, reconSpec.accountId)
+    bookkeeper.unreconcile(movements, reconSpec.accountId)
 
     // A write-off's adjustment exists only to close this reconciliation's difference. Returned to
     // the unreconciled pool it would be matchable like a real movement, so it's reversed instead —
     // reverseMovement also links it to its reversal, permanently excluding both from matching.
-    movements.filter(_.movementType.contains(MovementType.ManualAdjustment)).foreach(ledger.reverseMovement)
+    movements.filter(_.movementType.contains(MovementType.ManualAdjustment)).foreach(bookkeeper.reverseMovement)
 
     reconciliation.status = ReconciliationStatus.Voided
     reconRepo.update(reconciliation)
 
-    disputeService.resolveAutomatically(
+    exceptionService.resolveAutomatically(
       reconciliationId,
-      DisputeCategory.AmountMismatch,
+      ExceptionCategory.AmountMismatch,
       s"Auto-resolved: reconciliation $reconciliationId was voided."
     )
 
@@ -146,9 +146,9 @@ class ManualReconciler(
    * Undoes a write-off that shouldn't have happened (posted against the wrong movement, or the
    * "missing" money later turned up). Admin-only at the route, and a reason is required. Unlike
    * unmatch, the match itself is kept: the write-off adjustment is taken out of the reconciliation
-   * and reversed (Ledger.reverseMovement, so the original entry and its correction both stay on the
+   * and reversed (Bookkeeper.reverseMovement, so the original entry and its correction both stay on the
    * books), the difference comes back, and the reconciliation is Mismatched again with a new
-   * AmountMismatch dispute. From there it can be written off correctly, unmatched, or — for
+   * AmountMismatch exception. From there it can be written off correctly, unmatched, or — for
    * OneToMany — completed by a late movement.
    */
   def reverseWriteOff(reconciliationId: ID, reason: String, reversedByUserId: Option[ID] = None): Txn[Reconciliation] =
@@ -164,8 +164,8 @@ class ManualReconciler(
     if adjustments.isEmpty then
       throw IllegalStateError(s"reconciliation $reconciliationId has no write-off adjustment to reverse")
 
-    ledger.unreconcile(adjustments, reconSpec.accountId)
-    adjustments.foreach(ledger.reverseMovement)
+    bookkeeper.unreconcile(adjustments, reconSpec.accountId)
+    adjustments.foreach(bookkeeper.reverseMovement)
 
     // Same balance rule as matching (in-spec amounts − out-spec amounts), over the movements that
     // were actually matched — i.e. the difference the write-off had closed.
@@ -178,23 +178,23 @@ class ManualReconciler(
     reconciliation.updatedAt        = Some(clock.now)
     reconRepo.update(reconciliation)
 
-    // The write-off resolved this reconciliation's AmountMismatch dispute; the mismatch is back,
+    // The write-off resolved this reconciliation's AmountMismatch exception; the mismatch is back,
     // so a new one is raised, and the two threads are linked so either leads to the other.
-    val resolvedByWriteOff = disputeService.latestResolved(reconciliationId, DisputeCategory.AmountMismatch)
-    val reraised = disputeService.raiseSystemDispute(
+    val resolvedByWriteOff = exceptionService.latestResolved(reconciliationId, ExceptionCategory.AmountMismatch)
+    val reraised = exceptionService.raiseSystemException(
       reconciliationId,
-      DisputeTarget.Reconciliation,
-      DisputeCategory.AmountMismatch,
+      ExceptionTarget.Reconciliation,
+      ExceptionCategory.AmountMismatch,
       s"Write-off reversed ($reason). Balance mismatch of $balance"
     )
-    val by = reversedByUserId.flatMap(disputeService.displayName).fold("")(name => s" by $name")
+    val by = reversedByUserId.flatMap(exceptionService.displayName).fold("")(name => s" by $name")
     for earlier <- resolvedByWriteOff; later <- reraised do
-      disputeService.crossLink(
+      exceptionService.crossLink(
         earlier,
         later,
-        earlierNote = s"The write-off was reversed$by ($reason). The mismatch is open again under a new dispute.",
+        earlierNote = s"The write-off was reversed$by ($reason). The mismatch is open again under a new exception.",
         laterNote =
-          s"Raised because the write-off was reversed$by ($reason). The earlier dispute was resolved by that write-off."
+          s"Raised because the write-off was reversed$by ($reason). The earlier exception was resolved by that write-off."
       )
     eventStore.publishEvent(
       ReconciliationWriteOffReversed(
@@ -247,7 +247,7 @@ class ManualReconciler(
     val (inAccountId, outAccountId) =
       if difference > Zero then (counterpartyId, reconAccountId) else (reconAccountId, counterpartyId)
 
-    val adjustment = ledger.recordAdjustment(
+    val adjustment = bookkeeper.recordAdjustment(
       inAccountId    = inAccountId,
       outAccountId   = outAccountId,
       amount         = difference.abs,
@@ -263,16 +263,16 @@ class ManualReconciler(
       adjustmentType = AdjustmentType.WriteOff,
       note           = Some(reason)
     )
-    ledger.reconcile(Seq(adjustment), reconciliationId, reconAccountId)
+    bookkeeper.reconcile(Seq(adjustment), reconciliationId, reconAccountId)
 
     reconciliation.adjustmentReason = Some(reason)
     reconciliation.balance          = Zero
     reconciliation.status           = ReconciliationStatus.Final
     reconRepo.update(reconciliation)
 
-    disputeService.resolveAutomatically(
+    exceptionService.resolveAutomatically(
       reconciliationId,
-      DisputeCategory.AmountMismatch,
+      ExceptionCategory.AmountMismatch,
       s"Auto-resolved: reconciliation $reconciliationId was written off ($reason)."
     )
 
@@ -283,10 +283,10 @@ class ManualReconciler(
    * For a bad ingest (e.g. a FileFeed misconfigured with the wrong amount field): finds every
    * movement tagged with this exact fileSourceEntry (see MovementRepoLive.findByFileSourceEntry)
    * and voids whichever reconciliations they'd been matched into, via unmatch — same ledger
-   * reversal, same dangling-dispute cleanup, same Voided-not-deleted audit trail as unmatching one
+   * reversal, same dangling-exception cleanup, same Voided-not-deleted audit trail as unmatching one
    * reconciliation by hand. Movements with no reconciliation yet are left as-is (already
    * unreconciled). This does NOT delete the movements or reverse their original ingest-time ledger
-   * posting (Ledger.recordMovements has no reversal counterpart) — the wrong amounts are still on
+   * posting (Bookkeeper.recordMovements has no reversal counterpart) — the wrong amounts are still on
    * the books and still reflected in account balances until that's addressed separately; this only
    * undoes reconciliation so the (still-wrong) movements stop being matched against anything.
    *
@@ -316,7 +316,7 @@ class ManualReconciler(
 
   /**
    * For a bad ingest, after bulkUnreconcileByFile has cleared whatever reconciliations were
-   * blocking it: posts a reversing movement (Ledger.reverseMovement) for every movement tagged with
+   * blocking it: posts a reversing movement (Bookkeeper.reverseMovement) for every movement tagged with
    * this fileSourceEntry that isn't still reconciled and isn't itself a reversal. The bad movements
    * are never deleted or edited — this is the permanent "wrong entry, then its reversal" trail
    * accounting audits require, not a correction in place. A corrected re-ingest of this file needs
@@ -326,18 +326,18 @@ class ManualReconciler(
    * Not a Txn, same batching reasoning as bulkUnreconcileByFile. Still-reconciled movements are
    * skipped and counted rather than failing the whole run — that's a signal bulkUnreconcileByFile
    * needs to run (again) first, not a reason to abort movements that ARE reversible.
-   * Already-reversed movements are skipped too, via Ledger.reverseMovement's own idempotency,
+   * Already-reversed movements are skipped too, via Bookkeeper.reverseMovement's own idempotency,
    * making a retry after a partial failure safe to just re-run.
    */
   def reverseMovementsByFile(fileSourceEntry: String, batchSize: Int = 1000): BulkReversalResult =
     val (candidates, stillReconciledCount) = transact(transactor):
       val movements              = movementRepo.findByFileSourceEntry(fileSourceEntry)
-      val (reversals, originals) = movements.partition(ledger.isReversal)
+      val (reversals, originals) = movements.partition(bookkeeper.isReversal)
       // Same reasoning as ManualReconciler.previewBadFile: an original that already has a reversal
       // now legitimately carries a reconciliationId (pointing at that reversal's own Reversed
-      // reconciliation — see Ledger.reverseMovement), so without excluding it here, a retry after
+      // reconciliation — see Bookkeeper.reverseMovement), so without excluding it here, a retry after
       // a successful run would miscount it as "still reconciled" (blocked) instead of "already done".
-      val alreadyReversedIds = reversals.flatMap(ledger.reversalTargetId).toSet
+      val alreadyReversedIds = reversals.flatMap(bookkeeper.reversalTargetId).toSet
       val pending            = originals.filterNot(m => alreadyReversedIds.contains(m.id))
       (pending.filter(_.reconciliationId.isEmpty), pending.count(_.reconciliationId.isDefined))
 
@@ -346,7 +346,7 @@ class ManualReconciler(
       .grouped(batchSize)
       .foreach: batch =>
         transact(transactor):
-          batch.foreach(m => ledger.reverseMovement(m).foreach(_ => reversedCount += 1))
+          batch.foreach(m => bookkeeper.reverseMovement(m).foreach(_ => reversedCount += 1))
 
     BulkReversalResult(movementsReversed = reversedCount, movementsSkippedStillReconciled = stillReconciledCount)
 
@@ -356,13 +356,13 @@ class ManualReconciler(
    */
   def previewBadFile(fileSourceEntry: String): Txn[BadFilePreview] =
     val movements              = movementRepo.findByFileSourceEntry(fileSourceEntry)
-    val (reversals, originals) = movements.partition(ledger.isReversal)
-    // A reversal inherits its original's file_source_entry tag (see Ledger.reverseMovement), so
+    val (reversals, originals) = movements.partition(bookkeeper.isReversal)
+    // A reversal inherits its original's file_source_entry tag (see Bookkeeper.reverseMovement), so
     // both sides of an already-reversed pair show up in `movements` — without excluding those
     // originals here, a re-run of the preview after a fix would still claim they're "eligible",
     // even though a real fix call would (correctly) no-op on them via reverseMovement's own
     // idempotency check.
-    val alreadyReversedIds = reversals.flatMap(ledger.reversalTargetId).toSet
+    val alreadyReversedIds = reversals.flatMap(bookkeeper.reversalTargetId).toSet
     val pending            = originals.filterNot(m => alreadyReversedIds.contains(m.id))
     BadFilePreview(
       movementsFound           = movements.size,

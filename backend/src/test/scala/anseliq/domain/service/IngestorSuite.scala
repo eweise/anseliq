@@ -143,8 +143,8 @@ class IngestorSuite extends munit.FunSuite:
         assertEquals(result.truncated, true)
         assertEquals(result.rows.size, 2, "header + 2 data lines within the 3-line cap")
 
-  private def openFileMissingDisputes(referenceId: UUID): Txn[Vector[Dispute]] =
-    app.disputeRepo.findAll.filter(d => d.referenceId == referenceId && d.category == DisputeCategory.FileMissing)
+  private def openFileMissingExceptions(referenceId: UUID): Txn[Vector[ExceptionCase]] =
+    app.exceptionRepo.findAll.filter(d => d.referenceId == referenceId && d.category == ExceptionCategory.FileMissing)
 
   test("checkForMissingFile does nothing when expectedCadenceHours isn't configured"):
     transact(app.transactor):
@@ -155,7 +155,7 @@ class IngestorSuite extends munit.FunSuite:
         app.clock.addHours(1000)
 
         ingestor.checkForMissingFile(feed)
-        assert(openFileMissingDisputes(feed.id).isEmpty)
+        assert(openFileMissingExceptions(feed.id).isEmpty)
 
   test("checkForMissingFile raises nothing while the most recent file is still within cadence"):
     transact(app.transactor):
@@ -166,9 +166,9 @@ class IngestorSuite extends munit.FunSuite:
         app.fileInventoryRepo.insert(createExistingFileInventory(feed.id))
 
         ingestor.checkForMissingFile(feed)
-        assert(openFileMissingDisputes(feed.id).isEmpty)
+        assert(openFileMissingExceptions(feed.id).isEmpty)
 
-  test("checkForMissingFile raises a FileMissing dispute once the most recent file ages past cadence"):
+  test("checkForMissingFile raises a FileMissing exception once the most recent file ages past cadence"):
     transact(app.transactor):
       rollBackOnly:
         val ingestor = app.ingestor
@@ -179,16 +179,16 @@ class IngestorSuite extends munit.FunSuite:
         app.clock.addHours(25)
         ingestor.checkForMissingFile(feed)
 
-        val disputes = openFileMissingDisputes(feed.id)
-        assertEquals(disputes.size, 1)
-        assertEquals(disputes.head.targetType, DisputeTarget.FileFeed)
-        assertEquals(disputes.head.status, DisputeStatus.New)
+        val exceptions = openFileMissingExceptions(feed.id)
+        assertEquals(exceptions.size, 1)
+        assertEquals(exceptions.head.targetType, ExceptionTarget.FileFeed)
+        assertEquals(exceptions.head.status, ExceptionStatus.New)
 
-        // Rerunning the check (e.g. the next scan cycle) must not raise a second dispute.
+        // Rerunning the check (e.g. the next scan cycle) must not raise a second exception.
         ingestor.checkForMissingFile(feed)
-        assertEquals(openFileMissingDisputes(feed.id).size, 1)
+        assertEquals(openFileMissingExceptions(feed.id).size, 1)
 
-  test("checkForMissingFile resolves an open dispute once a new file arrives within cadence"):
+  test("checkForMissingFile resolves an open exception once a new file arrives within cadence"):
     transact(app.transactor):
       rollBackOnly:
         val ingestor = app.ingestor
@@ -198,25 +198,25 @@ class IngestorSuite extends munit.FunSuite:
 
         app.clock.addHours(25)
         ingestor.checkForMissingFile(feed)
-        val raised = openFileMissingDisputes(feed.id)
+        val raised = openFileMissingExceptions(feed.id)
         assertEquals(raised.size, 1)
-        assertEquals(raised.head.status, DisputeStatus.New)
+        assertEquals(raised.head.status, ExceptionStatus.New)
 
         // A fresh file lands (e.g. detectAndQueue found a new one this cycle) — its lastModifiedAt
         // is "now", so the feed is back within cadence.
         app.fileInventoryRepo.insert(createExistingFileInventory(feed.id))
         ingestor.checkForMissingFile(feed)
 
-        val afterResolve = app.disputeRepo.findById(raised.head.id).get
-        assertEquals(afterResolve.status, DisputeStatus.Resolved)
+        val afterResolve = app.exceptionRepo.findById(raised.head.id).get
+        assertEquals(afterResolve.status, ExceptionStatus.Resolved)
 
-        val comments = app.disputeCommentRepo.findByDisputeId(raised.head.id)
+        val comments = app.exceptionCommentRepo.findByExceptionId(raised.head.id)
         assertEquals(comments.size, 1)
-        assertEquals(comments.head.newStatus, Some(DisputeStatus.Resolved))
+        assertEquals(comments.head.newStatus, Some(ExceptionStatus.Resolved))
 
         // Rerunning the check again (still within cadence) must not re-resolve or add a second comment.
         ingestor.checkForMissingFile(feed)
-        assertEquals(app.disputeCommentRepo.findByDisputeId(raised.head.id).size, 1)
+        assertEquals(app.exceptionCommentRepo.findByExceptionId(raised.head.id).size, 1)
 
   test("checkForMissingFile falls back to the feed's own createdAt when no file has ever arrived"):
     transact(app.transactor):
@@ -233,4 +233,4 @@ class IngestorSuite extends munit.FunSuite:
         app.clock.addHours(25)
         ingestor.checkForMissingFile(persisted)
 
-        assertEquals(openFileMissingDisputes(feed.id).size, 1)
+        assertEquals(openFileMissingExceptions(feed.id).size, 1)

@@ -21,11 +21,11 @@ class EndToEndSuite extends munit.FunSuite {
   // transactions rather than participating in the caller's, so these tests can no longer rely on
   // rollBackOnly to undo their setup: everything below is committed for real and must be torn down
   // explicitly. reconciliation has no cascade from reconciliation_spec (and reconciliation_spec none
-  // from account), so those go first; fund_flow_config's cascade then takes care of the accounts,
+  // from account), so those go first; ledger's cascade then takes care of the accounts,
   // movement specs, and any movements still attached to them.
   private def teardown(
     reconSpec:      ReconciliationSpec,
-    fundFlowConfig: FundFlowConfig,
+    ledger: Ledger,
     movementSpecs:  Seq[MovementSpec],
     reconAccountId: ID
   ): Unit =
@@ -46,7 +46,7 @@ class EndToEndSuite extends munit.FunSuite {
           scala.util.Try(movementSpecIds.contains(es.event[MoneyMovementsIngested].movementSpecID)).getOrElse(false)
         )
         .foreach(es => app.eventRepo.deleteById(es.id))
-      app.fundFlowConfigRepo.deleteById(fundFlowConfig.id)
+      app.ledgerRepo.deleteById(ledger.id)
 
   test("1 to 1 attribute test") {
     val journalFile1 =
@@ -65,7 +65,7 @@ class EndToEndSuite extends munit.FunSuite {
         |""".stripMargin
 
     val (
-      fundFlowConfig,
+      ledger,
       reconAccount,
       journalAccount,
       reportAccount,
@@ -76,17 +76,17 @@ class EndToEndSuite extends munit.FunSuite {
       reconSpec
     ) =
       transact(app.transactor):
-        val fundFlowConfig = FundFlowConfig(name = createID().toString)
-        app.fundFlowConfigRepo.insert(fundFlowConfig)
+        val ledger = Ledger(name = createID().toString)
+        app.ledgerRepo.insert(ledger)
 
-        val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
+        val reconAccount = Account(name = "recon", ledgerId = ledger.id, accountType = AccountType.Recon)
         app.accountRepo.insert(reconAccount)
 
         val journalAccount =
-          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
+          Account(name = "journal", ledgerId = ledger.id, accountType = AccountType.Primary)
         app.accountRepo.insert(journalAccount)
 
-        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+        val reportAccount = Account(name = "report", ledgerId = ledger.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
@@ -150,7 +150,7 @@ class EndToEndSuite extends munit.FunSuite {
         app.reconSpecRepo.insert(reconSpec)
 
         (
-          fundFlowConfig,
+          ledger,
           reconAccount,
           journalAccount,
           reportAccount,
@@ -191,7 +191,7 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
-    finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
+    finally teardown(reconSpec, ledger, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
 
   test("1 to 1 where report date 1 day greater than journal date") {
@@ -210,7 +210,7 @@ class EndToEndSuite extends munit.FunSuite {
         |""".stripMargin
 
     val (
-      fundFlowConfig,
+      ledger,
       reconAccount,
       journalAccount,
       reportAccount,
@@ -221,17 +221,17 @@ class EndToEndSuite extends munit.FunSuite {
       reconSpec
     ) =
       transact(app.transactor):
-        val fundFlowConfig = FundFlowConfig(name = createID().toString)
-        app.fundFlowConfigRepo.insert(fundFlowConfig)
+        val ledger = Ledger(name = createID().toString)
+        app.ledgerRepo.insert(ledger)
 
-        val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
+        val reconAccount = Account(name = "recon", ledgerId = ledger.id, accountType = AccountType.Recon)
         app.accountRepo.insert(reconAccount)
 
         val journalAccount =
-          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
+          Account(name = "journal", ledgerId = ledger.id, accountType = AccountType.Primary)
         app.accountRepo.insert(journalAccount)
 
-        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+        val reportAccount = Account(name = "report", ledgerId = ledger.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
@@ -304,7 +304,7 @@ class EndToEndSuite extends munit.FunSuite {
         app.reconSpecRepo.insert(reconSpec)
 
         (
-          fundFlowConfig,
+          ledger,
           reconAccount,
           journalAccount,
           reportAccount,
@@ -345,7 +345,7 @@ class EndToEndSuite extends munit.FunSuite {
 
         val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
         assertEquals(reconciliations.length, 3)
-    finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reportToRecon), reconAccount.id)
+    finally teardown(reconSpec, ledger, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
 
   test(
@@ -364,7 +364,7 @@ class EndToEndSuite extends munit.FunSuite {
         |""".stripMargin
 
     val (
-      fundFlowConfig,
+      ledger,
       reconAccount,
       journalAccount,
       reportAccount,
@@ -375,17 +375,17 @@ class EndToEndSuite extends munit.FunSuite {
       reconSpec
     ) =
       transact(app.transactor):
-        val fundFlowConfig = FundFlowConfig(name = createID().toString)
-        app.fundFlowConfigRepo.insert(fundFlowConfig)
+        val ledger = Ledger(name = createID().toString)
+        app.ledgerRepo.insert(ledger)
 
-        val reconAccount = Account(name = "recon", fundFlowId = fundFlowConfig.id, accountType = AccountType.Recon)
+        val reconAccount = Account(name = "recon", ledgerId = ledger.id, accountType = AccountType.Recon)
         app.accountRepo.insert(reconAccount)
 
         val journalAccount =
-          Account(name = "journal", fundFlowId = fundFlowConfig.id, accountType = AccountType.Primary)
+          Account(name = "journal", ledgerId = ledger.id, accountType = AccountType.Primary)
         app.accountRepo.insert(journalAccount)
 
-        val reportAccount = Account(name = "report", fundFlowId = fundFlowConfig.id, accountType = AccountType.Secondary)
+        val reportAccount = Account(name = "report", ledgerId = ledger.id, accountType = AccountType.Secondary)
         app.accountRepo.insert(reportAccount)
 
         val journalFeed = FileFeed(
@@ -458,7 +458,7 @@ class EndToEndSuite extends munit.FunSuite {
         app.reconSpecRepo.insert(reconSpec)
 
         (
-          fundFlowConfig,
+          ledger,
           reconAccount,
           journalAccount,
           reportAccount,
@@ -518,6 +518,6 @@ class EndToEndSuite extends munit.FunSuite {
             && m.props.getOrElse("account_id", "") == "ddd"
         )
         assert(u2.nonEmpty)
-    finally teardown(reconSpec, fundFlowConfig, Seq(journalToRecon, reconToReport), reconAccount.id)
+    finally teardown(reconSpec, ledger, Seq(journalToRecon, reconToReport), reconAccount.id)
   }
 }

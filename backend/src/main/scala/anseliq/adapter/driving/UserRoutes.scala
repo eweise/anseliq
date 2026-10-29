@@ -31,9 +31,9 @@ class UserRoutes(
     transact(transactor):
       write(userService.listUsers().map(PayloadMapper.userPayloadFromDomain))
 
-  // Unlike listUsers above, any authenticated user can call this — it backs the dispute assignment
+  // Unlike listUsers above, any authenticated user can call this — it backs the exception assignment
   // picker on the Exceptions page, not user administration. Viewers are excluded: they're read-only
-  // by design, so a dispute can never be handed to one.
+  // by design, so an exception can never be handed to one.
   @cask.route(HttpPath.assignableUsers, methods = HttpCmd.GET)
   def listAssignableUsers()(currentUser: JwtHelper.UserClaim): String =
     transact(transactor):

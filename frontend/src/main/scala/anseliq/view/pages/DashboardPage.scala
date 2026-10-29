@@ -2,7 +2,7 @@ package anseliq.view.pages
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
-import anseliq.common.model.{DisputePayload, DisputeStatusPayload, DisputeTargetPayload, ReportsSummaryPayload}
+import anseliq.common.model.{ExceptionPayload, ExceptionStatusPayload, ExceptionTargetPayload, ReportsSummaryPayload}
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
@@ -12,12 +12,12 @@ import anseliq.view.components.{Card, ChartCanvas, PageHeader, Pill, Table}
 
 object DashboardPage:
 
-  enum DisputeFilter:
+  enum ExceptionFilter:
     case AssignedToMe, CreatedByMe, All
 
   case class State(
-    disputes: Seq[DisputePayload]           = Seq.empty,
-    filter:   DisputeFilter                 = DisputeFilter.AssignedToMe,
+    exceptions: Seq[ExceptionPayload]           = Seq.empty,
+    filter:   ExceptionFilter                 = ExceptionFilter.AssignedToMe,
     summary:  Option[ReportsSummaryPayload] = None
   )
 
@@ -43,17 +43,17 @@ object DashboardPage:
     val loadSummaryBus = EventBus[Unit]()
     val myUserId       = SessionStore.currentUserNow.map(_.userId)
 
-    def filtered(s: State): Seq[DisputePayload] = s.filter match
-      case DisputeFilter.AssignedToMe => s.disputes.filter(d => myUserId.isDefined && d.assignedToUserId == myUserId)
-      case DisputeFilter.CreatedByMe  => s.disputes.filter(d => myUserId.isDefined && d.raisedByUserId == myUserId)
-      case DisputeFilter.All          => s.disputes
+    def filtered(s: State): Seq[ExceptionPayload] = s.filter match
+      case ExceptionFilter.AssignedToMe => s.exceptions.filter(d => myUserId.isDefined && d.assignedToUserId == myUserId)
+      case ExceptionFilter.CreatedByMe  => s.exceptions.filter(d => myUserId.isDefined && d.raisedByUserId == myUserId)
+      case ExceptionFilter.All          => s.exceptions
 
     PageHeader.page(
       loadBus.events
-        .flatMapSwitch(_ => ApiClient.get[Seq[DisputePayload]](HttpPath.url(HttpPath.disputes), SessionStore.token))
-        .apiBind(ds => state.update(_.copy(disputes = ds))),
-      // No fundFlowId query param -> aggregated across every fund flow, same as ReportsPage's
-      // default "All fund flows" view. A per-fund-flow filter isn't needed here; that's what the
+        .flatMapSwitch(_ => ApiClient.get[Seq[ExceptionPayload]](HttpPath.url(HttpPath.exceptions), SessionStore.token))
+        .apiBind(ds => state.update(_.copy(exceptions = ds))),
+      // No ledgerId query param -> aggregated across every ledger, same as ReportsPage's
+      // default "All ledgers" view. A per-ledger filter isn't needed here; that's what the
       // Reports page is for.
       loadSummaryBus.events
         .flatMapSwitch(_ =>
@@ -68,12 +68,12 @@ object DashboardPage:
       div(
         cls := "w-full px-8",
         child.maybe <-- state.signal.map(_.summary.map(agingCard)),
-        h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "My Disputes"),
+        h3(cls := "font-medium mt-6 mb-2 text-md-on-surface dark:text-white", "My Exceptions"),
         div(
           cls := "flex gap-2 mb-4",
-          filterButton("Assigned to me", DisputeFilter.AssignedToMe, state),
-          filterButton("Created by me", DisputeFilter.CreatedByMe, state),
-          filterButton("All disputes", DisputeFilter.All, state)
+          filterButton("Assigned to me", ExceptionFilter.AssignedToMe, state),
+          filterButton("Created by me", ExceptionFilter.CreatedByMe, state),
+          filterButton("All exceptions", ExceptionFilter.All, state)
         ),
         child <-- state.signal.map { s =>
           Table.create(
@@ -109,7 +109,7 @@ object DashboardPage:
       )
     )
 
-  private def filterButton(label: String, filter: DisputeFilter, state: Var[State]): HtmlElement =
+  private def filterButton(label: String, filter: ExceptionFilter, state: Var[State]): HtmlElement =
     button(
       typ := "button",
       cls <-- state.signal.map { s =>
@@ -123,19 +123,19 @@ object DashboardPage:
 
   // Row rendering mirrors ExceptionsPage's exactly — not worth extracting into a shared component
   // for a single point of reuse.
-  private def statusTone(status: DisputeStatusPayload): Pill.Tone = status match
-    case DisputeStatusPayload.New           => Pill.Tone.Accent
-    case DisputeStatusPayload.Investigating => Pill.Tone.Warning
-    case DisputeStatusPayload.Escalated     => Pill.Tone.Critical
-    case DisputeStatusPayload.Resolved      => Pill.Tone.Good
+  private def statusTone(status: ExceptionStatusPayload): Pill.Tone = status match
+    case ExceptionStatusPayload.New           => Pill.Tone.Accent
+    case ExceptionStatusPayload.Investigating => Pill.Tone.Warning
+    case ExceptionStatusPayload.Escalated     => Pill.Tone.Critical
+    case ExceptionStatusPayload.Resolved      => Pill.Tone.Good
 
-  private def targetLabel(targetType: DisputeTargetPayload): String = targetType match
-    case DisputeTargetPayload.Movement       => "Movement"
-    case DisputeTargetPayload.Reconciliation => "Reconciliation"
-    case DisputeTargetPayload.MovementSpec   => "Movement Spec"
-    case DisputeTargetPayload.FileFeed       => "File Feed"
+  private def targetLabel(targetType: ExceptionTargetPayload): String = targetType match
+    case ExceptionTargetPayload.Movement       => "Movement"
+    case ExceptionTargetPayload.Reconciliation => "Reconciliation"
+    case ExceptionTargetPayload.MovementSpec   => "Movement Spec"
+    case ExceptionTargetPayload.FileFeed       => "File Feed"
 
-  private def renderRow(d: DisputePayload): Seq[HtmlElement] =
+  private def renderRow(d: ExceptionPayload): Seq[HtmlElement] =
     Seq(
       Pill(d.status.toString, statusTone(d.status)),
       Pill(d.category.toString, Pill.Tone.Neutral),

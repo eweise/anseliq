@@ -32,7 +32,7 @@ create-db: delete-db
 delete-db:
 	$(POSTGRES_BIN)/psql -p 5432 -Upostgres -c "drop database if exists recon_db"
 
-# Adds a "Happy Path <id>" fund flow with ten days of history ending today (see
+# Adds a "Happy Path <id>" ledger with ten days of history ending today (see
 # HappyPathScenario). Stop the backend first: its workers would race the seeder for its jobs.
 # Both seed targets restart sbt's background server first: the seeder runs in it, and it keeps the
 # environment it started with, so DEMO_SUGGESTER would otherwise be whatever it was back then.

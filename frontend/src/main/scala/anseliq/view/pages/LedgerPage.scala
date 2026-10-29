@@ -14,7 +14,7 @@ import upickle.default.*
 
 import scala.collection.mutable
 
-object FundFlowPage:
+object LedgerPage:
 
   private val tabs = Set("Overview", "Reconciliations", "Movements", "Setup")
   private val boxW      = 140
@@ -26,11 +26,11 @@ object FundFlowPage:
   private val rowStride = boxH + rowGap
 
   def apply(): HtmlElement =
-    AppState.activeFundFlow.now() match
-      case None     => div(onMountCallback(_ => Nav.toFundFlows()))
+    AppState.activeLedger.now() match
+      case None     => div(onMountCallback(_ => Nav.toLedgers()))
       case Some(ff) => renderPage(ff)
 
-  private def renderPage(ff: FundFlowPayload): HtmlElement =
+  private def renderPage(ff: LedgerPayload): HtmlElement =
     val ffId      = ff.id.getOrElse("")
     val ffVar     = Var(ff)
     val state     = Var(State())
@@ -39,22 +39,22 @@ object FundFlowPage:
     val selectTab = (tab: String) =>
       if activeTab.now() != tab then
         activeTab.set(tab)
-        Nav.toFundFlowTab(tab)
+        Nav.toLedgerTab(tab)
     // Opens the Reconciliations tab filtered to one status ("" = all), as its own history entry.
     val openReconciliations = (status: String) =>
       reconStatus.set(status)
       if activeTab.now() != "Reconciliations" then activeTab.set("Reconciliations")
-      Nav.toFundFlowTab("Reconciliations", Some(status))
+      Nav.toLedgerTab("Reconciliations", Some(status))
     // A filter chip on the tab itself: replaces the URL rather than adding history, so Back still
     // leaves the tab instead of stepping through every chip clicked.
     val selectReconStatus = (status: String) =>
       reconStatus.set(status)
-      BrowserNavigation.replaceState(url = Nav.fundFlowTabUrl("Reconciliations", Some(status)), popStateEvent = false)
+      BrowserNavigation.replaceState(url = Nav.ledgerTabUrl("Reconciliations", Some(status)), popStateEvent = false)
     val configureReconBus = EventBus[AccountPayload]()
     val manualMatchBus    = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
     val reconcileBus      = EventBus[String]()
-    val saveFundFlowBus   = EventBus[Unit]()
+    val saveLedgerBus   = EventBus[Unit]()
     // Fired when the account/movement-spec modal closes, to pick up whatever it just created or
     // edited — re-fetches both lists since either could have changed either way.
     val refreshBus = EventBus[Unit]()
@@ -64,22 +64,22 @@ object FundFlowPage:
     }
 
     PageHeader.page(
-      saveFundFlowBus.events.flatMapSwitch { _ =>
-        ApiClient.put[FundFlowPayload, FundFlowPayload](
-          HttpPath.url(s"${HttpPath.fundFlow}/$ffId"),
+      saveLedgerBus.events.flatMapSwitch { _ =>
+        ApiClient.put[LedgerPayload, LedgerPayload](
+          HttpPath.url(s"${HttpPath.ledger}/$ffId"),
           ffVar.now(),
           SessionStore.token
         )
       }.apiBind { updated =>
         ffVar.set(updated)
-        AppState.activeFundFlow.set(Some(updated))
+        AppState.activeLedger.set(Some(updated))
       },
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
         .apiBind(accounts => state.update(_.copy(accounts = accounts))),
       ApiClient
-        .get[FundFlowSummaryViewPayload](
-          HttpPath.url(s"${HttpPath.fundFlow}/$ffId/summary"),
+        .get[LedgerSummaryViewPayload](
+          HttpPath.url(s"${HttpPath.ledger}/$ffId/summary"),
           SessionStore.token
         )
         .apiBind { summary =>
@@ -88,7 +88,7 @@ object FundFlowPage:
         },
       ApiClient
         .get[Seq[MovementSpecPayload]](
-          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
           SessionStore.token
         )
         .apiBind(specs => state.update(_.copy(movementSpecs = specs))),
@@ -96,16 +96,16 @@ object FundFlowPage:
         .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
         .apiBind(feeds => state.update(_.copy(fileFeeds = feeds))),
       refreshBus.events.flatMapSwitch { _ =>
-        ApiClient.get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        ApiClient.get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
       }.apiBind(accounts => state.update(_.copy(accounts = accounts))),
       refreshBus.events.flatMapSwitch { _ =>
-        ApiClient.get[FundFlowSummaryViewPayload](HttpPath.url(s"${HttpPath.fundFlow}/$ffId/summary"), SessionStore.token)
+        ApiClient.get[LedgerSummaryViewPayload](HttpPath.url(s"${HttpPath.ledger}/$ffId/summary"), SessionStore.token)
       }.apiBind { summary =>
         state.update(_.copy(summaries = summary.accounts.flatMap(a => a.account.id.map(_ -> a)).toMap))
       },
       refreshBus.events.flatMapSwitch { _ =>
         ApiClient.get[Seq[MovementSpecPayload]](
-          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
           SessionStore.token
         )
       }.apiBind(specs => state.update(_.copy(movementSpecs = specs))),
@@ -156,7 +156,7 @@ object FundFlowPage:
       }.flatMapSwitch {
         case Right(_) =>
           ApiClient.get[Seq[MovementSpecPayload]](
-            HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+            HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
             SessionStore.token
           )
         case Left(e) =>
@@ -186,7 +186,7 @@ object FundFlowPage:
       windowEvents(_.onPopState).map(_ => tabFromUrl()).filter(_ != activeTab.now()) --> activeTab.writer,
       windowEvents(_.onPopState).map(_ => statusFromUrl()).filter(_ != reconStatus.now()) --> reconStatus.writer,
       PageHeader.titleRow(
-        PageHeader.breadcrumb("Ledgers" -> Some(Observer[Unit](_ => Nav.toFundFlows())), ff.name -> None),
+        PageHeader.breadcrumb("Ledgers" -> Some(Observer[Unit](_ => Nav.toLedgers())), ff.name -> None),
         ledgerHeader(ffVar.signal.map(_.name), state, reconcileBus)
       ),
       div(
@@ -225,7 +225,7 @@ object FundFlowPage:
                     23,
                     v => ffVar.update(_.copy(dailyCutoffHours = v))
                   ),
-                  Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveFundFlowBus.emit(())))
+                  Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveLedgerBus.emit(())))
                 )
               )),
               child <-- state.signal.map(_.accounts.filter(_.accountType == AccountTypePayload.Recon)).distinct.map {
@@ -560,7 +560,7 @@ object FundFlowPage:
       EventStream.merge(autoSearchTrigger, searchBus.events).flatMapSwitch { _ =>
         val s = searchVar.now()
         val req = MovementSearchRequest(
-          fundFlowId      = ffId,
+          ledgerId      = ffId,
           accountId       = Option(s.accountId).filter(_.nonEmpty),
           amount          = scala.util.Try(BigDecimal(s.amount)).toOption,
           movementSpecId  = Option(s.movementSpecId).filter(_.nonEmpty),
@@ -805,7 +805,7 @@ object FundFlowPage:
 
   private def renderDiagram(
     s:                 State,
-    ff:                FundFlowPayload,
+    ff:                LedgerPayload,
     configureReconBus: EventBus[AccountPayload],
     manualMatchBus:    EventBus[AccountPayload],
     deleteSpecBus:     EventBus[MovementSpecPayload],
@@ -883,7 +883,7 @@ object FundFlowPage:
   private def renderAccountMenu(
     s:                 State,
     selected:          AccountPayload,
-    ff:                FundFlowPayload,
+    ff:                LedgerPayload,
     x:                 Int,
     y:                 Int,
     configureReconBus: EventBus[AccountPayload],
@@ -931,7 +931,7 @@ object FundFlowPage:
     }.toSet
 
     // A link is only ever valid between one Recon account and one Primary-or-Secondary account —
-    // same rule the backend enforces (FundFlowOperations.validateAccountLink) — so an incompatible
+    // same rule the backend enforces (LedgerOperations.validateAccountLink) — so an incompatible
     // target never even shows up as an option here.
     val linkButtons = s.accounts
       .filter(a =>
@@ -974,7 +974,7 @@ object FundFlowPage:
 
   private def renderMovementSpecMenu(
     spec:          MovementSpecPayload,
-    ff:            FundFlowPayload,
+    ff:            LedgerPayload,
     x:             Int,
     y:             Int,
     deleteSpecBus: EventBus[MovementSpecPayload],

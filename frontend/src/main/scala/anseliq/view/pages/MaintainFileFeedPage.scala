@@ -20,8 +20,8 @@ object MaintainFileFeedPage:
     case Ready(feed: FileFeedPayload)
 
   def apply(id: String): HtmlElement =
-    AppState.activeFundFlow.now() match
-      case None    => div(onMountCallback(_ => Nav.toFundFlows()))
+    AppState.activeLedger.now() match
+      case None    => div(onMountCallback(_ => Nav.toLedgers()))
       case Some(_) => renderPage(id)
 
   private def renderPage(id: String): HtmlElement =

@@ -2,7 +2,7 @@ package anseliq.routing
 
 import frontroute.BrowserNavigation
 import org.scalajs.dom
-import anseliq.common.model.FundFlowPayload
+import anseliq.common.model.LedgerPayload
 import anseliq.state.AppState
 
 object Nav:
@@ -10,27 +10,27 @@ object Nav:
 
   def back(): Unit = dom.window.history.back()
 
-  def toFundFlows(): Unit = push("/components/fund-flows")
+  def toLedgers(): Unit = push("/components/ledgers")
 
-  def toFundFlow(ff: FundFlowPayload): Unit =
-    AppState.activeFundFlow.set(Some(ff))
-    push("/components/fund-flow")
+  def toLedger(ff: LedgerPayload): Unit =
+    AppState.activeLedger.set(Some(ff))
+    push("/components/ledger")
 
-  // Same page as toFundFlow — the tab lives in the query string so switching tabs adds a history
-  // entry and the back button steps between tabs (see FundFlowPage.tabFromUrl).
-  def toFundFlowTab(tab: String, status: Option[String] = None): Unit = push(fundFlowTabUrl(tab, status))
+  // Same page as toLedger — the tab lives in the query string so switching tabs adds a history
+  // entry and the back button steps between tabs (see LedgerPage.tabFromUrl).
+  def toLedgerTab(tab: String, status: Option[String] = None): Unit = push(ledgerTabUrl(tab, status))
 
   // Opens a ledger straight onto one tab — e.g. a reconciliation's breadcrumb going back to that
   // ledger's Reconciliations tab. `status` pre-filters the Reconciliations tab.
-  def toFundFlow(ff: FundFlowPayload, tab: String, status: Option[String]): Unit =
-    AppState.activeFundFlow.set(Some(ff))
-    push(fundFlowTabUrl(tab, status))
+  def toLedger(ff: LedgerPayload, tab: String, status: Option[String]): Unit =
+    AppState.activeLedger.set(Some(ff))
+    push(ledgerTabUrl(tab, status))
 
-  def fundFlowTabUrl(tab: String, status: Option[String] = None): String =
-    s"/components/fund-flow?tab=$tab" + status.filter(_.nonEmpty).fold("")(s => s"&status=$s")
+  def ledgerTabUrl(tab: String, status: Option[String] = None): String =
+    s"/components/ledger?tab=$tab" + status.filter(_.nonEmpty).fold("")(s => s"&status=$s")
 
-  def toMaintainFundFlow(): Unit =
-    push("/components/maintain-fund-flow")
+  def toMaintainLedger(): Unit =
+    push("/components/maintain-ledger")
 
   def toMaintainAccount(accountId: Option[String] = None): Unit =
     accountId match

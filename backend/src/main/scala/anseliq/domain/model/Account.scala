@@ -15,7 +15,7 @@ enum AccountType derives DbCodec:
 case class Account(
   @Id id:                  ID                     = createID(),
   name:                    String,
-  fundFlowId:              ID,
+  ledgerId:              ID,
   accountType:             AccountType,
   properties:              JSONBProps             = JSONBProps(Map()),
   var balance:             Money                  = 0,

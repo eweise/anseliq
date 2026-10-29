@@ -9,7 +9,7 @@ import com.augustnagro.magnum.transact
 import java.util.concurrent.{ConcurrentLinkedQueue, CyclicBarrier}
 import scala.jdk.CollectionConverters.*
 
-class LedgerSuite extends munit.FunSuite:
+class BookkeeperSuite extends munit.FunSuite:
   private val app = TestAppContainer()
 
   def assertBalanceInvariant(reconciled: BigDecimal, unreconciled: BigDecimal, balance: BigDecimal): Unit =
@@ -20,7 +20,7 @@ class LedgerSuite extends munit.FunSuite:
       rollBackOnly:
         val data        = DataSetup(app)
         given DataSetup = data
-        data.ledger.recordMovements(
+        data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(
             MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
@@ -54,12 +54,12 @@ class LedgerSuite extends munit.FunSuite:
       rollBackOnly:
         val data        = DataSetup(app)
         given DataSetup = data
-        data.ledger.recordMovements(
+        data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
 
-        data.ledger.markReconciled(data.reconAccount.id, 60)
+        data.bookkeeper.markReconciled(data.reconAccount.id, 60)
 
         val reconAccount = data.accountRepo.findById(data.reconAccount.id).get
         assertEquals(reconAccount.balance, BigDecimal(100), "markReconciled must not change balance")
@@ -72,13 +72,13 @@ class LedgerSuite extends munit.FunSuite:
       rollBackOnly:
         val data        = DataSetup(app)
         given DataSetup = data
-        data.ledger.recordMovements(
+        data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
 
-        data.ledger.markReconciled(data.reconAccount.id, 60)
-        data.ledger.markUnreconciled(data.reconAccount.id, 60)
+        data.bookkeeper.markReconciled(data.reconAccount.id, 60)
+        data.bookkeeper.markUnreconciled(data.reconAccount.id, 60)
 
         val reconAccount = data.accountRepo.findById(data.reconAccount.id).get
         assertEquals(reconAccount.balance, BigDecimal(100))
@@ -92,7 +92,7 @@ class LedgerSuite extends munit.FunSuite:
         val data        = DataSetup(app)
         given DataSetup = data
 
-        data.ledger.recordMovements(
+        data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
@@ -100,7 +100,7 @@ class LedgerSuite extends munit.FunSuite:
         val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         data.reconRepo.insert(reconciliation)
 
-        data.ledger.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
+        data.bookkeeper.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
 
         val updatedMovement = data.movementRepo.findById(movement.id).get
         assertEquals(updatedMovement.reconciliationId, Some(reconciliation.id))
@@ -117,17 +117,17 @@ class LedgerSuite extends munit.FunSuite:
         val data        = DataSetup(app)
         given DataSetup = data
 
-        data.ledger.recordMovements(
+        data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
         )
         val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
         val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
         data.reconRepo.insert(reconciliation)
-        data.ledger.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
+        data.bookkeeper.reconcile(Seq(movement), reconciliation.id, data.reconAccount.id)
 
         val reconciledMovement = data.movementRepo.findById(movement.id).get
-        data.ledger.unreconcile(Seq(reconciledMovement), data.reconAccount.id)
+        data.bookkeeper.unreconcile(Seq(reconciledMovement), data.reconAccount.id)
 
         val updatedMovement = data.movementRepo.findById(movement.id).get
         assertEquals(updatedMovement.reconciliationId, None)
@@ -152,8 +152,8 @@ class LedgerSuite extends munit.FunSuite:
           MovementRequest(amount = -30, referenceId = createID(), properties = Map())
         )
 
-        data.ledger.recordMovements(data.journalToRecon, requests)
-        data.ledger.recordMovements(data.journalToRecon, requests) // replay of the exact same batch
+        data.bookkeeper.recordMovements(data.journalToRecon, requests)
+        data.bookkeeper.recordMovements(data.journalToRecon, requests) // replay of the exact same batch
 
         val reconAccount   = data.accountRepo.findById(data.reconAccount.id).get
         val journalAccount = data.accountRepo.findById(data.journalAccount.id).get
@@ -181,8 +181,8 @@ class LedgerSuite extends munit.FunSuite:
         val alreadyRecorded = MovementRequest(amount = 100, referenceId = createID(), properties = Map())
         val brandNew        = MovementRequest(amount = 25, referenceId = createID(), properties = Map())
 
-        data.ledger.recordMovements(data.journalToRecon, Seq(alreadyRecorded))
-        data.ledger.recordMovements(data.journalToRecon, Seq(alreadyRecorded, brandNew))
+        data.bookkeeper.recordMovements(data.journalToRecon, Seq(alreadyRecorded))
+        data.bookkeeper.recordMovements(data.journalToRecon, Seq(alreadyRecorded, brandNew))
 
         val reconAccount = data.accountRepo.findById(data.reconAccount.id).get
         assertEquals(reconAccount.balance, BigDecimal(125), "only the brand-new request should add to the balance")
@@ -210,7 +210,7 @@ class LedgerSuite extends munit.FunSuite:
     def race(): Unit =
       try
         barrier.await()
-        transact(app.transactor)(data.ledger.recordMovements(data.journalToRecon, requests))
+        transact(app.transactor)(data.bookkeeper.recordMovements(data.journalToRecon, requests))
       catch case ex: Throwable => errors.add(ex)
 
     val t1 = Thread(() => race())
@@ -231,16 +231,16 @@ class LedgerSuite extends munit.FunSuite:
     finally
       transact(app.transactor):
         // reconciliation_spec's FK to account isn't ON DELETE CASCADE, so it must go first;
-        // fund_flow_config's cascade then takes care of the accounts/movement specs/movements.
+        // ledger's cascade then takes care of the accounts/movement specs/movements.
         data.reconSpecRepo.deleteById(data.reconSpec.id)
-        data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+        data.ledgerRepo.deleteById(data.ledger.id)
 
   test("recordMovements with a negative amount swaps the in/out accounts"):
     transact(app.transactor):
       rollBackOnly:
         val data        = DataSetup(app)
         given DataSetup = data
-        data.ledger.recordMovements(
+        data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = -40, referenceId = createID(), properties = Map()))
         )

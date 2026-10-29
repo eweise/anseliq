@@ -2,7 +2,7 @@ package anseliq.view.pages
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
-import anseliq.common.model.FundFlowPayload
+import anseliq.common.model.LedgerPayload
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
@@ -11,10 +11,10 @@ import anseliq.view.ViewHelper
 import anseliq.view.components.{Buttons, Form}
 import upickle.default.*
 
-object MaintainFundFlowPage:
+object MaintainLedgerPage:
 
   def apply(): HtmlElement =
-    val initial = AppState.activeFundFlow.now().getOrElse(FundFlowPayload())
+    val initial = AppState.activeLedger.now().getOrElse(LedgerPayload())
     val ff      = Var(initial)
     val saveBus = EventBus[Unit]()
 
@@ -24,13 +24,13 @@ object MaintainFundFlowPage:
         val token = SessionStore.token
         if f.id.isDefined
         then
-          ApiClient.put[FundFlowPayload, FundFlowPayload](HttpPath.url(s"${HttpPath.fundFlow}/${f.id.get}"), f, token)
-        else ApiClient.post[FundFlowPayload, FundFlowPayload](HttpPath.url(HttpPath.fundFlow), f, token)
-      }.apiBind(_ => Nav.toFundFlows()),
+          ApiClient.put[LedgerPayload, LedgerPayload](HttpPath.url(s"${HttpPath.ledger}/${f.id.get}"), f, token)
+        else ApiClient.post[LedgerPayload, LedgerPayload](HttpPath.url(HttpPath.ledger), f, token)
+      }.apiBind(_ => Nav.toLedgers()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
-        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Fund Flow"),
+        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Ledger"),
         Form.field("name", "Name", initial.name, v => ff.update(_.copy(name = v))),
         Form.field(
           "dailyCutoffHours",
@@ -43,7 +43,7 @@ object MaintainFundFlowPage:
         ),
         div(
           cls := "flex justify-end gap-2 mt-6",
-          Buttons.textButton("Cancel", Observer[Unit](_ => Nav.toFundFlows())),
+          Buttons.textButton("Cancel", Observer[Unit](_ => Nav.toLedgers())),
           Buttons.linkButton("Save", Observer[Unit](_ => saveBus.emit(())))
         )
       )

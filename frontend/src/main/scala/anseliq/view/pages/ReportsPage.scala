@@ -2,7 +2,7 @@ package anseliq.view.pages
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
-import anseliq.common.model.{FundFlowPayload, ReportsSummaryPayload, TrendReportPayload}
+import anseliq.common.model.{LedgerPayload, ReportsSummaryPayload, TrendReportPayload}
 import anseliq.http.ApiClient
 import anseliq.state.AppState.apiBind
 import anseliq.state.{AppState, SessionStore}
@@ -13,44 +13,44 @@ import upickle.default.*
 object ReportsPage:
 
   case class State(
-    fundFlows: Seq[FundFlowPayload]          = Seq.empty,
+    ledgers: Seq[LedgerPayload]          = Seq.empty,
     summary:   Option[ReportsSummaryPayload] = None,
     trend:     Option[TrendReportPayload]    = None
   )
 
   def apply(): HtmlElement =
     val state            = Var(State())
-    val loadFundFlowsBus = EventBus[Unit]()
+    val loadLedgersBus = EventBus[Unit]()
     val loadSummaryBus   = EventBus[Option[String]]()
     val loadTrendBus     = EventBus[Option[String]]()
 
-    def loadFundFlows() =
-      ApiClient.get[Seq[FundFlowPayload]](HttpPath.url(HttpPath.fundFlows), SessionStore.token)
+    def loadLedgers() =
+      ApiClient.get[Seq[LedgerPayload]](HttpPath.url(HttpPath.ledgers), SessionStore.token)
 
-    def loadSummary(fundFlowId: Option[String]) =
-      val query = fundFlowId.map(id => s"?fundFlowId=$id").getOrElse("")
+    def loadSummary(ledgerId: Option[String]) =
+      val query = ledgerId.map(id => s"?ledgerId=$id").getOrElse("")
       ApiClient.get[ReportsSummaryPayload](HttpPath.url(s"${HttpPath.reports}/summary$query"), SessionStore.token)
 
-    def loadTrend(fundFlowId: Option[String]) =
-      val query = fundFlowId.map(id => s"?fundFlowId=$id").getOrElse("")
+    def loadTrend(ledgerId: Option[String]) =
+      val query = ledgerId.map(id => s"?ledgerId=$id").getOrElse("")
       ApiClient.get[TrendReportPayload](HttpPath.url(s"${HttpPath.reports}/trend$query"), SessionStore.token)
 
-    def loadFor(fundFlowId: Option[String]): Unit =
-      loadSummaryBus.emit(fundFlowId)
-      loadTrendBus.emit(fundFlowId)
+    def loadFor(ledgerId: Option[String]): Unit =
+      loadSummaryBus.emit(ledgerId)
+      loadTrendBus.emit(ledgerId)
 
     PageHeader.page(
-      loadFundFlowsBus.events.flatMapSwitch(_ => loadFundFlows()).apiBind(ffs => state.update(_.copy(fundFlows = ffs))),
+      loadLedgersBus.events.flatMapSwitch(_ => loadLedgers()).apiBind(ffs => state.update(_.copy(ledgers = ffs))),
       loadSummaryBus.events.flatMapSwitch(loadSummary).apiBind(s => state.update(_.copy(summary = Some(s)))),
       loadTrendBus.events.flatMapSwitch(loadTrend).apiBind(t => state.update(_.copy(trend = Some(t)))),
       onMountCallback { _ =>
-        loadFundFlowsBus.emit(())
+        loadLedgersBus.emit(())
         loadFor(None)
       },
       PageHeader.titleRow(
         cls := "flex justify-between items-center",
         PageHeader.title("Reports & Analytics"),
-        child <-- state.signal.map(s => fundFlowSelect(s.fundFlows, loadFor))
+        child <-- state.signal.map(s => ledgerSelect(s.ledgers, loadFor))
       ),
       div(
         cls := "w-full px-8",
@@ -61,11 +61,11 @@ object ReportsPage:
       )
     )
 
-  private def fundFlowSelect(fundFlows: Seq[FundFlowPayload], loadFor: Option[String] => Unit): HtmlElement =
-    val options = ("", "All fund flows") +: fundFlows.map(ff => ff.id.getOrElse("") -> ff.name)
+  private def ledgerSelect(ledgers: Seq[LedgerPayload], loadFor: Option[String] => Unit): HtmlElement =
+    val options = ("", "All ledgers") +: ledgers.map(ff => ff.id.getOrElse("") -> ff.name)
     div(
       cls := "w-64",
-      Form.selectField("fundFlowFilter", "Fund flow", options, "", v => loadFor(Option(v).filter(_.nonEmpty)))
+      Form.selectField("ledgerFilter", "Ledger", options, "", v => loadFor(Option(v).filter(_.nonEmpty)))
     )
 
   private def widgets(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
@@ -182,7 +182,7 @@ object ReportsPage:
 
   // One line per category rather than a single aggregate line, so a spike is traceable to which
   // kind of exception caused it. Categories with zero activity across the whole window are left
-  // out of the chart/legend entirely — with 6 possible categories, most fund flows only ever see
+  // out of the chart/legend entirely — with 6 possible categories, most ledgers only ever see
   // one or two, and a legend padded with flat-zero lines is more noise than signal.
   private def exceptionTrendChart(categoryLabels: Seq[String], trend: Option[TrendReportPayload]): HtmlElement =
     trend match

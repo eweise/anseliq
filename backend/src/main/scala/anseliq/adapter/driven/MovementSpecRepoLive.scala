@@ -11,12 +11,12 @@ import java.util.UUID
 class MovementSpecRepoLive(clock: ClockService) extends AuditedRepo[MovementSpec, UUID](clock) with MovementSpecRepo:
   val ms = MovementSpec.Table
 
-  def findByFundFlowId(fundFlowId: ID): Txn[Vector[MovementSpec]] =
+  def findByLedgerId(ledgerId: ID): Txn[Vector[MovementSpec]] =
     sql"""
       SELECT ms.*
       FROM $ms AS ms
       JOIN account a ON ms.in_account_id = a.id
-      WHERE a.fund_flow_id = $fundFlowId
+      WHERE a.ledger_id = $ledgerId
     """.query[MovementSpec].run()
 
   def findByFileFeedId(fileFeedId: ID): Txn[Vector[MovementSpec]] =

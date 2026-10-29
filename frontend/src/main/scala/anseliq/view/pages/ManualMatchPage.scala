@@ -44,7 +44,7 @@ object ManualMatchPage:
     // The ledger's accounts and movement specs, only to name each side after its account.
     val accounts      = Var(Seq.empty[AccountPayload])
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
-    val ffId          = AppState.activeFundFlow.now().flatMap(_.id).getOrElse("")
+    val ffId          = AppState.activeLedger.now().flatMap(_.id).getOrElse("")
     val primaryName = spec.signal.combineWith(movementSpecs.signal, accounts.signal).map { (sp, specs, accts) =>
       ViewHelper.primarySideName(sp.inMovementSpecId, specs, accts)
     }
@@ -124,13 +124,13 @@ object ManualMatchPage:
       },
       onMountCallback(_ => loadBus.emit(())),
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
         .apiBind(accounts.set),
       ApiClient
-        .get[Seq[MovementSpecPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"), SessionStore.token)
+        .get[Seq[MovementSpecPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"), SessionStore.token)
         .apiBind(movementSpecs.set),
       PageHeader.ledgerBreadcrumb(
-        AppState.activeFundFlow.now(),
+        AppState.activeLedger.now(),
         Some("Reconciliations" -> "Reconciliations"),
         "Manual match" -> None
       ),
@@ -196,7 +196,7 @@ object ManualMatchPage:
           val note =
             if diff == BigDecimal(0) then "will close as Final"
             else if sp.relationship == ReconRelationship.OneToMany then "will save as InProgress"
-            else "will save as Mismatched and raise an AmountMismatch dispute"
+            else "will save as Mismatched and raise an AmountMismatch exception"
           s"$pName: ${s.selectedIn.size} selected ($inTotal)  $sName: ${s.selectedOut.size} selected ($outTotal)  Difference: $diff — $note"
         }
       ),

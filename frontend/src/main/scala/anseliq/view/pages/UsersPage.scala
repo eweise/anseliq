@@ -13,7 +13,7 @@ object UsersPage:
   def apply(): HtmlElement =
     val users = Var(Seq.empty[UserPayload])
     // In-page Modal (not a route navigation) so the users list stays mounted underneath, matching
-    // FundFlowPage's account/movement-spec edit pattern. None = no modal open.
+    // LedgerPage's account/movement-spec edit pattern. None = no modal open.
     val editingUserId = Var(Option.empty[String])
     val refreshBus    = EventBus[Unit]()
     val closeModal = () => {

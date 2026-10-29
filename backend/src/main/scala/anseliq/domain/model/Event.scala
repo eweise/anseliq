@@ -42,8 +42,8 @@ case class ReconciliationWriteOffReversed(
   reversedByUserId: Option[ID] = None
 ) extends Event
 
-case class DisputeRaised(id: ID = UUID.randomUUID(), disputeID: ID) extends Event
+case class ExceptionRaised(id: ID = UUID.randomUUID(), exceptionID: ID) extends Event
 
-case class DisputeStatusChanged(id: ID = UUID.randomUUID(), disputeID: ID, newStatus: String) extends Event
+case class ExceptionStatusChanged(id: ID = UUID.randomUUID(), exceptionID: ID, newStatus: String) extends Event
 
-case class DisputeCommentAdded(id: ID = UUID.randomUUID(), disputeID: ID, commentID: ID) extends Event
+case class ExceptionCommentAdded(id: ID = UUID.randomUUID(), exceptionID: ID, commentID: ID) extends Event

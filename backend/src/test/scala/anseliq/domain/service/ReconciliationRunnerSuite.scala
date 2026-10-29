@@ -26,7 +26,7 @@ class ReconciliationRunnerSuite extends munit.FunSuite:
         .foreach(es => app.eventRepo.deleteById(es.id))
       data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
       data.reconSpecRepo.deleteById(data.reconSpec.id)
-      data.fundFlowConfigRepo.deleteById(data.fundFlowConfig.id)
+      data.ledgerRepo.deleteById(data.ledger.id)
 
   test("reconcileNow runs the account's reconciliation and completes its job"):
     val data = transact(app.transactor)(DataSetup(app))

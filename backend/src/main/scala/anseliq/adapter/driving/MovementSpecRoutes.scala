@@ -17,10 +17,10 @@ class MovementSpecRoutes(
 ) extends ApiRoutes:
 
   // MovementSpec
-  @cask.route(s"${HttpPath.fundFlows}/:fundFlowID/movement-specs", methods = HttpCmd.GET)
-  def movementSpecsByFundFlowID(fundFlowID: String): String =
+  @cask.route(s"${HttpPath.ledgers}/:ledgerID/movement-specs", methods = HttpCmd.GET)
+  def movementSpecsByLedgerID(ledgerID: String): String =
     transact(transactor):
-      val specs   = movementSpecRepo.findByFundFlowId(UUID.fromString(fundFlowID))
+      val specs   = movementSpecRepo.findByLedgerId(UUID.fromString(ledgerID))
       val payload = specs.map(PayloadMapper.movementSpecPayloadFromDomain)
       write(payload)
 

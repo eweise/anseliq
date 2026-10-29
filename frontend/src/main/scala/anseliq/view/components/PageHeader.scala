@@ -1,7 +1,7 @@
 package anseliq.view.components
 
 import com.raquo.laminar.api.L.*
-import anseliq.common.model.FundFlowPayload
+import anseliq.common.model.LedgerPayload
 import anseliq.routing.Nav
 
 object PageHeader:
@@ -76,14 +76,14 @@ object PageHeader:
   // after the ledger's own name (e.g. "Reconciliations") is given as the tab it opens. Without a
   // known ledger (e.g. the page was opened directly) the trail starts at Ledgers.
   def ledgerBreadcrumb(
-    ff:    Option[FundFlowPayload],
+    ff:    Option[LedgerPayload],
     tab:   Option[(String, String)], // (label, tab id) — the ledger tab this page belongs under
     trail: (String, Option[Observer[Unit]])*
   ): HtmlElement =
-    val ledgers = "Ledgers" -> Some(Observer[Unit](_ => Nav.toFundFlows()))
+    val ledgers = "Ledgers" -> Some(Observer[Unit](_ => Nav.toLedgers()))
     val ledgerCrumbs = ff.toSeq.flatMap { f =>
-      (f.name -> Some(Observer[Unit](_ => Nav.toFundFlow(f, "Overview", None)))) +:
-        tab.toSeq.map((label, id) => label -> Some(Observer[Unit](_ => Nav.toFundFlow(f, id, None))))
+      (f.name -> Some(Observer[Unit](_ => Nav.toLedger(f, "Overview", None)))) +:
+        tab.toSeq.map((label, id) => label -> Some(Observer[Unit](_ => Nav.toLedger(f, id, None))))
     }
     breadcrumb((ledgers +: ledgerCrumbs) ++ trail*)
 

@@ -37,9 +37,9 @@ object Routes:
           whenFalse(SessionStore.current.now().isEmpty) {
             firstMatch(
               path("dashboard")(DashboardPage()),
-              path("fund-flows")(FundFlowsPage()),
-              path("fund-flow")(FundFlowPage()),
-              path("maintain-fund-flow")(MaintainFundFlowPage()),
+              path("ledgers")(LedgersPage()),
+              path("ledger")(LedgerPage()),
+              path("maintain-ledger")(MaintainLedgerPage()),
               path("accounts" / segment / "maintain")(accountId => MaintainAccountPage(accountId)),
               path("reconciliations" / segment)(id => ReconciliationDetailPage(id)),
               path("movements" / segment)(id => MovementDetailPage(id)),

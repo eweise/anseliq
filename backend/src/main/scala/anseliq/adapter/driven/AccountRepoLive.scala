@@ -27,32 +27,32 @@ class AccountRepoLive(clock: ClockService) extends AuditedRepo[Account, UUID](cl
       WHERE id = $id
     """.query[Account].run().headOption
 
-  def findNominalWithNonZeroBalance(fundFlowID: ID): Txn[Vector[Account]] =
+  def findNominalWithNonZeroBalance(ledgerID: ID): Txn[Vector[Account]] =
     sql"""
       SELECT ${a.all}
       FROM $a AS a
       WHERE balance <> 0
-      AND a.fund_flow_id = $fundFlowID
+      AND a.ledger_id = $ledgerID
     """.query[Account].run()
 
-  def findByFundFlowAndAccountName(
-    fundFlowID:  ID,
+  def findByLedgerAndAccountName(
+    ledgerID:  ID,
     accountName: String
   ): Txn[Option[Account]] =
     sql"""
       SELECT ${a.all}
       FROM $a AS a
-      WHERE fund_flow_id = $fundFlowID
+      WHERE ledger_id = $ledgerID
       AND name = $accountName
     """.query[Account].run().headOption
 
-  def findByFundFlow(
-    fundFlowID: ID
+  def findByLedger(
+    ledgerID: ID
   ): Txn[Vector[Account]] =
     sql"""
       SELECT ${a.all}
       FROM $a AS a
-      WHERE fund_flow_id = $fundFlowID
+      WHERE ledger_id = $ledgerID
     """.query[Account].run()
 
   def findAll(): Txn[Vector[Account]] =

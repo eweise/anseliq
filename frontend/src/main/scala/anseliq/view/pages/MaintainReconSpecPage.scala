@@ -25,14 +25,14 @@ import upickle.default.*
 object MaintainReconSpecPage:
 
   def apply(accountId: String, reconSpecId: String, onClose: () => Unit): HtmlElement =
-    AppState.activeFundFlow.now() match
+    AppState.activeLedger.now() match
       case None     => div(onMountCallback(_ => onClose()))
       case Some(ff) => renderPage(accountId, reconSpecId, ff, onClose)
 
   private def renderPage(
     accountId:   String,
     reconSpecId: String,
-    ff:          anseliq.common.model.FundFlowPayload,
+    ff:          anseliq.common.model.LedgerPayload,
     onClose:     () => Unit
   ): HtmlElement =
     val ffId      = ff.id.getOrElse("")
@@ -90,7 +90,7 @@ object MaintainReconSpecPage:
     div(
       ApiClient
         .get[Seq[MovementSpecPayload]](
-          HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+          HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
           SessionStore.token
         )
         .apiBind { specs =>
@@ -104,7 +104,7 @@ object MaintainReconSpecPage:
         .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
         .apiBind(feeds => fileFeeds.set(feeds)),
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
         .apiBind(accounts.set),
       initialSpec.flatMap(_.id).map { id =>
         ApiClient

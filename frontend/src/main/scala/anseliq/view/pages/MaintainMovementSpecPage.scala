@@ -13,7 +13,7 @@ import upickle.default.*
 
 object MaintainMovementSpecPage:
 
-  // Rendered inside Modal by FundFlowPage (its only caller) — onClose defaults to Nav.back() so
+  // Rendered inside Modal by LedgerPage (its only caller) — onClose defaults to Nav.back() so
   // this still works if ever reached directly via its route
   // (/components/maintain-movement-spec/:outAccountId/:inAccountId/:id).
   def apply(
@@ -22,15 +22,15 @@ object MaintainMovementSpecPage:
     id:           String,
     onClose:      () => Unit = () => Nav.back()
   ): HtmlElement =
-    AppState.activeFundFlow.now() match
-      case None     => div(onMountCallback(_ => Nav.toFundFlows()))
+    AppState.activeLedger.now() match
+      case None     => div(onMountCallback(_ => Nav.toLedgers()))
       case Some(ff) => renderPage(outAccountId, inAccountId, id, ff, onClose)
 
   private def renderPage(
     outAccountId: String,
     inAccountId:  String,
     id:           String,
-    ff:           anseliq.common.model.FundFlowPayload,
+    ff:           anseliq.common.model.LedgerPayload,
     onClose:      () => Unit
   ): HtmlElement =
     val ffId      = ff.id.getOrElse("")
@@ -45,7 +45,7 @@ object MaintainMovementSpecPage:
       (if id != "new" then EventStream.fromValue(()) else EventStream.empty)
         .flatMapSwitch(_ =>
           ApiClient.get[Seq[MovementSpecPayload]](
-            HttpPath.url(s"${HttpPath.fundFlows}/$ffId/movement-specs"),
+            HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
             SessionStore.token
           )
         )
@@ -74,7 +74,7 @@ object MaintainMovementSpecPage:
 
     div(
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.fundFlows}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
         .apiBind { accs =>
           val initialInIsRecon = accs.find(_.id.contains(initial.inAccountId)).exists(_.accountType == AccountTypePayload.Recon)
           if initialInIsRecon then
@@ -119,8 +119,8 @@ object MaintainMovementSpecPage:
       Form.field("name", "Name", initial.name, v => spec.update(_.copy(name = v))),
       // A movement spec always links exactly one Recon account with one Primary-or-Secondary
       // account. Filtering each dropdown to type-compatible accounts (rather than listing every
-      // account in the fund flow) means an invalid combination can't even be selected here — the
-      // backend still enforces the same rule (FundFlowOperations.validateAccountLink) since this
+      // account in the ledger) means an invalid combination can't even be selected here — the
+      // backend still enforces the same rule (LedgerOperations.validateAccountLink) since this
       // form isn't the only way a spec gets created/updated. Which raw field (in/out) each side
       // ends up in is computed at save time from the chosen Account's type — see
       // ViewHelper.accountLinkFields — not fixed to either dropdown.

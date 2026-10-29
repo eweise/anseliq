@@ -20,7 +20,7 @@ class AccountRepoLiveSuite extends munit.FunSuite:
         val data = DataSetup(app)
         val account = anseliq.domain.model.Account(
           name        = "standalone",
-          fundFlowId  = data.fundFlowConfig.id,
+          ledgerId  = data.ledger.id,
           accountType = anseliq.domain.model.AccountType.Primary,
           properties  = data.reconAccount.properties
         )

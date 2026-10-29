@@ -11,29 +11,29 @@ import upickle.default.*
 
 import java.util.UUID
 
-class FundFlowRoutes(
+class LedgerRoutes(
   transactor:         Transactor,
-  fundFlowConfigRepo: FundFlowConfigRepo,
+  ledgerRepo: LedgerRepo,
   accountRepo:        AccountRepo,
   movementRepo:       MovementRepo,
   reconRepo:          ReconciliationRepo,
-  fundFlowService:    FundFlowService
+  ledgerService:    LedgerService
 ) extends ApiRoutes:
 
-  // Fund Flows
-  @cask.route(HttpPath.fundFlows, methods = HttpCmd.GET)
-  def getFundFlows() =
+  // Ledgers
+  @cask.route(HttpPath.ledgers, methods = HttpCmd.GET)
+  def getLedgers() =
     transact(transactor):
-      val fundFlows = fundFlowConfigRepo.findAll
-      val payloads  = fundFlows.map(ff => PayloadMapper.fundFlowPayloadFromDomain(ff))
+      val ledgers = ledgerRepo.findAll
+      val payloads  = ledgers.map(ff => PayloadMapper.ledgerPayloadFromDomain(ff))
       write(payloads)
 
-  @cask.route(s"${HttpPath.fundFlow}/:id/summary", methods = HttpCmd.GET)
-  def getFundFlowMainView(id: String) =
+  @cask.route(s"${HttpPath.ledger}/:id/summary", methods = HttpCmd.GET)
+  def getLedgerMainView(id: String) =
     transact(transactor):
-      val fundFlowId = UUID.fromString(id)
-      val fundFlow   = fundFlowConfigRepo.findById(fundFlowId).ErrIfNotFound("fund flow", fundFlowId)
-      val accounts   = accountRepo.findByFundFlow(fundFlowId)
+      val ledgerId = UUID.fromString(id)
+      val ledger   = ledgerRepo.findById(ledgerId).ErrIfNotFound("ledger", ledgerId)
+      val accounts   = accountRepo.findByLedger(ledgerId)
 
       val accountSummaryViews = accounts.map(account =>
         val isReconAccount    = account.accountType == AccountType.Recon
@@ -54,24 +54,24 @@ class FundFlowRoutes(
           mismatchedBalance = mismatched.fold(Zero)(_.balance)
         )
       )
-      val fundFlowSummaryView = FundFlowSummaryViewPayload(
-        fundFlow = PayloadMapper.fundFlowPayloadFromDomain(fundFlow),
+      val ledgerSummaryView = LedgerSummaryViewPayload(
+        ledger = PayloadMapper.ledgerPayloadFromDomain(ledger),
         accounts = accountSummaryViews
       )
-      write(fundFlowSummaryView)
+      write(ledgerSummaryView)
 
-  @cask.route(s"${HttpPath.fundFlow}", methods = HttpCmd.POST)
-  def createFundFlow(request: cask.Request): String =
-    val payload = read[FundFlowPayload](request.text())
+  @cask.route(s"${HttpPath.ledger}", methods = HttpCmd.POST)
+  def createLedger(request: cask.Request): String =
+    val payload = read[LedgerPayload](request.text())
     transact(transactor):
-      write(PayloadMapper.fundFlowPayloadFromDomain(fundFlowService.createFundFlow(PayloadMapper.fundFlowPayloadToDomain(payload))))
+      write(PayloadMapper.ledgerPayloadFromDomain(ledgerService.createLedger(PayloadMapper.ledgerPayloadToDomain(payload))))
 
-  @cask.route(s"${HttpPath.fundFlow}/:id", methods = HttpCmd.PUT)
-  def updateFundFlow(id: String, request: cask.Request): String =
-    val payload = read[FundFlowPayload](request.text())
+  @cask.route(s"${HttpPath.ledger}/:id", methods = HttpCmd.PUT)
+  def updateLedger(id: String, request: cask.Request): String =
+    val payload = read[LedgerPayload](request.text())
     val ffID    = UUID.fromString(payload.id.get)
     transact(transactor):
-      val updated = fundFlowService.updateFundFlow(ffID, payload.name, payload.dailyCutoffHours)
-      write(PayloadMapper.fundFlowPayloadFromDomain(updated))
+      val updated = ledgerService.updateLedger(ffID, payload.name, payload.dailyCutoffHours)
+      write(PayloadMapper.ledgerPayloadFromDomain(updated))
 
   initialize()

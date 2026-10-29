@@ -16,7 +16,7 @@ class DailySnapshotRepoLive(clock: ClockService) extends AuditedRepo[DailySnapsh
     sql"""
       INSERT INTO $d ${d.insertColumns}
       VALUES (${stampCreated(snapshot)})
-      ON CONFLICT (fund_flow_id, snapshot_date) DO UPDATE SET
+      ON CONFLICT (ledger_id, snapshot_date) DO UPDATE SET
         match_rates_json               = EXCLUDED.match_rates_json,
         avg_balance_coverage_percent   = EXCLUDED.avg_balance_coverage_percent,
         rated_account_count            = EXCLUDED.rated_account_count,
@@ -34,18 +34,18 @@ class DailySnapshotRepoLive(clock: ClockService) extends AuditedRepo[DailySnapsh
         updated_at                     = EXCLUDED.updated_at
     """.update.run()
 
-  def findTrend(fundFlowId: ID, from: LocalDate, to: LocalDate): Txn[Vector[DailySnapshot]] =
+  def findTrend(ledgerId: ID, from: LocalDate, to: LocalDate): Txn[Vector[DailySnapshot]] =
     sql"""
       SELECT ${d.all}
       FROM $d AS a
-      WHERE fund_flow_id = $fundFlowId
+      WHERE ledger_id = $ledgerId
       AND snapshot_date BETWEEN $from AND $to
       ORDER BY snapshot_date
     """.query[DailySnapshot].run()
 
-  def existsForDate(fundFlowId: ID, date: LocalDate): Txn[Boolean] =
+  def existsForDate(ledgerId: ID, date: LocalDate): Txn[Boolean] =
     sql"""
       SELECT EXISTS(
-        SELECT 1 FROM $d WHERE fund_flow_id = $fundFlowId AND snapshot_date = $date
+        SELECT 1 FROM $d WHERE ledger_id = $ledgerId AND snapshot_date = $date
       )
     """.query[Boolean].run().head

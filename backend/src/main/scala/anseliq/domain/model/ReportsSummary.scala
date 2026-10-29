@@ -21,8 +21,8 @@ case class MatchRateReport(
 )
 
 case class ExceptionBreakdownReport(
-  byCategory: Map[String, Int], // DisputeCategory.toString -> count, open disputes only
-  byStatus:   Map[String, Int]  // DisputeStatus.toString -> count, open disputes only
+  byCategory: Map[String, Int], // ExceptionCategory.toString -> count, open exceptions only
+  byStatus:   Map[String, Int]  // ExceptionStatus.toString -> count, open exceptions only
 )
 
 case class AgingBucketsReport(
@@ -56,7 +56,7 @@ case class TrendPoint(
   avgBalanceCoveragePercent: Option[BigDecimal],
   avgMatchRatePercent:       Option[BigDecimal],
   openExceptionCount:        Int,
-  openExceptionsByCategory:  Map[String, Int], // DisputeCategory.toString -> count, summed across fund flows in scope
+  openExceptionsByCategory:  Map[String, Int], // ExceptionCategory.toString -> count, summed across ledgers in scope
   unreconciledBacklogCount:  Int,              // sum of the four aging buckets
   overdueCount:              Int
 )

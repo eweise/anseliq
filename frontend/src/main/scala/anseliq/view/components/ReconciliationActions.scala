@@ -188,7 +188,7 @@ object ReconciliationActions:
       p(
         cls := s"text-sm ${Form.mutedTextCls}",
         s"Voids it and returns its $n movement${if n == 1 then "" else "s"} to the unreconciled pool, so they can be matched again." +
-          " Any open mismatch dispute is resolved."
+          " Any open mismatch exception is resolved."
       ),
       div(
         cls := "flex gap-2",
@@ -205,7 +205,7 @@ object ReconciliationActions:
       p(
         cls := s"text-sm ${Form.mutedTextCls}",
         "Posts a correcting entry for the write-off adjustment (the original stays on the books), brings the difference back, " +
-          "and puts this reconciliation back to Mismatched with a new dispute. The match itself is kept."
+          "and puts this reconciliation back to Mismatched with a new exception. The match itself is kept."
       ),
       label(forId := s"rwo-reason-${r.id}", cls := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400", "Reason"),
       input(
