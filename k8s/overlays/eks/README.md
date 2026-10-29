@@ -1,23 +1,38 @@
 # Installing AnselIQ on AWS EKS
 
-This overlay is a template for one customer install. Copy the folder for the customer, fill in every
+This overlay is a template for one install. Copy the folder for your install, fill in every
 `REPLACE_ME_` value, and apply it. `grep -rn REPLACE_ME .` lists what's left to fill in.
 
 ## What the cluster and account need
 
 | Placeholder | What it is |
 |---|---|
-| `REPLACE_ME_REGISTRY` | Where the cluster pulls the AnselIQ images from: `ghcr.io/eweise`, where releases are published, or a registry in the customer's account they're copied to, e.g. ECR (`<account>.dkr.ecr.<region>.amazonaws.com`). |
-| `REPLACE_ME_VERSION` | The AnselIQ release to install, e.g. `1.2.3`. |
+| `REPLACE_ME_REGISTRY` | The registry you pushed the AnselIQ images to (see Building the images below), e.g. ECR (`<account>.dkr.ecr.<region>.amazonaws.com`). |
+| `REPLACE_ME_VERSION` | The version you built, e.g. `1.2.3`. |
 | `REPLACE_ME_RDS_ENDPOINT` | A PostgreSQL instance (RDS or Aurora) the cluster can reach. See Database below. |
 | `REPLACE_ME_AWS_REGION` | The region of the S3 buckets the file feeds read. |
 | `REPLACE_ME_AWS_ACCOUNT_ID`, `REPLACE_ME_S3_READ_ROLE` | The IAM role the backend pods read S3 with. See S3 below. |
 | `REPLACE_ME_ACM_CERTIFICATE_ARN` | An ACM certificate for the hostname users will open AnselIQ at. |
 
 The cluster also needs the [AWS Load Balancer Controller](https://kubernetes-sigs.github.io/aws-load-balancer-controller/),
-which creates the ALB from the Ingress. The ALB is `internal` (reachable from the customer's network
+which creates the ALB from the Ingress. The ALB is `internal` (reachable from your network
 only); change `scheme` in `ingress-alb.yaml` to `internet-facing` if users reach it over the internet.
 Point the hostname's DNS at the ALB once it exists (`kubectl get ingress -n anseliq`).
+
+### Building the images
+
+Build the images from a release tag and push them to your registry, with JDK 26, sbt, Node.js 22
+and Docker installed (`JAVA_HOME` pointing at the JDK 26). In ECR, create the `anseliq-backend` and
+`anseliq-frontend` repositories first and sign Docker in to the registry.
+
+```bash
+git checkout v1.2.3
+export DOCKER_REGISTRY=<account>.dkr.ecr.<region>.amazonaws.com
+export DOCKER_PLATFORM=linux/amd64   # match the cluster's nodes
+sbt "backend/Docker/publish; frontend/Docker/publish"
+```
+
+This pushes `anseliq-backend:1.2.3` and `anseliq-frontend:1.2.3`.
 
 ### Database
 
@@ -101,8 +116,7 @@ kubectl apply -k .
 
 Then sign in as `ADMIN_EMAIL`, which the backend creates on its first start.
 
-An upgrade is the same `kubectl apply -k .` after changing both `newTag`s in `kustomization.yaml` to
-the new release: each backend pod
-migrates the database before it starts, and running jobs drain before old pods stop. A customer
-keeping its overlay in its own repository can reference this base at the same release instead of
-copying it: `github.com/eweise/anseliq//k8s/base?ref=v1.2.3`.
+An upgrade is building the new release's images, changing both `newTag`s in `kustomization.yaml` to
+its version, and the same `kubectl apply -k .`: each backend pod migrates the database before it
+starts, and running jobs drain before old pods stop. If you keep your overlay in your own
+repository, you can reference this base at the same release instead of copying it: `github.com/eweise/anseliq//k8s/base?ref=v1.2.3`.

@@ -1,5 +1,5 @@
-# A customer install on AWS EKS: RDS Postgres, S3 through the pods' IAM role (IRSA), and an ALB with
-# an ACM certificate in front. A template: copy it per customer and replace every REPLACE_ME_ value
+# An install on AWS EKS: RDS Postgres, S3 through the pods' IAM role (IRSA), and an ALB with
+# an ACM certificate in front. A template: copy it per install and replace every REPLACE_ME_ value
 # (README.md in this folder lists them and the AWS resources they point at).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

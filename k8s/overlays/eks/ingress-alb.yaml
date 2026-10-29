@@ -5,7 +5,7 @@ kind: Ingress
 metadata:
   name: anseliq
   annotations:
-    # internal: reachable only from the customer's VPC and what's peered or VPN'd into it. Use
+    # internal: reachable only from your VPC and what's peered or VPN'd into it. Use
     # internet-facing to put it on the public internet.
     alb.ingress.kubernetes.io/scheme: internal
     # Routes straight to pod IPs, so the ALB's health checks and draining track the pods themselves.
