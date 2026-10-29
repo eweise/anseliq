@@ -12,7 +12,9 @@ AnselIQ is licensed under the [Apache License, Version 2.0](LICENSE).
 
 ### Prerequisites
 
-- [Java JDK](https://jdk.java.net/26/) 26 (the backend uses `UUID.ofEpochMillis`, new in 26)
+- [Java JDK](https://jdk.java.net/26/) 26 (the backend uses `UUID.ofEpochMillis`, new in 26),
+  with `JAVA_HOME` pointing at it, since sbt runs on it too. On a Mac, `scripts/dev-env.sh` (below)
+  finds an installed JDK 26 and sets `JAVA_HOME`.
 - [sbt](https://www.scala-sbt.org/download.html) (Scala Build Tool)
 - [Nodejs V22.13.0](https://nodejs.org/en/blog/release/v22.13.0)
 

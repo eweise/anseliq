@@ -25,6 +25,11 @@ ensure() {
   fi
 }
 
+# sbt and the backend need JDK 26 (UUID.ofEpochMillis). On a Mac, java_home finds an installed one.
+if [[ -x /usr/libexec/java_home ]] && jdk=$(/usr/libexec/java_home -v 26 2>/dev/null); then
+  ensure JAVA_HOME "$jdk"
+fi
+
 ensure JWT_SECRET "$(openssl rand -base64 48)"
 # The Admin created on a new database's first start (`make create-db`); log in with these.
 ensure ADMIN_EMAIL "admin@onparity.local"

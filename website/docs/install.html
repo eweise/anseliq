@@ -138,7 +138,7 @@ git checkout v0.1.2                  # the release to build
 
 export DOCKER_REGISTRY=&lt;account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com
 export DOCKER_PLATFORM=linux/amd64   # match your cluster's nodes
-sbt -java-home "$JAVA_HOME" "backend/Docker/publish; frontend/Docker/publish"</code></pre>
+sbt "backend/Docker/publish; frontend/Docker/publish"</code></pre>
         <p>
           This pushes <code>anseliq-backend:0.1.2</code> and <code>anseliq-frontend:0.1.2</code>. The
           tag is the release version, read from the git tag you checked out. A build from any other

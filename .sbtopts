@@ -1,2 +1,1 @@
--java-home /Users/ericweise/Library/Java/JavaVirtualMachines/openjdk-26.0.1/Contents/Home
 -J--sun-misc-unsafe-memory-access=allow
