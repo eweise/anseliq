@@ -108,6 +108,18 @@ class JobManagerSuite extends munit.FunSuite:
         )
         assertEquals(claimNextUntil(Reconciliation, jobId), None)
 
+  test("completing a job clears the error an earlier attempt left"):
+    transact(transactor):
+      testing.rollBackOnly:
+        val referenceId = UUID.randomUUID()
+        val jobId       = jobManager.submitJob(Reconciliation, referenceId)
+        claimNextUntil(Reconciliation, jobId).get
+        jobRepo.update(jobRepo.findById(jobId).get.copy(errorMessage = Some("attempt 1 failed")))
+
+        jobManager.completeJob(jobId, reconInfo(referenceId))
+
+        assertEquals(jobRepo.findById(jobId).get.errorMessage, None)
+
   test("submit and create error job"):
     transact(transactor):
       testing.rollBackOnly:

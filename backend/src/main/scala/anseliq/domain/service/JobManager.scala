@@ -132,43 +132,32 @@ class JobManager(
       case _ => isUniqueViolation(ex.getCause)
 
   def completeJob(jobId: ID, jobInfo: JobInfo): Txn[Unit] =
-    // validate that the right type of job info is associate its job type
-
     jobRepo
       .findById(jobId)
       .map(job =>
         if job.jobStatus != InProgress then
           throw IllegalStateError(
-            s" cannot move job with referenceId: $jobId to status ${JobStatus.Complete}. Job currently in status ${job.jobStatus}"
+            s" cannot move job $jobId to status ${JobStatus.Complete}. Job currently in status ${job.jobStatus}"
           )
 
-        job.jobType match
-          case JobType.Reconciliation =>
-            if !jobInfo.isInstanceOf[ReconciliationInfo] then
-              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
-
-          case JobType.Ingestion =>
-            if !jobInfo.isInstanceOf[IngestionInfo] then
-              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
-
-          case JobType.CreateFileInventory =>
-            if !jobInfo.isInstanceOf[FileInventoryInfo] then
-              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
-
-          case JobType.GenerateReconStats =>
-            if !jobInfo.isInstanceOf[ReconStatsInfo] then
-              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
-
-          case JobType.SuggestMatches =>
-            if !jobInfo.isInstanceOf[MatchSuggestionInfo] then
-              throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
+        // Each job type records its own kind of info.
+        val infoFitsJob = (job.jobType, jobInfo) match
+          case (JobType.Reconciliation, _: ReconciliationInfo)     => true
+          case (JobType.Ingestion, _: IngestionInfo)               => true
+          case (JobType.CreateFileInventory, _: FileInventoryInfo) => true
+          case (JobType.GenerateReconStats, _: ReconStatsInfo)     => true
+          case (JobType.SuggestMatches, _: MatchSuggestionInfo)    => true
+          case _                                                   => false
+        if !infoFitsJob then throw IllegalArgumentError(job.jobType.toString, "wrong jobInfo associated with job type")
 
         jobRepo.update(
           job.copy(
             jobStatus   = Complete,
             jobInfoJson = Some(upickle.write(jobInfo)),
-            lockedUntil = None,
-            updatedAt   = Some(clock.now)
+            // A run that succeeded after a retry no longer has an error to show.
+            errorMessage = None,
+            lockedUntil  = None,
+            updatedAt    = Some(clock.now)
           )
         )
       ) match
