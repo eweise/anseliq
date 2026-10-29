@@ -22,6 +22,12 @@ object SessionStore:
   def currentUserNow: Option[UserClaim] =
     current.now().flatMap(s => JwtHelper.getUnverifiedUserClaim(s.accessToken).toOption)
 
+  // Whether to show the controls that change something. Viewers are read-only, and the backend
+  // refuses their writes anyway (ApiRoutes.roleMayCall); this only keeps them from being offered
+  // buttons that would fail. Read at render time, like the Admin checks: a role only changes with
+  // a new sign-in, which reloads the pages.
+  def canEdit: Boolean = currentUserNow.exists(_.role != "Viewer")
+
   def restore(): Unit =
     val at = dom.window.localStorage.getItem("accessToken")
     val rt = dom.window.localStorage.getItem("refreshToken")

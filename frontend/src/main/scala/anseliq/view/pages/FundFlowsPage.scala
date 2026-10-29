@@ -24,11 +24,13 @@ object FundFlowsPage:
       PageHeader.titleRow(
         cls := "flex justify-between items-center",
         PageHeader.title("Ledgers"),
-        Buttons.linkButton(
-          "Create",
-          Observer[Unit](_ =>
-            AppState.activeFundFlow.set(None)
-            Nav.toMaintainFundFlow()
+        Option.when(SessionStore.canEdit)(
+          Buttons.linkButton(
+            "Create",
+            Observer[Unit](_ =>
+              AppState.activeFundFlow.set(None)
+              Nav.toMaintainFundFlow()
+            )
           )
         )
       ),

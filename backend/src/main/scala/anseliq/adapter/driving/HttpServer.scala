@@ -171,15 +171,21 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
   // calling declares an extra curried parameter list — e.g. `(currentUser: JwtHelper.UserClaim)` —
   // which cask binds from this decorator's injected map; routes that don't declare it are
   // unaffected (cask only reads as many decorator-contributed param lists as a method declares).
+  // It also refuses a Viewer's writes (see ApiRoutes.roleMayCall). The role is the token's, so a
+  // role change takes effect at the user's next sign-in.
   class authDecorator(jwtSecret: JwtSecret) extends cask.RawDecorator:
     def wrapFunction(ctx: cask.model.Request, delegate: Delegate) =
-      if ctx.exchange.getRequestPath == HttpPath.login then delegate(ctx, Map.empty)
+      val path = ctx.exchange.getRequestPath
+      if path == HttpPath.login then delegate(ctx, Map.empty)
       else
         val bearerToken = ctx.headers.get("authorization").flatMap(_.headOption).collect { case s"Bearer $token" =>
           token
         }
         bearerToken.flatMap(t => JwtHelper.decode(t, jwtSecret.value).toOption) match
-          case None        => cask.router.Result.Success(cask.Response("Unauthorized", statusCode = 401))
+          case None => cask.router.Result.Success(cask.Response("Unauthorized", statusCode = 401))
+          case Some(claim) if !ApiRoutes.roleMayCall(claim.role, ctx.exchange.getRequestMethod.toString, path) =>
+            logger.warn(s"Request rejected with 403: ${claim.email} (${claim.role}) ${ctx.exchange.getRequestMethod} $path")
+            cask.router.Result.Success(cask.Response("Viewers have read-only access", statusCode = 403))
           case Some(claim) => delegate(ctx, Map("currentUser" -> claim))
 
   logger.info("Initializing backend")

@@ -115,7 +115,9 @@ object ExceptionDetailPage:
                 h3(cls := "font-medium text-md-on-surface dark:text-white", "Thread"),
                 if d.comments.isEmpty then p(cls := s"text-sm ${Form.mutedTextCls}", "No comments yet.")
                 else div(cls := "flex flex-col gap-3").amend(d.comments.map(commentEntry)*),
-                commentForm(d, statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
+                Option.when(SessionStore.canEdit)(
+                  commentForm(d, statusVar, assigneeVar, bodyVar, validationError, assignableUsers, submitBus)
+                )
               ),
               subjectCard(d, Observer[Unit](_ => loadBus.emit(())))
             )
@@ -131,7 +133,7 @@ object ExceptionDetailPage:
       span(s"Raised by: ${d.dispute.raisedByName.getOrElse("System")}"),
       span(s"Assigned to: ${d.dispute.assignedToName.getOrElse("Unassigned")}"),
       // A resolved dispute can't be assigned (the backend rejects it): there's no work left to own.
-      if alreadyMine || d.dispute.status == DisputeStatusPayload.Resolved then div()
+      if alreadyMine || d.dispute.status == DisputeStatusPayload.Resolved || !SessionStore.canEdit then div()
       else Buttons.textButton("Assign to me", Observer[Unit](_ => assignBus.emit(())))
     )
 

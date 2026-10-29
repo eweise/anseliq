@@ -138,6 +138,7 @@ object MovementDetailPage:
         onRaised.onNext(())
       },
       child <-- open.signal.map {
+        case false if !SessionStore.canEdit => emptyNode
         case false =>
           div(Buttons.textButton("Raise dispute", Observer[Unit](_ => open.set(true))))
         case true =>

@@ -205,7 +205,7 @@ object FundFlowPage:
           case "Setup" =>
             div(
               cls := "flex flex-col gap-6",
-              div(
+              Option.when(SessionStore.canEdit)(div(
                 cls := s"${Card.cls} p-6",
                 h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Ledger Settings"),
                 div(
@@ -227,7 +227,7 @@ object FundFlowPage:
                   ),
                   Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveFundFlowBus.emit(())))
                 )
-              ),
+              )),
               child <-- state.signal.map(_.accounts.filter(_.accountType == AccountTypePayload.Recon)).distinct.map {
                 reconAccounts => reconRulesCard(reconAccounts, configureReconBus)
               },
@@ -236,14 +236,14 @@ object FundFlowPage:
                 div(
                   cls := "flex items-center justify-between mb-4",
                   h3(cls := "font-medium text-md-on-surface dark:text-white", "Accounts"),
-                  Buttons.linkButton(
+                  Option.when(SessionStore.canEdit)(Buttons.linkButton(
                     "New Account",
                     Observer[Unit](_ =>
                       state.update(
                         _.copy(selectedAccount = None, selectedMovementSpec = None, editingAccountId = Some("new"))
                       )
                     )
-                  )
+                  ))
                 ),
                 child <-- state.signal.map { s =>
                   if s.accounts.isEmpty then div(cls := "text-gray-500 dark:text-gray-400 text-sm", "No accounts")
@@ -350,7 +350,7 @@ object FundFlowPage:
         div(
           cls := "flex items-center gap-2",
           Buttons.textButton("Reconciliations", onReconciliations),
-          Buttons.textButton("Manual Match", onManualMatch)
+          Option.when(SessionStore.canEdit)(Buttons.textButton("Manual Match", onManualMatch))
         )
       ),
       div(
@@ -448,7 +448,7 @@ object FundFlowPage:
         cls := "flex flex-wrap items-center gap-2",
         child <-- state.signal.map(s => runStatusText(s.reconcileStatuses)),
         child <-- reconAccounts.map(_.nonEmpty).distinct.map { hasRecon =>
-          if !hasRecon then emptyNode
+          if !hasRecon || !SessionStore.canEdit then emptyNode
           else
             Buttons.linkButton(
               "Run reconciliation",
@@ -457,7 +457,9 @@ object FundFlowPage:
               )
             )
         },
-        Buttons.textButton("Ingest file", Observer[Unit](_ => state.update(_.copy(ingesting = true))))
+        Option.when(SessionStore.canEdit)(
+          Buttons.textButton("Ingest file", Observer[Unit](_ => state.update(_.copy(ingesting = true))))
+        )
       )
     )
 
@@ -505,7 +507,8 @@ object FundFlowPage:
               ),
               child <-- specs.signal.map { ss =>
                 val label = if ss.exists(_.nonEmpty) then "Edit rule" else "Set up"
-                Buttons.textButton(label, Observer[Unit](_ => configureReconBus.emit(account)))
+                if SessionStore.canEdit then Buttons.textButton(label, Observer[Unit](_ => configureReconBus.emit(account)))
+                else emptyNode
               }
             )
           }
@@ -811,7 +814,8 @@ object FundFlowPage:
     val posOf   = computePositions(s.accounts, s.movementSpecs)
     val svgHtml = buildSvg(s.accounts, s.movementSpecs, posOf)
 
-    val accountOverlays = s.accounts.flatMap { acc =>
+    // Every item on an account's menu changes something, so a Viewer's account boxes don't open one.
+    val accountOverlays = if !SessionStore.canEdit then Seq.empty else s.accounts.flatMap { acc =>
       acc.id.flatMap { id =>
         posOf.get(id).map { (x, y) =>
           div(
@@ -978,7 +982,7 @@ object FundFlowPage:
   ): HtmlElement =
     div(
       styleAttr := s"position:absolute;left:${x}px;top:${y}px;z-index:30;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);min-width:160px;overflow:hidden",
-      button(
+      Option.when(SessionStore.canEdit)(button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick --> { _ =>
           state.update(
@@ -989,7 +993,7 @@ object FundFlowPage:
           )
         },
         "Edit Relationship"
-      ),
+      )),
       button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick --> { _ =>
@@ -998,14 +1002,14 @@ object FundFlowPage:
         },
         "Test Parser"
       ),
-      button(
+      Option.when(SessionStore.canEdit)(button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600",
         onClick --> { _ =>
           state.update(_.copy(selectedMovementSpec = None))
           deleteSpecBus.emit(spec)
         },
         "Delete"
-      )
+      ))
     )
 
   private def buildSvg(

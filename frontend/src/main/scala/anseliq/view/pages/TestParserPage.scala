@@ -60,7 +60,7 @@ object TestParserPage:
           PageHeader.title(
             child.text <-- state.signal.map(s => s"Test Parser — ${s.fileFeed.map(_.name).getOrElse(fileFeedId)}")
           ),
-          child.maybe <-- state.signal.map(_.fileFeed.map(editParserButton))
+          child.maybe <-- state.signal.map(_.fileFeed.filter(_ => SessionStore.canEdit).map(editParserButton))
         )
       ),
       div(

@@ -39,7 +39,7 @@ object FileFeedsPage:
       ),
       div(
         cls := "w-full px-8",
-        Buttons.linkButton("+ New Feed", Observer[Unit](_ => Nav.toMaintainFileFeed())),
+        Option.when(SessionStore.canEdit)(Buttons.linkButton("+ New Feed", Observer[Unit](_ => Nav.toMaintainFileFeed()))),
         div(
           cls := "mt-4",
           child <-- state.signal.map { s =>
@@ -58,7 +58,9 @@ object FileFeedsPage:
                   span(feed.expectedCadenceHours.map(_.toString).getOrElse("—")),
                   div(
                     cls := "flex gap-2",
-                    Buttons.textButton("Edit", Observer[Unit](_ => Nav.toMaintainFileFeed(feed.id.getOrElse("new")))),
+                    Option.when(SessionStore.canEdit)(
+                      Buttons.textButton("Edit", Observer[Unit](_ => Nav.toMaintainFileFeed(feed.id.getOrElse("new"))))
+                    ),
                     Buttons.textButton("Test Parser", Observer[Unit](_ => Nav.toTestParser(feed.id.getOrElse(""))))
                   )
                 )

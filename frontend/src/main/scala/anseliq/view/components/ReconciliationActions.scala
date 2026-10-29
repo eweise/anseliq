@@ -22,6 +22,7 @@ import upickle.default.*
  *   - Final: Unmatch; or, for a written-off one, Reverse write-off (admins only — see
  *     ManualReconciler.reverseWriteOff), which puts it back to Mismatched
  *   - Voided / Reversed: nothing; a short note says why
+ * Viewers get the note but none of the actions.
  * Each action opens an inline panel to confirm, since each changes the ledger.
  * `onChanged` fires after either succeeds so the host page can reload.
  */
@@ -50,7 +51,7 @@ object ReconciliationActions:
     val writtenOff  = r.adjustmentReason.exists(_.nonEmpty)
     val isAdmin     = SessionStore.currentUserNow.exists(_.role == "Admin")
 
-    val (actions, hint): (Seq[(String, Panel)], Option[String]) = r.status match
+    val (offered, hint): (Seq[(String, Panel)], Option[String]) = r.status match
       case "Mismatched" =>
         Seq("Write off…" -> Panel.WriteOff, "Unmatch" -> Panel.Unmatch) ->
           Some("Nothing else will join this match. Write off the difference, or unmatch to match these movements differently.")
@@ -75,6 +76,8 @@ object ReconciliationActions:
       case "Reversed" =>
         Seq.empty -> Some("A system reversal pairing a movement with its correction. It can't be changed.")
       case _ => Seq.empty -> None
+    // A Viewer still gets the hint, which says where the reconciliation stands, but no actions.
+    val actions = if SessionStore.canEdit then offered else Seq.empty
 
     div(
       cls := "flex flex-col gap-3",
