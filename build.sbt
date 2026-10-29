@@ -118,8 +118,10 @@ lazy val backend = project.in(file("backend"))
   .enablePlugins(JavaAppPackaging, DockerPlugin)
   .settings(
     name    := "backend",
+    // In its own JVM, so bgStop can stop it: run inside sbt's, the HTTP server outlives the job.
+    run / fork := true,
     libraryDependencies ++= Seq(
-      "ch.qos.logback"              % "logback-classic"     % Dependencies.LogbackClassic,
+      "ch.qos.logback"             % "logback-classic"     % Dependencies.LogbackClassic,
       "net.logstash.logback"        % "logstash-logback-encoder" % Dependencies.LogstashEncoder,
       "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.5",
       "com.fasterxml.uuid"          % "java-uuid-generator" % "5.2.0",
