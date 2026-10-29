@@ -5,6 +5,8 @@ import sbt.Keys.libraryDependencies
 lazy val scala3Version  = "3.8.1"
 lazy val upickleVersion = "4.4.2"
 ThisBuild / organization := "anseliq"
+ThisBuild / licenses     := List(License.Apache2)
+ThisBuild / homepage     := Some(url("https://github.com/eweise/anseliq"))
 ThisBuild / scalaVersion := scala3Version
 // The version comes from git (sbt-dynver): 1.2.3 on the commit tagged v1.2.3, and something like
 // 1.2.3-4-abcd1234 after it. "-" rather than dynver's default "+", which a Docker tag can't contain.

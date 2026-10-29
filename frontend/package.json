@@ -8,8 +8,8 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "author": "Watson",
-  "license": "ISC",
+  "author": "Eric Weise",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@vitejs/plugin-basic-ssl": "^2.0.0",
     "autoprefixer": "^10.4.19",

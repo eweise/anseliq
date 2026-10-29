@@ -8,6 +8,8 @@ configurable rules, and explains and resolves whatever doesn't tie out.
 - `frontend/` — Scala.js (Laminar) web app, built with Vite and Tailwind
 - `website/` — the AnselIQ marketing site (static Vite + Tailwind)
 
+AnselIQ is licensed under the [Apache License, Version 2.0](LICENSE).
+
 ### Prerequisites
 
 - [Java JDK](https://jdk.java.net/26/) 26 (the backend uses `UUID.ofEpochMillis`, new in 26)

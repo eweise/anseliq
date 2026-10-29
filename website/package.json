@@ -2,6 +2,7 @@
   "name": "anseliq-website",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Marketing site for AnselIQ",
   "type": "module",
   "scripts": {
