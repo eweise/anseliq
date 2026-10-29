@@ -9,8 +9,8 @@ object HttpPath:
   val login           = s"$prefix/login"
   val users           = s"$prefix/users"
   val assignableUsers = s"$prefix/users/assignable"
-  val ledgers       = s"$prefix/ledgers"
-  val ledger        = s"$prefix/ledger"
+  val ledgers         = s"$prefix/ledgers"
+  val ledger          = s"$prefix/ledger"
   val accounts        = s"$prefix/accounts"
   val account         = s"$prefix/account"
   val movementSpecs   = s"$prefix/movement-specs"
@@ -24,8 +24,8 @@ object HttpPath:
   val reconciliations = s"$prefix/reconciliations"
   val reconciliation  = s"$prefix/reconciliation"
   val matchSuggestion = s"$prefix/match-suggestion"
-  val exceptions        = s"$prefix/exceptions"
-  val exception         = s"$prefix/exception"
+  val exceptions      = s"$prefix/exceptions"
+  val exception       = s"$prefix/exception"
   val jobs            = s"$prefix/jobs"
   val events          = s"$prefix/events"
   val reports         = s"$prefix/reports"
@@ -42,7 +42,7 @@ object PathDef {
    */
   val prefix:                 PathCodec[Unit] = Root / "api" / "v1"
   val login:                  PathCodec[Unit] = prefix / "login"
-  val ledgers:              PathCodec[Unit] = prefix / "ledgers"
+  val ledgers:                PathCodec[Unit] = prefix / "ledgers"
   val accounts:               PathCodec[Unit] = prefix / "account"
   val ping:                   PathCodec[Unit] = prefix / "scala"
   val subscribeServerMessage: PathCodec[Unit] = prefix / "subscribe"
@@ -55,7 +55,7 @@ object BackendApiUrl {
   import anseliq.common.BuildInfo.backendBaseUrl
 
   val login:                  String = generateUrl(PathDef.login.format(()))
-  val ledgers:              String = generateUrl(PathDef.ledgers.format(()))
+  val ledgers:                String = generateUrl(PathDef.ledgers.format(()))
   val accounts:               String = generateUrl(PathDef.accounts.format(()))
   val subscribeServerMessage: String = generateWsUrl(PathDef.subscribeServerMessage.format(()))
 

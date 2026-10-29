@@ -3,10 +3,10 @@ package anseliq.domain.service.parser
 import scala.util.Try
 
 case class CsvParser(
-                      columns:     Map[Int, String],
-                      amountField: Option[Int],
-                      hasHeader:   Boolean = false
-                    ) extends Parser:
+  columns:     Map[Int, String],
+  amountField: Option[Int],
+  hasHeader:   Boolean = false
+) extends Parser:
   override def parse(text: String, lineNumber: Long): Option[ParsedLine] =
     val fields = text.split(",") // todo replace with real csv parser
     if fields.length < 2 then None
@@ -22,4 +22,3 @@ case class CsvParser(
           props       = for ((index, key) <- columns) yield (key, fields(index))
         )
       )
-

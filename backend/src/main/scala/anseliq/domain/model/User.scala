@@ -30,7 +30,8 @@ case class User(
   active:        Boolean                = true,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None
-) extends Audited derives DbCodec
+) extends Audited
+    derives DbCodec
 
 object User:
   val Table = TableInfo[User, User, UUID]

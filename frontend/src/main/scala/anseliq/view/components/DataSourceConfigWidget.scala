@@ -35,24 +35,24 @@ object DataSourceConfigWidget:
   case class FixedWidthFieldRow(name: String = "", startPosition: String = "", endPosition: String = "")
 
   case class State(
-                    parserType: ParserType = ParserType.CSV,
-                    hasHeader:  Boolean    = true,
-                    // csvAmountIndex is a position into csvFields (which row is the amount), not a CSV column
-                    // index itself — same indirection as jsonAmountIndex below, resolved to the real column index
-                    // only when building CSVParserConfig.
-                    csvFields:      List[CsvFieldRow] = List.empty,
-                    csvAmountIndex: Option[Int]       = None,
-                    // BAI2's fields are fixed and known (unlike CSV columns), so this is a name PER field rather
-                    // than a growable list — baiFieldsIncluded tracks which ones are turned on, and baiFieldNames
-                    // keeps every field's typed name (even while excluded) so toggling one back on doesn't lose it.
-                    baiFieldNames:         Map[BaiField, String]    = BaiParserConfig.defaultFieldMappings,
-                    baiFieldsIncluded:     Set[BaiField]            = BaiField.values.toSet,
-                    jsonFields:            List[JsonFieldRow]       = List.empty,
-                    jsonAmountIndex:       Option[Int]              = None,
-                    fixedWidthFields:      List[FixedWidthFieldRow] = List.empty,
-                    fixedWidthAmountIndex: Option[Int]              = None,
-                    s3Bucket:              String                   = "",
-                    s3FilePath:            String                   = ""
+    parserType: ParserType = ParserType.CSV,
+    hasHeader:  Boolean    = true,
+    // csvAmountIndex is a position into csvFields (which row is the amount), not a CSV column
+    // index itself — same indirection as jsonAmountIndex below, resolved to the real column index
+    // only when building CSVParserConfig.
+    csvFields:      List[CsvFieldRow] = List.empty,
+    csvAmountIndex: Option[Int]       = None,
+    // BAI2's fields are fixed and known (unlike CSV columns), so this is a name PER field rather
+    // than a growable list — baiFieldsIncluded tracks which ones are turned on, and baiFieldNames
+    // keeps every field's typed name (even while excluded) so toggling one back on doesn't lose it.
+    baiFieldNames:         Map[BaiField, String]    = BaiParserConfig.defaultFieldMappings,
+    baiFieldsIncluded:     Set[BaiField]            = BaiField.values.toSet,
+    jsonFields:            List[JsonFieldRow]       = List.empty,
+    jsonAmountIndex:       Option[Int]              = None,
+    fixedWidthFields:      List[FixedWidthFieldRow] = List.empty,
+    fixedWidthAmountIndex: Option[Int]              = None,
+    s3Bucket:              String                   = "",
+    s3FilePath:            String                   = ""
   )
 
   object State:

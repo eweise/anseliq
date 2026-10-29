@@ -12,26 +12,26 @@ import com.typesafe.scalalogging.StrictLogging
 class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
   private val transactor = app.transactor
   private val views = ViewAssembler(
-    ledgerRepo = app.ledgerRepo,
+    ledgerRepo           = app.ledgerRepo,
     exceptionRepo        = app.exceptionRepo,
-    accountRepo        = app.accountRepo,
-    movementRepo       = app.movementRepo,
-    reconRepo          = app.reconRepo,
-    movementSpecRepo   = app.movementSpecRepo,
-    fileFeedRepo       = app.fileFeedRepo,
-    reconSpecRepo      = app.reconSpecRepo,
+    accountRepo          = app.accountRepo,
+    movementRepo         = app.movementRepo,
+    reconRepo            = app.reconRepo,
+    movementSpecRepo     = app.movementSpecRepo,
+    fileFeedRepo         = app.fileFeedRepo,
+    reconSpecRepo        = app.reconSpecRepo,
     exceptionCommentRepo = app.exceptionCommentRepo,
-    userRepo           = app.userRepo
+    userRepo             = app.userRepo
   )
 
   val allRoutes = Seq(
     LedgerRoutes(
-      transactor         = transactor,
-      ledgerRepo = app.ledgerRepo,
-      accountRepo        = app.accountRepo,
-      movementRepo       = app.movementRepo,
-      reconRepo          = app.reconRepo,
-      ledgerService    = app.ledgerService
+      transactor    = transactor,
+      ledgerRepo    = app.ledgerRepo,
+      accountRepo   = app.accountRepo,
+      movementRepo  = app.movementRepo,
+      reconRepo     = app.reconRepo,
+      ledgerService = app.ledgerService
     ),
     AccountRoutes(
       transactor     = transactor,
@@ -72,8 +72,8 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
       manualReconciler = app.manualReconciler
     ),
     ExceptionRoutes(
-      transactor     = transactor,
-      views          = views,
+      transactor       = transactor,
+      views            = views,
       exceptionRepo    = app.exceptionRepo,
       exceptionService = app.exceptionService
     ),
@@ -184,7 +184,9 @@ class HttpServer(app: AppContainer) extends cask.Main, StrictLogging:
         bearerToken.flatMap(t => JwtHelper.decode(t, jwtSecret.value).toOption) match
           case None => cask.router.Result.Success(cask.Response("Unauthorized", statusCode = 401))
           case Some(claim) if !ApiRoutes.roleMayCall(claim.role, ctx.exchange.getRequestMethod.toString, path) =>
-            logger.warn(s"Request rejected with 403: ${claim.email} (${claim.role}) ${ctx.exchange.getRequestMethod} $path")
+            logger.warn(
+              s"Request rejected with 403: ${claim.email} (${claim.role}) ${ctx.exchange.getRequestMethod} $path"
+            )
             cask.router.Result.Success(cask.Response("Viewers have read-only access", statusCode = 403))
           case Some(claim) => delegate(ctx, Map("currentUser" -> claim))
 

@@ -12,20 +12,20 @@ import upickle.default.*
 import java.util.UUID
 
 class LedgerRoutes(
-  transactor:         Transactor,
-  ledgerRepo: LedgerRepo,
-  accountRepo:        AccountRepo,
-  movementRepo:       MovementRepo,
-  reconRepo:          ReconciliationRepo,
-  ledgerService:    LedgerService
+  transactor:    Transactor,
+  ledgerRepo:    LedgerRepo,
+  accountRepo:   AccountRepo,
+  movementRepo:  MovementRepo,
+  reconRepo:     ReconciliationRepo,
+  ledgerService: LedgerService
 ) extends ApiRoutes:
 
   // Ledgers
   @cask.route(HttpPath.ledgers, methods = HttpCmd.GET)
   def getLedgers() =
     transact(transactor):
-      val ledgers = ledgerRepo.findAll
-      val payloads  = ledgers.map(ff => PayloadMapper.ledgerPayloadFromDomain(ff))
+      val ledgers  = ledgerRepo.findAll
+      val payloads = ledgers.map(ff => PayloadMapper.ledgerPayloadFromDomain(ff))
       write(payloads)
 
   @cask.route(s"${HttpPath.ledger}/:id/summary", methods = HttpCmd.GET)
@@ -33,7 +33,7 @@ class LedgerRoutes(
     transact(transactor):
       val ledgerId = UUID.fromString(id)
       val ledger   = ledgerRepo.findById(ledgerId).ErrIfNotFound("ledger", ledgerId)
-      val accounts   = accountRepo.findByLedger(ledgerId)
+      val accounts = accountRepo.findByLedger(ledgerId)
 
       val accountSummaryViews = accounts.map(account =>
         val isReconAccount    = account.accountType == AccountType.Recon
@@ -55,7 +55,7 @@ class LedgerRoutes(
         )
       )
       val ledgerSummaryView = LedgerSummaryViewPayload(
-        ledger = PayloadMapper.ledgerPayloadFromDomain(ledger),
+        ledger   = PayloadMapper.ledgerPayloadFromDomain(ledger),
         accounts = accountSummaryViews
       )
       write(ledgerSummaryView)
@@ -64,7 +64,9 @@ class LedgerRoutes(
   def createLedger(request: cask.Request): String =
     val payload = read[LedgerPayload](request.text())
     transact(transactor):
-      write(PayloadMapper.ledgerPayloadFromDomain(ledgerService.createLedger(PayloadMapper.ledgerPayloadToDomain(payload))))
+      write(
+        PayloadMapper.ledgerPayloadFromDomain(ledgerService.createLedger(PayloadMapper.ledgerPayloadToDomain(payload)))
+      )
 
   @cask.route(s"${HttpPath.ledger}/:id", methods = HttpCmd.PUT)
   def updateLedger(id: String, request: cask.Request): String =

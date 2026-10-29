@@ -15,14 +15,13 @@ object CommandWatcher {
 
     val process = Process(command, None, "FORCE_COLOR" -> "1").run(
       new ProcessIO(
-        _ => (), 
+        _ => (),
         stdout =>
           readStream(
             stdout,
-            line =>{
+            line =>
               if (pattern.findFirstIn(removeAnsiCodes(line)).isDefined)
                 println(s"\n$successMessage")
-            }
           ),
         stderr => readStream(stderr, line => println(s"⚠️ $line"))
       )

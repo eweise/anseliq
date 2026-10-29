@@ -56,7 +56,6 @@ object Nav:
 
   def toReconciliationDetail(id: String): Unit = push(s"/components/reconciliations/$id")
 
-
   def toMovementDetail(id: String): Unit = push(s"/components/movements/$id")
 
   def toTestParser(fileFeedId: String): Unit =

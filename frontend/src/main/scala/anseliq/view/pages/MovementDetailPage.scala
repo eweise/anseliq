@@ -48,7 +48,8 @@ object MovementDetailPage:
                 span(cls := "font-mono", ReconciliationDetailPage.shortId(d.id)),
                 span(cls := "ml-3 tabular-nums", d.amount.toString)
               ),
-              d.movementType.map(_ => Pill(MovementLabels.typeLabel(d.movementType, d.adjustmentType), Pill.Tone.Neutral))
+              d.movementType
+                .map(_ => Pill(MovementLabels.typeLabel(d.movementType, d.adjustmentType), Pill.Tone.Neutral))
                 .getOrElse(emptyNode)
             ),
             raiseException(d.id, Observer[Unit](_ => loadBus.emit(()))),
@@ -195,6 +196,8 @@ object MovementDetailPage:
       if props.isEmpty then div(cls := "text-sm text-md-on-surface-variant dark:text-gray-400", "None")
       else
         DetailList(
-          props.toSeq.sortBy(_._1).map((k, v) => k -> (if v.isEmpty then DetailList.empty else span(cls := "break-all", v)))*
+          props.toSeq
+            .sortBy(_._1)
+            .map((k, v) => k -> (if v.isEmpty then DetailList.empty else span(cls := "break-all", v)))*
         )
     )

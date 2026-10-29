@@ -22,7 +22,10 @@ object LeftNav:
         div(
           cls := "px-4 pb-4 mb-2 border-b border-gray-200 dark:border-gray-700",
           Brand.logo(),
-          div(cls := "mt-1 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500", "Reconciliation")
+          div(
+            cls := "mt-1 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500",
+            "Reconciliation"
+          )
         ),
         ul(
           cls := "space-y-1",

@@ -64,7 +64,7 @@ object PageHeader:
       aria.label := "Breadcrumb",
       cls        := "absolute -top-6 flex flex-wrap items-center gap-1 text-sm text-md-on-surface-variant dark:text-gray-400",
       crumbs.zipWithIndex.flatMap { case ((label, onOpen), i) =>
-        val sep  = if i == 0 then None else Some(span(cls := "text-gray-400 dark:text-gray-500", "›"))
+        val sep = if i == 0 then None else Some(span(cls := "text-gray-400 dark:text-gray-500", "›"))
         val item = onOpen match
           case Some(obs) => button(typ := "button", cls := linkCls, onClick.mapToUnit --> obs, label)
           case None      => span(cls := "text-md-on-surface dark:text-gray-200", label)

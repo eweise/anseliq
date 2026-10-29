@@ -26,7 +26,8 @@ object DbDataSource:
    * A new connection per getConnection, really closed on close(). For MovementRepoLive's
    * withUnreconciledCursor, which holds a connection for a whole reconciliation pass and leaves a
    * WITH HOLD cursor on it if its CLOSE never runs (an interrupted pass): from a pool, that cursor,
-   * and the temp file it materialized, would outlive the pass on a connection handed to someone else.
+   * and the temp file it materialized, would outlive the pass on a connection handed to someone
+   * else.
    */
   def unpooled(config: Config): DataSource =
     val source = PGSimpleDataSource()

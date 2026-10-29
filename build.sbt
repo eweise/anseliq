@@ -19,10 +19,11 @@ lazy val root = project.in(file("."))
  */
 lazy val devServer   = taskKey[Unit]("Start both ~fastOptJS and vite dev server concurrently")
 lazy val publishDist = taskKey[Unit]("Build a static web artifact")
-lazy val frontend = project.in(file("frontend"))
+lazy val frontend = project
+  .in(file("frontend"))
   .enablePlugins(ScalaJSPlugin, DockerPlugin)
   .settings(
-    name    := "frontend",
+    name := "frontend",
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     scalaJSUseMainModuleInitializer := true,
     // Source maps seem to be broken with bundler
@@ -33,10 +34,10 @@ lazy val frontend = project.in(file("frontend"))
     Compile / fastLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "frontend-fastopt",
     Compile / fullLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "target" / "frontend-opt",
     libraryDependencies ++= Seq(
-      "com.raquo"                  %%  "laminar"    % Dependencies.Laminar,
-      "io.frontroute"              %%  "frontroute" % Dependencies.Frontroute,
-      "com.lihaoyi"                %%  "upickle"    % upickleVersion,
-      "com.softwaremill.quicklens" %%  "quicklens"  % Dependencies.Quicklens
+      "com.raquo"                  %% "laminar"    % Dependencies.Laminar,
+      "io.frontroute"              %% "frontroute" % Dependencies.Frontroute,
+      "com.lihaoyi"                %% "upickle"    % upickleVersion,
+      "com.softwaremill.quicklens" %% "quicklens"  % Dependencies.Quicklens
     )
   )
   .settings(
@@ -114,36 +115,37 @@ lazy val explicitOnlySuites = Set(
   "anseliq.testing.SeedHappyPathDemo",
   "anseliq.testing.PopulateS3Buckets"
 )
-lazy val backend = project.in(file("backend"))
+lazy val backend = project
+  .in(file("backend"))
   .enablePlugins(JavaAppPackaging, DockerPlugin)
   .settings(
-    name    := "backend",
+    name := "backend",
     // In its own JVM, so bgStop can stop it: run inside sbt's, the HTTP server outlives the job.
     run / fork := true,
     libraryDependencies ++= Seq(
-      "ch.qos.logback"             % "logback-classic"     % Dependencies.LogbackClassic,
-      "net.logstash.logback"        % "logstash-logback-encoder" % Dependencies.LogstashEncoder,
-      "com.typesafe.scala-logging" %% "scala-logging"       % "3.9.5",
-      "com.fasterxml.uuid"          % "java-uuid-generator" % "5.2.0",
-      "com.softwaremill.ox"        %% "core"                % "1.0.3",
-      "org.scalatest"              %% "scalatest"           % Dependencies.Scalatest % Test,
-      "com.augustnagro"            %% "magnum"              % "2.0.0-M3",
-      "org.postgresql"              % "postgresql"          % "42.7.4",
-      "com.zaxxer"                  % "HikariCP"            % "6.3.0",
-      "org.flywaydb"                % "flyway-core"         % "11.8.2",
+      "ch.qos.logback"              % "logback-classic"            % Dependencies.LogbackClassic,
+      "net.logstash.logback"        % "logstash-logback-encoder"   % Dependencies.LogstashEncoder,
+      "com.typesafe.scala-logging" %% "scala-logging"              % "3.9.5",
+      "com.fasterxml.uuid"          % "java-uuid-generator"        % "5.2.0",
+      "com.softwaremill.ox"        %% "core"                       % "1.0.3",
+      "org.scalatest"              %% "scalatest"                  % Dependencies.Scalatest % Test,
+      "com.augustnagro"            %% "magnum"                     % "2.0.0-M3",
+      "org.postgresql"              % "postgresql"                 % "42.7.4",
+      "com.zaxxer"                  % "HikariCP"                   % "6.3.0",
+      "org.flywaydb"                % "flyway-core"                % "11.8.2",
       "org.flywaydb"                % "flyway-database-postgresql" % "11.8.2",
-      "org.scalamock"              %% "scalamock"           % "6.0.0"                % Test,
-      "com.augustnagro"            %% "magnumpg"            % "2.0.0-M3",
-      "com.typesafe"                % "config"              % "1.4.3",
-      "com.lihaoyi"                %% "cask"                % "0.10.2",
-      "org.scalameta"              %% "munit"               % "1.0.2"                % Test,
-      "io.circe"                   %% "circe-core"          % "0.14.10",
-      "io.circe"                   %% "circe-parser"        % "0.14.10",
-      "software.amazon.awssdk"      % "s3"                  % "2.29.0",
+      "org.scalamock"              %% "scalamock"                  % "6.0.0"                % Test,
+      "com.augustnagro"            %% "magnumpg"                   % "2.0.0-M3",
+      "com.typesafe"                % "config"                     % "1.4.3",
+      "com.lihaoyi"                %% "cask"                       % "0.10.2",
+      "org.scalameta"              %% "munit"                      % "1.0.2"                % Test,
+      "io.circe"                   %% "circe-core"                 % "0.14.10",
+      "io.circe"                   %% "circe-parser"               % "0.14.10",
+      "software.amazon.awssdk"      % "s3"                         % "2.29.0",
       // For the default credentials chain to pick up an IRSA web identity token (see S3FileSourceFactory).
-      "software.amazon.awssdk"      % "sts"                 % "2.29.0",
-      "com.jayway.jsonpath"         % "json-path"           % "2.9.0",
-      "at.favre.lib"                 % "bcrypt"              % "0.10.2"
+      "software.amazon.awssdk" % "sts"       % "2.29.0",
+      "com.jayway.jsonpath"    % "json-path" % "2.9.0",
+      "at.favre.lib"           % "bcrypt"    % "0.10.2"
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     // Most tests isolate themselves with rollBackOnly, but a few (e.g. IngestResumableSuite) commit
@@ -166,7 +168,7 @@ lazy val backend = project.in(file("backend"))
     // SeedHappyPathDemo likewise commits demo data on purpose
     // (sbt "testOnly anseliq.testing.SeedHappyPathDemo"), and PopulateS3Buckets writes files into
     // LocalStack for a running backend to pick up (sbt "testOnly anseliq.testing.PopulateS3Buckets").
-    Test / test / testOptions      += Tests.Filter(name => !explicitOnlySuites(name)),
+    Test / test / testOptions += Tests.Filter(name => !explicitOnlySuites(name)),
     Test / testQuick / testOptions += Tests.Filter(name => !explicitOnlySuites(name)),
     mainClass := Some("anseliq.app.Main")
   )
@@ -194,11 +196,11 @@ lazy val common = crossProject(JVMPlatform, JSPlatform)
       "64"
     ), // see [[https://docs.scala-lang.org/scala3/guides/migration/options-new.html]]
     libraryDependencies ++= Seq(
-      "dev.zio"              %%  "zio-json"        % Dependencies.ZioJson,
-      "dev.zio"              %%  "zio-http"        % Dependencies.ZioHttp,
-      "com.github.jwt-scala" %%  "jwt-json-common" % Dependencies.JwtScala,
-      "com.lihaoyi"           %% "upickle"         % upickleVersion,
-      "org.scalatest"         %% "scalatest"       % Dependencies.Scalatest % Test
+      "dev.zio"              %% "zio-json"        % Dependencies.ZioJson,
+      "dev.zio"              %% "zio-http"        % Dependencies.ZioHttp,
+      "com.github.jwt-scala" %% "jwt-json-common" % Dependencies.JwtScala,
+      "com.lihaoyi"          %% "upickle"         % upickleVersion,
+      "org.scalatest"        %% "scalatest"       % Dependencies.Scalatest % Test
     ),
     buildInfoKeys := Seq[BuildInfoKey](
       BuildInfoKey.action("backendBaseUrl") {

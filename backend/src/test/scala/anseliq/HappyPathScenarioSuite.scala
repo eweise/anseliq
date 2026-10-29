@@ -16,11 +16,11 @@ class HappyPathScenarioSuite extends munit.FunSuite:
   // Worked out by hand from HappyPathScenario.filesFor. Movements and aging are the Recon account's:
   // every journal row moves into it and every bank row out of it.
   case class Expected(
-    reconciliations:    Int,
-    movements:          Int,
-    unreconciled:       Set[String],
-    aging:              (Int, Int, Int, Int), // 0-3, 4-7, 8-14, 15+ days old
-    overdue:            Int
+    reconciliations: Int,
+    movements:       Int,
+    unreconciled:    Set[String],
+    aging:           (Int, Int, Int, Int), // 0-3, 4-7, 8-14, 15+ days old
+    overdue:         Int
   )
 
   // A reviewed fuzzy pair's two movements are unreconciled on the day they land, and matched (one
@@ -43,7 +43,6 @@ class HappyPathScenarioSuite extends munit.FunSuite:
     // The pending pairs land and stay unreconciled.
     Expected(36, 77, Set(StuckId) ++ PendingFuzzyPairs.flatMap((j, b, _) => Seq(j, b)), (4, 0, 1, 0), 1)
   )
-
 
   test("a ledger reconciles, ages and snapshots correctly day by day"):
     assertEquals(expectedByDay.size, Days)
@@ -78,7 +77,12 @@ class HappyPathScenarioSuite extends munit.FunSuite:
           val snapshot = app.dailySnapshotRepo.findTrend(s.ledger.id, today, today)
           assertEquals(snapshot.size, 1, s"$clue: one snapshot for $today")
           assertEquals(
-            (snapshot.head.agingZeroToThree, snapshot.head.agingFourToSeven, snapshot.head.agingEightToFourteen, snapshot.head.agingFifteenPlus),
+            (
+              snapshot.head.agingZeroToThree,
+              snapshot.head.agingFourToSeven,
+              snapshot.head.agingEightToFourteen,
+              snapshot.head.agingFifteenPlus
+            ),
             expected.aging,
             clue
           )
@@ -87,7 +91,9 @@ class HappyPathScenarioSuite extends munit.FunSuite:
 
           // Two files a day, each ingested by its own job, then one reconciliation job and one
           // match-suggestion job.
-          val inventoryIds = app.fileInventoryRepo.findAll.filter(fi => Set(s.journalFeed.id, s.bankFeed.id).contains(fi.fileFeedId)).map(_.id)
+          val inventoryIds = app.fileInventoryRepo.findAll
+            .filter(fi => Set(s.journalFeed.id, s.bankFeed.id).contains(fi.fileFeedId))
+            .map(_.id)
           val ingestionJobs = inventoryIds.flatMap(app.jobRepo.findByJobTypeAndReferenceId(JobType.Ingestion, _))
           val reconJobs     = app.jobRepo.findByJobTypeAndReferenceId(JobType.Reconciliation, s.recon.id)
           assertEquals(ingestionJobs.map(_.jobStatus).count(_ == JobStatus.Complete), 2 * (day + 1), clue)
@@ -122,8 +128,9 @@ class HappyPathScenarioSuite extends munit.FunSuite:
           "learned from the three accepted suggestions; it would match the two pending pairs"
         )
 
-        val reviewer                 = s.reviewer
-        val (invoice, purchaseOrder) = suggestions.partition(sg => reference(sg.movementId) == PendingFuzzyPairs.head._1)
+        val reviewer = s.reviewer
+        val (invoice, purchaseOrder) =
+          suggestions.partition(sg => reference(sg.movementId) == PendingFuzzyPairs.head._1)
         val accepted = app.matchSuggestionService.accept(invoice.head.id, reviewer.id)
         assertEquals(accepted.status, ReconciliationStatus.Final)
         assertEquals(

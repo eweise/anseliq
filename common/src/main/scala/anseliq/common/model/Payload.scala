@@ -175,8 +175,8 @@ case class MatchSuggestionPayload(
   rationale:            String,
   model:                String,
   // The checked explanation, e.g. "normalize(transaction_id) = normalize(txn_id): inv20260042".
-  explanation:          Option[String]         = None,
-  createdAt:            Option[OffsetDateTime] = None
+  explanation: Option[String]         = None,
+  createdAt:   Option[OffsetDateTime] = None
 ) derives ReadWriter
 
 // A rule learned from accepted match suggestions, which can be added to the spec as an alternative.
@@ -217,7 +217,7 @@ case class FixBadFileResultPayload(
 ) derives ReadWriter
 
 case class LedgerSummaryViewPayload(
-  ledger: LedgerPayload,
+  ledger:   LedgerPayload,
   accounts: Seq[AccountSummaryViewPayload]
 ) derives ReadWriter
 
@@ -237,10 +237,10 @@ enum AccountTypePayload derives ReadWriter:
   case Primary, Secondary, Recon
 
 case class AccountPayload(
-  id:         Option[String] = None,
-  name:       String         = "",
-  ledgerId: String         = "",
-  properties: Properties     = Map(),
+  id:                  Option[String]     = None,
+  name:                String             = "",
+  ledgerId:            String             = "",
+  properties:          Properties         = Map(),
   accountType:         AccountTypePayload = AccountTypePayload.Primary,
   balance:             Money              = 0,
   reconciledBalance:   Money              = 0,
@@ -330,17 +330,17 @@ enum ReconciliationFilterPayload derives ReadWriter:
   case All, Unreconciled, OpenBalance
 
 case class MovementSearchRequest(
-  ledgerId:       String,
-  accountId:        Option[String]         = None,
-  amount:           Option[Money]          = None,
-  movementSpecId:   Option[String]         = None,
-  properties:       Map[String, String]    = Map.empty,
-  fileSourceQuery:  Option[String]         = None,
-  reconciliation:   ReconciliationFilterPayload = ReconciliationFilterPayload.All,
-  createdFrom:      Option[OffsetDateTime] = None,
-  createdTo:        Option[OffsetDateTime] = None,
+  ledgerId:        String,
+  accountId:       Option[String]              = None,
+  amount:          Option[Money]               = None,
+  movementSpecId:  Option[String]              = None,
+  properties:      Map[String, String]         = Map.empty,
+  fileSourceQuery: Option[String]              = None,
+  reconciliation:  ReconciliationFilterPayload = ReconciliationFilterPayload.All,
+  createdFrom:     Option[OffsetDateTime]      = None,
+  createdTo:       Option[OffsetDateTime]      = None,
   // "Ingestion" | "ManualAdjustment" | "Reversal" — see backend's MovementType.
-  movementType: Option[String] = None,
+  movementType:   Option[String]                = None,
   adjustmentType: Option[AdjustmentTypePayload] = None
 ) derives ReadWriter
 
@@ -429,7 +429,7 @@ case class ExceptionCommentPayload(
 ) derives ReadWriter
 
 case class ExceptionDetailPayload(
-  exception:        ExceptionPayload,
+  exception:      ExceptionPayload,
   movement:       Option[MovementPayload],
   reconciliation: Option[ReconciliationPayload],
   comments:       Seq[ExceptionCommentPayload],
@@ -438,9 +438,9 @@ case class ExceptionDetailPayload(
 ) derives ReadWriter
 
 case class AddExceptionCommentRequest(
-  body:                Option[String]               = None,
+  body:                Option[String]                 = None,
   newStatus:           Option[ExceptionStatusPayload] = None,
-  newAssignedToUserId: Option[String]               = None
+  newAssignedToUserId: Option[String]                 = None
 ) derives ReadWriter
 
 case class MatchRatePayload(

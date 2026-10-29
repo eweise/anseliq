@@ -28,8 +28,11 @@ class DbMigrationsSuite extends munit.FunSuite:
       Iterator.continually(rs).takeWhile(_.next()).map(read).toVector
 
   private def appliedVersions(database: String): Vector[(String, String)] =
-    query(database, "select version, type from recon.flyway_schema_history where version is not null order by installed_rank"):
-      rs => (rs.getString(1), rs.getString(2))
+    query(
+      database,
+      "select version, type from recon.flyway_schema_history where version is not null order by installed_rank"
+    ): rs =>
+      (rs.getString(1), rs.getString(2))
 
   private val allMigrations = Vector("1" -> "SQL", "2" -> "SQL")
 

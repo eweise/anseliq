@@ -31,7 +31,7 @@ class MovementRoutes(
     val req = read[MovementSearchRequest](request.text())
     transact(transactor):
       val criteria = MovementSearchCriteria(
-        ledgerId      = UUID.fromString(req.ledgerId),
+        ledgerId        = UUID.fromString(req.ledgerId),
         accountId       = req.accountId.map(UUID.fromString),
         amount          = req.amount,
         movementSpecId  = req.movementSpecId.map(UUID.fromString),

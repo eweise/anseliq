@@ -86,8 +86,9 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         assertEquals(unmatched, Set("A-1", "REF b1"))
     finally teardown(data)
 
-  private val exactId      = StringAttributeMatchRule(StringAttribute("id"), StringAttribute("id"))
-  private val normalizedId = StringAttributeMatchRule(StringAttribute("id", Some(Normalize)), StringAttribute("id", Some(Normalize)))
+  private val exactId = StringAttributeMatchRule(StringAttribute("id"), StringAttribute("id"))
+  private val normalizedId =
+    StringAttributeMatchRule(StringAttribute("id", Some(Normalize)), StringAttribute("id", Some(Normalize)))
 
   // Two pairs only the exact rule needs, and two only the normalized one can match.
   private def insertExactAndFormattedPairs(data: DataSetup): Txn[Unit] =
@@ -100,7 +101,9 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     val data = transact(app.transactor)(DataSetup(app))
     try
       transact(app.transactor):
-        data.reconSpecRepo.update(data.reconSpec.copy(ruleJson = upickle.write[Rule](ORRule(List(exactId, normalizedId)))))
+        data.reconSpecRepo.update(
+          data.reconSpec.copy(ruleJson = upickle.write[Rule](ORRule(List(exactId, normalizedId))))
+        )
         insertExactAndFormattedPairs(data)
 
       val result = app.reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 1)
@@ -110,7 +113,12 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         val summaries = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.appliedRules.summary).toSet
         assertEquals(
           summaries,
-          Set("id = id: A1", "id = id: B2", "normalize(id) = normalize(id): inv0042", "normalize(id) = normalize(id): po7a"),
+          Set(
+            "id = id: A1",
+            "id = id: B2",
+            "normalize(id) = normalize(id): inv0042",
+            "normalize(id) = normalize(id): po7a"
+          ),
           "the exact pairs were matched by the first alternative, not the broader second one"
         )
         assertEquals(data.movementRepo.findUnReconciledByAccount(data.reconAccount.id), Vector.empty)
@@ -121,10 +129,16 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
     val job  = Job(referenceId = data.reconAccount.id, jobType = JobType.Reconciliation)
     try
       transact(app.transactor):
-        data.reconSpecRepo.update(data.reconSpec.copy(ruleJson = upickle.write[Rule](ORRule(List(exactId, normalizedId)))))
+        data.reconSpecRepo.update(
+          data.reconSpec.copy(ruleJson = upickle.write[Rule](ORRule(List(exactId, normalizedId))))
+        )
         insertExactAndFormattedPairs(data)
         // As if a crash happened after the first alternative's pass had finished.
-        app.jobRepo.insert(job.copy(progressJson = Some(upickle.write(Map(data.reconSpec.id -> ReconciliationCheckpoint(alternative = 1))))))
+        app.jobRepo.insert(
+          job.copy(progressJson =
+            Some(upickle.write(Map(data.reconSpec.id -> ReconciliationCheckpoint(alternative = 1))))
+          )
+        )
 
       app.reconciler.reconcileAccountResumable(data.reconAccount.id, batchSize = 10, jobId = Some(job.id))
 
@@ -132,7 +146,12 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
         val summaries = data.reconRepo.findByReconSpecID(data.reconSpec.id).map(_.appliedRules.summary).toSet
         assertEquals(
           summaries,
-          Set("normalize(id) = normalize(id): a1", "normalize(id) = normalize(id): b2", "normalize(id) = normalize(id): inv0042", "normalize(id) = normalize(id): po7a"),
+          Set(
+            "normalize(id) = normalize(id): a1",
+            "normalize(id) = normalize(id): b2",
+            "normalize(id) = normalize(id): inv0042",
+            "normalize(id) = normalize(id): po7a"
+          ),
           "the first alternative's pass was skipped, so the second matched everything"
         )
     finally
@@ -194,7 +213,8 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
 
       // The mismatch must be surfaced as an exception, not just sit as a nonzero Reconciliation.balance
       // that nothing else queries.
-      val exceptions = transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == reconciliations.head.id))
+      val exceptions =
+        transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == reconciliations.head.id))
       assertEquals(exceptions.size, 1)
       assertEquals(exceptions.head.targetType, ExceptionTarget.Reconciliation)
       assertEquals(exceptions.head.category, ExceptionCategory.AmountMismatch)
@@ -503,7 +523,10 @@ class ReconcileAccountResumableSuite extends munit.FunSuite:
       // otherwise, so this must not create one just because the reconciliation exists.
       val exceptionsAfterFirstRun =
         transact(app.transactor)(app.exceptionRepo.findAll.filter(_.referenceId == recons1.head.id))
-      assert(exceptionsAfterFirstRun.isEmpty, "a fresh OneToMany InProgress reconciliation must not auto-raise an exception")
+      assert(
+        exceptionsAfterFirstRun.isEmpty,
+        "a fresh OneToMany InProgress reconciliation must not auto-raise an exception"
+      )
 
       transact(app.transactor):
         app.accountService.postAmount(inSpec, 40, referenceID = createID(), Map("groupId" -> "g2"))

@@ -25,8 +25,8 @@ trait JobRepo extends DomainRepo[Job, Job]:
   def retryLater(jobId: ID, delaySeconds: Long, errorMessage: String, now: OffsetDateTime): Txn[Boolean]
 
   /**
-   * Puts an InProgress job back in the queue, claimable now, and uncounts its attempt; false if it's
-   * no longer InProgress.
+   * Puts an InProgress job back in the queue, claimable now, and uncounts its attempt; false if
+   * it's no longer InProgress.
    */
   def requeueAbandoned(jobId: ID, now: OffsetDateTime): Txn[Boolean]
 

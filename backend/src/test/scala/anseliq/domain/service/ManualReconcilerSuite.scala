@@ -78,7 +78,9 @@ class ManualReconcilerSuite extends munit.FunSuite:
 
         assertEquals(recon.status, ReconciliationStatus.Mismatched)
         assertEquals(recon.balance, BigDecimal(100))
-        assert(data.exceptionRepo.findOpenByReferenceIdAndCategory(recon.id, ExceptionCategory.AmountMismatch).isDefined)
+        assert(
+          data.exceptionRepo.findOpenByReferenceIdAndCategory(recon.id, ExceptionCategory.AmountMismatch).isDefined
+        )
 
         val account = data.accountRepo.findById(data.reconAccount.id).get
         assertEquals(account.reconciledBalance, BigDecimal(100)) // +300 (in) -100 -100 (out) = 100
@@ -100,7 +102,10 @@ class ManualReconcilerSuite extends munit.FunSuite:
           manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "partial")
 
         assertEquals(recon.status, ReconciliationStatus.InProgress)
-        assertEquals(data.exceptionRepo.findOpenByReferenceIdAndCategory(recon.id, ExceptionCategory.AmountMismatch), None)
+        assertEquals(
+          data.exceptionRepo.findOpenByReferenceIdAndCategory(recon.id, ExceptionCategory.AmountMismatch),
+          None
+        )
 
   test("matchMovements rejects a movement that is already reconciled"):
     transact(app.transactor):
@@ -339,7 +344,8 @@ class ManualReconcilerSuite extends munit.FunSuite:
         val all     = data.exceptionRepo.findByReferenceIdAndCategory(recon.id, ExceptionCategory.AmountMismatch)
         val earlier = all.find(_.status == ExceptionStatus.Resolved).get
         val later   = exception.get
-        def linksFrom(d: ExceptionCase) = data.exceptionCommentRepo.findByExceptionId(d.id).flatMap(_.relatedExceptionId)
+        def linksFrom(d: ExceptionCase) =
+          data.exceptionCommentRepo.findByExceptionId(d.id).flatMap(_.relatedExceptionId)
         assertEquals(linksFrom(earlier), Vector(later.id))
         assertEquals(linksFrom(later), Vector(earlier.id))
 
@@ -530,8 +536,8 @@ class ManualReconcilerSuite extends munit.FunSuite:
       assertEquals(account.reconciledBalance, BigDecimal(0), "the +10 residual should be reversed back out")
     finally
       transact(app.transactor):
-        val recons     = data.reconRepo.findByReconSpecID(data.reconSpec.id)
-        val reconIds   = recons.map(_.id).toSet
+        val recons       = data.reconRepo.findByReconSpecID(data.reconSpec.id)
+        val reconIds     = recons.map(_.id).toSet
         val exceptions   = data.exceptionRepo.findAll.filter(d => reconIds.contains(d.referenceId))
         val exceptionIds = exceptions.map(_.id).toSet
 
@@ -543,11 +549,15 @@ class ManualReconcilerSuite extends munit.FunSuite:
           .foreach(es => app.eventRepo.deleteById(es.id))
         app.eventRepo
           .findByEventType("ExceptionStatusChanged")
-          .filter(es => scala.util.Try(exceptionIds.contains(es.event[ExceptionStatusChanged].exceptionID)).getOrElse(false))
+          .filter(es =>
+            scala.util.Try(exceptionIds.contains(es.event[ExceptionStatusChanged].exceptionID)).getOrElse(false)
+          )
           .foreach(es => app.eventRepo.deleteById(es.id))
         app.eventRepo
           .findByEventType("ExceptionCommentAdded")
-          .filter(es => scala.util.Try(exceptionIds.contains(es.event[ExceptionCommentAdded].exceptionID)).getOrElse(false))
+          .filter(es =>
+            scala.util.Try(exceptionIds.contains(es.event[ExceptionCommentAdded].exceptionID)).getOrElse(false)
+          )
           .foreach(es => app.eventRepo.deleteById(es.id))
 
         exceptions.foreach(d => data.exceptionRepo.deleteById(d.id)) // cascades: its comments

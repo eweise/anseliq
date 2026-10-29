@@ -26,7 +26,11 @@ case class MatchCandidate(
   properties: Properties
 )
 
-case class MatchRequest(movement: MatchCandidate, candidates: Seq[MatchCandidate], context: MatchContext = MatchContext.empty)
+case class MatchRequest(
+  movement:   MatchCandidate,
+  candidates: Seq[MatchCandidate],
+  context:    MatchContext = MatchContext.empty
+)
 
 // What a suggester knows about the spec beyond the movement in hand, so a general model can learn
 // this account's reference conventions without being trained on them.

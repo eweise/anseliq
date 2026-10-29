@@ -13,12 +13,12 @@ import com.typesafe.config.{Config, ConfigFactory}
  * One ledger run day by day through the real pipeline, for HappyPathScenarioSuite to check and
  * SeedHappyPathDemo to leave in the dev DB.
  *
- * A Journal account posts into a Recon account and the Recon account settles out to a Bank
- * account, matched one-to-one on transaction id. Each day a journal file and a bank file land, and
- * the day runs the same steps the background jobs do: scan the feeds, ingest each new file, then
- * reconcile and suggest matches for what's left, as jobs, then take the day's snapshot. The clock
- * starts Days - 1 days back and moves forward a day at a time, so the last day is today and the
- * data reads as recent history.
+ * A Journal account posts into a Recon account and the Recon account settles out to a Bank account,
+ * matched one-to-one on transaction id. Each day a journal file and a bank file land, and the day
+ * runs the same steps the background jobs do: scan the feeds, ingest each new file, then reconcile
+ * and suggest matches for what's left, as jobs, then take the day's snapshot. The clock starts Days
+ * \- 1 days back and moves forward a day at a time, so the last day is today and the data reads as
+ * recent history.
  *
  * What lands, so the expected numbers in HappyPathScenarioSuite can be worked out by hand:
  *   - every day: three transactions that settle the same day
@@ -29,7 +29,8 @@ import com.typesafe.config.{Config, ConfigFactory}
  *   - the last day: two more (PendingFuzzyPairs), left as pending suggestions for the demo
  *
  * So by the end, normalize(transaction_id) = normalize(txn_id) has explained three accepted
- * suggestions, and the spec page offers it as a learned rule that would match the two pending pairs.
+ * suggestions, and the spec page offers it as a learned rule that would match the two pending
+ * pairs.
  */
 object HappyPathScenario:
   val Days           = 10
@@ -51,7 +52,8 @@ object HappyPathScenario:
   case class DayFiles(journal: Seq[(String, BigDecimal)], bank: Seq[(String, BigDecimal)])
 
   def filesFor(day: Int): DayFiles =
-    val sameDay = Seq(s"T$day-1" -> BigDecimal(100 + day), s"T$day-2" -> BigDecimal("250.50"), s"T$day-3" -> BigDecimal("75.25"))
+    val sameDay =
+      Seq(s"T$day-1" -> BigDecimal(100 + day), s"T$day-2" -> BigDecimal("250.50"), s"T$day-3" -> BigDecimal("75.25"))
     val late    = if LateDays.contains(day) then Seq(s"T$day-LATE" -> BigDecimal(500)) else Nil
     val settled = if LateDays.contains(day - 1) then Seq(s"T${day - 1}-LATE" -> BigDecimal(500)) else Nil
     val stuck   = if day == 0 then Seq(StuckId -> BigDecimal("42.00")) else Nil
@@ -62,16 +64,16 @@ object HappyPathScenario:
     )
 
   case class Setup(
-    runId:        String,
-    ledger:     Ledger,
-    journal:      Account,
-    recon:        Account,
-    bank:         Account,
-    journalFeed:  FileFeed,
-    bankFeed:     FileFeed,
-    journalSpec:  MovementSpec,
-    bankSpec:     MovementSpec,
-    reconSpec:    ReconciliationSpec,
+    runId:       String,
+    ledger:      Ledger,
+    journal:     Account,
+    recon:       Account,
+    bank:        Account,
+    journalFeed: FileFeed,
+    bankFeed:    FileFeed,
+    journalSpec: MovementSpec,
+    bankSpec:    MovementSpec,
+    reconSpec:   ReconciliationSpec,
     // Accepts the previous day's match suggestions each morning.
     reviewer: User
   )
@@ -80,11 +82,11 @@ object HappyPathScenario:
 // on: by ReferenceFormatSuggester standing in for a model, or with useLocalLlm the configured local
 // model (match-suggestions.local-llm), for demos.
 class HappyPathApp(useLocalLlm: Boolean = false) extends TestAppContainer:
-  lazy val files: InMemoryFileSources                   = InMemoryFileSources(clock)
-  override lazy val fileSourceFactory: FileSourceFactory = files
+  lazy val files:                      InMemoryFileSources = InMemoryFileSources(clock)
+  override lazy val fileSourceFactory: FileSourceFactory   = files
   override lazy val matchSuggester: MatchSuggester =
     if useLocalLlm then LocalLlmMatchSuggester.fromConfig(config) else ReferenceFormatSuggester()
-  override protected def configOverrides: Config         = ConfigFactory.parseString("match-suggestions.enabled = true")
+  override protected def configOverrides: Config = ConfigFactory.parseString("match-suggestions.enabled = true")
 
 class HappyPathScenario(app: HappyPathApp):
   import HappyPathScenario.*
@@ -97,9 +99,14 @@ class HappyPathScenario(app: HappyPathApp):
     val runId = java.util.UUID.randomUUID().toString.take(8)
     transact(app.transactor):
       val ledger = app.ledgerService.createLedger(Ledger(name = s"Happy Path $runId"))
-      val journal  = app.accountService.createAccount(Account(name = "Journal", ledgerId = ledger.id, accountType = AccountType.Primary))
-      val recon    = app.accountService.createAccount(Account(name = "Recon", ledgerId = ledger.id, accountType = AccountType.Recon))
-      val bank     = app.accountService.createAccount(Account(name = "Bank", ledgerId = ledger.id, accountType = AccountType.Secondary))
+      val journal = app.accountService.createAccount(
+        Account(name = "Journal", ledgerId = ledger.id, accountType = AccountType.Primary)
+      )
+      val recon =
+        app.accountService.createAccount(Account(name = "Recon", ledgerId = ledger.id, accountType = AccountType.Recon))
+      val bank = app.accountService.createAccount(
+        Account(name = "Bank", ledgerId = ledger.id, accountType = AccountType.Secondary)
+      )
 
       def feed(name: String, idColumn: String) = app.fileFeedService.createFileFeed(
         FileFeed(
@@ -121,7 +128,12 @@ class HappyPathScenario(app: HappyPathApp):
       val bankFeed    = feed("Bank", "txn_id")
 
       val journalSpec = app.movementSpecService.createMovementSpec(
-        MovementSpec(name = "Journal to Recon", outAccountId = journal.id, inAccountId = recon.id, fileFeedId = journalFeed.id)
+        MovementSpec(
+          name         = "Journal to Recon",
+          outAccountId = journal.id,
+          inAccountId  = recon.id,
+          fileFeedId   = journalFeed.id
+        )
       )
       val bankSpec = app.movementSpecService.createMovementSpec(
         MovementSpec(name = "Recon to Bank", outAccountId = recon.id, inAccountId = bank.id, fileFeedId = bankFeed.id)
@@ -133,7 +145,10 @@ class HappyPathScenario(app: HappyPathApp):
           inMovementSpecId  = journalSpec.id,
           outMovementSpecId = bankSpec.id,
           ruleJson = upickle.write[Rule](
-            StringAttributeMatchRule(inKey = StringAttribute(key = "transaction_id"), outKey = StringAttribute(key = "txn_id"))
+            StringAttributeMatchRule(
+              inKey  = StringAttribute(key = "transaction_id"),
+              outKey = StringAttribute(key = "txn_id")
+            )
           )
         )
       )
@@ -146,7 +161,10 @@ class HappyPathScenario(app: HappyPathApp):
       )
       Setup(runId, ledger, journal, recon, bank, journalFeed, bankFeed, journalSpec, bankSpec, reconSpec, reviewer)
 
-  /** Runs every day, calling `afterDay` with each day's number once it's done, before the clock moves on. */
+  /**
+   * Runs every day, calling `afterDay` with each day's number once it's done, before the clock
+   * moves on.
+   */
   def runDays(s: Setup)(afterDay: Int => Unit = _ => ()): Unit =
     (0 until Days).foreach: day =>
       if day > 0 then
@@ -217,7 +235,8 @@ class HappyPathScenario(app: HappyPathApp):
 
       // Events only carry ids in their JSON payload.
       val idsInEvents =
-        (accountIds ++ inventoryIds ++ exceptions.map(_.id) ++ recons.map(_.id) + s.journalSpec.id + s.bankSpec.id).map(_.toString)
+        (accountIds ++ inventoryIds ++ exceptions.map(_.id) ++ recons.map(_.id) + s.journalSpec.id + s.bankSpec.id)
+          .map(_.toString)
       app.eventRepo.findAll
         .filter(e => idsInEvents.exists(e.payload.contains))
         .foreach(e => app.eventRepo.deleteById(e.id))

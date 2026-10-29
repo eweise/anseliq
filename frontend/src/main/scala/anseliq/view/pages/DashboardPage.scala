@@ -16,9 +16,9 @@ object DashboardPage:
     case AssignedToMe, CreatedByMe, All
 
   case class State(
-    exceptions: Seq[ExceptionPayload]           = Seq.empty,
-    filter:   ExceptionFilter                 = ExceptionFilter.AssignedToMe,
-    summary:  Option[ReportsSummaryPayload] = None
+    exceptions: Seq[ExceptionPayload]         = Seq.empty,
+    filter:     ExceptionFilter               = ExceptionFilter.AssignedToMe,
+    summary:    Option[ReportsSummaryPayload] = None
   )
 
   // Role-gated at the top level: only Analyst has real dashboard content so far (Admin/Viewer
@@ -44,9 +44,10 @@ object DashboardPage:
     val myUserId       = SessionStore.currentUserNow.map(_.userId)
 
     def filtered(s: State): Seq[ExceptionPayload] = s.filter match
-      case ExceptionFilter.AssignedToMe => s.exceptions.filter(d => myUserId.isDefined && d.assignedToUserId == myUserId)
-      case ExceptionFilter.CreatedByMe  => s.exceptions.filter(d => myUserId.isDefined && d.raisedByUserId == myUserId)
-      case ExceptionFilter.All          => s.exceptions
+      case ExceptionFilter.AssignedToMe =>
+        s.exceptions.filter(d => myUserId.isDefined && d.assignedToUserId == myUserId)
+      case ExceptionFilter.CreatedByMe => s.exceptions.filter(d => myUserId.isDefined && d.raisedByUserId == myUserId)
+      case ExceptionFilter.All         => s.exceptions
 
     PageHeader.page(
       loadBus.events

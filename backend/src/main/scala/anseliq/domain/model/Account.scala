@@ -15,7 +15,7 @@ enum AccountType derives DbCodec:
 case class Account(
   @Id id:                  ID                     = createID(),
   name:                    String,
-  ledgerId:              ID,
+  ledgerId:                ID,
   accountType:             AccountType,
   properties:              JSONBProps             = JSONBProps(Map()),
   var balance:             Money                  = 0,
@@ -23,7 +23,8 @@ case class Account(
   var unreconciledBalance: Money                  = 0,
   var createdAt:           Option[OffsetDateTime] = None,
   var updatedAt:           Option[OffsetDateTime] = None
-) extends Audited derives DbCodec
+) extends Audited
+    derives DbCodec
 
 object Account:
   val Table = TableInfo[Account, Account, UUID]

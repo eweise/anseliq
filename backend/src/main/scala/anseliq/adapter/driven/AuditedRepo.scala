@@ -16,7 +16,7 @@ open class AuditedRepo[E <: Audited, ID](clock: ClockService)(using RepoDefaults
   protected def stampCreated(entity: E): E =
     val now = clock.now
     if entity.createdAt.isEmpty then entity.createdAt = Some(now)
-    entity.updatedAt = Some(now)
+    entity.updatedAt                                  = Some(now)
     entity
 
   protected def stampUpdated(entity: E): E =

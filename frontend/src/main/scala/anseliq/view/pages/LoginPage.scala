@@ -42,7 +42,7 @@ object LoginPage:
       div(
         cls := "w-full max-w-sm my-auto p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm sm:p-6 md:p-8",
         div(cls := "mb-6 flex justify-center", Brand.logo(markPx = 32, textCls = "text-2xl")),
-        h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-4", "Sign in"),
+        h2(cls  := "text-xl font-medium text-md-on-surface dark:text-white mb-4", "Sign in"),
         formField("Email", "email", Icons.user, v => state.update(_.copy(email = v))),
         formField("Password", "password", Icons.lock, v => state.update(_.copy(password = v))),
         child <-- state.signal.map(_.error.fold(div())(msg => p(cls := "text-red-500 mb-2", msg))),

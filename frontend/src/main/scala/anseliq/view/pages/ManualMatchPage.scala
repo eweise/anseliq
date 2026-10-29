@@ -23,14 +23,14 @@ import upickle.default.*
 object ManualMatchPage:
 
   case class State(
-    inMovements:        Seq[MovementPayload] = Seq.empty,
-    outMovements:       Seq[MovementPayload] = Seq.empty,
-    selectedIn:         Set[String]          = Set.empty,
-    selectedOut:        Set[String]          = Set.empty,
-    expandedProperties: Set[String]          = Set.empty,
+    inMovements:        Seq[MovementPayload]        = Seq.empty,
+    outMovements:       Seq[MovementPayload]        = Seq.empty,
+    selectedIn:         Set[String]                 = Set.empty,
+    selectedOut:        Set[String]                 = Set.empty,
+    expandedProperties: Set[String]                 = Set.empty,
     suggestions:        Seq[MatchSuggestionPayload] = Seq.empty,
-    description:        String               = "Manual match",
-    message:            Option[String]       = None
+    description:        String                      = "Manual match",
+    message:            Option[String]              = None
   )
 
   def apply(accountId: String, reconSpecId: String): HtmlElement =
@@ -95,14 +95,19 @@ object ManualMatchPage:
         .apiBind(suggestions => state.update(_.copy(suggestions = suggestions))),
       acceptBus.events
         .flatMapSwitch(id =>
-          ApiClient.postEmpty[ReconciliationPayload](HttpPath.url(s"${HttpPath.matchSuggestion}/$id/accept"), SessionStore.token)
+          ApiClient.postEmpty[ReconciliationPayload](
+            HttpPath.url(s"${HttpPath.matchSuggestion}/$id/accept"),
+            SessionStore.token
+          )
         )
         .apiBind { recon =>
           state.update(_.copy(message = Some(s"Suggestion accepted: match saved as ${recon.status}")))
           movementsBus.emit(spec.now())
         },
       rejectBus.events
-        .flatMapSwitch(id => ApiClient.postRaw(HttpPath.url(s"${HttpPath.matchSuggestion}/$id/reject"), "", SessionStore.token))
+        .flatMapSwitch(id =>
+          ApiClient.postRaw(HttpPath.url(s"${HttpPath.matchSuggestion}/$id/reject"), "", SessionStore.token)
+        )
         .apiBind { _ =>
           state.update(_.copy(message = Some("Suggestion rejected")))
           movementsBus.emit(spec.now())
@@ -141,7 +146,10 @@ object ManualMatchPage:
       div(
         cls := "grid grid-cols-2 gap-4 mt-6 text-left",
         div(
-          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", child.text <-- primaryName.map(n => s"$n movements")),
+          h3(
+            cls := "font-medium mb-2 text-md-on-surface dark:text-white",
+            child.text <-- primaryName.map(n => s"$n movements")
+          ),
           child <-- state.signal.map { s =>
             Table.create(
               Seq("", "Reference ID", "Amount"),
@@ -163,7 +171,10 @@ object ManualMatchPage:
           }
         ),
         div(
-          h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", child.text <-- secondaryName.map(n => s"$n movements")),
+          h3(
+            cls := "font-medium mb-2 text-md-on-surface dark:text-white",
+            child.text <-- secondaryName.map(n => s"$n movements")
+          ),
           child <-- state.signal.map { s =>
             Table.create(
               Seq("", "Reference ID", "Amount"),
@@ -202,7 +213,9 @@ object ManualMatchPage:
       ),
       div(
         cls := "mt-4",
-        child.maybe <-- state.signal.map(_.message.map(m => span(cls := "text-sm text-md-on-surface dark:text-gray-200", m)))
+        child.maybe <-- state.signal.map(
+          _.message.map(m => span(cls := "text-sm text-md-on-surface dark:text-gray-200", m))
+        )
       ),
       div(
         cls := "mt-4",
@@ -229,7 +242,14 @@ object ManualMatchPage:
     else
       val movements = (s.inMovements ++ s.outMovements).map(m => m.id -> m).toMap
       def describe(id: String): HtmlElement =
-        movements.get(id).fold(span(id))(m => div(span(m.referenceId), span(cls := "ml-2 text-md-on-surface-variant dark:text-gray-400", m.amount.toString)))
+        movements
+          .get(id)
+          .fold(span(id))(m =>
+            div(
+              span(m.referenceId),
+              span(cls := "ml-2 text-md-on-surface-variant dark:text-gray-400", m.amount.toString)
+            )
+          )
       div(
         cls := "mt-6 text-left",
         h3(cls := "font-medium mb-2 text-md-on-surface dark:text-white", "Suggested matches"),
@@ -242,7 +262,9 @@ object ManualMatchPage:
               span(s"${(sg.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)}%"),
               div(
                 span(sg.rationale),
-                sg.explanation.map(e => div(cls := "font-mono text-xs text-md-on-surface dark:text-gray-200", s"Checked: $e")),
+                sg.explanation.map(e =>
+                  div(cls := "font-mono text-xs text-md-on-surface dark:text-gray-200", s"Checked: $e")
+                ),
                 div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", sg.model)
               ),
               div(
@@ -292,7 +314,10 @@ object ManualMatchPage:
             tbody(
               m.properties.toSeq.sortBy(_._1).map { case (k, v) =>
                 tr(
-                  td(cls := "px-2 py-1 font-medium text-md-on-surface-variant dark:text-gray-400 border-b border-gray-100 dark:border-gray-700", k),
+                  td(
+                    cls := "px-2 py-1 font-medium text-md-on-surface-variant dark:text-gray-400 border-b border-gray-100 dark:border-gray-700",
+                    k
+                  ),
                   td(cls := "px-2 py-1 border-b border-gray-100 dark:border-gray-700", v)
                 )
               }*

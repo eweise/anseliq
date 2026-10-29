@@ -27,6 +27,3 @@ object Parser:
       case bai:  BaiParserConfig        => BaiParser(bai)
       case json: JsonParserConfig       => JsonParser(json)
       case fw:   FixedWidthParserConfig => FixedWidthParser(fw)
-
-
-

@@ -34,7 +34,9 @@ class ExceptionRepoLive extends Repo[ExceptionCase, ExceptionCase, UUID] with Ex
       ORDER BY created_at
     """.query[ExceptionCase].run()
 
-  def findOpenByReferenceIdAndCategory(referenceId: ID, category: ExceptionCategory)(using DbCon): Option[ExceptionCase] =
+  def findOpenByReferenceIdAndCategory(referenceId: ID, category: ExceptionCategory)(using
+    DbCon
+  ): Option[ExceptionCase] =
     sql"""
       SELECT ${d.all}
       FROM $d

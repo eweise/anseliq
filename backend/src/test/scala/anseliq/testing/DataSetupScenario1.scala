@@ -18,13 +18,17 @@ class DataSetupScenario1 extends munit.FunSuite:
   private def createAccount(p: AccountPayload): Txn[AccountPayload] =
     PayloadMapper.accountPayloadFromDomain(app.accountService.createAccount(PayloadMapper.accountPayloadToDomain(p)))
   private def createFileFeed(p: FileFeedPayload): Txn[FileFeedPayload] =
-    PayloadMapper.fileFeedPayloadFromDomain(app.fileFeedService.createFileFeed(PayloadMapper.fileFeedPayloadToDomain(p)))
+    PayloadMapper.fileFeedPayloadFromDomain(
+      app.fileFeedService.createFileFeed(PayloadMapper.fileFeedPayloadToDomain(p))
+    )
   private def createMovementSpec(p: MovementSpecPayload): Txn[MovementSpecPayload] =
     PayloadMapper.movementSpecPayloadFromDomain(
       app.movementSpecService.createMovementSpec(PayloadMapper.movementSpecPayloadToDomain(p))
     )
   private def createReconSpec(p: ReconciliationSpecPayload): Txn[ReconciliationSpecPayload] =
-    PayloadMapper.reconSpecPayloadFromDomain(app.reconSpecService.createReconSpec(PayloadMapper.reconSpecPayloadToDomain(p)))
+    PayloadMapper.reconSpecPayloadFromDomain(
+      app.reconSpecService.createReconSpec(PayloadMapper.reconSpecPayloadToDomain(p))
+    )
 
   test("Setup data for a complete Ledger scenario"):
     transact(app.transactor):
@@ -39,7 +43,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         createAccount(
           AccountPayload(
             name        = "Journal",
-            ledgerId  = ledger.id.get,
+            ledgerId    = ledger.id.get,
             accountType = AccountTypePayload.Primary
           )
         )

@@ -16,7 +16,8 @@ case class Ledger(
   // Must stay last: ALTER TABLE appends new columns physically, and Magnum maps DbCodec fields
   // positionally, so this has to match the live table's actual column order.
   dailyCutoffHours: Int = 0
-) extends Audited derives DbCodec
+) extends Audited
+    derives DbCodec
 
 object Ledger:
   val Table: TableInfo[Ledger, Ledger, UUID] = TableInfo[Ledger, Ledger, UUID]

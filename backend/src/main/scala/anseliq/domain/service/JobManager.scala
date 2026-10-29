@@ -273,20 +273,23 @@ class JobManager(
 
   // Also Error if a newer job for the same target is already queued, as in requeueOrFail.
   private def requeueAbandoned(jobId: ID): Txn[Unit] =
-    jobRepo.findById(jobId).filter(_.jobStatus == InProgress).foreach: job =>
-      findQueuedJob(job.jobType, job.referenceId) match
-        case Some(queued) =>
-          jobRepo.update(
-            job.copy(
-              jobStatus    = JobStatus.Error,
-              errorMessage = Some(s"Interrupted by shutdown; superseded by job ${queued.id}"),
-              lockedUntil  = None,
-              updatedAt    = Some(clock.now)
+    jobRepo
+      .findById(jobId)
+      .filter(_.jobStatus == InProgress)
+      .foreach: job =>
+        findQueuedJob(job.jobType, job.referenceId) match
+          case Some(queued) =>
+            jobRepo.update(
+              job.copy(
+                jobStatus    = JobStatus.Error,
+                errorMessage = Some(s"Interrupted by shutdown; superseded by job ${queued.id}"),
+                lockedUntil  = None,
+                updatedAt    = Some(clock.now)
+              )
             )
-          )
-        case None =>
-          jobRepo.requeueAbandoned(job.id, clock.now)
-          logger.info(s"${job.jobType} job ${job.id} interrupted by shutdown, requeued")
+          case None =>
+            jobRepo.requeueAbandoned(job.id, clock.now)
+            logger.info(s"${job.jobType} job ${job.id} interrupted by shutdown, requeued")
 
   def getNextAvailableJob(jobType: JobType): Txn[Option[Job]] =
     jobRepo

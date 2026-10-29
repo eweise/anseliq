@@ -10,12 +10,14 @@ import upickle.default.ReadWriter
  * spec's rule_json is later edited.
  */
 case class RuleMatch(rule: Rule, value: String) derives ReadWriter:
-  /** The rule's condition alone (e.g. `txnDate + 2 Day = settleDate`), without the matched value. */
+  /**
+   * The rule's condition alone (e.g. `txnDate + 2 Day = settleDate`), without the matched value.
+   */
   def condition: String =
     rule match
       case s: StringAttributeMatchRule => s"${RuleMatch.describe(s.inKey)} = ${RuleMatch.describe(s.outKey)}"
       case d: DateAttributeMatchRule   => s"${RuleMatch.describe(d.inKey)} = ${RuleMatch.describe(d.outKey)}"
-      case other                       => other.sql
+      case other => other.sql
 
   def summary: String = s"$condition: $value"
 
@@ -62,5 +64,7 @@ enum AppliedRules derives ReadWriter:
       case Manual           => "manual"
       case s: Suggested =>
         val pct = (s.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)
-        s.explanation.fold(s"suggested by ${s.model} ($pct%): ${s.reason}")(e => s"${e.summary} (suggested by ${s.model}, $pct%)")
-      case Reversal         => "system: reversal"
+        s.explanation.fold(s"suggested by ${s.model} ($pct%): ${s.reason}")(e =>
+          s"${e.summary} (suggested by ${s.model}, $pct%)"
+        )
+      case Reversal => "system: reversal"

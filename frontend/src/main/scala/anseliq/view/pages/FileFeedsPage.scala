@@ -39,7 +39,9 @@ object FileFeedsPage:
       ),
       div(
         cls := "w-full px-8",
-        Option.when(SessionStore.canEdit)(Buttons.linkButton("+ New Feed", Observer[Unit](_ => Nav.toMaintainFileFeed()))),
+        Option.when(SessionStore.canEdit)(
+          Buttons.linkButton("+ New Feed", Observer[Unit](_ => Nav.toMaintainFileFeed()))
+        ),
         div(
           cls := "mt-4",
           child <-- state.signal.map { s =>

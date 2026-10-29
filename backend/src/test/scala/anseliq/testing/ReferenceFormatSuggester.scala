@@ -26,7 +26,10 @@ class ReferenceFormatSuggester extends MatchSuggester:
           confidence  = BigDecimal("0.92"),
           rationale   = s"Same reference once formatting is ignored: $mine and $theirs",
           explanation = Some(
-            StringAttributeMatchRule(StringAttribute(myField, Some(Normalize)), StringAttribute(theirField, Some(Normalize)))
+            StringAttributeMatchRule(
+              StringAttribute(myField, Some(Normalize)),
+              StringAttribute(theirField, Some(Normalize))
+            )
           )
         )
       .nextOption()

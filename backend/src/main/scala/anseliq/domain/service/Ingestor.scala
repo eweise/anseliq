@@ -40,14 +40,14 @@ enum BatchDecision:
 private case object IngestionStopped extends RuntimeException
 
 class Ingestor(
-  val bookkeeper:            Bookkeeper,
+  val bookkeeper:        Bookkeeper,
   val movementRepo:      MovementRepo,
   val movementSpecRepo:  MovementSpecRepo,
   val fileFeedRepo:      FileFeedRepo,
   val eventStore:        EventStore,
   val fileInventoryRepo: FileInventoryRepo,
   val fileSourceFactory: FileSourceFactory,
-  val exceptionService:    ExceptionService,
+  val exceptionService:  ExceptionService,
   val clock:             ClockService,
   val transactor:        Transactor
 ):
@@ -172,8 +172,9 @@ class Ingestor(
 
           val decision = transact(transactor):
             byMatchedSpec.foreach:
-              case (Some(spec), requests) => bookkeeper.recordMovements(movementSpec = spec, movementRequests = requests)
-              case (None, _)              => () // unrouted rows aren't recorded as movements
+              case (Some(spec), requests) =>
+                bookkeeper.recordMovements(movementSpec = spec, movementRequests = requests)
+              case (None, _) => () // unrouted rows aren't recorded as movements
 
             fileInventoryID.foreach: id =>
               val fileInventory = fileInventoryRepo.findById(id).ErrIfNotFound("FileInventory", id)
@@ -265,7 +266,12 @@ class Ingestor(
       s"${unroutedRows.size} row(s) in '${fileFeed.name}' matched no configured MovementSpec." +
         (if valuesSummary.nonEmpty then s" Unmatched value(s): $valuesSummary" else "")
 
-    exceptionService.raiseSystemException(fileFeed.id, ExceptionTarget.FileFeed, ExceptionCategory.UnroutedRecord, detail)
+    exceptionService.raiseSystemException(
+      fileFeed.id,
+      ExceptionTarget.FileFeed,
+      ExceptionCategory.UnroutedRecord,
+      detail
+    )
 
   // Raised once ingestion stops because a file's parse-error count crossed fileFeed.maxParseErrors
   // (see the .map step in ingestResumable above) — a signal the file has a general parsing problem
@@ -285,7 +291,12 @@ class Ingestor(
         s"configured cutoff (${fileFeed.maxParseErrors.get})." +
         (if sampleSummary.nonEmpty then s" Sample error(s): $sampleSummary" else "")
 
-    exceptionService.raiseSystemException(fileFeed.id, ExceptionTarget.FileFeed, ExceptionCategory.ExcessiveParseErrors, detail)
+    exceptionService.raiseSystemException(
+      fileFeed.id,
+      ExceptionTarget.FileFeed,
+      ExceptionCategory.ExcessiveParseErrors,
+      detail
+    )
 
   /**
    * Lets a user try a feed's parser config against a real sample file before wiring up real
@@ -374,7 +385,8 @@ class Ingestor(
           .map(_.lastModifiedAt)
           .orElse(fileFeed.createdAt)
       lastSeenAt.foreach: since =>
-        if clock.now.isAfter(since.plusHours(cadenceHours)) then raiseFileMissingException(fileFeed, cadenceHours, since)
+        if clock.now.isAfter(since.plusHours(cadenceHours)) then
+          raiseFileMissingException(fileFeed, cadenceHours, since)
         else resolveFileMissingException(fileFeed)
 
   // raiseSystemException is idempotent, so repeated scans don't stack exceptions: a rerun of this feed,

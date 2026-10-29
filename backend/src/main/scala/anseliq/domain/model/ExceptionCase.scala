@@ -18,10 +18,10 @@ enum ExceptionCategory derives DbCodec:
  * Which ExceptionTarget(s) a category is meaningful against — e.g. FileMissing has no FileInventory
  * row to reference (that's the whole point of the category) so it can only ever target the FileFeed
  * that expected the file, while AmountMismatch is only ever raised against a Reconciliation.
- * Checked by ExceptionService.raise so a mismatched pairing (wrong Scala call site, a bad manual API
- * request, or a raw DB write) is rejected at the one place it actually needs to be caught — it
- * can't be enforced at compile time because ExceptionCase crosses two serialization boundaries (the JSON
- * payload and the Postgres row) where any type-level link is already erased.
+ * Checked by ExceptionService.raise so a mismatched pairing (wrong Scala call site, a bad manual
+ * API request, or a raw DB write) is rejected at the one place it actually needs to be caught — it
+ * can't be enforced at compile time because ExceptionCase crosses two serialization boundaries (the
+ * JSON payload and the Postgres row) where any type-level link is already erased.
  */
 extension (category: ExceptionCategory)
   def validTargets: Set[ExceptionTarget] = category match
@@ -39,15 +39,15 @@ extension (category: ExceptionCategory)
    * means a person can't mark it Resolved by hand (ExceptionService.addComment rejects it), because
    * resolving the exception wouldn't fix anything. A resolved AmountMismatch would leave its
    * reconciliation Mismatched, with the difference still on the books, just no longer in anyone's
-   * queue. The real fixes resolve it automatically (ExceptionService.resolveAutomatically, called by
-   * ManualReconciler, InMemoryReconciler and Ingestor). None: a judgment call a person closes with
-   * a comment.
+   * queue. The real fixes resolve it automatically (ExceptionService.resolveAutomatically, called
+   * by ManualReconciler, InMemoryReconciler and Ingestor). None: a judgment call a person closes
+   * with a comment.
    */
   def automaticResolution: Option[String] = category match
     case ExceptionCategory.AmountMismatch =>
       Some("It resolves when the reconciliation is written off, unmatched, or brought into balance by a late movement.")
     case ExceptionCategory.FileMissing => Some("It resolves when the expected file arrives.")
-    case _                           => None
+    case _                             => None
 
   /**
    * For the same categories: why a resolved one can't be reopened by hand, and what to do instead.
@@ -61,7 +61,7 @@ extension (category: ExceptionCategory)
         "If the write-off was wrong, an admin can reverse it from the reconciliation, which puts it back to Mismatched with a new exception. If the match was wrong, unmatch the reconciliation."
       )
     case ExceptionCategory.FileMissing => Some("A new exception is raised if the feed goes overdue again.")
-    case _                           => None
+    case _                             => None
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 enum ExceptionStatus derives DbCodec:
@@ -79,7 +79,7 @@ case class ExceptionCase(
   // exception — nothing assigns one automatically; ExceptionService.assign is the only way it's set.
   raisedByUserId:       Option[ID]             = None,
   var assignedToUserId: Option[ID]             = None,
-  var status:           ExceptionStatus          = ExceptionStatus.New,
+  var status:           ExceptionStatus        = ExceptionStatus.New,
   var createdAt:        Option[OffsetDateTime] = None,
   var updatedAt:        Option[OffsetDateTime] = None
 ) derives DbCodec
@@ -89,15 +89,15 @@ object ExceptionCase:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class ExceptionComment(
-  @Id id:              ID                    = createID(),
-  exceptionId:           ID,
-  body:                Option[String]        = None,
+  @Id id:              ID                      = createID(),
+  exceptionId:         ID,
+  body:                Option[String]          = None,
   newStatus:           Option[ExceptionStatus] = None,
-  newAssignedToUserId: Option[ID]            = None,
+  newAssignedToUserId: Option[ID]              = None,
   // Another exception this entry points to, shown as a link on the thread — e.g. when reversing a
   // write-off re-raises a mismatch, the old (resolved) and new exceptions each link to the other.
   relatedExceptionId: Option[ID]             = None,
-  var createdAt:    Option[OffsetDateTime] = None
+  var createdAt:      Option[OffsetDateTime] = None
 ) derives DbCodec
 
 object ExceptionComment:

@@ -36,8 +36,8 @@ class S3FileSourceFactory(region: String, val endpoint: Option[String], credenti
 object S3FileSourceFactory:
   /**
    * A fixed key from s3.username/s3.password if both are set; with neither, the SDK's default
-   * credentials chain, which finds the pod's IAM role (IRSA or EKS Pod Identity), AWS_ACCESS_KEY_ID,
-   * or ~/.aws.
+   * credentials chain, which finds the pod's IAM role (IRSA or EKS Pod Identity),
+   * AWS_ACCESS_KEY_ID, or ~/.aws.
    */
   def fromConfig(config: Config): S3FileSourceFactory =
     def optional(path: String) = Option.when(config.hasPath(path))(config.getString(path)).filter(_.nonEmpty)

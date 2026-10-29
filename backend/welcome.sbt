@@ -20,7 +20,8 @@ logo :=
      |""".stripMargin
 
 usefulTasks := Seq(
-  UsefulTask("backend/bgRun; frontend/devServer", "Start the backend in background, then the frontend dev server").alias("up"),
+  UsefulTask("backend/bgRun; frontend/devServer", "Start the backend in background, then the frontend dev server")
+    .alias("up"),
   UsefulTask("bgRun", "Start server in background").alias("a"),
   UsefulTask("bgStopAll", "Stop the server started with bgRun").alias("x"),
   UsefulTask("Docker/publishLocal", "Publish server locally  as a docker image").alias("dpl"),

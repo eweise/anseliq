@@ -30,7 +30,9 @@ class ReconSpecRoutes(
     val payload = read[ReconciliationSpecPayload](request.text())
     transact(transactor):
       write(
-        PayloadMapper.reconSpecPayloadFromDomain(reconSpecService.createReconSpec(PayloadMapper.reconSpecPayloadToDomain(payload)))
+        PayloadMapper.reconSpecPayloadFromDomain(
+          reconSpecService.createReconSpec(PayloadMapper.reconSpecPayloadToDomain(payload))
+        )
       )
 
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)

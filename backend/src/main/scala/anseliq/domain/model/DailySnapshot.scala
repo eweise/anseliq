@@ -9,7 +9,7 @@ import java.util.UUID
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class DailySnapshot(
   @Id id:         ID     = createID(),
-  ledgerId:     ID,
+  ledgerId:       ID,
   snapshotDate:   LocalDate,
   matchRatesJson: String = "[]",
   // Renamed in place from avgMatchRatePercent (same physical column, ALTER TABLE RENAME COLUMN) —
@@ -31,7 +31,8 @@ case class DailySnapshot(
   avgMatchRatePercent:     Option[BigDecimal] = None,
   reconciledMovementCount: Int                = 0,
   totalMovementCount:      Int                = 0
-) extends Audited derives DbCodec
+) extends Audited
+    derives DbCodec
 
 object DailySnapshot:
   val Table = TableInfo[DailySnapshot, DailySnapshot, UUID]

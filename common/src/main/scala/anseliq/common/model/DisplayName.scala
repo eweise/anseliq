@@ -1,8 +1,8 @@
 package anseliq.common.model
 
 object DisplayName:
-  val ledger      = "Ledger"
-  val ledgers     = "Ledgers"
+  val ledger        = "Ledger"
+  val ledgers       = "Ledgers"
   val account       = "Account"
   val accounts      = "Accounts"
   val movementSpec  = "Movement Spec"

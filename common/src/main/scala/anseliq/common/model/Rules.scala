@@ -142,9 +142,9 @@ case class DateAdd(interval: Interval, value: Int) extends DateModifier:
  * Transforms a string attribute's value before the two sides are compared, e.g. to ignore the
  * formatting differences between two systems' references. apply is the Scala transformation and
  * modify the same transformation in SQL over a text expression; the reconciler compares keys built
- * by both, so they must agree on every value (StringModifierSqlSuite checks them against
- * Postgres). Any text a modifier carries is escaped before it goes into SQL, since a rule can now
- * come from a model's suggestion.
+ * by both, so they must agree on every value (StringModifierSqlSuite checks them against Postgres).
+ * Any text a modifier carries is escaped before it goes into SQL, since a rule can now come from a
+ * model's suggestion.
  */
 sealed trait StringModifier derives ReadWriter:
   def modify(frag: String): String
@@ -158,8 +158,8 @@ object StringModifier:
 
 /** Lowercase, keeping only ASCII letters and digits: "INV-2026/0042" becomes "inv20260042". */
 case object Normalize extends StringModifier:
-  def modify(frag: String): String   = s"lower(regexp_replace($frag, '[^A-Za-z0-9]', '', 'g'))"
-  def apply(value: String): String   = value.replaceAll("[^A-Za-z0-9]", "").toLowerCase(java.util.Locale.ROOT)
+  def modify(frag:   String): String = s"lower(regexp_replace($frag, '[^A-Za-z0-9]', '', 'g'))"
+  def apply(value:   String): String = value.replaceAll("[^A-Za-z0-9]", "").toLowerCase(java.util.Locale.ROOT)
   def describe(expr: String): String = s"normalize($expr)"
 
 /** Removes `prefix` from the start of the value if it's there: "ACH 12345" becomes "12345". */
@@ -167,19 +167,19 @@ case class StripPrefix(prefix: String) extends StringModifier:
   def modify(frag: String): String =
     val p = StringModifier.sqlLiteral(prefix)
     s"(CASE WHEN starts_with($frag, $p) THEN substr($frag, char_length($p) + 1) ELSE $frag END)"
-  def apply(value: String): String   = value.stripPrefix(prefix)
+  def apply(value:   String): String = value.stripPrefix(prefix)
   def describe(expr: String): String = s"stripPrefix($expr, '$prefix')"
 
 /** Removes leading zeros: "000420" becomes "420". */
 case object TrimLeadingZeros extends StringModifier:
-  def modify(frag: String): String   = s"ltrim($frag, '0')"
-  def apply(value: String): String   = value.dropWhile(_ == '0')
+  def modify(frag:   String): String = s"ltrim($frag, '0')"
+  def apply(value:   String): String = value.dropWhile(_ == '0')
   def describe(expr: String): String = s"trimLeadingZeros($expr)"
 
 /** Applies each step in turn, so a rule can e.g. strip a prefix and then normalize. */
 case class Chain(steps: List[StringModifier]) extends StringModifier:
-  def modify(frag: String): String   = steps.foldLeft(frag)((f, step) => step.modify(f))
-  def apply(value: String): String   = steps.foldLeft(value)((v, step) => step.apply(v))
+  def modify(frag:   String): String = steps.foldLeft(frag)((f, step) => step.modify(f))
+  def apply(value:   String): String = steps.foldLeft(value)((v, step) => step.apply(v))
   def describe(expr: String): String = steps.foldLeft(expr)((e, step) => step.describe(e))
 
 /**

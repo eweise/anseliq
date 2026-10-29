@@ -10,13 +10,13 @@ object Brand:
 
   def mark(sizePx: Int = 28): SvgElement =
     s.svg(
-      s.width   := sizePx.toString,
-      s.height  := sizePx.toString,
-      s.viewBox := "0 0 32 32",
+      s.width     := sizePx.toString,
+      s.height    := sizePx.toString,
+      s.viewBox   := "0 0 32 32",
       aria.hidden := true,
-      s.rect(s.width := "32", s.height := "32", s.rx := "8", s.fill := "#212830"),
-      s.circle(s.cx := "16", s.cy := "16", s.r := "9", s.fill := "none", s.stroke := "#9aa4ae", s.strokeWidth := "2"),
-      s.circle(s.cx := "16", s.cy := "16", s.r := "3.5", s.fill := "#e8992f")
+      s.rect(s.width := "32", s.height := "32", s.rx := "8", s.fill   := "#212830"),
+      s.circle(s.cx  := "16", s.cy     := "16", s.r  := "9", s.fill   := "none", s.stroke := "#9aa4ae", s.strokeWidth := "2"),
+      s.circle(s.cx  := "16", s.cy     := "16", s.r  := "3.5", s.fill := "#e8992f")
     )
 
   // "Ansel" in the surrounding text color, "IQ" in amber (a deeper shade on light backgrounds, where

@@ -65,9 +65,15 @@ class ReconSpecService(
         .flatMap(ms => accountRepo.findById(otherSide(ms)))
         .map(_.accountType)
     if !counterpartType(spec.inMovementSpecId, _.inAccountId, _.outAccountId).contains(AccountType.Primary) then
-      throw IllegalArgumentError("inMovementSpecId", "The Primary side must be a movement spec from a Primary account into this Recon account")
+      throw IllegalArgumentError(
+        "inMovementSpecId",
+        "The Primary side must be a movement spec from a Primary account into this Recon account"
+      )
     if !counterpartType(spec.outMovementSpecId, _.outAccountId, _.inAccountId).contains(AccountType.Secondary) then
-      throw IllegalArgumentError("outMovementSpecId", "The Secondary side must be a movement spec from this Recon account to a Secondary account")
+      throw IllegalArgumentError(
+        "outMovementSpecId",
+        "The Secondary side must be a movement spec from this Recon account to a Secondary account"
+      )
 
   def deleteReconSpec(id: ID): Txn[Unit] =
     reconSpecRepo.deleteById(id)

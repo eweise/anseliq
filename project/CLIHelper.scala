@@ -16,8 +16,8 @@ object CLIHelper {
   }
 
   private def installNpmPackages(prefix: String = ""): Unit = {
-    val command = List("npm", "install", "--prefix", prefix)
-    val pattern = "found\\s\\d+\\svulnerabilities".r
+    val command        = List("npm", "install", "--prefix", prefix)
+    val pattern        = "found\\s\\d+\\svulnerabilities".r
     val successMessage = boxedSuccess("Installed npm packages successfully !")
     CommandWatcher.watch(command, pattern, successMessage)
   }
@@ -36,7 +36,7 @@ object CLIHelper {
     removeDistFolderIfAny(distPrefix)
 
     val buildCommand = Seq("npm", "run", "build") ++ (if (prefix.nonEmpty) Seq("--prefix", prefix) else Seq.empty)
-    val pattern = ".built in.".r
+    val pattern      = ".built in.".r
 
     val messages = Seq(
       s"Web app is available at directory '${distPrefix}dist'"
@@ -48,11 +48,11 @@ object CLIHelper {
   }
 
   def startDevEnvironment(
-    scalaVersion: String,
+    scalaVersion:      String,
     sourceDirectories: Seq[File],
     compilationRunner: () => Boolean,
-    prefix: String = "",
-    backendUrl: Option[String] = None
+    prefix:            String         = "",
+    backendUrl:        Option[String] = None
   ): Unit = {
     installNpmPackages(prefix)
     printStartupMessage(backendUrl)
@@ -98,7 +98,7 @@ object CLIHelper {
       "Starting development environment" -> ""
     ) ++ backendUrl.map(url => "Backend URL" -> url) ++ Seq(
       "Scala.js compiler" -> "Starting in watch mode...",
-      "Vite dev server" -> "Starting..."
+      "Vite dev server"   -> "Starting..."
     )
 
     println(boxedConfigs(configs*))

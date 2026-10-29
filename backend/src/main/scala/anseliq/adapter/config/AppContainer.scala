@@ -24,7 +24,7 @@ trait AppContainer:
 
   lazy val jobRepo:             JobRepo                = JobRepoLive(clock)
   lazy val jobManager:          JobManager             = JobManager(jobRepo, clock, dataSource)
-  lazy val ledgerRepo:  LedgerRepo     = LedgerRepoLive(clock)
+  lazy val ledgerRepo:          LedgerRepo             = LedgerRepoLive(clock)
   lazy val reconRepo:           ReconciliationRepo     = ReconciliationRepoLive(clock)
   lazy val movementSpecRepo:    MovementSpecRepo       = MovementSpecRepoLive(clock)
   lazy val fileFeedRepo:        FileFeedRepo           = FileFeedRepoLive(clock)
@@ -32,7 +32,7 @@ trait AppContainer:
   lazy val accountRepo:         AccountRepo            = AccountRepoLive(clock)
   lazy val movementRepo:        MovementRepo           = MovementRepoLive(clock)
   lazy val eventRepo:           EventRepo              = EventRepoLive()
-  lazy val ledgerService:     LedgerService        = LedgerService(ledgerRepo)
+  lazy val ledgerService:       LedgerService          = LedgerService(ledgerRepo)
   lazy val accountService:      AccountService         = AccountService(accountRepo, movementRepo)
   lazy val movementSpecService: MovementSpecService    = MovementSpecService(movementSpecRepo, accountRepo)
   lazy val fileFeedService:     FileFeedService        = FileFeedService(fileFeedRepo)
@@ -48,9 +48,9 @@ trait AppContainer:
     )
   lazy val exceptionRepo:        ExceptionRepo        = ExceptionRepoLive()
   lazy val exceptionCommentRepo: ExceptionCommentRepo = ExceptionCommentRepoLive()
-  lazy val userRepo:           UserRepo           = UserRepoLive(clock)
+  lazy val userRepo:             UserRepo             = UserRepoLive(clock)
   lazy val exceptionService: ExceptionService = ExceptionService(
-    exceptionRepo      = exceptionRepo,
+    exceptionRepo    = exceptionRepo,
     commentRepo      = exceptionCommentRepo,
     movementRepo     = movementRepo,
     reconRepo        = reconRepo,
@@ -61,18 +61,18 @@ trait AppContainer:
     clock            = clock
   )
   lazy val reconciler: InMemoryReconciler = InMemoryReconciler(
-    bookkeeper             = bookkeeper,
-    movementRepo       = movementRepo,
-    reconSpecRepo      = reconSpecRepo,
-    movementSpecRepo   = movementSpecRepo,
-    reconRepo          = reconRepo,
-    ledgerRepo = ledgerRepo,
-    eventStore         = eventStore,
-    clock              = clock,
-    transactor         = transactor,
-    jobRepo            = jobRepo,
-    exceptionService     = exceptionService,
-    cursorDataSource   = cursorDataSource
+    bookkeeper       = bookkeeper,
+    movementRepo     = movementRepo,
+    reconSpecRepo    = reconSpecRepo,
+    movementSpecRepo = movementSpecRepo,
+    reconRepo        = reconRepo,
+    ledgerRepo       = ledgerRepo,
+    eventStore       = eventStore,
+    clock            = clock,
+    transactor       = transactor,
+    jobRepo          = jobRepo,
+    exceptionService = exceptionService,
+    cursorDataSource = cursorDataSource
   )
   lazy val reconciliationRunner: ReconciliationRunner = ReconciliationRunner(
     accountRepo      = accountRepo,
@@ -89,38 +89,38 @@ trait AppContainer:
     case "disabled"  => DisabledMatchSuggester()
     case other       => throw IllegalArgumentException(s"unknown match-suggestions.adapter: $other")
   lazy val matchSuggestionService: MatchSuggestionService = MatchSuggestionService(
-    reconSpecRepo       = reconSpecRepo,
-    reconRepo           = reconRepo,
-    movementRepo        = movementRepo,
-    matchSuggestionRepo = matchSuggestionRepo,
-    suggester           = matchSuggester,
-    manualReconciler    = manualReconciler,
-    transactor          = transactor,
-    candidateWindowDays = config.getInt("match-suggestions.candidate-window-days"),
-    maxCandidates       = config.getInt("match-suggestions.max-candidates"),
+    reconSpecRepo           = reconSpecRepo,
+    reconRepo               = reconRepo,
+    movementRepo            = movementRepo,
+    matchSuggestionRepo     = matchSuggestionRepo,
+    suggester               = matchSuggester,
+    manualReconciler        = manualReconciler,
+    transactor              = transactor,
+    candidateWindowDays     = config.getInt("match-suggestions.candidate-window-days"),
+    maxCandidates           = config.getInt("match-suggestions.max-candidates"),
     ruleProposalMinExamples = config.getInt("match-suggestions.rule-proposal-min-examples")
   )
   lazy val manualReconciler: ManualReconciler = ManualReconciler(
-    bookkeeper         = bookkeeper,
-    movementRepo   = movementRepo,
-    reconRepo      = reconRepo,
-    reconSpecRepo  = reconSpecRepo,
+    bookkeeper       = bookkeeper,
+    movementRepo     = movementRepo,
+    reconRepo        = reconRepo,
+    reconSpecRepo    = reconSpecRepo,
     exceptionService = exceptionService,
-    eventStore     = eventStore,
-    clock          = clock,
-    transactor     = transactor
+    eventStore       = eventStore,
+    clock            = clock,
+    transactor       = transactor
   )
   lazy val dailySnapshotRepo: DailySnapshotRepo = DailySnapshotRepoLive(clock)
   lazy val reportingService: ReportingService = ReportingService(
-    accountRepo        = accountRepo,
-    exceptionRepo        = exceptionRepo,
-    movementRepo       = movementRepo,
-    reconRepo          = reconRepo,
-    reconSpecRepo      = reconSpecRepo,
-    movementSpecRepo   = movementSpecRepo,
-    ledgerRepo = ledgerRepo,
-    dailySnapshotRepo  = dailySnapshotRepo,
-    clock              = clock
+    accountRepo       = accountRepo,
+    exceptionRepo     = exceptionRepo,
+    movementRepo      = movementRepo,
+    reconRepo         = reconRepo,
+    reconSpecRepo     = reconSpecRepo,
+    movementSpecRepo  = movementSpecRepo,
+    ledgerRepo        = ledgerRepo,
+    dailySnapshotRepo = dailySnapshotRepo,
+    clock             = clock
   )
   lazy val userService: UserService = UserService(userRepo, clock)
   // No default, so an instance can't end up signing tokens with a secret anyone can read in this
@@ -135,14 +135,14 @@ trait AppContainer:
     JwtSecret(secret)
   lazy val authService: AuthService = AuthService(userRepo, jwtSecret)
   lazy val ingestor = Ingestor(
-    bookkeeper            = bookkeeper,
+    bookkeeper        = bookkeeper,
     movementRepo      = movementRepo,
     movementSpecRepo  = movementSpecRepo,
     fileFeedRepo      = fileFeedRepo,
     eventStore        = eventStore,
     fileInventoryRepo = fileInventoryRepo,
     fileSourceFactory = fileSourceFactory,
-    exceptionService    = exceptionService,
+    exceptionService  = exceptionService,
     clock             = clock,
     transactor        = transactor
   )

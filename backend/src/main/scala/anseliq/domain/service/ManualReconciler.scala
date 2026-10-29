@@ -17,14 +17,14 @@ case class BadFilePreview(
 case class FixBadFileResult(unreconcile: BulkUnreconcileResult, reversal: BulkReversalResult)
 
 class ManualReconciler(
-  val bookkeeper:         Bookkeeper,
-  val movementRepo:   MovementRepo,
-  val reconRepo:      ReconciliationRepo,
-  val reconSpecRepo:  ReconciliationSpecRepo,
+  val bookkeeper:       Bookkeeper,
+  val movementRepo:     MovementRepo,
+  val reconRepo:        ReconciliationRepo,
+  val reconSpecRepo:    ReconciliationSpecRepo,
   val exceptionService: ExceptionService,
-  val eventStore:     EventStore,
-  val clock:          ClockService,
-  val transactor:     Transactor
+  val eventStore:       EventStore,
+  val clock:            ClockService,
+  val transactor:       Transactor
 ):
 
   def matchMovements(
@@ -146,8 +146,8 @@ class ManualReconciler(
    * Undoes a write-off that shouldn't have happened (posted against the wrong movement, or the
    * "missing" money later turned up). Admin-only at the route, and a reason is required. Unlike
    * unmatch, the match itself is kept: the write-off adjustment is taken out of the reconciliation
-   * and reversed (Bookkeeper.reverseMovement, so the original entry and its correction both stay on the
-   * books), the difference comes back, and the reconciliation is Mismatched again with a new
+   * and reversed (Bookkeeper.reverseMovement, so the original entry and its correction both stay on
+   * the books), the difference comes back, and the reconciliation is Mismatched again with a new
    * AmountMismatch exception. From there it can be written off correctly, unmatched, or — for
    * OneToMany — completed by a late movement.
    */
@@ -283,12 +283,12 @@ class ManualReconciler(
    * For a bad ingest (e.g. a FileFeed misconfigured with the wrong amount field): finds every
    * movement tagged with this exact fileSourceEntry (see MovementRepoLive.findByFileSourceEntry)
    * and voids whichever reconciliations they'd been matched into, via unmatch — same ledger
-   * reversal, same dangling-exception cleanup, same Voided-not-deleted audit trail as unmatching one
-   * reconciliation by hand. Movements with no reconciliation yet are left as-is (already
+   * reversal, same dangling-exception cleanup, same Voided-not-deleted audit trail as unmatching
+   * one reconciliation by hand. Movements with no reconciliation yet are left as-is (already
    * unreconciled). This does NOT delete the movements or reverse their original ingest-time ledger
-   * posting (Bookkeeper.recordMovements has no reversal counterpart) — the wrong amounts are still on
-   * the books and still reflected in account balances until that's addressed separately; this only
-   * undoes reconciliation so the (still-wrong) movements stop being matched against anything.
+   * posting (Bookkeeper.recordMovements has no reversal counterpart) — the wrong amounts are still
+   * on the books and still reflected in account balances until that's addressed separately; this
+   * only undoes reconciliation so the (still-wrong) movements stop being matched against anything.
    *
    * Not a Txn: voids commit in their own batches of `batchSize` (reusing unmatch's per-
    * reconciliation Txn as-is) rather than one transaction for however many reconciliations a bad
@@ -316,12 +316,12 @@ class ManualReconciler(
 
   /**
    * For a bad ingest, after bulkUnreconcileByFile has cleared whatever reconciliations were
-   * blocking it: posts a reversing movement (Bookkeeper.reverseMovement) for every movement tagged with
-   * this fileSourceEntry that isn't still reconciled and isn't itself a reversal. The bad movements
-   * are never deleted or edited — this is the permanent "wrong entry, then its reversal" trail
-   * accounting audits require, not a correction in place. A corrected re-ingest of this file needs
-   * a fresh identity: its reference_ids can't reuse the originals', which now permanently belong to
-   * the reversed entries.
+   * blocking it: posts a reversing movement (Bookkeeper.reverseMovement) for every movement tagged
+   * with this fileSourceEntry that isn't still reconciled and isn't itself a reversal. The bad
+   * movements are never deleted or edited — this is the permanent "wrong entry, then its reversal"
+   * trail accounting audits require, not a correction in place. A corrected re-ingest of this file
+   * needs a fresh identity: its reference_ids can't reuse the originals', which now permanently
+   * belong to the reversed entries.
    *
    * Not a Txn, same batching reasoning as bulkUnreconcileByFile. Still-reconciled movements are
    * skipped and counted rather than failing the whole run — that's a signal bulkUnreconcileByFile

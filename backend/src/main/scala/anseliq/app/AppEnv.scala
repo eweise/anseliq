@@ -25,9 +25,8 @@ import scala.util.control.NonFatal
  * All background work is jobs: timers queue the periodic ones, each job type has one worker loop,
  * and a job that leads to more work queues that work as jobs itself:
  *
- * timer ─▶ CreateFileInventory ─▶ Ingestion (per new file) ─▶ Reconciliation (per Recon account)
- *                                                               ─▶ SuggestMatches (if enabled)
- * timer ─▶ GenerateReconStats
+ * timer ─▶ CreateFileInventory ─▶ Ingestion (per new file) ─▶ Reconciliation (per Recon account) ─▶
+ * SuggestMatches (if enabled) timer ─▶ GenerateReconStats
  *
  * Events are only a record of what happened (the activity feed); nothing consumes them.
  */
@@ -68,7 +67,7 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
       healthServer.stop()
       app.dataSource match
         case pool: AutoCloseable => pool.close()
-        case _                   => ()
+        case _ => ()
       stopped.countDown()
 
   private def runServices(args: Array[String], shutdownRequested: CountDownLatch): Unit =
@@ -198,10 +197,12 @@ class AppEnv(val app: AppContainer = new AppContainer {}):
         logger.info(s"raised $staleMismatchCount stale OneToMany AmountMismatch exception(s)")
 
       ReconStatsInfo(
-        ledgersSnapshotted  = count,
+        ledgersSnapshotted    = count,
         processingTimeSeconds = (System.currentTimeMillis() - beginTime) / 1000
       )
 
 object AppEnv:
-  /** The release this is, from the jar's manifest (see dynver in build.sbt); "dev" outside a jar. */
+  /**
+   * The release this is, from the jar's manifest (see dynver in build.sbt); "dev" outside a jar.
+   */
   val version: String = Option(classOf[AppEnv].getPackage.getImplementationVersion).getOrElse("dev")

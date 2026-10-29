@@ -44,7 +44,9 @@ class AccountRoutes(
     val accountRequest = read[AccountPayload](request.text())
     transact(transactor):
       write(
-        PayloadMapper.accountPayloadFromDomain(accountService.createAccount(PayloadMapper.accountPayloadToDomain(accountRequest)))
+        PayloadMapper.accountPayloadFromDomain(
+          accountService.createAccount(PayloadMapper.accountPayloadToDomain(accountRequest))
+        )
       )
 
   @cask.route(s"${HttpPath.account}/:id", methods = HttpCmd.PUT)

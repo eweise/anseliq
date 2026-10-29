@@ -36,7 +36,7 @@ class AccountRepoLive(clock: ClockService) extends AuditedRepo[Account, UUID](cl
     """.query[Account].run()
 
   def findByLedgerAndAccountName(
-    ledgerID:  ID,
+    ledgerID:    ID,
     accountName: String
   ): Txn[Option[Account]] =
     sql"""

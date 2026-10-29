@@ -11,16 +11,16 @@ import java.util.UUID
 // exception detail views, movement search results with names, and an exception with the names of
 // whatever it points at. Route classes call these instead of reaching into the repos themselves.
 class ViewAssembler(
-  ledgerRepo: LedgerRepo,
+  ledgerRepo:           LedgerRepo,
   exceptionRepo:        ExceptionRepo,
-  accountRepo:        AccountRepo,
-  movementRepo:       MovementRepo,
-  reconRepo:          ReconciliationRepo,
-  movementSpecRepo:   MovementSpecRepo,
-  fileFeedRepo:       FileFeedRepo,
-  reconSpecRepo:      ReconciliationSpecRepo,
+  accountRepo:          AccountRepo,
+  movementRepo:         MovementRepo,
+  reconRepo:            ReconciliationRepo,
+  movementSpecRepo:     MovementSpecRepo,
+  fileFeedRepo:         FileFeedRepo,
+  reconSpecRepo:        ReconciliationSpecRepo,
   exceptionCommentRepo: ExceptionCommentRepo,
-  userRepo:           UserRepo
+  userRepo:             UserRepo
 ):
 
   def reconciliationDetail(reconId: ID): Txn[ReconciliationDetailPayload] =
@@ -29,9 +29,9 @@ class ViewAssembler(
       val spec    = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
       val account = accountRepo.findById(spec.accountId).ErrIfNotFound("account", spec.accountId)
       (spec, account)
-    val spec         = specAndAccount.map((s, account) => (s, account.name))
-    val ledger     = specAndAccount.flatMap((_, account) => ledgerRepo.findById(account.ledgerId))
-    val movements    = reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
+    val spec           = specAndAccount.map((s, account) => (s, account.name))
+    val ledger         = specAndAccount.flatMap((_, account) => ledgerRepo.findById(account.ledgerId))
+    val movements      = reconciliationMovementPayloads(recon, spec.map(_._1.accountId))
     val openExceptions = exceptionRepo.findOpenByReferenceId(reconId).map(exceptionPayloadWithNames)
     PayloadMapper.reconciliationDetailPayloadFromDomain(recon, spec, movements, ledger, openExceptions)
 
@@ -43,8 +43,8 @@ class ViewAssembler(
     val detail       = PayloadMapper.movementDetailPayloadFromDomain(m, outAccount.name, inAccount.name, movementSpec.name)
     detail.copy(
       reconciliation = m.reconciliationId.flatMap(reconRepo.findById).map(PayloadMapper.reconFromDomain),
-      ledger       = ledgerRepo.findById(inAccount.ledgerId).map(PayloadMapper.ledgerPayloadFromDomain),
-      openExceptions   = exceptionRepo.findOpenByReferenceId(m.id).map(exceptionPayloadWithNames)
+      ledger         = ledgerRepo.findById(inAccount.ledgerId).map(PayloadMapper.ledgerPayloadFromDomain),
+      openExceptions = exceptionRepo.findOpenByReferenceId(m.id).map(exceptionPayloadWithNames)
     )
 
   def movementSearchResults(criteria: MovementSearchCriteria): Txn[Seq[MovementSearchResultPayload]] =
@@ -77,7 +77,8 @@ class ViewAssembler(
   def exceptionDetail(exception: ExceptionCase): Txn[ExceptionDetailPayload] =
     val exceptionPayload = exceptionPayloadWithNames(exception)
     val movementPayload = exception.targetType match
-      case ExceptionTarget.Movement       => movementRepo.findById(exception.referenceId).map(PayloadMapper.movementfromDomainModel)
+      case ExceptionTarget.Movement =>
+        movementRepo.findById(exception.referenceId).map(PayloadMapper.movementfromDomainModel)
       case ExceptionTarget.Reconciliation => None
       case ExceptionTarget.MovementSpec   => None
       case ExceptionTarget.FileFeed       => None
@@ -123,7 +124,8 @@ class ViewAssembler(
         val account   = accountRepo.findById(reconSpec.accountId).ErrIfNotFound("account", reconSpec.accountId)
         (account.id.toString, account.name, recon.description)
       case ExceptionTarget.MovementSpec =>
-        val spec    = movementSpecRepo.findById(exception.referenceId).ErrIfNotFound("movement spec", exception.referenceId)
+        val spec =
+          movementSpecRepo.findById(exception.referenceId).ErrIfNotFound("movement spec", exception.referenceId)
         val account = accountRepo.findById(spec.inAccountId).ErrIfNotFound("account", spec.inAccountId)
         (account.id.toString, account.name, spec.name)
       case ExceptionTarget.FileFeed =>

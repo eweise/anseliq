@@ -45,9 +45,9 @@ object ExceptionDetailPage:
   // submission before it ever reaches the backend rather than surfacing a raw 500/stack trace.
   private def bodyRequired(newStatus: Option[ExceptionStatusPayload], newAssignee: Option[String]): Boolean =
     (newStatus, newAssignee) match
-      case (None, None)                        => true
+      case (None, None)                               => true
       case (Some(ExceptionStatusPayload.Resolved), _) => true
-      case _                                    => false
+      case _                                          => false
 
   def apply(id: String): HtmlElement =
     val state           = Var(State())
@@ -82,12 +82,13 @@ object ExceptionDetailPage:
       },
       assignBus.events
         .flatMapSwitch(_ =>
-          ApiClient.postEmpty[ExceptionDetailPayload](HttpPath.url(s"${HttpPath.exception}/$id/assign"), SessionStore.token)
+          ApiClient
+            .postEmpty[ExceptionDetailPayload](HttpPath.url(s"${HttpPath.exception}/$id/assign"), SessionStore.token)
         )
         .apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),
       child <-- state.signal.map {
-        case State(None, _) => div()
+        case State(None, _)                  => div()
         case State(Some(d), assignableUsers) =>
           // A case page rather than another detail page: the workflow (thread, status, assignee)
           // is the main column, and what the exception is about is a compact subject card beside

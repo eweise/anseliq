@@ -5,14 +5,14 @@ import com.raquo.laminar.api.L.*
 object Form:
 
   def field(
-    id:           String,
-    lbl:          String,
-    value:        String,
-    inputFn:      String => Unit      = _ => (),
-    enabled:      Boolean             = true,
-    updates:      EventStream[String] = EventStream.empty,
-    inputType:        String         = "text",
-    autoCompleteHint: Option[String] = None
+    id:               String,
+    lbl:              String,
+    value:            String,
+    inputFn:          String => Unit      = _ => (),
+    enabled:          Boolean             = true,
+    updates:          EventStream[String] = EventStream.empty,
+    inputType:        String              = "text",
+    autoCompleteHint: Option[String]      = None
   ): HtmlElement =
     div(
       cls := "relative mb-5 border border-md-outline focus-within:border-2 focus-within:border-md-primary rounded",

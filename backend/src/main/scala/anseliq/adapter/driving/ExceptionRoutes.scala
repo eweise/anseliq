@@ -12,8 +12,8 @@ import upickle.default.*
 import java.util.UUID
 
 class ExceptionRoutes(
-  transactor:     Transactor,
-  views:          ViewAssembler,
+  transactor:       Transactor,
+  views:            ViewAssembler,
   exceptionRepo:    ExceptionRepo,
   exceptionService: ExceptionService
 ) extends ApiRoutes:

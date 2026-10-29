@@ -25,7 +25,7 @@ class EndToEndSuite extends munit.FunSuite {
   // movement specs, and any movements still attached to them.
   private def teardown(
     reconSpec:      ReconciliationSpec,
-    ledger: Ledger,
+    ledger:         Ledger,
     movementSpecs:  Seq[MovementSpec],
     reconAccountId: ID
   ): Unit =

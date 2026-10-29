@@ -99,8 +99,8 @@ object ReconciliationDetailPage:
     val secondary = d.movements.filter(_.direction.contains(Direction.OUT))
     val inTotal   = primary.map(_.amount).sum
     val outTotal  = secondary.map(_.amount).sum
-    val diff     = inTotal - outTotal
-    val balanced = diff == BigDecimal(0)
+    val diff      = inTotal - outTotal
+    val balanced  = diff == BigDecimal(0)
     val relationshipNote = d.spec.map(_.relationship).map {
       case ReconRelationship.OneToOne =>
         "OneToOne rule: exactly one movement on each side, so nothing else can join this pair."
@@ -176,7 +176,7 @@ object ReconciliationDetailPage:
     htmlTag("details")(
       cls := s"${Card.cls} p-5",
       htmlTag("summary")(cls := "cursor-pointer font-medium text-md-on-surface dark:text-white", "Details"),
-      div(cls := "mt-3", DetailList((reconRows ++ specRows)*))
+      div(cls                := "mt-3", DetailList((reconRows ++ specRows)*))
     )
 
   private def money(amount: BigDecimal): String =
@@ -193,7 +193,11 @@ object ReconciliationDetailPage:
           s"Accepted suggestion from ${s.model} (${(s.confidence * 100).setScale(0, BigDecimal.RoundingMode.HALF_UP)}% confident)"
         // A checked explanation reads like a rule match; the model's own reason is the fallback.
         s.explanation.fold(span(s"$source: ${s.reason}")): e =>
-          div(cls := "space-y-1", ul(ruleMatchLine(e)), div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", source))
+          div(
+            cls := "space-y-1",
+            ul(ruleMatchLine(e)),
+            div(cls := "text-xs text-md-on-surface-variant dark:text-gray-400", source)
+          )
       case AppliedRules.Reversal => span("System reversal")
 
   // The condition both sides were compared on, then the value they matched.

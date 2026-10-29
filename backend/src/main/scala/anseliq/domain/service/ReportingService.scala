@@ -8,15 +8,15 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 class ReportingService(
-  accountRepo:        AccountRepo,
-  exceptionRepo:        ExceptionRepo,
-  movementRepo:       MovementRepo,
-  reconRepo:          ReconciliationRepo,
-  reconSpecRepo:      ReconciliationSpecRepo,
-  movementSpecRepo:   MovementSpecRepo,
-  ledgerRepo: LedgerRepo,
-  dailySnapshotRepo:  DailySnapshotRepo,
-  clock:              ClockService
+  accountRepo:       AccountRepo,
+  exceptionRepo:     ExceptionRepo,
+  movementRepo:      MovementRepo,
+  reconRepo:         ReconciliationRepo,
+  reconSpecRepo:     ReconciliationSpecRepo,
+  movementSpecRepo:  MovementSpecRepo,
+  ledgerRepo:        LedgerRepo,
+  dailySnapshotRepo: DailySnapshotRepo,
+  clock:             ClockService
 ):
   private val agingBucketOrder = Seq("0-3", "4-7", "8-14", "15+")
 
@@ -165,14 +165,14 @@ class ReportingService(
 
   /**
    * Meant to be polled frequently (e.g. every minute) rather than run once on a fixed schedule,
-   * since "the right time to snapshot" depends on each ledger's own dailyCutoffHours, not on
-   * when the app happened to start. For each ledger, today's snapshot becomes due once
-   * clock.now's time-of-day passes that ledger's cutoff hour — letting a ledger that expects
-   * late-arriving data delay its snapshot instead of capturing a partial day. A ledger already
-   * snapshotted for today is skipped (checked via existsForDate) so a 1-minute poll cadence doesn't
-   * recompute summary() every minute for the rest of the day once it's already run. Doesn't
-   * backfill: a period whose cutoff passed while the app was down is never generated retroactively,
-   * only today's is ever considered.
+   * since "the right time to snapshot" depends on each ledger's own dailyCutoffHours, not on when
+   * the app happened to start. For each ledger, today's snapshot becomes due once clock.now's
+   * time-of-day passes that ledger's cutoff hour — letting a ledger that expects late-arriving data
+   * delay its snapshot instead of capturing a partial day. A ledger already snapshotted for today
+   * is skipped (checked via existsForDate) so a 1-minute poll cadence doesn't recompute summary()
+   * every minute for the rest of the day once it's already run. Doesn't backfill: a period whose
+   * cutoff passed while the app was down is never generated retroactively, only today's is ever
+   * considered.
    */
   def computeAndStoreDailySnapshots(): Txn[Int] =
     val now   = clock.now
@@ -210,7 +210,7 @@ class ReportingService(
 
     dailySnapshotRepo.upsert(
       DailySnapshot(
-        ledgerId   = ff.id,
+        ledgerId     = ff.id,
         snapshotDate = today,
         matchRatesJson = upickle.write(
           report.matchRates.map(m =>
@@ -246,8 +246,8 @@ class ReportingService(
    * Reads back the last `days` days of stored snapshots. When ledgerId is None, aggregates across
    * every ledger's snapshot for each date: counts sum, avgBalanceCoveragePercent is a weighted
    * average (weighted by each ledger's ratedAccountCount that day) — equivalent to averaging
-   * balanceCoveragePercent over every rated account across all ledgers — and avgMatchRatePercent
-   * is a ratio of summed reconciled/total movement counts across all ledgers.
+   * balanceCoveragePercent over every rated account across all ledgers — and avgMatchRatePercent is
+   * a ratio of summed reconciled/total movement counts across all ledgers.
    */
   def trend(ledgerId: Option[ID], days: Int = 30): Txn[TrendReport] =
     val today = clock.now.toLocalDate

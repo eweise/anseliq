@@ -126,7 +126,7 @@ object RuleWidget:
       case rule                  => (rule, Nil)
     val primary = Var(State.fromRule(primaryRule))
     // Each alternative's own state, with an id that keeps its form stable while others are removed.
-    var nextId       = 0
+    var nextId = 0
     def newAlternative(state: State): (Int, Var[State]) =
       nextId += 1
       nextId -> Var(state)
@@ -199,7 +199,8 @@ object RuleWidget:
       .combineWith(alternatives.signal.flatMapSwitch(alts => Signal.combineSeq(alts.map(_._2.signal))))
       .map { (primaryState, alternativeStates) =>
         val primaryRule = State.toRule(primaryState)
-        if alternativeStates.isEmpty then primaryRule else ORRule(primaryRule :: alternativeStates.map(State.toRule).toList)
+        if alternativeStates.isEmpty then primaryRule
+        else ORRule(primaryRule :: alternativeStates.map(State.toRule).toList)
       }
     (el, rule)
 
@@ -316,15 +317,17 @@ object RuleWidget:
           )
         else
           div(
-            child <-- cols.combineWith(fieldLabel).map((cs, label) =>
-              Form.selectField(
-                s"${idPrefix}Key",
-                label,
-                cs.map(c => c -> c),
-                getKey(state.now()),
-                v => state.update(s => setKey(s, v))
+            child <-- cols
+              .combineWith(fieldLabel)
+              .map((cs, label) =>
+                Form.selectField(
+                  s"${idPrefix}Key",
+                  label,
+                  cs.map(c => c -> c),
+                  getKey(state.now()),
+                  v => state.update(s => setKey(s, v))
+                )
               )
-            )
           )
       },
       label(
@@ -337,9 +340,10 @@ object RuleWidget:
         "Match a constant value instead of a field"
       ),
       transforms.map { (get, set) =>
-        child <-- state.signal.map(getConstant).distinct.map(isConstant =>
-          if isConstant then emptyNode else transformEditor(state, get, set)
-        )
+        child <-- state.signal
+          .map(getConstant)
+          .distinct
+          .map(isConstant => if isConstant then emptyNode else transformEditor(state, get, set))
       }
     )
 
@@ -371,19 +375,22 @@ object RuleWidget:
       div(
         cls := "flex flex-wrap items-center gap-2 text-xs text-md-on-surface-variant dark:text-gray-400",
         span("Transform:"),
-        children <-- state.signal.map(steps).distinct.map(_.zipWithIndex.map { (step, i) =>
-          span(
-            cls := "inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-md-on-surface dark:text-gray-200",
-            stepLabel(step),
-            button(
-              typ        := "button",
-              cls        := "text-md-on-surface-variant dark:text-gray-400",
-              aria.label := s"Remove ${stepLabel(step)}",
-              onClick --> (_ => state.update(s => setSteps(s, steps(s).patch(i, Nil, 1)))),
-              "✕"
+        children <-- state.signal
+          .map(steps)
+          .distinct
+          .map(_.zipWithIndex.map { (step, i) =>
+            span(
+              cls := "inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-md-on-surface dark:text-gray-200",
+              stepLabel(step),
+              button(
+                typ        := "button",
+                cls        := "text-md-on-surface-variant dark:text-gray-400",
+                aria.label := s"Remove ${stepLabel(step)}",
+                onClick --> (_ => state.update(s => setSteps(s, steps(s).patch(i, Nil, 1)))),
+                "✕"
+              )
             )
-          )
-        }),
+          }),
         select(
           cls := "bg-transparent border border-md-outline rounded px-2 py-0.5",
           option(value := "", "+ Add transform"),
@@ -426,7 +433,9 @@ object RuleWidget:
             button(
               cls := "text-xs text-md-on-surface-variant dark:text-gray-400",
               typ := "button",
-              onClick --> { _ => prefix.set(""); askingForPrefix.set(false) },
+              onClick --> { _ =>
+                prefix.set(""); askingForPrefix.set(false)
+              },
               "Cancel"
             )
           )

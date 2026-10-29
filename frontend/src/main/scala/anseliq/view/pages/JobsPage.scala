@@ -73,7 +73,8 @@ object JobsPage:
       button(
         cls <-- state.signal.map { s =>
           val sel =
-            if s.selectedJobType == jobType then "bg-gray-100 dark:bg-gray-700" else "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+            if s.selectedJobType == jobType then "bg-gray-100 dark:bg-gray-700"
+            else "hover:bg-gray-50 dark:hover:bg-gray-700/50"
           s"w-64 shrink-0 rounded-md px-3 py-2 text-left $sel"
         },
         onClick --> (_ => state.update(_.copy(selectedJobType = jobType))),
@@ -97,12 +98,12 @@ object JobsPage:
 
   private def bar(job: JobInfoPayload, maxSec: Long, selected: Boolean, state: Var[State]): HtmlElement =
     // Height shows relative duration within the row, with a floor so quick runs stay clickable.
-    val pct = durationSeconds(job).filter(_ => maxSec > 0).map(d => 35 + (65 * d / maxSec)).getOrElse(100L)
+    val pct  = durationSeconds(job).filter(_ => maxSec > 0).map(d => 35 + (65 * d / maxSec)).getOrElse(100L)
     val ring = if selected then "ring-2 ring-offset-1 ring-gray-900 dark:ring-white dark:ring-offset-gray-800" else ""
     button(
-      cls   := s"w-2.5 shrink-0 rounded-sm hover:opacity-70 ${statusBg(RunStatus.of(job))} $ring",
+      cls       := s"w-2.5 shrink-0 rounded-sm hover:opacity-70 ${statusBg(RunStatus.of(job))} $ring",
       styleAttr := s"height: $pct%",
-      title := tooltip(job),
+      title     := tooltip(job),
       onClick --> (_ => state.update(_.copy(selectedJob = Some(job))))
     )
 
@@ -110,12 +111,12 @@ object JobsPage:
     val info = job.jobInfoJson.flatMap(parseJobInfo)
     val fields: Seq[(String, String)] =
       Seq(
-        "Job type"   -> job.jobType.toString,
-        "Started"    -> job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"),
+        "Job type"    -> job.jobType.toString,
+        "Started"     -> job.createdAt.map(ViewHelper.formatDateTime).getOrElse("-"),
         "Last update" -> job.updatedAt.map(ViewHelper.formatDateTime).getOrElse("-"),
-        "Duration"   -> durationSeconds(job).map(formatSeconds).getOrElse("-"),
-        "Reference"  -> (if job.referenceId.isEmpty then "-" else job.referenceId),
-        "Attempts"   -> job.attempts.toString
+        "Duration"    -> durationSeconds(job).map(formatSeconds).getOrElse("-"),
+        "Reference"   -> (if job.referenceId.isEmpty then "-" else job.referenceId),
+        "Attempts"    -> job.attempts.toString
       ) ++ retryFields(job) ++ infoFields(info)
     div(
       cls := s"${Card.cls} p-6",
@@ -206,8 +207,11 @@ object JobsPage:
     case Some(fi: FileInventoryInfo) => Seq("Files queued" -> fi.filesQueued.toString)
     case Some(rs: ReconStatsInfo)    => Seq("Ledgers snapshotted" -> rs.ledgersSnapshotted.toString)
     case Some(ms: MatchSuggestionInfo) =>
-      Seq("Movements considered" -> ms.movementsConsidered.toString, "Suggestions created" -> ms.suggestionsCreated.toString)
-    case None                        => Seq.empty
+      Seq(
+        "Movements considered" -> ms.movementsConsidered.toString,
+        "Suggestions created"  -> ms.suggestionsCreated.toString
+      )
+    case None => Seq.empty
 
   // A Submitted job with an error message is one whose last attempt failed and that is waiting out
   // its backoff (see JobManager.retryOrFail), so it's shown as Retrying rather than Queued.
@@ -226,7 +230,11 @@ object JobsPage:
     div(
       cls := "flex items-center gap-4 text-xs text-gray-600 dark:text-gray-300",
       RunStatus.values.toSeq.map { st =>
-        span(cls := "flex items-center gap-1.5", span(cls := s"inline-block h-3 w-3 rounded-sm ${statusBg(st)}"), st.toString)
+        span(
+          cls := "flex items-center gap-1.5",
+          span(cls := s"inline-block h-3 w-3 rounded-sm ${statusBg(st)}"),
+          st.toString
+        )
       }
     )
 
@@ -274,8 +282,8 @@ object JobsPage:
   private def parseJobInfo(json: String): Option[JobInfo] = scala.util.Try(read[JobInfo](json)).toOption
 
   case class State(
-    selectedJobType: JobTypeInfo                          = JobTypeInfo.Reconciliation,
-    selectedJob:     Option[JobInfoPayload]               = None,
+    selectedJobType: JobTypeInfo                           = JobTypeInfo.Reconciliation,
+    selectedJob:     Option[JobInfoPayload]                = None,
     jobsByType:      Map[JobTypeInfo, Seq[JobInfoPayload]] = Map.empty
   ):
     def jobsFor(jt: JobTypeInfo): Seq[JobInfoPayload] = jobsByType.getOrElse(jt, Seq.empty)

@@ -19,7 +19,6 @@ object DockerSettings {
   def devAlias(alias: DockerAlias, isSnapshot: Boolean): Seq[DockerAlias] =
     if (isSnapshot) Seq(alias.withTag(Some("dev"))) else Seq.empty
 
-
   /**
    * Builds the image for DOCKER_PLATFORM (e.g. linux/amd64) when it's set, and otherwise for this
    * machine's own architecture. Releases are built on amd64 CI runners, so a Mac only needs it to
@@ -29,7 +28,12 @@ object DockerSettings {
   lazy val platformSetting = Docker / dockerBuildCommand := {
     sys.env.get("DOCKER_PLATFORM") match {
       case Some(platform) =>
-        dockerExecCommand.value ++ Seq("buildx", "build", s"--platform=$platform", "--load") ++ dockerBuildOptions.value :+ "."
+        dockerExecCommand.value ++ Seq(
+          "buildx",
+          "build",
+          s"--platform=$platform",
+          "--load"
+        ) ++ dockerBuildOptions.value :+ "."
       case None => dockerBuildCommand.value
     }
   }

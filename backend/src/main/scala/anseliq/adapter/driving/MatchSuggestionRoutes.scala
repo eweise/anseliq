@@ -26,7 +26,9 @@ class MatchSuggestionRoutes(
       write(
         matchSuggestionService
           .ruleProposals(UUID.fromString(id))
-          .map(p => RuleProposalPayload(p.rule, RuleMatch(p.rule, "").condition, p.acceptedSuggestions, p.unmatchedPairs))
+          .map(p =>
+            RuleProposalPayload(p.rule, RuleMatch(p.rule, "").condition, p.acceptedSuggestions, p.unmatchedPairs)
+          )
       )
 
   @cask.route(s"${HttpPath.matchSuggestion}/:id/accept", methods = HttpCmd.POST)

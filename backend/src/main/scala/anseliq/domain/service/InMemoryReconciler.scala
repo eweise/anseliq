@@ -74,21 +74,22 @@ object InMemoryReconciler:
       candidates.foldLeft[Either[String, Seq[Rule]]](Right(Seq.empty)): (acc, alternative) =>
         acc.flatMap: done =>
           leafMatchRules(alternative).flatMap: leaves =>
-            if leaves.isEmpty then Left("A reconciliation rule needs at least one condition") else Right(done :+ alternative)
+            if leaves.isEmpty then Left("A reconciliation rule needs at least one condition")
+            else Right(done :+ alternative)
 
 class InMemoryReconciler(
-  val bookkeeper:             Bookkeeper,
-  val movementRepo:       MovementRepo,
-  val reconSpecRepo:      ReconciliationSpecRepo,
-  val movementSpecRepo:   MovementSpecRepo,
-  val reconRepo:          ReconciliationRepo,
-  val ledgerRepo: LedgerRepo,
-  val eventStore:         EventStore,
-  val clock:              ClockService,
-  val transactor:         Transactor,
-  val jobRepo:            JobRepo,
-  val exceptionService:     ExceptionService,
-  val cursorDataSource:   DataSource
+  val bookkeeper:       Bookkeeper,
+  val movementRepo:     MovementRepo,
+  val reconSpecRepo:    ReconciliationSpecRepo,
+  val movementSpecRepo: MovementSpecRepo,
+  val reconRepo:        ReconciliationRepo,
+  val ledgerRepo:       LedgerRepo,
+  val eventStore:       EventStore,
+  val clock:            ClockService,
+  val transactor:       Transactor,
+  val jobRepo:          JobRepo,
+  val exceptionService: ExceptionService,
+  val cursorDataSource: DataSource
 ):
 
   private val pageSize = 10000
@@ -126,7 +127,9 @@ class InMemoryReconciler(
           // Each alternative of the spec's rule is its own pass, in order. A resumed job starts at
           // the pass its checkpoint was on and skips the ones before it.
           val alternatives =
-            InMemoryReconciler.alternatives(reconSpec.rule()).fold(msg => throw UnsupportedOperationException(msg), identity)
+            InMemoryReconciler
+              .alternatives(reconSpec.rule())
+              .fold(msg => throw UnsupportedOperationException(msg), identity)
           val startCheckpoint = checkpoints.getOrElse(reconSpec.id, ReconciliationCheckpoint())
           for (rule, alternative) <- alternatives.zipWithIndex if alternative >= startCheckpoint.alternative do
             val passStart =
@@ -136,12 +139,30 @@ class InMemoryReconciler(
               case OneToOne =>
                 logger.debug("processing OneToOne", kv("alternative", alternative))
                 Some(
-                  reconcileOneToOneStreaming(reconSpec, rule, accountId, passStart, batchSize, jobId, checkpoints, onBatchComplete)
+                  reconcileOneToOneStreaming(
+                    reconSpec,
+                    rule,
+                    accountId,
+                    passStart,
+                    batchSize,
+                    jobId,
+                    checkpoints,
+                    onBatchComplete
+                  )
                 )
               case OneToMany =>
                 completeOpenReconciliations(reconSpec, rule, accountId)
                 Some(
-                  reconcileOneToManyStreaming(reconSpec, rule, accountId, passStart, batchSize, jobId, checkpoints, onBatchComplete)
+                  reconcileOneToManyStreaming(
+                    reconSpec,
+                    rule,
+                    accountId,
+                    passStart,
+                    batchSize,
+                    jobId,
+                    checkpoints,
+                    onBatchComplete
+                  )
                 )
               case ManyToMany => None
             pass match
@@ -170,15 +191,15 @@ class InMemoryReconciler(
   /**
    * A OneToMany reconciliation lands InProgress when its balance is non-zero, since more of the
    * "many" side could still arrive (a different file, a delayed batch) and close the gap on its own
-   * — so no exception is raised when it first forms. Once it has sat InProgress past its reconSpec's
-   * agingLimit (the same field ReportingService's aging/overdue calculation uses), it's no longer
-   * "still waiting": it becomes Mismatched and gets an AmountMismatch exception, the same as a
-   * OneToOne pair that mismatches immediately. It isn't closed off, though —
+   * — so no exception is raised when it first forms. Once it has sat InProgress past its
+   * reconSpec's agingLimit (the same field ReportingService's aging/overdue calculation uses), it's
+   * no longer "still waiting": it becomes Mismatched and gets an AmountMismatch exception, the same
+   * as a OneToOne pair that mismatches immediately. It isn't closed off, though —
    * completeOpenReconciliations still tops up Mismatched OneToMany groups, so a late movement that
-   * closes the gap takes it to Final and auto-resolves the exception. Meant to be polled periodically
-   * per reconSpec, the same way Ingestor.checkForMissingFile is polled periodically per
-   * movementSpec. A no-op for every other relationship, since only OneToMany groups are ever left
-   * InProgress. Returns the number of reconciliations newly flagged.
+   * closes the gap takes it to Final and auto-resolves the exception. Meant to be polled
+   * periodically per reconSpec, the same way Ingestor.checkForMissingFile is polled periodically
+   * per movementSpec. A no-op for every other relationship, since only OneToMany groups are ever
+   * left InProgress. Returns the number of reconciliations newly flagged.
    */
   def raiseStaleMismatchExceptions(reconSpec: ReconciliationSpec): Txn[Int] =
     if reconSpec.relationship != OneToMany then 0

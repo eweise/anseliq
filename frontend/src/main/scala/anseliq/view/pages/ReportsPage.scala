@@ -13,16 +13,16 @@ import upickle.default.*
 object ReportsPage:
 
   case class State(
-    ledgers: Seq[LedgerPayload]          = Seq.empty,
-    summary:   Option[ReportsSummaryPayload] = None,
-    trend:     Option[TrendReportPayload]    = None
+    ledgers: Seq[LedgerPayload]            = Seq.empty,
+    summary: Option[ReportsSummaryPayload] = None,
+    trend:   Option[TrendReportPayload]    = None
   )
 
   def apply(): HtmlElement =
-    val state            = Var(State())
+    val state          = Var(State())
     val loadLedgersBus = EventBus[Unit]()
-    val loadSummaryBus   = EventBus[Option[String]]()
-    val loadTrendBus     = EventBus[Option[String]]()
+    val loadSummaryBus = EventBus[Option[String]]()
+    val loadTrendBus   = EventBus[Option[String]]()
 
     def loadLedgers() =
       ApiClient.get[Seq[LedgerPayload]](HttpPath.url(HttpPath.ledgers), SessionStore.token)
@@ -81,8 +81,8 @@ object ReportsPage:
   // ratio. Accounts with no movements at all are excluded from both the average and the chart —
   // there's nothing to rate yet, not a 0%.
   private def matchRateCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
-    val rated    = summary.matchRates.filter(_.matchRatePercent.isDefined)
-    val excluded = summary.matchRates.filterNot(_.matchRatePercent.isDefined)
+    val rated           = summary.matchRates.filter(_.matchRatePercent.isDefined)
+    val excluded        = summary.matchRates.filterNot(_.matchRatePercent.isDefined)
     val totalReconciled = rated.map(_.reconciledMovementCount).sum
     val totalMovements  = rated.map(_.totalMovementCount).sum
 

@@ -25,7 +25,11 @@ object ViewHelper:
   def primarySideName(movementSpecId: String, specs: Seq[MovementSpecPayload], accounts: Seq[AccountPayload]): String =
     sideName(specs.find(_.id.contains(movementSpecId)).map(_.outAccountId), accounts, "Primary")
 
-  def secondarySideName(movementSpecId: String, specs: Seq[MovementSpecPayload], accounts: Seq[AccountPayload]): String =
+  def secondarySideName(
+    movementSpecId: String,
+    specs:          Seq[MovementSpecPayload],
+    accounts:       Seq[AccountPayload]
+  ): String =
     sideName(specs.find(_.id.contains(movementSpecId)).map(_.inAccountId), accounts, "Secondary")
 
   private def sideName(accountId: Option[String], accounts: Seq[AccountPayload], role: String): String =

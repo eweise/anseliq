@@ -39,7 +39,8 @@ case class Reconciliation(
   var adjustmentReason: Option[String]         = None,
   var createdAt:        Option[OffsetDateTime] = None,
   var updatedAt:        Option[OffsetDateTime] = None
-) extends Audited derives DbCodec
+) extends Audited
+    derives DbCodec
 
 object Reconciliation:
   given DbCodec[AppliedRules] = upickleJsonBDbCodec[AppliedRules]

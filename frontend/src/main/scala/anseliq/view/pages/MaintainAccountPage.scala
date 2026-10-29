@@ -17,10 +17,10 @@ object MaintainAccountPage:
   // this still works if ever reached directly via its route (/components/accounts/:id/maintain).
   def apply(accountId: String, onClose: () => Unit = () => Nav.back()): HtmlElement =
     val ledger = AppState.activeLedger.now()
-    val ffId     = ledger.flatMap(_.id).getOrElse("")
+    val ffId   = ledger.flatMap(_.id).getOrElse("")
     val initial = AccountPayload(
       id          = if accountId == "new" then None else Some(accountId),
-      ledgerId  = ffId,
+      ledgerId    = ffId,
       accountType = AccountTypePayload.Primary
     )
     val account        = Var(initial)

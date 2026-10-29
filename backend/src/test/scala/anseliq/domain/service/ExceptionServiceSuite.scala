@@ -37,8 +37,8 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("raise on a Movement creates a New exception"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -55,7 +55,10 @@ class ExceptionServiceSuite extends munit.FunSuite:
         assertEquals(exception.category, ExceptionCategory.MissingCounterpart)
         assertEquals(exception.detail, Some("no match found"))
         assertEquals(exception.status, ExceptionStatus.New)
-        assert(exception.createdAt.isDefined, "createdAt must be set on the returned exception, not just the persisted row")
+        assert(
+          exception.createdAt.isDefined,
+          "createdAt must be set on the returned exception, not just the persisted row"
+        )
 
         val persisted = data.exceptionRepo.findById(exception.id).get
         assertEquals(persisted.referenceId, movement.id)
@@ -66,7 +69,7 @@ class ExceptionServiceSuite extends munit.FunSuite:
         val data             = DataSetup(app)
         given DataSetup      = data
         val manualReconciler = app.manualReconciler
-        val exceptionService   = app.exceptionService
+        val exceptionService = app.exceptionService
 
         // Balanced, so matchMovements leaves it Final without raising its own AmountMismatch
         // exception — an unbalanced match would already have one open, and this would conflict.
@@ -75,7 +78,8 @@ class ExceptionServiceSuite extends munit.FunSuite:
         val recon =
           manualReconciler.matchMovements(data.reconSpec.id, Seq(inMovement.id), Seq(outMovement.id), "match")
 
-        val exception = exceptionService.raise(recon.id, ExceptionTarget.Reconciliation, ExceptionCategory.AmountMismatch, None)
+        val exception =
+          exceptionService.raise(recon.id, ExceptionTarget.Reconciliation, ExceptionCategory.AmountMismatch, None)
 
         assertEquals(exception.referenceId, recon.id)
         assertEquals(exception.targetType, ExceptionTarget.Reconciliation)
@@ -85,8 +89,8 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("raise rejects a category that isn't valid for the given target"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         val movement = createMovement(data.journalToRecon, 100)
@@ -99,18 +103,23 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("raise on a nonexistent Movement errors"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         intercept[NotFoundError]:
-          exceptionService.raise(java.util.UUID.randomUUID(), ExceptionTarget.Movement, ExceptionCategory.DataQuality, None)
+          exceptionService.raise(
+            java.util.UUID.randomUUID(),
+            ExceptionTarget.Movement,
+            ExceptionCategory.DataQuality,
+            None
+          )
 
   test("raise on a nonexistent Reconciliation errors"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         intercept[NotFoundError]:
@@ -124,12 +133,12 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment to Resolved without a body errors"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         intercept[IllegalArgumentError]:
           exceptionService.addComment(exception.id, None, Some(ExceptionStatus.Resolved))
@@ -137,12 +146,12 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment to Resolved with a body succeeds and updates the exception's status"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         val comment = exceptionService.addComment(
           exception.id,
@@ -159,12 +168,12 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment to a non-Resolved status does not require a body"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         val comment = exceptionService.addComment(exception.id, None, Some(ExceptionStatus.Investigating))
 
@@ -177,12 +186,12 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment can reopen a Resolved exception"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
         exceptionService.addComment(exception.id, Some("thought this was done"), Some(ExceptionStatus.Resolved))
 
         exceptionService.addComment(exception.id, None, Some(ExceptionStatus.Investigating))
@@ -193,12 +202,12 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment with no status change requires a body"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         intercept[IllegalArgumentError]:
           exceptionService.addComment(exception.id, None, None)
@@ -206,12 +215,12 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment with no status change and a body just adds a comment, leaving status unchanged"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         val comment = exceptionService.addComment(exception.id, Some("still looking into this"), None)
 
@@ -224,12 +233,12 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("comments are returned in chronological order"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         exceptionService.addComment(exception.id, Some("first"), None)
         exceptionService.addComment(exception.id, Some("second"), Some(ExceptionStatus.Investigating))
@@ -241,8 +250,8 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("raise with raisedByUserId persists the actor who raised it"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         val user     = testUser()
@@ -263,25 +272,25 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("raise with no raisedByUserId leaves it unset (system-raised)"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         assertEquals(exception.raisedByUserId, None)
 
   test("addComment with newAssignedToUserId sets assignedToUserId, bumps updatedAt, and logs it on the thread"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         val user              = testUser()
         val movement          = createMovement(data.journalToRecon, 100)
-        val exception           = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val exception         = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
         val originalUpdatedAt = exception.updatedAt
 
         app.clock.addHours(1)
@@ -297,13 +306,13 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment can assign with a message in the same entry"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val user     = testUser()
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val user      = testUser()
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         val comment = exceptionService.addComment(
           exception.id,
@@ -318,16 +327,21 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment rejects assigning an exception to a Viewer"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val viewer   = testUser(role = UserRole.Viewer)
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val viewer    = testUser(role = UserRole.Viewer)
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         intercept[IllegalArgumentError]:
-          exceptionService.addComment(exception.id, body = None, newStatus = None, newAssignedToUserId = Some(viewer.id))
+          exceptionService.addComment(
+            exception.id,
+            body                = None,
+            newStatus           = None,
+            newAssignedToUserId = Some(viewer.id)
+          )
 
         val persisted = data.exceptionRepo.findById(exception.id).get
         assertEquals(persisted.assignedToUserId, None)
@@ -335,8 +349,8 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment with newAssignedToUserId on a non-existent exception throws NotFoundError"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         val user = testUser()
@@ -356,7 +370,7 @@ class ExceptionServiceSuite extends munit.FunSuite:
         val data             = DataSetup(app)
         given DataSetup      = data
         val manualReconciler = app.manualReconciler
-        val exceptionService   = app.exceptionService
+        val exceptionService = app.exceptionService
 
         val inMovement  = createMovement(data.journalToRecon, 300)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -380,7 +394,7 @@ class ExceptionServiceSuite extends munit.FunSuite:
         val data             = DataSetup(app)
         given DataSetup      = data
         val manualReconciler = app.manualReconciler
-        val exceptionService   = app.exceptionService
+        val exceptionService = app.exceptionService
 
         val inMovement  = createMovement(data.journalToRecon, 300)
         val outMovement = createMovement(data.reportToRecon, 100)
@@ -401,13 +415,13 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment rejects assigning a resolved exception, but allows assigning in the entry that reopens it"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val user     = testUser()
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val user      = testUser()
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
         exceptionService.addComment(exception.id, Some("not a duplicate"), Some(ExceptionStatus.Resolved))
 
         intercept[IllegalArgumentError]:
@@ -422,13 +436,13 @@ class ExceptionServiceSuite extends munit.FunSuite:
   test("addComment rejects resolving and assigning in the same entry"):
     transact(app.transactor):
       rollBackOnly:
-        val data           = DataSetup(app)
-        given DataSetup    = data
+        val data             = DataSetup(app)
+        given DataSetup      = data
         val exceptionService = app.exceptionService
 
-        val user     = testUser()
-        val movement = createMovement(data.journalToRecon, 100)
-        val exception  = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
+        val user      = testUser()
+        val movement  = createMovement(data.journalToRecon, 100)
+        val exception = exceptionService.raise(movement.id, ExceptionTarget.Movement, ExceptionCategory.Duplicate, None)
 
         intercept[IllegalArgumentError]:
           exceptionService.addComment(exception.id, Some("done"), Some(ExceptionStatus.Resolved), Some(user.id))

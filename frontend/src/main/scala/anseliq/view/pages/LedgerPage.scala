@@ -16,7 +16,7 @@ import scala.collection.mutable
 
 object LedgerPage:
 
-  private val tabs = Set("Overview", "Reconciliations", "Movements", "Setup")
+  private val tabs      = Set("Overview", "Reconciliations", "Movements", "Setup")
   private val boxW      = 140
   private val boxH      = 52
   private val colGap    = 100
@@ -31,9 +31,9 @@ object LedgerPage:
       case Some(ff) => renderPage(ff)
 
   private def renderPage(ff: LedgerPayload): HtmlElement =
-    val ffId      = ff.id.getOrElse("")
-    val ffVar     = Var(ff)
-    val state     = Var(State())
+    val ffId        = ff.id.getOrElse("")
+    val ffVar       = Var(ff)
+    val state       = Var(State())
     val activeTab   = Var(tabFromUrl())
     val reconStatus = Var(statusFromUrl())
     val selectTab = (tab: String) =>
@@ -54,12 +54,14 @@ object LedgerPage:
     val manualMatchBus    = EventBus[AccountPayload]()
     val deleteSpecBus     = EventBus[MovementSpecPayload]()
     val reconcileBus      = EventBus[String]()
-    val saveLedgerBus   = EventBus[Unit]()
+    val saveLedgerBus     = EventBus[Unit]()
     // Fired when the account/movement-spec modal closes, to pick up whatever it just created or
     // edited — re-fetches both lists since either could have changed either way.
     val refreshBus = EventBus[Unit]()
     val closeModal = () => {
-      state.update(_.copy(editingAccountId = None, editingMovementSpec = None, editingReconSpec = None, ingesting = false))
+      state.update(
+        _.copy(editingAccountId = None, editingMovementSpec = None, editingReconSpec = None, ingesting = false)
+      )
       refreshBus.emit(())
     }
 
@@ -115,9 +117,11 @@ object LedgerPage:
           .orElse(s.editingMovementSpec.map { case (out, in, id) =>
             Modal(closeModal, MaintainMovementSpecPage(out, in, id, closeModal))
           })
-          .orElse(s.editingReconSpec.map((accountId, specId) =>
-            Modal(closeModal, MaintainReconSpecPage(accountId, specId, closeModal))
-          ))
+          .orElse(
+            s.editingReconSpec.map((accountId, specId) =>
+              Modal(closeModal, MaintainReconSpecPage(accountId, specId, closeModal))
+            )
+          )
           .orElse(Option.when(s.ingesting)(Modal(closeModal, IngestDialog(s.movementSpecs, closeModal))))
       },
       configureReconBus.events.flatMapSwitch { account =>
@@ -205,29 +209,31 @@ object LedgerPage:
           case "Setup" =>
             div(
               cls := "flex flex-col gap-6",
-              Option.when(SessionStore.canEdit)(div(
-                cls := s"${Card.cls} p-6",
-                h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Ledger Settings"),
+              Option.when(SessionStore.canEdit)(
                 div(
-                  // items-center rather than items-end: Form.field/numberField each carry their
-                  // own mb-5, but the Save button doesn't, so end-aligning would visibly offset
-                  // the button below the inputs instead of lining up with them.
-                  cls := "flex items-center gap-4 flex-wrap",
+                  cls := s"${Card.cls} p-6",
+                  h3(cls := "font-medium mb-4 text-md-on-surface dark:text-white", "Ledger Settings"),
                   div(
-                    cls := "flex-1 max-w-sm",
-                    Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v)))
-                  ),
-                  Form.numberField(
-                    "ffDailyCutoffHours",
-                    "Cutoff Hour (0-23)",
-                    ff.dailyCutoffHours,
-                    0,
-                    23,
-                    v => ffVar.update(_.copy(dailyCutoffHours = v))
-                  ),
-                  Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveLedgerBus.emit(())))
+                    // items-center rather than items-end: Form.field/numberField each carry their
+                    // own mb-5, but the Save button doesn't, so end-aligning would visibly offset
+                    // the button below the inputs instead of lining up with them.
+                    cls := "flex items-center gap-4 flex-wrap",
+                    div(
+                      cls := "flex-1 max-w-sm",
+                      Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v)))
+                    ),
+                    Form.numberField(
+                      "ffDailyCutoffHours",
+                      "Cutoff Hour (0-23)",
+                      ff.dailyCutoffHours,
+                      0,
+                      23,
+                      v => ffVar.update(_.copy(dailyCutoffHours = v))
+                    ),
+                    Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveLedgerBus.emit(())))
+                  )
                 )
-              )),
+              ),
               child <-- state.signal.map(_.accounts.filter(_.accountType == AccountTypePayload.Recon)).distinct.map {
                 reconAccounts => reconRulesCard(reconAccounts, configureReconBus)
               },
@@ -236,14 +242,16 @@ object LedgerPage:
                 div(
                   cls := "flex items-center justify-between mb-4",
                   h3(cls := "font-medium text-md-on-surface dark:text-white", "Accounts"),
-                  Option.when(SessionStore.canEdit)(Buttons.linkButton(
-                    "New Account",
-                    Observer[Unit](_ =>
-                      state.update(
-                        _.copy(selectedAccount = None, selectedMovementSpec = None, editingAccountId = Some("new"))
+                  Option.when(SessionStore.canEdit)(
+                    Buttons.linkButton(
+                      "New Account",
+                      Observer[Unit](_ =>
+                        state.update(
+                          _.copy(selectedAccount = None, selectedMovementSpec = None, editingAccountId = Some("new"))
+                        )
                       )
                     )
-                  ))
+                  )
                 ),
                 child <-- state.signal.map { s =>
                   if s.accounts.isEmpty then div(cls := "text-gray-500 dark:text-gray-400 text-sm", "No accounts")
@@ -293,7 +301,7 @@ object LedgerPage:
               }
             )
           case "Movements" => searchMovementsTab(ffId, state)
-          case _        => div()
+          case _           => div()
         }
       )
     )
@@ -302,12 +310,11 @@ object LedgerPage:
   // re-renders a route when its matched path changes, not its query string, so changing tabs keeps
   // this page (and its State) mounted.
   private def tabFromUrl(): String =
-    Option(new org.scalajs.dom.URLSearchParams(org.scalajs.dom.window.location.search).get("tab"))
-      .map {
-        case "Search"        => "Movements" // the tabs' earlier names, so old links still land
-        case "Configuration" => "Setup"
-        case other           => other
-      }
+    Option(new org.scalajs.dom.URLSearchParams(org.scalajs.dom.window.location.search).get("tab")).map {
+      case "Search"        => "Movements" // the tabs' earlier names, so old links still land
+      case "Configuration" => "Setup"
+      case other           => other
+    }
       .filter(tabs.contains)
       .getOrElse("Overview")
 
@@ -453,7 +460,12 @@ object LedgerPage:
             Buttons.linkButton(
               "Run reconciliation",
               Observer[Unit](_ =>
-                state.now().accounts.filter(_.accountType == AccountTypePayload.Recon).flatMap(_.id).foreach(reconcileBus.emit)
+                state
+                  .now()
+                  .accounts
+                  .filter(_.accountType == AccountTypePayload.Recon)
+                  .flatMap(_.id)
+                  .foreach(reconcileBus.emit)
               )
             )
         },
@@ -467,18 +479,25 @@ object LedgerPage:
     val failures = statuses.values.collect { case ReconcileStatus.Failed(msg) => msg }
     val text =
       if statuses.values.exists(_ == ReconcileStatus.InProgress) then Some("Reconciling…" -> Form.mutedTextCls)
-      else if failures.nonEmpty then Some(s"Reconciliation failed: ${failures.head}" -> "text-md-critical dark:text-md-critical-dark")
+      else if failures.nonEmpty then
+        Some(s"Reconciliation failed: ${failures.head}" -> "text-md-critical dark:text-md-critical-dark")
       else if statuses.nonEmpty then Some("Reconciled just now" -> "text-md-good dark:text-md-good-dark")
       else None
     text.map((t, tone) => span(cls := s"text-sm $tone mr-2", t)).getOrElse(span())
 
   // One row per recon account: its rule at a glance, with Edit opening the rule form in a Modal.
-  private def reconRulesCard(reconAccounts: Seq[AccountPayload], configureReconBus: EventBus[AccountPayload]): HtmlElement =
+  private def reconRulesCard(
+    reconAccounts:     Seq[AccountPayload],
+    configureReconBus: EventBus[AccountPayload]
+  ): HtmlElement =
     div(
       cls := s"${Card.cls} p-6 flex flex-col gap-4",
       h3(cls := "font-medium text-md-on-surface dark:text-white", "Reconciliation rules"),
       if reconAccounts.isEmpty then
-        p(cls := s"text-sm ${Form.mutedTextCls}", "Add a Recon account below, then set up how its movements are matched.")
+        p(
+          cls := s"text-sm ${Form.mutedTextCls}",
+          "Add a Recon account below, then set up how its movements are matched."
+        )
       else
         div(
           cls := "flex flex-col divide-y divide-md-outline-variant dark:divide-gray-700",
@@ -507,7 +526,8 @@ object LedgerPage:
               ),
               child <-- specs.signal.map { ss =>
                 val label = if ss.exists(_.nonEmpty) then "Edit rule" else "Set up"
-                if SessionStore.canEdit then Buttons.textButton(label, Observer[Unit](_ => configureReconBus.emit(account)))
+                if SessionStore.canEdit then
+                  Buttons.textButton(label, Observer[Unit](_ => configureReconBus.emit(account)))
                 else emptyNode
               }
             )
@@ -560,7 +580,7 @@ object LedgerPage:
       EventStream.merge(autoSearchTrigger, searchBus.events).flatMapSwitch { _ =>
         val s = searchVar.now()
         val req = MovementSearchRequest(
-          ledgerId      = ffId,
+          ledgerId        = ffId,
           accountId       = Option(s.accountId).filter(_.nonEmpty),
           amount          = scala.util.Try(BigDecimal(s.amount)).toOption,
           movementSpecId  = Option(s.movementSpecId).filter(_.nonEmpty),
@@ -569,9 +589,10 @@ object LedgerPage:
           reconciliation  = s.reconciliation,
           createdFrom     = parseDateStart(s.createdFrom),
           createdTo       = parseDateEndExclusive(s.createdTo),
-          movementType   = Option(s.movementType).filter(_.nonEmpty),
+          movementType    = Option(s.movementType).filter(_.nonEmpty),
           adjustmentType =
-            if s.movementType == "ManualAdjustment" then AdjustmentTypePayload.values.find(_.toString == s.adjustmentType)
+            if s.movementType == "ManualAdjustment" then
+              AdjustmentTypePayload.values.find(_.toString == s.adjustmentType)
             else None
         )
         ApiClient.post[Seq[MovementSearchResultPayload], MovementSearchRequest](
@@ -815,16 +836,19 @@ object LedgerPage:
     val svgHtml = buildSvg(s.accounts, s.movementSpecs, posOf)
 
     // Every item on an account's menu changes something, so a Viewer's account boxes don't open one.
-    val accountOverlays = if !SessionStore.canEdit then Seq.empty else s.accounts.flatMap { acc =>
-      acc.id.flatMap { id =>
-        posOf.get(id).map { (x, y) =>
-          div(
-            styleAttr := s"position:absolute;left:${x}px;top:${y}px;width:${boxW}px;height:${boxH}px;cursor:pointer;z-index:20",
-            onClick --> (_ => state.update(_.copy(selectedAccount = Some(acc), selectedMovementSpec = None)))
-          )
+    val accountOverlays =
+      if !SessionStore.canEdit then Seq.empty
+      else
+        s.accounts.flatMap { acc =>
+          acc.id.flatMap { id =>
+            posOf.get(id).map { (x, y) =>
+              div(
+                styleAttr := s"position:absolute;left:${x}px;top:${y}px;width:${boxW}px;height:${boxH}px;cursor:pointer;z-index:20",
+                onClick --> (_ => state.update(_.copy(selectedAccount = Some(acc), selectedMovementSpec = None)))
+              )
+            }
+          }
         }
-      }
-    }
 
     val arrowOverlays = s.movementSpecs.flatMap { ms =>
       for {
@@ -982,18 +1006,20 @@ object LedgerPage:
   ): HtmlElement =
     div(
       styleAttr := s"position:absolute;left:${x}px;top:${y}px;z-index:30;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);min-width:160px;overflow:hidden",
-      Option.when(SessionStore.canEdit)(button(
-        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
-        onClick --> { _ =>
-          state.update(
-            _.copy(
-              selectedMovementSpec = None,
-              editingMovementSpec  = Some((spec.outAccountId, spec.inAccountId, spec.id.getOrElse("new")))
+      Option.when(SessionStore.canEdit)(
+        button(
+          cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
+          onClick --> { _ =>
+            state.update(
+              _.copy(
+                selectedMovementSpec = None,
+                editingMovementSpec  = Some((spec.outAccountId, spec.inAccountId, spec.id.getOrElse("new")))
+              )
             )
-          )
-        },
-        "Edit Relationship"
-      )),
+          },
+          "Edit Relationship"
+        )
+      ),
       button(
         cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700",
         onClick --> { _ =>
@@ -1002,14 +1028,16 @@ object LedgerPage:
         },
         "Test Parser"
       ),
-      Option.when(SessionStore.canEdit)(button(
-        cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600",
-        onClick --> { _ =>
-          state.update(_.copy(selectedMovementSpec = None))
-          deleteSpecBus.emit(spec)
-        },
-        "Delete"
-      ))
+      Option.when(SessionStore.canEdit)(
+        button(
+          cls := "block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600",
+          onClick --> { _ =>
+            state.update(_.copy(selectedMovementSpec = None))
+            deleteSpecBus.emit(spec)
+          },
+          "Delete"
+        )
+      )
     )
 
   private def buildSvg(

@@ -21,7 +21,8 @@ case class FileFeed(
   maxParseErrors: Option[Int]            = None,
   var createdAt:  Option[OffsetDateTime] = None,
   var updatedAt:  Option[OffsetDateTime] = None
-) extends Audited derives DbCodec:
+) extends Audited
+    derives DbCodec:
   def dataSourceConfig(): DataSourceConfig = upickle.read(dataSourceJson)
 
 object FileFeed:

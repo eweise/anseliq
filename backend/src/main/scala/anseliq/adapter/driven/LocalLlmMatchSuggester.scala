@@ -14,9 +14,9 @@ import java.time.Duration
 import scala.util.Try
 
 /**
- * A MatchSuggester backed by a model served on the install's own hardware, through the
- * OpenAI-style chat completions API that Ollama, llama.cpp's server and vLLM all serve. Nothing
- * leaves the network as long as baseUrl points inside it.
+ * A MatchSuggester backed by a model served on the install's own hardware, through the OpenAI-style
+ * chat completions API that Ollama, llama.cpp's server and vLLM all serve. Nothing leaves the
+ * network as long as baseUrl points inside it.
  *
  * The candidates go to the model numbered 1..n rather than by id, since a small model copies a
  * short number far more reliably than a UUID, and the server is asked to hold the answer to
@@ -44,7 +44,7 @@ class LocalLlmMatchSuggester(baseUrl: String, val model: String, timeout: Durati
       "temperature" -> 0,
       "messages" -> ujson.Arr(
         ujson.Obj("role" -> "system", "content" -> SystemPrompt),
-        ujson.Obj("role" -> "user", "content" -> userMessage(request))
+        ujson.Obj("role" -> "user", "content"   -> userMessage(request))
       ),
       "response_format" -> ujson.Obj(
         "type"        -> "json_schema",
@@ -156,9 +156,12 @@ object LocalLlmMatchSuggester:
     if context.pastMatches.nonEmpty then message("past_matches") = ujson.Arr.from(context.pastMatches.map(describe))
     if context.pastNonMatches.nonEmpty then
       message("past_non_matches") = ujson.Arr.from(context.pastNonMatches.map(describe))
-    message.render(indent = 2)
+    message.render(indent         = 2)
 
-  /** The model's answer as a proposal, or None for null, an out-of-range number, or unparseable JSON. */
+  /**
+   * The model's answer as a proposal, or None for null, an out-of-range number, or unparseable
+   * JSON.
+   */
   def parseAnswer(content: String, request: MatchRequest): Option[ProposedMatch] =
     // Some models wrap JSON in a ```json fence even when asked not to.
     val json = content.trim.stripPrefix("```json").stripPrefix("```").stripSuffix("```").trim
@@ -190,9 +193,9 @@ object LocalLlmMatchSuggester:
             case _ => None
         Option.when(parsed.forall(_.isDefined))(parsed.flatten)
     def modifier(list: List[StringModifier]): Option[StringModifier] = list match
-      case Nil         => None
-      case one :: Nil  => Some(one)
-      case many        => Some(Chain(many))
+      case Nil        => None
+      case one :: Nil => Some(one)
+      case many       => Some(Chain(many))
     for
       e              <- Option(explanation).filterNot(_.isNull).flatMap(v => Try(v.obj).toOption)
       movementField  <- e.get("movement_field").flatMap(_.strOpt).filter(_.nonEmpty)

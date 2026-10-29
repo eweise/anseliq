@@ -38,19 +38,19 @@ class DataSetup(val app: AppContainer)(using dbTx: DbTx) {
   val props = Map("key1" -> "value1", "key2" -> "value2")
   val reconAccount = Account(
     name        = reconAccountName,
-    ledgerId  = ledger.id,
+    ledgerId    = ledger.id,
     accountType = AccountType.Recon,
     properties  = JSONBProps(props)
   )
   val journalAccount = Account(
     name        = journalAccountName,
-    ledgerId  = ledger.id,
+    ledgerId    = ledger.id,
     accountType = AccountType.Primary,
     properties  = JSONBProps(props)
   )
   val reportAccount = Account(
     name        = reportAccountName,
-    ledgerId  = ledger.id,
+    ledgerId    = ledger.id,
     accountType = AccountType.Secondary,
     properties  = JSONBProps(props)
   )

@@ -30,7 +30,16 @@ class SeedHappyPathDemo extends munit.FunSuite with StrictLogging:
     val reachable = Try(
       HttpClient
         .newHttpClient()
-        .send(HttpRequest.newBuilder(URI.create(s"${baseUrl.stripSuffix("/")}/models")).timeout(Duration.ofSeconds(5)).build(), BodyHandlers.discarding())
+        .send(
+          HttpRequest
+            .newBuilder(URI.create(s"${baseUrl.stripSuffix("/")}/models"))
+            .timeout(Duration.ofSeconds(5))
+            .build(),
+          BodyHandlers.discarding()
+        )
         .statusCode() == 200
     ).getOrElse(false)
-    assert(reachable, s"no model server at $baseUrl: start it first (e.g. `ollama serve`, then `ollama pull qwen2.5:7b`)")
+    assert(
+      reachable,
+      s"no model server at $baseUrl: start it first (e.g. `ollama serve`, then `ollama pull qwen2.5:7b`)"
+    )

@@ -15,7 +15,7 @@ enum MatchSuggestionStatus derives DbCodec:
 // the recon spec's rule left unmatched. Only ever a suggestion: a person accepts or rejects it.
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class MatchSuggestion(
-  @Id id:                   ID                     = createID(),
+  @Id id:                   ID = createID(),
   reconSpecId:              ID,
   movementId:               ID,
   suggestedMovementIdsJson: String,
@@ -23,15 +23,16 @@ case class MatchSuggestion(
   rationale:                String,
   // The suggester's explanation as a RuleMatch (rule and the value both sides reduce to), stored
   // only once it's been checked against the movements.
-  explanationJson:          Option[String]         = None,
-  model:                    String,
-  promptVersion:            String,
-  var status:               MatchSuggestionStatus  = MatchSuggestionStatus.Pending,
+  explanationJson: Option[String]        = None,
+  model:           String,
+  promptVersion:   String,
+  var status:      MatchSuggestionStatus = MatchSuggestionStatus.Pending,
   // Who accepted or rejected it; None while pending.
-  var reviewedByUserId:     Option[ID]             = None,
-  var createdAt:            Option[OffsetDateTime] = None,
-  var updatedAt:            Option[OffsetDateTime] = None
-) extends Audited derives DbCodec:
+  var reviewedByUserId: Option[ID]             = None,
+  var createdAt:        Option[OffsetDateTime] = None,
+  var updatedAt:        Option[OffsetDateTime] = None
+) extends Audited
+    derives DbCodec:
   def suggestedMovementIds: Seq[ID]           = upickle.read[Seq[UUID]](suggestedMovementIdsJson)
   def explanation:          Option[RuleMatch] = explanationJson.map(upickle.read[RuleMatch](_))
 

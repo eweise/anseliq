@@ -46,7 +46,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         data.accountRepo.update(data.reconAccount.copy(balance = 300, reconciledBalance = 100))
         val zeroBalance = Account(
           name        = "zero-balance-recon",
-          ledgerId  = data.ledger.id,
+          ledgerId    = data.ledger.id,
           accountType = AccountType.Recon
         )
         data.accountRepo.insert(zeroBalance)
@@ -233,7 +233,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         data.ledgerRepo.insert(otherLedger)
         val otherAccount = Account(
           name              = "other-recon",
-          ledgerId        = otherLedger.id,
+          ledgerId          = otherLedger.id,
           accountType       = AccountType.Recon,
           balance           = 200,
           reconciledBalance = 200
@@ -268,7 +268,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        ledgerId                = createID(),
+        ledgerId                  = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(90)),
         ratedAccountCount         = 3,
@@ -280,7 +280,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         totalMovementCount        = 10
       ),
       DailySnapshot(
-        ledgerId                = createID(),
+        ledgerId                  = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(50)),
         ratedAccountCount         = 1,
@@ -308,12 +308,12 @@ class ReportingServiceSuite extends munit.FunSuite:
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        ledgerId               = createID(),
+        ledgerId                 = createID(),
         snapshotDate             = date,
         exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 2, "FileMissing" -> 1))
       ),
       DailySnapshot(
-        ledgerId               = createID(),
+        ledgerId                 = createID(),
         snapshotDate             = date,
         exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 3, "Duplicate" -> 1))
       )
@@ -333,13 +333,13 @@ class ReportingServiceSuite extends munit.FunSuite:
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        ledgerId                = createID(),
+        ledgerId                  = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(80)),
         ratedAccountCount         = 2
       ),
       DailySnapshot(
-        ledgerId                = createID(),
+        ledgerId                  = createID(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = None,
         ratedAccountCount         = 0

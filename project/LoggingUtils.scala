@@ -4,8 +4,8 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 /**
- * Shared logging utilities for development environment tools.
- * Provides consistent boxed message formatting across CLI and code watcher components.
+ * Shared logging utilities for development environment tools. Provides consistent boxed message
+ * formatting across CLI and code watcher components.
  */
 object LoggingUtils {
 

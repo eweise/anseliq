@@ -15,16 +15,15 @@ import anseliq.view.pages.ReconciliationDetailPage
 import upickle.default.*
 
 /**
- * Everything a person can do to one reconciliation, driven by its status. The reconciliation
- * detail page's action bar and the exception page's subject card both render this, so resolving a
- * mismatch works the same from either place:
+ * Everything a person can do to one reconciliation, driven by its status. The reconciliation detail
+ * page's action bar and the exception page's subject card both render this, so resolving a mismatch
+ * works the same from either place:
  *   - Mismatched / InProgress: Write off… and Unmatch
  *   - Final: Unmatch; or, for a written-off one, Reverse write-off (admins only — see
  *     ManualReconciler.reverseWriteOff), which puts it back to Mismatched
  *   - Voided / Reversed: nothing; a short note says why
- * Viewers get the note but none of the actions.
- * Each action opens an inline panel to confirm, since each changes the ledger.
- * `onChanged` fires after either succeeds so the host page can reload.
+ * Viewers get the note but none of the actions. Each action opens an inline panel to confirm, since
+ * each changes the ledger. `onChanged` fires after either succeeds so the host page can reload.
  */
 object ReconciliationActions:
 
@@ -47,19 +46,23 @@ object ReconciliationActions:
     val panel       = Var(Panel.Closed)
     val writeOffBus = EventBus[(String, String)]() // (movement id, reason)
     val unmatchBus  = EventBus[Unit]()
-    val reverseBus  = EventBus[String]() // reason
+    val reverseBus  = EventBus[String]()           // reason
     val writtenOff  = r.adjustmentReason.exists(_.nonEmpty)
     val isAdmin     = SessionStore.currentUserNow.exists(_.role == "Admin")
 
     val (offered, hint): (Seq[(String, Panel)], Option[String]) = r.status match
       case "Mismatched" =>
         Seq("Write off…" -> Panel.WriteOff, "Unmatch" -> Panel.Unmatch) ->
-          Some("Nothing else will join this match. Write off the difference, or unmatch to match these movements differently.")
+          Some(
+            "Nothing else will join this match. Write off the difference, or unmatch to match these movements differently."
+          )
       case "InProgress" =>
         Seq("Write off…" -> Panel.WriteOff, "Unmatch" -> Panel.Unmatch) ->
           Some(
             "Waiting for more movements to complete the group." +
-              agingLimit.fold("")(d => s" It's flagged as Mismatched if still unbalanced after $d day${if d == 1 then "" else "s"}.")
+              agingLimit.fold("")(d =>
+                s" It's flagged as Mismatched if still unbalanced after $d day${if d == 1 then "" else "s"}."
+              )
           )
       // A write-off is a deliberate ledger entry, so it isn't undone by a plain Unmatch: an admin
       // reverses it, which puts the reconciliation back to Mismatched (and from there it can be
@@ -68,7 +71,9 @@ object ReconciliationActions:
         val reason = r.adjustmentReason.getOrElse("")
         if isAdmin then
           Seq("Reverse write-off…" -> Panel.ReverseWriteOff) ->
-            Some(s"Written off ($reason). Reversing it posts a correcting entry and puts this reconciliation back to Mismatched.")
+            Some(
+              s"Written off ($reason). Reversing it posts a correcting entry and puts this reconciliation back to Mismatched."
+            )
         else Seq.empty -> Some(s"Written off ($reason). Only an admin can reverse a write-off.")
       case "Final" => Seq("Unmatch" -> Panel.Unmatch) -> None
       case "Voided" =>
@@ -119,11 +124,12 @@ object ReconciliationActions:
                 "text-md-primary border border-md-primary rounded-full px-5 py-2 text-sm font-medium tracking-wide hover:bg-md-primary-container dark:hover:bg-md-primary-container-dark"
             button(typ := "button", cls := styled, onClick.mapTo(target) --> panel.writer, label)
           }
-        ),
+        )
+      ,
       hint.map(h => p(cls := s"text-sm ${Form.mutedTextCls} max-w-2xl", h)).getOrElse(emptyNode),
       child <-- panel.signal.map {
-        case Panel.Closed   => emptyNode
-        case Panel.WriteOff => writeOffPanel(r, movements, writeOffBus, panel)
+        case Panel.Closed          => emptyNode
+        case Panel.WriteOff        => writeOffPanel(r, movements, writeOffBus, panel)
         case Panel.Unmatch         => unmatchPanel(movements, unmatchBus, panel)
         case Panel.ReverseWriteOff => reverseWriteOffPanel(r, reverseBus, panel)
       }
@@ -147,7 +153,11 @@ object ReconciliationActions:
         cls := s"text-sm ${Form.mutedTextCls}",
         "Posts the difference as an adjustment against the movement you choose, then closes this reconciliation as Final."
       ),
-      label(forId := s"wo-movement-${r.id}", cls := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400", "Post against"),
+      label(
+        forId := s"wo-movement-${r.id}",
+        cls   := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400",
+        "Post against"
+      ),
       select(
         idAttr := s"wo-movement-${r.id}",
         cls    := controlCls,
@@ -155,7 +165,11 @@ object ReconciliationActions:
         option(value := "", "Choose a movement…"),
         movements.map(m => option(value := m.id, ReconciliationDetailPage.movementChoiceLabel(m)))
       ),
-      label(forId := s"wo-reason-${r.id}", cls := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400", "Reason"),
+      label(
+        forId := s"wo-reason-${r.id}",
+        cls   := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400",
+        "Reason"
+      ),
       input(
         idAttr      := s"wo-reason-${r.id}",
         typ         := "text",
@@ -168,7 +182,9 @@ object ReconciliationActions:
         button(
           typ := "button",
           cls := "bg-md-primary text-md-on-primary rounded-full px-5 py-2 text-sm font-medium tracking-wide disabled:opacity-40 disabled:pointer-events-none",
-          disabled <-- movementVar.signal.combineWith(reasonVar.signal).map((m, reason) => m.isEmpty || reason.trim.isEmpty),
+          disabled <-- movementVar.signal
+            .combineWith(reasonVar.signal)
+            .map((m, reason) => m.isEmpty || reason.trim.isEmpty),
           onClick.mapToUnit --> Observer[Unit](_ => writeOffBus.emit((movementVar.now(), reasonVar.now().trim))),
           "Write off"
         ),
@@ -197,7 +213,11 @@ object ReconciliationActions:
       )
     )
 
-  private def reverseWriteOffPanel(r: ReconciliationPayload, reverseBus: EventBus[String], panel: Var[Panel]): HtmlElement =
+  private def reverseWriteOffPanel(
+    r:          ReconciliationPayload,
+    reverseBus: EventBus[String],
+    panel:      Var[Panel]
+  ): HtmlElement =
     val reasonVar = Var("")
     div(
       cls := panelCls,
@@ -207,7 +227,11 @@ object ReconciliationActions:
         "Posts a correcting entry for the write-off adjustment (the original stays on the books), brings the difference back, " +
           "and puts this reconciliation back to Mismatched with a new exception. The match itself is kept."
       ),
-      label(forId := s"rwo-reason-${r.id}", cls := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400", "Reason"),
+      label(
+        forId := s"rwo-reason-${r.id}",
+        cls   := "text-xs font-medium text-md-on-surface-variant dark:text-gray-400",
+        "Reason"
+      ),
       input(
         idAttr      := s"rwo-reason-${r.id}",
         typ         := "text",

@@ -15,8 +15,8 @@ class LedgerRepoLiveSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val ledgerRepo = app.ledgerRepo
-        val data         = DataSetup(app)
-        val cache        = LedgerCache(ledgerRepo)
+        val data       = DataSetup(app)
+        val cache      = LedgerCache(ledgerRepo)
         cache.init()
 
   test("findById returns inserted ledger config"):

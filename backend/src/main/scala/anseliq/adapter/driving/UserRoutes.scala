@@ -38,7 +38,10 @@ class UserRoutes(
   def listAssignableUsers()(currentUser: JwtHelper.UserClaim): String =
     transact(transactor):
       write(
-        userService.listUsers().filter(u => u.active && u.role != UserRole.Viewer).map(PayloadMapper.userPayloadFromDomain)
+        userService
+          .listUsers()
+          .filter(u => u.active && u.role != UserRole.Viewer)
+          .map(PayloadMapper.userPayloadFromDomain)
       )
 
   // methods = Seq("post"), not HttpCmd.POST: listUsers (above) already registers "options" at this

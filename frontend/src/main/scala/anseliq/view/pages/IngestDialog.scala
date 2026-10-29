@@ -40,7 +40,8 @@ object IngestDialog:
         cls := s"text-sm ${Form.mutedTextCls} mb-6",
         "Choose the movement spec the file belongs to. Its file feed's parser reads it, and the movements are posted to this ledger."
       ),
-      if movementSpecs.isEmpty then p(cls := s"text-sm ${Form.mutedTextCls}", "This ledger has no movement specs yet. Add one in Setup.")
+      if movementSpecs.isEmpty then
+        p(cls := s"text-sm ${Form.mutedTextCls}", "This ledger has no movement specs yet. Add one in Setup.")
       else
         div(
           cls := "flex flex-col gap-4",
@@ -62,14 +63,16 @@ object IngestDialog:
                   if fileInput.files.length > 0 then
                     statuses.update(_.updated(specId, UploadStatus.Reading))
                     val reader = new FileReader()
-                    reader.onload  = _ => fileReadBus.emit((specId, reader.result.asInstanceOf[String]))
-                    reader.onerror = _ => statuses.update(_.updated(specId, UploadStatus.Failed("Couldn't read the file")))
+                    reader.onload = _ => fileReadBus.emit((specId, reader.result.asInstanceOf[String]))
+                    reader.onerror =
+                      _ => statuses.update(_.updated(specId, UploadStatus.Failed("Couldn't read the file")))
                     reader.readAsText(fileInput.files(0))
                 }
               )
             )
           }
-        ),
+        )
+      ,
       div(cls := "flex justify-end mt-6", Buttons.textButton("Done", Observer[Unit](_ => onClose())))
     )
 

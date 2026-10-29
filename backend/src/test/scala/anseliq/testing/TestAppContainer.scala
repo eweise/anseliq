@@ -8,8 +8,8 @@ import javax.sql.DataSource
 
 /**
  * The production AppContainer wiring, pointed at the test database: test-application.conf wins,
- * falling back to application.conf for anything it doesn't set (e.g. the match-suggestions.* keys). A
- * suite needing a different service overrides just that one, the same way as any AppContainer:
+ * falling back to application.conf for anything it doesn't set (e.g. the match-suggestions.* keys).
+ * A suite needing a different service overrides just that one, the same way as any AppContainer:
  * {{{
  *   val app = new TestAppContainer {
  *     override lazy val fileSourceFactory = fakeFileSourceFactory
@@ -31,4 +31,6 @@ class TestAppContainer extends AppContainer:
 
 object TestAppContainer:
   private lazy val sharedPool: DataSource =
-    DbDataSource.pooled(ConfigFactory.load("test-application.conf").withFallback(ConfigFactory.load("application.conf")))
+    DbDataSource.pooled(
+      ConfigFactory.load("test-application.conf").withFallback(ConfigFactory.load("application.conf"))
+    )

@@ -56,14 +56,14 @@ object PayloadMapper:
   def accountPayloadToDomain(payload: AccountPayload): Account =
     Account(
       name        = payload.name,
-      ledgerId  = UUID.fromString(payload.ledgerId),
+      ledgerId    = UUID.fromString(payload.ledgerId),
       accountType = accountTypeToDomain(payload.accountType),
       properties  = JSONBProps(payload.properties)
     )
 
   def accountPayloadFromDomain(account: Account): AccountPayload =
     AccountPayload(
-      ledgerId          = account.ledgerId.toString,
+      ledgerId            = account.ledgerId.toString,
       id                  = Some(account.id.toString),
       name                = account.name,
       accountType         = accountTypeFromDomain(account.accountType),
@@ -160,10 +160,10 @@ object PayloadMapper:
       case Rel.ManyToMany => ComRel.ManyToMany
 
   def reconciliationDetailPayloadFromDomain(
-    recon:        Reconciliation,
-    spec:         Option[(ReconciliationSpec, String)], // (spec, its account's name)
-    movements:    Seq[ReconciliationMovementPayload],
-    ledger:     Option[Ledger],
+    recon:          Reconciliation,
+    spec:           Option[(ReconciliationSpec, String)], // (spec, its account's name)
+    movements:      Seq[ReconciliationMovementPayload],
+    ledger:         Option[Ledger],
     openExceptions: Seq[ExceptionPayload]
   ): ReconciliationDetailPayload =
     ReconciliationDetailPayload(
@@ -178,8 +178,8 @@ object PayloadMapper:
           accountName  = accountName
         )
       },
-      movements    = movements,
-      ledger     = ledger.map(ledgerPayloadFromDomain),
+      movements      = movements,
+      ledger         = ledger.map(ledgerPayloadFromDomain),
       openExceptions = openExceptions
     )
 
@@ -372,7 +372,7 @@ object PayloadMapper:
    * function with no repo access of its own — same reasoning as the other three.
    */
   def exceptionPayloadFromDomain(
-    exception:        ExceptionCase,
+    exception:      ExceptionCase,
     accountId:      String,
     accountName:    String,
     referenceLabel: String,
@@ -421,14 +421,17 @@ object PayloadMapper:
     case ExceptionStatus.Escalated     => ExceptionStatusPayload.Escalated
     case ExceptionStatus.Resolved      => ExceptionStatusPayload.Resolved
 
-  def exceptionCommentPayloadFromDomain(c: ExceptionComment, newAssignedToName: Option[String]): ExceptionCommentPayload =
+  def exceptionCommentPayloadFromDomain(
+    c:                 ExceptionComment,
+    newAssignedToName: Option[String]
+  ): ExceptionCommentPayload =
     ExceptionCommentPayload(
-      id                = c.id.toString,
-      body              = c.body,
-      newStatus         = c.newStatus.map(exceptionStatusFromDomain),
-      newAssignedToName = newAssignedToName,
-      createdAt         = c.createdAt.get,
-      relatedExceptionId  = c.relatedExceptionId.map(_.toString)
+      id                 = c.id.toString,
+      body               = c.body,
+      newStatus          = c.newStatus.map(exceptionStatusFromDomain),
+      newAssignedToName  = newAssignedToName,
+      createdAt          = c.createdAt.get,
+      relatedExceptionId = c.relatedExceptionId.map(_.toString)
     )
 
   def reportsSummaryPayloadFromDomain(r: ReportsSummaryReport): ReportsSummaryPayload =

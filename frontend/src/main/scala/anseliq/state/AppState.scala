@@ -5,8 +5,8 @@ import org.scalajs.dom
 import anseliq.common.model.LedgerPayload
 
 object AppState:
-  val darkMode:       Var[Boolean]                 = Var(dom.window.localStorage.getItem("darkMode") == "true")
-  val globalError:    Var[Option[String]]          = Var(None)
+  val darkMode:     Var[Boolean]               = Var(dom.window.localStorage.getItem("darkMode") == "true")
+  val globalError:  Var[Option[String]]        = Var(None)
   val ledgers:      Var[Seq[LedgerPayload]]    = Var(Seq.empty)
   val activeLedger: Var[Option[LedgerPayload]] = Var(None)
 

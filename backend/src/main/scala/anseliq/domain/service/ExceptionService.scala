@@ -5,7 +5,7 @@ import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
 
 class ExceptionService(
-  exceptionRepo:      ExceptionRepo,
+  exceptionRepo:    ExceptionRepo,
   commentRepo:      ExceptionCommentRepo,
   movementRepo:     MovementRepo,
   reconRepo:        ReconciliationRepo,
@@ -26,8 +26,9 @@ class ExceptionService(
     requireValidTarget(category, targetType)
 
     targetType match
-      case ExceptionTarget.Movement       => movementRepo.findById(referenceId).ErrIfNotFound("movement", referenceId)
-      case ExceptionTarget.Reconciliation => reconRepo.findById(referenceId).ErrIfNotFound("reconciliation", referenceId)
+      case ExceptionTarget.Movement => movementRepo.findById(referenceId).ErrIfNotFound("movement", referenceId)
+      case ExceptionTarget.Reconciliation =>
+        reconRepo.findById(referenceId).ErrIfNotFound("reconciliation", referenceId)
       case ExceptionTarget.MovementSpec =>
         movementSpecRepo.findById(referenceId).ErrIfNotFound("movement spec", referenceId)
       case ExceptionTarget.FileFeed =>
@@ -105,9 +106,9 @@ class ExceptionService(
         // (ExceptionComment has newAssignedToUserId). Every field is already populated here.
         val comment = ExceptionComment(
           exceptionId = exception.id,
-          body      = Some(explanation),
-          newStatus = Some(ExceptionStatus.Resolved),
-          createdAt = Some(clock.now)
+          body        = Some(explanation),
+          newStatus   = Some(ExceptionStatus.Resolved),
+          createdAt   = Some(clock.now)
         )
         commentRepo.insert(comment)
         eventStore.publishEvent(ExceptionCommentAdded(exceptionID = exception.id, commentID = comment.id))
@@ -121,17 +122,17 @@ class ExceptionService(
       .lastOption
 
   /**
-   * Connects two exceptions about the same problem with a comment on each thread linking to the other
-   * — e.g. the exception a write-off resolved, and the new one raised when that write-off is reversed
-   * — so someone reading either thread can follow the story to the other.
+   * Connects two exceptions about the same problem with a comment on each thread linking to the
+   * other — e.g. the exception a write-off resolved, and the new one raised when that write-off is
+   * reversed — so someone reading either thread can follow the story to the other.
    */
   def crossLink(earlier: ExceptionCase, later: ExceptionCase, earlierNote: String, laterNote: String): Txn[Unit] =
     Seq(earlier -> (later, earlierNote), later -> (earlier, laterNote)).foreach { case (onException, (other, note)) =>
       val comment = ExceptionComment(
         exceptionId        = onException.id,
-        body             = Some(note),
+        body               = Some(note),
         relatedExceptionId = Some(other.id),
-        createdAt        = Some(clock.now)
+        createdAt          = Some(clock.now)
       )
       commentRepo.insert(comment)
       eventStore.publishEvent(ExceptionCommentAdded(exceptionID = onException.id, commentID = comment.id))
@@ -149,7 +150,7 @@ class ExceptionService(
       )
 
   def addComment(
-    exceptionId:           ID,
+    exceptionId:         ID,
     body:                Option[String],
     newStatus:           Option[ExceptionStatus],
     newAssignedToUserId: Option[ID] = None
@@ -179,9 +180,9 @@ class ExceptionService(
       throw IllegalArgumentError("newAssignedToUserId", "a resolved exception can't be assigned")
 
     val bodyRequired = (newStatus, newAssignedToUserId) match
-      case (None, None)                      => true // plain comment, must say something
+      case (None, None)                        => true // plain comment, must say something
       case (Some(ExceptionStatus.Resolved), _) => true
-      case _                                 => false
+      case _                                   => false
     if bodyRequired && body.forall(_.isBlank) then throw IllegalArgumentError("body", "required for this entry")
 
     newAssignedToUserId.foreach { userId =>
@@ -205,7 +206,7 @@ class ExceptionService(
     // row. Every field is already fully populated by application code, so returning it directly
     // is exactly equivalent to a successful readback.
     val comment = ExceptionComment(
-      exceptionId           = exceptionId,
+      exceptionId         = exceptionId,
       body                = body,
       newStatus           = newStatus,
       newAssignedToUserId = newAssignedToUserId,

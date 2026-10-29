@@ -31,7 +31,11 @@ class FileFeedRoutes(
     val payload = read[FileFeedPayload](request.text())
     validateDataSourceConfig(payload)
     transact(transactor):
-      write(PayloadMapper.fileFeedPayloadFromDomain(fileFeedService.createFileFeed(PayloadMapper.fileFeedPayloadToDomain(payload))))
+      write(
+        PayloadMapper.fileFeedPayloadFromDomain(
+          fileFeedService.createFileFeed(PayloadMapper.fileFeedPayloadToDomain(payload))
+        )
+      )
 
   @cask.route(s"${HttpPath.fileFeed}/:id", methods = HttpCmd.PUT)
   def updateFileFeed(id: String, request: cask.Request): String =

@@ -1,6 +1,15 @@
 package anseliq.domain.service
 
-import anseliq.common.model.{AndRule, AppliedRules, MatchSuggestionInfo, NoOpRule, ORRule, Rule, RuleMatch, StringAttributeMatchRule}
+import anseliq.common.model.{
+  AndRule,
+  AppliedRules,
+  MatchSuggestionInfo,
+  NoOpRule,
+  ORRule,
+  Rule,
+  RuleMatch,
+  StringAttributeMatchRule
+}
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
@@ -16,9 +25,9 @@ import scala.util.Try
  * MatchSuggestion for a person to accept or reject. Nothing is reconciled here.
  *
  * Only OneToOne specs for now. A movement on the spec's in side is matched against unreconciled
- * movements on its out side with the same amount, created within candidateWindowDays of it, at
- * most maxCandidates of them. The suggester only judges between those, and its answer is checked
- * against them again before it's stored. Each request also carries the spec's context (what its rule
+ * movements on its out side with the same amount, created within candidateWindowDays of it, at most
+ * maxCandidates of them. The suggester only judges between those, and its answer is checked against
+ * them again before it's stored. Each request also carries the spec's context (what its rule
  * compares, and recent pairs people matched or rejected) so a general model can pick up this
  * account's reference conventions from examples rather than training.
  *
@@ -76,15 +85,17 @@ class MatchSuggestionService(
           .findRejectedByReconSpecId(spec.id)
           .flatMap(s => s.suggestedMovementIds.map(s.movementId -> _))
           .toSet
-        val outSide          = unreconciled.filter(_.movementSpecId == spec.outMovementSpecId)
-        lazy val context     = contextFor(spec) // only looked up if some movement has candidates
+        val outSide      = unreconciled.filter(_.movementSpecId == spec.outMovementSpecId)
+        lazy val context = contextFor(spec) // only looked up if some movement has candidates
         unreconciled
           .filter(m => m.movementSpecId == spec.inMovementSpecId && !alreadySuggested.contains(m.id))
           .flatMap: movement =>
             val candidates = outSide
               .filter(other => isCandidate(movement, other) && !rejectedPairs.contains(movement.id -> other.id))
               .take(maxCandidates)
-            Option.when(candidates.nonEmpty)(spec -> MatchRequest(toCandidate(movement), candidates.map(toCandidate), context))
+            Option.when(candidates.nonEmpty)(
+              spec -> MatchRequest(toCandidate(movement), candidates.map(toCandidate), context)
+            )
 
   /** The spec's rule in words, and its most recent hand-made matches and rejected suggestions. */
   def contextFor(spec: ReconciliationSpec): Txn[MatchContext] =
@@ -99,14 +110,19 @@ class MatchSuggestionService(
       .flatMap: suggestion =>
         movementRepo
           .findById(suggestion.movementId)
-          .map(m => MatchExample(toCandidate(m), suggestion.suggestedMovementIds.flatMap(movementRepo.findById).map(toCandidate)))
+          .map(m =>
+            MatchExample(
+              toCandidate(m),
+              suggestion.suggestedMovementIds.flatMap(movementRepo.findById).map(toCandidate)
+            )
+          )
     MatchContext(describeRule(spec.rule()), pastMatches, pastNonMatches)
 
   private def describeRule(rule: Rule): String = rule match
     case and: AndRule => and.rules.map(describeRule).mkString(" and ")
-    case or: ORRule   => or.rules.map(describeRule).mkString("(", " or ", ")")
-    case NoOpRule     => "nothing"
-    case leaf         => RuleMatch(leaf, "").condition
+    case or:  ORRule  => or.rules.map(describeRule).mkString("(", " or ", ")")
+    case NoOpRule => "nothing"
+    case leaf     => RuleMatch(leaf, "").condition
 
   private def isCandidate(movement: Movement, other: Movement): Boolean =
     other.amount.compare(movement.amount) == 0 &&
@@ -129,9 +145,12 @@ class MatchSuggestionService(
     val movementId   = request.movement.movementId
     val candidateIds = request.candidates.map(_.movementId).toSet
     val problem =
-      if proposal.movementIds.size != 1 then Some(s"proposed ${proposal.movementIds.size} movements for a OneToOne spec")
-      else if !proposal.movementIds.forall(candidateIds.contains) then Some("proposed a movement that wasn't a candidate")
-      else if proposal.confidence < 0 || proposal.confidence > 1 then Some(s"confidence ${proposal.confidence} is outside 0 to 1")
+      if proposal.movementIds.size != 1 then
+        Some(s"proposed ${proposal.movementIds.size} movements for a OneToOne spec")
+      else if !proposal.movementIds.forall(candidateIds.contains) then
+        Some("proposed a movement that wasn't a candidate")
+      else if proposal.confidence < 0 || proposal.confidence > 1 then
+        Some(s"confidence ${proposal.confidence} is outside 0 to 1")
       else
         val involved = (movementId +: proposal.movementIds).flatMap(movementRepo.findById)
         if involved.size != proposal.movementIds.size + 1 || involved.exists(_.reconciliationId.isDefined) then
@@ -146,8 +165,13 @@ class MatchSuggestionService(
         None
       case None =>
         val explanation = proposal.explanation.flatMap: rule =>
-          val checked = request.candidates.find(_.movementId == proposal.movementIds.head).flatMap(checkExplanation(rule, request.movement, _))
-          if checked.isEmpty then logger.info(s"dropping ${suggester.model}'s explanation for movement $movementId: it doesn't hold for these movements")
+          val checked = request.candidates
+            .find(_.movementId == proposal.movementIds.head)
+            .flatMap(checkExplanation(rule, request.movement, _))
+          if checked.isEmpty then
+            logger.info(
+              s"dropping ${suggester.model}'s explanation for movement $movementId: it doesn't hold for these movements"
+            )
           checked
         matchSuggestionRepo.insertIfNoPending(
           MatchSuggestion(
@@ -167,7 +191,11 @@ class MatchSuggestionService(
    * would just restate the answer) that the movement has, and the rule reduces both to the same
    * non-empty value. Checked here rather than trusted, since a model can claim anything.
    */
-  def checkExplanation(rule: StringAttributeMatchRule, movement: MatchCandidate, candidate: MatchCandidate): Option[RuleMatch] =
+  def checkExplanation(
+    rule:      StringAttributeMatchRule,
+    movement:  MatchCandidate,
+    candidate: MatchCandidate
+  ): Option[RuleMatch] =
     if rule.inKey.isConstant || rule.outKey.isConstant then None
     else
       for
@@ -205,14 +233,14 @@ class MatchSuggestionService(
         explanation   = suggestion.explanation
       )
     )
-    suggestion.status = MatchSuggestionStatus.Accepted
+    suggestion.status           = MatchSuggestionStatus.Accepted
     suggestion.reviewedByUserId = Some(reviewedByUserId)
     matchSuggestionRepo.update(suggestion)
     reconciliation
 
   def reject(suggestionId: ID, reviewedByUserId: ID): Txn[Unit] =
     val suggestion = findPending(suggestionId)
-    suggestion.status = MatchSuggestionStatus.Rejected
+    suggestion.status           = MatchSuggestionStatus.Rejected
     suggestion.reviewedByUserId = Some(reviewedByUserId)
     matchSuggestionRepo.update(suggestion)
 
@@ -235,19 +263,26 @@ class MatchSuggestionService(
       .findSuggested(reconSpecId)
       .flatMap(_.appliedRules match
         case s: AppliedRules.Suggested => s.explanation.map(_.rule)
-        case _                         => None)
+        case _ => None
+      )
       .collect { case rule: StringAttributeMatchRule => rule }
     lazy val unreconciled = movementRepo.findUnReconciledByAccount(spec.accountId)
     explained
       .groupBy(identity)
-      .collect { case (rule, uses) if uses.size >= ruleProposalMinExamples && !existing.contains(rule) => rule -> uses.size }
+      .collect {
+        case (rule, uses) if uses.size >= ruleProposalMinExamples && !existing.contains(rule) => rule -> uses.size
+      }
       .toVector
       .sortBy((_, count) => -count)
       .map: (rule, count) =>
         RuleProposal(rule, count, unmatchedPairsFor(rule, spec, unreconciled))
 
   // How many pairs of the spec's unreconciled movements the rule would match one-to-one now.
-  private def unmatchedPairsFor(rule: StringAttributeMatchRule, spec: ReconciliationSpec, unreconciled: Vector[Movement]): Int =
+  private def unmatchedPairsFor(
+    rule:         StringAttributeMatchRule,
+    spec:         ReconciliationSpec,
+    unreconciled: Vector[Movement]
+  ): Int =
     def keys(specId: ID, attribute: anseliq.common.model.StringAttribute) =
       unreconciled
         .filter(_.movementSpecId == specId)

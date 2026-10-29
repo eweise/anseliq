@@ -40,8 +40,9 @@ class ReconSpecServiceSuite extends munit.FunSuite:
     assertRejected(AndRule(Nil), "at least one condition")
 
   test("createReconSpec saves a top-level OR rule: each alternative is its own pass"):
-    val exact      = StringAttributeMatchRule(StringAttribute(key = "id"), StringAttribute(key = "id"))
-    val normalized = StringAttributeMatchRule(StringAttribute("id", Some(Normalize)), StringAttribute("id", Some(Normalize)))
+    val exact = StringAttributeMatchRule(StringAttribute(key = "id"), StringAttribute(key = "id"))
+    val normalized =
+      StringAttributeMatchRule(StringAttribute("id", Some(Normalize)), StringAttribute("id", Some(Normalize)))
     transact(app.transactor):
       rollBackOnly:
         val data    = DataSetup(app)

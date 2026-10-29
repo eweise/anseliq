@@ -13,8 +13,8 @@ import anseliq.view.components.{Card, Form, ReconStatus, Table}
 /**
  * The ledger page's Reconciliations tab: the one list of a ledger's reconciliations, replacing the
  * old account-scoped and spec-scoped list pages. Status chips (with counts) filter it; each row
- * links to the reconciliation's own page, which is where every action on it lives — the list
- * itself carries no forms. The chosen status comes from and goes to the page's ?status=, owned by
+ * links to the reconciliation's own page, which is where every action on it lives — the list itself
+ * carries no forms. The chosen status comes from and goes to the page's ?status=, owned by
  * LedgerPage, so a link like the Overview's "Mismatched" tile can open it pre-filtered.
  */
 object LedgerReconciliationsTab:
@@ -116,11 +116,10 @@ object LedgerReconciliationsTab:
     val tone =
       if selected then
         "border-md-primary bg-md-primary-container text-md-on-primary-container dark:bg-md-primary-container-dark dark:text-md-on-primary-container-dark font-medium"
-      else
-        "border-md-outline dark:border-gray-600 text-md-on-surface dark:text-gray-200 hover:border-md-primary"
+      else "border-md-outline dark:border-gray-600 text-md-on-surface dark:text-gray-200 hover:border-md-primary"
     button(
-      typ := "button",
-      cls := s"$base $tone",
+      typ          := "button",
+      cls          := s"$base $tone",
       aria.pressed := selected.toString,
       onClick --> (_ => onSelect()),
       span(label),

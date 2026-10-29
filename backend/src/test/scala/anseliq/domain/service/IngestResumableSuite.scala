@@ -204,7 +204,9 @@ class IngestResumableSuite extends munit.FunSuite:
       assertEquals(movementsB.head.amount, BigDecimal(200))
 
       val unrouted = transact(app.transactor):
-        app.exceptionRepo.findAll.filter(d => d.referenceId == feed.id && d.category == ExceptionCategory.UnroutedRecord)
+        app.exceptionRepo.findAll.filter(d =>
+          d.referenceId == feed.id && d.category == ExceptionCategory.UnroutedRecord
+        )
       assertEquals(unrouted.size, 1, "exactly one exception for the whole run, not one per unrouted row")
       assertEquals(unrouted.head.targetType, ExceptionTarget.FileFeed)
       assert(unrouted.head.detail.exists(_.contains("999")), "detail should surface the unmatched account_number value")

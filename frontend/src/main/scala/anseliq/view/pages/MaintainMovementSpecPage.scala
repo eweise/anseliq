@@ -76,7 +76,8 @@ object MaintainMovementSpecPage:
       ApiClient
         .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
         .apiBind { accs =>
-          val initialInIsRecon = accs.find(_.id.contains(initial.inAccountId)).exists(_.accountType == AccountTypePayload.Recon)
+          val initialInIsRecon =
+            accs.find(_.id.contains(initial.inAccountId)).exists(_.accountType == AccountTypePayload.Recon)
           if initialInIsRecon then
             accountId.set(initial.outAccountId)
             reconAccountId.set(initial.inAccountId)

@@ -13,7 +13,12 @@ import java.time.{Duration, OffsetDateTime}
 class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
 
   private def candidate(ref: String) =
-    MatchCandidate(createID(), BigDecimal("1250.00"), OffsetDateTime.parse("2026-10-20T09:00:00Z"), Map("txn_id" -> ref))
+    MatchCandidate(
+      createID(),
+      BigDecimal("1250.00"),
+      OffsetDateTime.parse("2026-10-20T09:00:00Z"),
+      Map("txn_id" -> ref)
+    )
 
   private val movement = MatchCandidate(
     createID(),
@@ -23,21 +28,27 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
   )
   private val candidates = Seq(candidate("inv20260099"), candidate("inv20260042"))
   private val context = MatchContext(
-    ruleCondition  = "transaction_id = txn_id",
-    pastMatches    = Seq(MatchExample(movement.copy(properties = Map("transaction_id" -> "INV-2026-0007")), Seq(candidate("inv20260007")))),
+    ruleCondition = "transaction_id = txn_id",
+    pastMatches = Seq(
+      MatchExample(movement.copy(properties = Map("transaction_id" -> "INV-2026-0007")), Seq(candidate("inv20260007")))
+    ),
     pastNonMatches = Seq.empty
   )
   private val request = MatchRequest(movement, candidates, context)
 
   // Serves `reply` (status, chat content) for every request, recording each request body.
-  private def withServer(status: Int, content: String)(test: (LocalLlmMatchSuggester, () => ujson.Value) => Unit): Unit =
+  private def withServer(status: Int, content: String)(
+    test: (LocalLlmMatchSuggester, () => ujson.Value) => Unit
+  ): Unit =
     var lastBody = ""
     val server   = HttpServer.create(InetSocketAddress("localhost", 0), 0)
     server.createContext(
       "/v1/chat/completions",
       exchange =>
         lastBody = String(exchange.getRequestBody.readAllBytes(), UTF_8)
-        val reply = ujson.Obj("choices" -> ujson.Arr(ujson.Obj("message" -> ujson.Obj("role" -> "assistant", "content" -> content))))
+        val reply = ujson.Obj(
+          "choices" -> ujson.Arr(ujson.Obj("message" -> ujson.Obj("role" -> "assistant", "content" -> content)))
+        )
         val bytes = reply.render().getBytes(UTF_8)
         exchange.sendResponseHeaders(status, bytes.length.toLong)
         exchange.getResponseBody.write(bytes)
@@ -45,7 +56,8 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
     )
     server.start()
     try
-      val suggester = LocalLlmMatchSuggester(s"http://localhost:${server.getAddress.getPort}/v1", "qwen2.5:7b", Duration.ofSeconds(5))
+      val suggester =
+        LocalLlmMatchSuggester(s"http://localhost:${server.getAddress.getPort}/v1", "qwen2.5:7b", Duration.ofSeconds(5))
       test(suggester, () => ujson.read(lastBody))
     finally server.stop(0)
 
@@ -60,16 +72,20 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
       val message = ujson.read(body("messages")(1)("content").str)
       assertEquals(message("rule_compares").str, "transaction_id = txn_id")
       assertEquals(message("movement")("fields")("transaction_id").str, "INV-2026-0042")
-      assertEquals(message("candidates").arr.map(c => c("number").num.toInt -> c("fields")("txn_id").str).toSeq, Seq(1 -> "inv20260099", 2 -> "inv20260042"))
+      assertEquals(
+        message("candidates").arr.map(c => c("number").num.toInt -> c("fields")("txn_id").str).toSeq,
+        Seq(1 -> "inv20260099", 2 -> "inv20260042")
+      )
       assertEquals(message("past_matches")(0)("matched_with")(0)("fields")("txn_id").str, "inv20260007")
       assert(!message.obj.contains("past_non_matches"), "empty example lists are left out")
 
   test("maps the answer's number back to that candidate's movement"):
-    withServer(200, """{"match": 2, "confidence": 0.93, "reason": "Same invoice number once formatting is ignored"}"""): (suggester, _) =>
-      val proposal = suggester.suggest(request).get
-      assertEquals(proposal.movementIds, Seq(candidates(1).movementId))
-      assertEquals(proposal.confidence, BigDecimal("0.93"))
-      assertEquals(proposal.rationale, "Same invoice number once formatting is ignored")
+    withServer(200, """{"match": 2, "confidence": 0.93, "reason": "Same invoice number once formatting is ignored"}"""):
+      (suggester, _) =>
+        val proposal = suggester.suggest(request).get
+        assertEquals(proposal.movementIds, Seq(candidates(1).movementId))
+        assertEquals(proposal.confidence, BigDecimal("0.93"))
+        assertEquals(proposal.rationale, "Same invoice number once formatting is ignored")
 
   test("a server error throws, so the job is retried"):
     withServer(500, "model not loaded"): (suggester, _) =>
@@ -87,7 +103,10 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
 
   test("parseAnswer accepts JSON wrapped in a code fence"):
     val fenced = "```json\n{\"match\": 1, \"confidence\": 0.8, \"reason\": \"r\"}\n```"
-    assertEquals(LocalLlmMatchSuggester.parseAnswer(fenced, request).map(_.movementIds), Some(Seq(candidates.head.movementId)))
+    assertEquals(
+      LocalLlmMatchSuggester.parseAnswer(fenced, request).map(_.movementIds),
+      Some(Seq(candidates.head.movementId))
+    )
 
   private def explanation(movementSteps: String, candidateSteps: String) = ujson.read(
     s"""{"movement_field": "transaction_id", "movement_steps": $movementSteps, "candidate_field": "txn_id", "candidate_steps": $candidateSteps}"""
@@ -96,7 +115,10 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
   test("parseExplanation turns the steps into a rule, chaining several"):
     import anseliq.common.model.*
     val rule = LocalLlmMatchSuggester.parseExplanation(
-      explanation("""[{"op": "strip_prefix", "text": "INV-"}, {"op": "normalize", "text": null}]""", """[{"op": "normalize", "text": null}]""")
+      explanation(
+        """[{"op": "strip_prefix", "text": "INV-"}, {"op": "normalize", "text": null}]""",
+        """[{"op": "normalize", "text": null}]"""
+      )
     )
     assertEquals(
       rule,
@@ -123,6 +145,7 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
     malformed.foreach(e => assertEquals(LocalLlmMatchSuggester.parseExplanation(e), None, e.render()))
 
   test("an answer keeps its match when its explanation is malformed"):
-    val content = """{"match": 2, "confidence": 0.9, "reason": "r", "explanation": {"movement_field": "transaction_id", "movement_steps": [{"op": "shout"}], "candidate_field": "txn_id", "candidate_steps": []}}"""
+    val content =
+      """{"match": 2, "confidence": 0.9, "reason": "r", "explanation": {"movement_field": "transaction_id", "movement_steps": [{"op": "shout"}], "candidate_field": "txn_id", "candidate_steps": []}}"""
     val proposal = LocalLlmMatchSuggester.parseAnswer(content, request).get
     assertEquals((proposal.movementIds, proposal.explanation), (Seq(candidates(1).movementId), None))

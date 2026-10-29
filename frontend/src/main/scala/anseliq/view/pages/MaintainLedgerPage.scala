@@ -23,8 +23,7 @@ object MaintainLedgerPage:
         val f     = ff.now()
         val token = SessionStore.token
         if f.id.isDefined
-        then
-          ApiClient.put[LedgerPayload, LedgerPayload](HttpPath.url(s"${HttpPath.ledger}/${f.id.get}"), f, token)
+        then ApiClient.put[LedgerPayload, LedgerPayload](HttpPath.url(s"${HttpPath.ledger}/${f.id.get}"), f, token)
         else ApiClient.post[LedgerPayload, LedgerPayload](HttpPath.url(HttpPath.ledger), f, token)
       }.apiBind(_ => Nav.toLedgers()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",

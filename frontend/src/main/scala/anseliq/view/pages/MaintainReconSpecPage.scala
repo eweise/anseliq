@@ -191,7 +191,11 @@ object MaintainReconSpecPage:
 
   // Rules learned from this spec's accepted match suggestions that its rule doesn't include yet.
   // Adding one puts it in the rule above as an alternative; Save persists it.
-  private def learnedRules(proposals: Seq[RuleProposalPayload], rule: Rule, addAlternative: EventBus[Rule]): HtmlElement =
+  private def learnedRules(
+    proposals:      Seq[RuleProposalPayload],
+    rule:           Rule,
+    addAlternative: EventBus[Rule]
+  ): HtmlElement =
     val current = rule match
       case ORRule(rules) => rules.toSet
       case other         => Set(other)

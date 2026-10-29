@@ -76,7 +76,11 @@ object FixBadFilePage:
       )
     )
 
-  private def previewView(preview: BadFilePreviewPayload, fileNameVar: Var[String], fixBus: EventBus[String]): HtmlElement =
+  private def previewView(
+    preview:     BadFilePreviewPayload,
+    fileNameVar: Var[String],
+    fixBus:      EventBus[String]
+  ): HtmlElement =
     div(
       cls := "border border-gray-200 dark:border-gray-700 rounded p-4",
       p(s"${preview.movementsFound} movement(s) found for this file."),

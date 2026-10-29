@@ -9,7 +9,9 @@ import com.augustnagro.magnum.{Repo, sql}
 
 import java.util.UUID
 
-class ReconciliationSpecRepoLive(clock: ClockService) extends AuditedRepo[ReconciliationSpec, UUID](clock) with ReconciliationSpecRepo:
+class ReconciliationSpecRepoLive(clock: ClockService)
+    extends AuditedRepo[ReconciliationSpec, UUID](clock)
+    with ReconciliationSpecRepo:
   private val t = ReconciliationSpec.Table
 
   override def findByAccountID(accountID: ID): Txn[Vector[ReconciliationSpec]] =
