@@ -140,24 +140,29 @@
           <li>Optionally <a href="https://ollama.com">Ollama</a> with <code>qwen2.5:7b</code> for AI matching</li>
         </ul>
         <h3 id="first-run">First run</h3>
-        <pre><code># JWT secret, admin user and LocalStack settings in .env (created the first time), loaded into this shell
+        <pre><code># JWT secret, admin user, LocalStack settings and (on a Mac) JAVA_HOME in .env,
+# created the first time and loaded into this shell
 eval "$(scripts/dev-env.sh)"
 
 localstack start -d          # S3
 make create-db               # an empty recon_db, migrated
 
-sbt backend/run              # API on :8080, health on :8081, workers and scheduler
-sbt frontend/devServer       # the web app on :9876, proxying /api to :8080</code></pre>
+# The API on :8080 (health on :8081, workers and scheduler) in the background,
+# then the web app on :9876, proxying /api to :8080
+sbt "backend/bgRun; frontend/devServer"</code></pre>
         <p>
           Sign in at <code>http://localhost:9876</code> as the <code>ADMIN_EMAIL</code> from
-          <code>.env</code>. For a ledger with ten days of history already in it, stop the backend and
+          <code>.env</code>. Ctrl+C stops the web app, and <code>sbt backend/bgStopAll</code> the
+          API. In sbt's own prompt, the menu's <code>up</code> and <code>x</code> do the same. For a ledger with ten days of history already in it, stop the backend and
           run <code>make seed-demo</code>, or <code>make seed-demo-llm</code> to include AI suggestions
           from a local Ollama.
         </p>
         <div class="note">
-          sbt 2 keeps a server running between commands, with the environment it started with. After
-          changing an environment variable, run <code>sbt shutdown</code> so the next command starts
-          a server that sees it.
+          Every <code>sbt</code> in the project connects to one server, which keeps running between
+          commands with the environment it started with. After changing an environment variable, run
+          <code>sbt shutdown</code> so the next command starts a server that sees it. The server also
+          runs one command at a time, so while the web app's dev server runs, other sbt commands
+          wait; that's why the API starts in the background first.
         </div>
 
         <h2 id="tests">Tests</h2>
