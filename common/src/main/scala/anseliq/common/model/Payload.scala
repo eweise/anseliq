@@ -12,17 +12,6 @@ type ValidationErrors = Map[String, String]
 trait CanValidate:
   def validate(): ValidationErrors
 
-object InstantRW {
-  // Use ISO_INSTANT formatter for standard representation
-  val formatter: DateTimeFormatter = DateTimeFormatter.ISO_INSTANT
-
-  // Define the implicit ReadWriter
-  implicit val rw: ReadWriter[Instant] = readwriter[String].bimap[Instant](
-    instant => formatter.format(instant), // Serialize to string
-    str => Instant.parse(str)             // Deserialize from string
-  )
-}
-
 object OffsetDateTimeRW {
   // Use ISO_OFFSET_DATE_TIME formatter for standard representation
   val formatter: DateTimeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
@@ -67,9 +56,6 @@ case class UpdateUserRequest(
 ) derives ReadWriter
 
 case class ResetPasswordRequest(newPassword: String) derives ReadWriter
-
-enum MovementStatus:
-  case Reconciled, WithinSLA, OutOfSLA
 
 enum JobTypeInfo derives ReadWriter:
   case Ingestion, Reconciliation, CreateFileInventory, SuggestMatches
@@ -371,12 +357,6 @@ case class MovementSearchResultPayload(
   adjustmentNote: Option[String] = None
 ) derives ReadWriter
 
-case class MovementSpecAndAccounts(
-  spec:       MovementSpecPayload,
-  inAccount:  AccountPayload,
-  outAccount: AccountPayload
-) derives ReadWriter
-
 enum ExceptionTargetPayload derives ReadWriter:
   case Movement, Reconciliation, MovementSpec, FileFeed
 
@@ -512,40 +492,6 @@ case class FileInventoryPayload(
   lastProcessedLine: Option[Long],
   updatedAt:         Option[OffsetDateTime]
 ) derives ReadWriter
-
-def combineAccountsAndMovementSpecs(
-  accounts:      Seq[AccountPayload],
-  movementSpecs: Seq[MovementSpecPayload]
-): Seq[MovementSpecAndAccounts] =
-  val accountMap = accounts.map(a => a.id.get -> a).toMap
-  movementSpecs.map(ms =>
-    MovementSpecAndAccounts(
-      spec = ms,
-      inAccount = accountMap
-        .getOrElse(ms.inAccountId, throw IllegalStateException(s"could not find inAccount ${ms.inAccountId}")),
-      outAccount = accountMap.getOrElse(
-        ms.outAccountId,
-        throw IllegalStateException(s"could not find outAccount ${ms.outAccountId}")
-      )
-    )
-  )
-
-def combineReconAndMovementSpecs(
-  accounts:      Seq[AccountPayload],
-  movementSpecs: Seq[MovementSpecPayload]
-): Seq[MovementSpecAndAccounts] =
-  val accountMap = accounts.map(a => a.id.get -> a).toMap
-  movementSpecs.map(ms =>
-    MovementSpecAndAccounts(
-      spec = ms,
-      inAccount = accountMap
-        .getOrElse(ms.inAccountId, throw IllegalStateException(s"could not find inAccount ${ms.inAccountId}")),
-      outAccount = accountMap.getOrElse(
-        ms.outAccountId,
-        throw IllegalStateException(s"could not find outAccount ${ms.outAccountId}")
-      )
-    )
-  )
 
 sealed trait EventPayload derives ReadWriter:
   val id:        String

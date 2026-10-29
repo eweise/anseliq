@@ -31,7 +31,7 @@ object MaintainFileFeedPage:
 
     div(
       loadBus.events
-        .flatMapSwitch(_ => ApiClient.get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token))
+        .flatMapSwitch(_ => ApiClient.get[Seq[FileFeedPayload]](HttpPath.fileFeeds, SessionStore.token))
         .apiBind(feeds => loadState.set(LoadState.Ready(feeds.find(_.id.contains(id)).getOrElse(blank)))),
       onMountCallback(_ => if id != "new" then loadBus.emit(())),
       child <-- loadState.signal.map {
@@ -57,9 +57,8 @@ object MaintainFileFeedPage:
           val f     = feed.now().copy(dataSourceConfig = dsConfig)
           val token = SessionStore.token
           if f.id.isDefined
-          then
-            ApiClient.put[FileFeedPayload, FileFeedPayload](HttpPath.url(s"${HttpPath.fileFeed}/${f.id.get}"), f, token)
-          else ApiClient.post[FileFeedPayload, FileFeedPayload](HttpPath.url(HttpPath.fileFeed), f, token)
+          then ApiClient.put[FileFeedPayload, FileFeedPayload](s"${HttpPath.fileFeed}/${f.id.get}", f, token)
+          else ApiClient.post[FileFeedPayload, FileFeedPayload](HttpPath.fileFeed, f, token)
         }
         .apiBind(_ => Nav.back()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",

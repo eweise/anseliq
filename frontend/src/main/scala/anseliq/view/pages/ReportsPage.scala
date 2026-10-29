@@ -5,7 +5,7 @@ import anseliq.common.http.HttpPath
 import anseliq.common.model.{LedgerPayload, ReportsSummaryPayload, TrendReportPayload}
 import anseliq.http.ApiClient
 import anseliq.state.AppState.apiBind
-import anseliq.state.{AppState, SessionStore}
+import anseliq.state.SessionStore
 import anseliq.view.components.ChartCanvas.Series
 import anseliq.view.components.{Card, ChartCanvas, Form, PageHeader, Pill}
 import upickle.default.*
@@ -25,22 +25,24 @@ object ReportsPage:
     val loadTrendBus   = EventBus[Option[String]]()
 
     def loadLedgers() =
-      ApiClient.get[Seq[LedgerPayload]](HttpPath.url(HttpPath.ledgers), SessionStore.token)
+      ApiClient.get[Seq[LedgerPayload]](HttpPath.ledgers, SessionStore.token)
 
     def loadSummary(ledgerId: Option[String]) =
       val query = ledgerId.map(id => s"?ledgerId=$id").getOrElse("")
-      ApiClient.get[ReportsSummaryPayload](HttpPath.url(s"${HttpPath.reports}/summary$query"), SessionStore.token)
+      ApiClient.get[ReportsSummaryPayload](s"${HttpPath.reports}/summary$query", SessionStore.token)
 
     def loadTrend(ledgerId: Option[String]) =
       val query = ledgerId.map(id => s"?ledgerId=$id").getOrElse("")
-      ApiClient.get[TrendReportPayload](HttpPath.url(s"${HttpPath.reports}/trend$query"), SessionStore.token)
+      ApiClient.get[TrendReportPayload](s"${HttpPath.reports}/trend$query", SessionStore.token)
 
     def loadFor(ledgerId: Option[String]): Unit =
       loadSummaryBus.emit(ledgerId)
       loadTrendBus.emit(ledgerId)
 
     PageHeader.page(
-      loadLedgersBus.events.flatMapSwitch(_ => loadLedgers()).apiBind(ffs => state.update(_.copy(ledgers = ffs))),
+      loadLedgersBus.events
+        .flatMapSwitch(_ => loadLedgers())
+        .apiBind(ledgers => state.update(_.copy(ledgers = ledgers))),
       loadSummaryBus.events.flatMapSwitch(loadSummary).apiBind(s => state.update(_.copy(summary = Some(s)))),
       loadTrendBus.events.flatMapSwitch(loadTrend).apiBind(t => state.update(_.copy(trend = Some(t)))),
       onMountCallback { _ =>
@@ -62,7 +64,7 @@ object ReportsPage:
     )
 
   private def ledgerSelect(ledgers: Seq[LedgerPayload], loadFor: Option[String] => Unit): HtmlElement =
-    val options = ("", "All ledgers") +: ledgers.map(ff => ff.id.getOrElse("") -> ff.name)
+    val options = ("", "All ledgers") +: ledgers.map(ledger => ledger.id.getOrElse("") -> ledger.name)
     div(
       cls := "w-64",
       Form.selectField("ledgerFilter", "Ledger", options, "", v => loadFor(Option(v).filter(_.nonEmpty)))

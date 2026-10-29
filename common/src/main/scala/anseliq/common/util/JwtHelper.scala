@@ -1,10 +1,10 @@
 package anseliq.common.util
 
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtBase64, JwtClaim}
-import zio.json.*
-import zio.json.ast.Json
+import upickle.default.*
 
 import java.time.Instant
+import scala.util.Try
 
 /**
  *   - Centralized JWT protocol setup for both Backend and Frontend.
@@ -13,29 +13,23 @@ import java.time.Instant
  */
 object JwtHelper:
 
-  private val ALG = JwtAlgorithm.HS256 // can be udpated quickly
-
-  given JsonCodec[UserClaim] = DeriveJsonCodec.gen[UserClaim]
+  private val ALG = JwtAlgorithm.HS256
 
   def decode(accessToken: String, secretKey: String): Either[String, UserClaim] =
     Jwt
       .decode(accessToken, secretKey, List(ALG))
       .map(_.content)
       .fold[Either[String, String]](e => Left(s"Invalid token: ${e.getMessage()}"), Right(_))
-      .flatMap(_.fromJson[UserClaim])
+      .flatMap(readClaim)
 
   def getUnverifiedUserClaim(accessToken: String): Either[String, UserClaim] =
-    val payload     = new String(JwtBase64.decode(accessToken.split("\\.")(1)))
-    val jsonPayload = payload.fromJson[Json.Obj].getOrElse(Json.Obj())
-    (for {
-      userId <- jsonPayload.get("userId").flatMap(_.asString)
-      email  <- jsonPayload.get("email").flatMap(_.asString)
-      role   <- jsonPayload.get("role").flatMap(_.asString)
-    } yield UserClaim(userId, email, role)) match
-      case None =>
-        Left("Invalid access token payload")
-      case Some(claim) =>
-        Right(claim)
+    Try(new String(JwtBase64.decode(accessToken.split("\\.")(1)))).toEither.left
+      .map(_ => "Invalid access token payload")
+      .flatMap(readClaim)
+
+  // The payload also holds the token's iat and exp, which reading a UserClaim ignores.
+  private def readClaim(json: String): Either[String, UserClaim] =
+    Try(read[UserClaim](json)).toEither.left.map(_ => "Invalid access token payload")
 
   // Workday-length session: this app has no refresh-token flow implemented, so a short expiration
   // (the previous default was 300 seconds) would make the app unusable — the user would be bounced
@@ -43,11 +37,11 @@ object JwtHelper:
   private val expirationSeconds = 12 * 60 * 60
 
   def issueToken(user: UserClaim, secretKey: String): String = {
-    val content    = user.toJson
+    val content    = write(user)
     val issuedAt   = Instant.now.getEpochSecond
     val expiration = Instant.now.plusSeconds(expirationSeconds).getEpochSecond
     val claim      = JwtClaim(content, issuedAt = Some(issuedAt), expiration = Some(expiration))
     Jwt.encode(claim, secretKey, ALG)
   }
 
-  case class UserClaim(userId: String, email: String, role: String)
+  case class UserClaim(userId: String, email: String, role: String) derives ReadWriter

@@ -6,23 +6,15 @@ import com.augustnagro.magnum.{BatchUpdateResult, DbCon}
 trait DomainRepo[E, EC] {
   def count(using DbCon): Long
 
-  def existsById(id: ID)(using DbCon): Boolean
-
   def findAll(using DbCon): Vector[E]
 
   def findById(id: ID)(using DbCon): Option[E]
-
-  def findAllById(ids: Iterable[ID])(using DbCon): Vector[E]
 
   def delete(entity: E)(using DbCon): Unit
 
   def deleteById(id: ID)(using DbCon): Unit
 
   def truncate()(using DbCon): Unit
-
-  def deleteAll(entities: Iterable[E])(using DbCon): BatchUpdateResult
-
-  def deleteAllById(ids: Iterable[ID])(using DbCon): BatchUpdateResult
 
   def insert(entityCreator: EC)(using DbCon): Unit
 

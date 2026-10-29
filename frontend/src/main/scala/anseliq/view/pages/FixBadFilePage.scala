@@ -28,14 +28,14 @@ object FixBadFilePage:
     PageHeader.page(
       previewBus.events.flatMapSwitch { fileSourceEntry =>
         ApiClient.post[BadFilePreviewPayload, BadFilePreviewRequest](
-          HttpPath.url(s"${HttpPath.movements}/bad-file-preview"),
+          s"${HttpPath.movements}/bad-file-preview",
           BadFilePreviewRequest(fileSourceEntry),
           SessionStore.token
         )
       }.apiBind(p => state.update(_.copy(preview = Some(p), result = None))),
       fixBus.events.flatMapSwitch { fileSourceEntry =>
         ApiClient.post[FixBadFileResultPayload, FixBadFileRequest](
-          HttpPath.url(s"${HttpPath.movements}/bad-file-fix"),
+          s"${HttpPath.movements}/bad-file-fix",
           FixBadFileRequest(fileSourceEntry),
           SessionStore.token
         )

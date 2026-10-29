@@ -76,12 +76,12 @@ object PageHeader:
   // after the ledger's own name (e.g. "Reconciliations") is given as the tab it opens. Without a
   // known ledger (e.g. the page was opened directly) the trail starts at Ledgers.
   def ledgerBreadcrumb(
-    ff:    Option[LedgerPayload],
-    tab:   Option[(String, String)], // (label, tab id) — the ledger tab this page belongs under
-    trail: (String, Option[Observer[Unit]])*
+    ledger: Option[LedgerPayload],
+    tab:    Option[(String, String)], // (label, tab id) — the ledger tab this page belongs under
+    trail:  (String, Option[Observer[Unit]])*
   ): HtmlElement =
     val ledgers = "Ledgers" -> Some(Observer[Unit](_ => Nav.toLedgers()))
-    val ledgerCrumbs = ff.toSeq.flatMap { f =>
+    val ledgerCrumbs = ledger.toSeq.flatMap { f =>
       (f.name -> Some(Observer[Unit](_ => Nav.toLedger(f, "Overview", None)))) +:
         tab.toSeq.map((label, id) => label -> Some(Observer[Unit](_ => Nav.toLedger(f, id, None))))
     }

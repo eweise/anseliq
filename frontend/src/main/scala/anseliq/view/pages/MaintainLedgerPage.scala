@@ -9,33 +9,32 @@ import anseliq.state.AppState.apiBind
 import anseliq.state.{AppState, SessionStore}
 import anseliq.view.ViewHelper
 import anseliq.view.components.{Buttons, Form}
-import upickle.default.*
 
 object MaintainLedgerPage:
 
   def apply(): HtmlElement =
     val initial = AppState.activeLedger.now().getOrElse(LedgerPayload())
-    val ff      = Var(initial)
+    val ledger  = Var(initial)
     val saveBus = EventBus[Unit]()
 
     div(
       saveBus.events.flatMapSwitch { _ =>
-        val f     = ff.now()
+        val f     = ledger.now()
         val token = SessionStore.token
         if f.id.isDefined
-        then ApiClient.put[LedgerPayload, LedgerPayload](HttpPath.url(s"${HttpPath.ledger}/${f.id.get}"), f, token)
-        else ApiClient.post[LedgerPayload, LedgerPayload](HttpPath.url(HttpPath.ledger), f, token)
+        then ApiClient.put[LedgerPayload, LedgerPayload](s"${HttpPath.ledger}/${f.id.get}", f, token)
+        else ApiClient.post[LedgerPayload, LedgerPayload](HttpPath.ledger, f, token)
       }.apiBind(_ => Nav.toLedgers()),
       cls := "min-h-screen bg-md-surface-variant dark:bg-gray-900 flex items-start justify-center pt-20 px-4",
       div(
         cls := "bg-white dark:bg-gray-800 rounded-xl shadow-md w-full max-w-md p-8",
         h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Ledger"),
-        Form.field("name", "Name", initial.name, v => ff.update(_.copy(name = v))),
+        Form.field("name", "Name", initial.name, v => ledger.update(_.copy(name = v))),
         Form.field(
           "dailyCutoffHours",
           "Daily Report Cutoff (hour of day, 0-23)",
           initial.dailyCutoffHours.toString,
-          v => ff.update(_.copy(dailyCutoffHours = v.trim.toIntOption.getOrElse(0)))
+          v => ledger.update(_.copy(dailyCutoffHours = v.trim.toIntOption.getOrElse(0)))
         ),
         initial.createdAt.fold(div())(ca =>
           Form.field("created_at", "Created At", ViewHelper.formatDateTime(ca), enabled = false)

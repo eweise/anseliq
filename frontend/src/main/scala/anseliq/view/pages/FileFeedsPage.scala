@@ -29,7 +29,7 @@ object FileFeedsPage:
       EventStream
         .merge(EventStream.fromValue((), emitOnce = true), fetchBus.events)
         .flatMapSwitch { _ =>
-          ApiClient.get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+          ApiClient.get[Seq[FileFeedPayload]](HttpPath.fileFeeds, SessionStore.token)
         }
         .apiBind(feeds => state.update(_.copy(feeds = feeds))),
       PageHeader.titleRow(

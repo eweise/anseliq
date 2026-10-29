@@ -3,7 +3,7 @@ package anseliq.testing
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.model.{CreateBucketRequest, ListObjectsV2Request, PutObjectRequest}
+import software.amazon.awssdk.services.s3.model.{CreateBucketRequest, PutObjectRequest}
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import java.net.URI
@@ -11,13 +11,13 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 class PopulateS3Buckets extends munit.FunSuite:
-  val bucket             = "onparity"
+  val bucket             = "scenario1"
   val localstackEndpoint = URI.create("http://localhost:4566")
 
   test("1 to 1 attribute test") {
     val (bucket: String, s3Client: S3Client) = init
 
-    for i <- 0 until 1 do {
+    for _ <- 0 until 1 do {
       var bankContents     = ""
       var internalContents = ""
       for (x <- 1 until 5) {
@@ -73,7 +73,7 @@ class PopulateS3Buckets extends munit.FunSuite:
   }
 
   private def init = {
-    val bucket             = "onparity"
+    val bucket             = "scenario1"
     val localstackEndpoint = URI.create("http://localhost:4566")
     lazy val s3Client: S3Client = S3Client
       .builder()
@@ -94,7 +94,7 @@ class PopulateS3Buckets extends munit.FunSuite:
 
     s3Client.createBucket(CreateBucketRequest.builder().bucket(bucket).build())
 
-    for i <- 0 until 2 do {
+    for _ <- 0 until 2 do {
       var bankContents     = ""
       var internalContents = ""
       for (x <- 1 until 2) {
@@ -124,8 +124,6 @@ class PopulateS3Buckets extends munit.FunSuite:
         RequestBody.fromString(internalContents)
       )
     }
-
-    val objects = s3Client.listObjectsV2(ListObjectsV2Request.builder().bucket(bucket).build())
 
   private def createS3Client() = S3Client
     .builder()

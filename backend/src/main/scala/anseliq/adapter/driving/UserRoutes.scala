@@ -35,7 +35,7 @@ class UserRoutes(
   // picker on the Exceptions page, not user administration. Viewers are excluded: they're read-only
   // by design, so an exception can never be handed to one.
   @cask.route(HttpPath.assignableUsers, methods = HttpCmd.GET)
-  def listAssignableUsers()(currentUser: JwtHelper.UserClaim): String =
+  def listAssignableUsers(): String =
     transact(transactor):
       write(
         userService

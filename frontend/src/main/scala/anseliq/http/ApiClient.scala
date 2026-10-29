@@ -20,7 +20,7 @@ object ApiClient:
   // session bounces the user back to /login instead of failing silently or showing a confusing
   // "HTTP 401: Unauthorized" error banner.
   private def handleUnauthorized(status: Int, url: String): Unit =
-    if status == 401 && url != HttpPath.url(HttpPath.login) then
+    if status == 401 && url != HttpPath.login then
       SessionStore.clear()
       Nav.push("/login")
 

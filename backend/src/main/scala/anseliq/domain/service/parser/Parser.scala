@@ -3,9 +3,6 @@ package anseliq.domain.service.parser
 import anseliq.common.model.*
 import anseliq.common.model.model.Properties
 import anseliq.domain.model.NonRetryableError
-import com.jayway.jsonpath.{Configuration, JsonPath, Option as JsonPathOption}
-
-import scala.util.Try
 
 class ParserError(msg: String) extends NonRetryableError(msg)
 

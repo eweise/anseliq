@@ -366,8 +366,8 @@ class EndToEndSuite extends munit.FunSuite {
     val (
       ledger,
       reconAccount,
-      journalAccount,
-      reportAccount,
+      _,
+      _,
       journalFeed,
       journalToRecon,
       reportFeed,

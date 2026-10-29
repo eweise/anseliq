@@ -5,7 +5,7 @@ import anseliq.common.http.HttpPath
 import anseliq.common.model.*
 import anseliq.http.ApiClient
 import anseliq.state.AppState.apiBind
-import anseliq.state.{AppState, SessionStore}
+import anseliq.state.SessionStore
 import anseliq.view.ViewHelper
 import anseliq.routing.Nav
 import anseliq.view.components.{Buttons, PageHeader, Table}
@@ -20,7 +20,7 @@ object FileInventoryPage:
       EventStream
         .merge(EventStream.fromValue((), emitOnce = true), fetchBus.events)
         .flatMapSwitch { _ =>
-          ApiClient.get[Seq[FileInventoryPayload]](HttpPath.url(HttpPath.fileInventory), SessionStore.token)
+          ApiClient.get[Seq[FileInventoryPayload]](HttpPath.fileInventory, SessionStore.token)
         }
         .apiBind(entries => state.update(_.copy(entries = entries))),
       PageHeader.titleRow(

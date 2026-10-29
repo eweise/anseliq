@@ -475,7 +475,6 @@ class ManualReconcilerSuite extends munit.FunSuite:
     // bulkUnreconcileByFile commits its own transactions internally (same reason as
     // reconcileAccountResumable above), so setup needs to be committed for real too.
     val data             = transact(app.transactor)(DataSetup(app))
-    given DataSetup      = data
     val manualReconciler = app.manualReconciler
     val fileSourceEntry  = s"bad-amount-field-${java.util.UUID.randomUUID()}"
 
@@ -595,7 +594,6 @@ class ManualReconcilerSuite extends munit.FunSuite:
     // reverseMovementsByFile commits its own transactions internally, same reason as
     // bulkUnreconcileByFile above, so setup needs to be committed for real too.
     val data             = transact(app.transactor)(DataSetup(app))
-    given DataSetup      = data
     val manualReconciler = app.manualReconciler
     val fileSourceEntry  = s"bad-amount-field-${java.util.UUID.randomUUID()}"
 

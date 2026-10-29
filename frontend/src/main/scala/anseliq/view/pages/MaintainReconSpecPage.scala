@@ -13,7 +13,6 @@ import anseliq.common.model.{
   RuleProposalPayload
 }
 import anseliq.http.ApiClient
-import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
 import anseliq.state.{AppState, SessionStore}
 import anseliq.view.components.{Buttons, Form, RuleWidget}
@@ -26,16 +25,16 @@ object MaintainReconSpecPage:
 
   def apply(accountId: String, reconSpecId: String, onClose: () => Unit): HtmlElement =
     AppState.activeLedger.now() match
-      case None     => div(onMountCallback(_ => onClose()))
-      case Some(ff) => renderPage(accountId, reconSpecId, ff, onClose)
+      case None         => div(onMountCallback(_ => onClose()))
+      case Some(ledger) => renderPage(accountId, reconSpecId, ledger, onClose)
 
   private def renderPage(
     accountId:   String,
     reconSpecId: String,
-    ff:          anseliq.common.model.LedgerPayload,
+    ledger:      anseliq.common.model.LedgerPayload,
     onClose:     () => Unit
   ): HtmlElement =
-    val ffId      = ff.id.getOrElse("")
+    val ledgerId  = ledger.id.getOrElse("")
     val loadState = Var[LoadState](if reconSpecId == "new" then LoadState.Ready(None) else LoadState.Loading)
     val loadBus   = EventBus[Unit]()
 
@@ -43,7 +42,7 @@ object MaintainReconSpecPage:
       loadBus.events
         .flatMapSwitch(_ =>
           ApiClient.get[Seq[ReconciliationSpecPayload]](
-            HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+            s"${HttpPath.account}/$accountId/recon-specs",
             SessionStore.token
           )
         )
@@ -51,13 +50,13 @@ object MaintainReconSpecPage:
       onMountCallback(_ => if reconSpecId != "new" then loadBus.emit(())),
       child <-- loadState.signal.map {
         case LoadState.Loading            => span(cls := "text-md-on-surface-variant", "Loading…")
-        case LoadState.Ready(initialSpec) => renderForm(accountId, ffId, initialSpec, onClose)
+        case LoadState.Ready(initialSpec) => renderForm(accountId, ledgerId, initialSpec, onClose)
       }
     )
 
   private def renderForm(
     accountId:   String,
-    ffId:        String,
+    ledgerId:    String,
     initialSpec: Option[ReconciliationSpecPayload],
     onClose:     () => Unit
   ): HtmlElement =
@@ -90,7 +89,7 @@ object MaintainReconSpecPage:
     div(
       ApiClient
         .get[Seq[MovementSpecPayload]](
-          HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
+          s"${HttpPath.ledgers}/$ledgerId/movement-specs",
           SessionStore.token
         )
         .apiBind { specs =>
@@ -101,14 +100,14 @@ object MaintainReconSpecPage:
             spec.update(_.copy(inMovementSpecId = inSpec, outMovementSpecId = outSpec))
         },
       ApiClient
-        .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+        .get[Seq[FileFeedPayload]](HttpPath.fileFeeds, SessionStore.token)
         .apiBind(feeds => fileFeeds.set(feeds)),
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](s"${HttpPath.ledgers}/$ledgerId/accounts", SessionStore.token)
         .apiBind(accounts.set),
       initialSpec.flatMap(_.id).map { id =>
         ApiClient
-          .get[Seq[RuleProposalPayload]](HttpPath.url(s"${HttpPath.reconSpec}/$id/rule-proposals"), SessionStore.token)
+          .get[Seq[RuleProposalPayload]](s"${HttpPath.reconSpec}/$id/rule-proposals", SessionStore.token)
           .apiBind(proposals.set)
       },
       saveBus.events
@@ -119,17 +118,17 @@ object MaintainReconSpecPage:
           if s.id.isDefined
           then
             ApiClient.put[ReconciliationSpecPayload, ReconciliationSpecPayload](
-              HttpPath.url(s"${HttpPath.reconSpec}/${s.id.get}"),
+              s"${HttpPath.reconSpec}/${s.id.get}",
               s,
               token
             )
           else
             ApiClient
-              .post[ReconciliationSpecPayload, ReconciliationSpecPayload](HttpPath.url(HttpPath.reconSpec), s, token)
+              .post[ReconciliationSpecPayload, ReconciliationSpecPayload](HttpPath.reconSpec, s, token)
         }
         .apiBind(_ => onClose()),
       deleteBus.events.flatMapSwitch { _ =>
-        ApiClient.delete(HttpPath.url(s"${HttpPath.reconSpec}/${spec.now().id.get}"), SessionStore.token)
+        ApiClient.delete(s"${HttpPath.reconSpec}/${spec.now().id.get}", SessionStore.token)
       }.apiBind(_ => onClose()),
       div(
         h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Reconciliation rule"),

@@ -4,7 +4,7 @@ import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model.MovementSpec
 import anseliq.domain.port.driven.{MovementSpecRepo, Txn}
-import com.augustnagro.magnum.{DbCon, Repo, sql}
+import com.augustnagro.magnum.sql
 
 import java.util.UUID
 

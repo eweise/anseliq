@@ -45,7 +45,7 @@ class ReconciliationRoutes(
       write(reconRepo.countByStatusForAccountID(UUID.fromString(id)).map((s, n) => s.toString -> n))
 
   @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
-  def reoncileAccount(id: String, request: cask.Request): String =
+  def reconcileAccount(id: String): String =
     reconciliationRunner.reconcileNow(UUID.fromString(id))
     write("reconciled")
 

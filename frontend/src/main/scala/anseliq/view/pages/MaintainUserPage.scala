@@ -62,7 +62,7 @@ object MaintainUserPage:
       // order, and if the onMountCallback's emit fires before this stream's subscription is wired
       // up, EventBus drops it (no replay to late subscribers), silently skipping the load entirely.
       (if isNew then EventStream.empty else EventStream.fromValue(())).flatMapSwitch { _ =>
-        ApiClient.get[Seq[UserPayload]](HttpPath.url(HttpPath.users), SessionStore.token)
+        ApiClient.get[Seq[UserPayload]](HttpPath.users, SessionStore.token)
       }.apiBind { users =>
         users.find(_.id.contains(userId)).foreach { u =>
           state.update(
@@ -81,13 +81,13 @@ object MaintainUserPage:
         s.id match
           case Some(id) =>
             ApiClient.put[UserPayload, UpdateUserRequest](
-              HttpPath.url(s"${HttpPath.users}/$id"),
+              s"${HttpPath.users}/$id",
               UpdateUserRequest(s.firstName, s.lastName, s.role, s.active),
               token
             )
           case None =>
             ApiClient.post[UserPayload, CreateUserRequest](
-              HttpPath.url(HttpPath.users),
+              HttpPath.users,
               CreateUserRequest(s.email, s.firstName, s.lastName, s.role, s.password),
               token
             )
@@ -98,7 +98,7 @@ object MaintainUserPage:
       resetBus.events.flatMapSwitch { _ =>
         val s = state.now()
         ApiClient.postRaw(
-          HttpPath.url(s"${HttpPath.users}/${s.id.getOrElse("")}/reset-password"),
+          s"${HttpPath.users}/${s.id.getOrElse("")}/reset-password",
           write(ResetPasswordRequest(s.newPassword)),
           SessionStore.token
         )

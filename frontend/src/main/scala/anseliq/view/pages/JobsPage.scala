@@ -31,7 +31,7 @@ object JobsPage:
         .flatMapSwitch { _ =>
           EventStream.merge(JobTypeInfo.values.toSeq.map { jt =>
             ApiClient
-              .get[Seq[JobInfoPayload]](HttpPath.url(s"${HttpPath.jobs}/$jt"), SessionStore.token)
+              .get[Seq[JobInfoPayload]](s"${HttpPath.jobs}/$jt", SessionStore.token)
               .map(_.map(jt -> _))
           }*)
         }

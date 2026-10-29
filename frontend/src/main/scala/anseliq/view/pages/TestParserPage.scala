@@ -40,12 +40,12 @@ object TestParserPage:
 
     PageHeader.page(
       ApiClient
-        .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+        .get[Seq[FileFeedPayload]](HttpPath.fileFeeds, SessionStore.token)
         .apiBind(feeds => state.update(_.copy(fileFeed = feeds.find(_.id.contains(fileFeedId))))),
       fileReadBus.events.flatMapSwitch { content =>
         state.update(_.copy(status = UploadStatus.Uploading))
         ApiClient.postRawExpectJson[ParseTestResultPayload](
-          HttpPath.url(s"${HttpPath.fileFeed}/$fileFeedId/test-parse"),
+          s"${HttpPath.fileFeed}/$fileFeedId/test-parse",
           content,
           SessionStore.token
         )

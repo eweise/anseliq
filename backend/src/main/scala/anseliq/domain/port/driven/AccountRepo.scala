@@ -1,7 +1,6 @@
 package anseliq.domain.port.driven
 
 import anseliq.common.model.model.ID
-import anseliq.domain.model
 import anseliq.domain.model.*
 
 trait AccountRepo extends DomainRepo[Account, Account]:

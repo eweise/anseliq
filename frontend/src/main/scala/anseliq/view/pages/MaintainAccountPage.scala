@@ -16,11 +16,11 @@ object MaintainAccountPage:
   // Rendered inside Modal by LedgerPage (its only caller) — onClose defaults to Nav.back() so
   // this still works if ever reached directly via its route (/components/accounts/:id/maintain).
   def apply(accountId: String, onClose: () => Unit = () => Nav.back()): HtmlElement =
-    val ledger = AppState.activeLedger.now()
-    val ffId   = ledger.flatMap(_.id).getOrElse("")
+    val ledger   = AppState.activeLedger.now()
+    val ledgerId = ledger.flatMap(_.id).getOrElse("")
     val initial = AccountPayload(
       id          = if accountId == "new" then None else Some(accountId),
-      ledgerId    = ffId,
+      ledgerId    = ledgerId,
       accountType = AccountTypePayload.Primary
     )
     val account        = Var(initial)
@@ -36,7 +36,7 @@ object MaintainAccountPage:
       // to work out), but became real once it started being constructed inside LedgerPage's
       // reactive Modal block. Matches the same pattern searchMovementsTab uses.
       (if accountId != "new" then EventStream.fromValue(()) else EventStream.empty).flatMapSwitch { _ =>
-        ApiClient.get[AccountPayload](HttpPath.url(s"${HttpPath.account}/$accountId"), SessionStore.token)
+        ApiClient.get[AccountPayload](s"${HttpPath.account}/$accountId", SessionStore.token)
       }.apiBind { a =>
         account.set(a)
         setNameBus.emit(a.name)
@@ -46,8 +46,8 @@ object MaintainAccountPage:
         val a     = account.now()
         val token = SessionStore.token
         if a.id.isDefined
-        then ApiClient.put[AccountPayload, AccountPayload](HttpPath.url(s"${HttpPath.account}/${a.id.get}"), a, token)
-        else ApiClient.post[AccountPayload, AccountPayload](HttpPath.url(HttpPath.account), a, token)
+        then ApiClient.put[AccountPayload, AccountPayload](s"${HttpPath.account}/${a.id.get}", a, token)
+        else ApiClient.post[AccountPayload, AccountPayload](HttpPath.account, a, token)
       }.apiBind(_ => onClose()),
       h2(cls := "text-xl font-medium text-md-on-surface dark:text-white mb-7", "Account"),
       Form.field("name", "Name", initial.name, v => account.update(_.copy(name = v)), updates = setNameBus.events),

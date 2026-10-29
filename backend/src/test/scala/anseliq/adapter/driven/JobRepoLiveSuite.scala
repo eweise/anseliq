@@ -1,6 +1,5 @@
 package anseliq.adapter.driven
 
-import anseliq.domain.DataSetup
 import anseliq.domain.model.JobType.Ingestion
 import anseliq.domain.model.{Job, JobStatus, JobType}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
@@ -15,7 +14,6 @@ class JobRepoLiveSuite extends munit.FunSuite:
     val jobRepo = app.jobRepo
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
         val referenceId = UUID.randomUUID()
         val job         = Job(jobType = Ingestion, referenceId = referenceId)
 

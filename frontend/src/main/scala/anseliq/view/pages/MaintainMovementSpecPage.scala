@@ -23,17 +23,17 @@ object MaintainMovementSpecPage:
     onClose:      () => Unit = () => Nav.back()
   ): HtmlElement =
     AppState.activeLedger.now() match
-      case None     => div(onMountCallback(_ => Nav.toLedgers()))
-      case Some(ff) => renderPage(outAccountId, inAccountId, id, ff, onClose)
+      case None         => div(onMountCallback(_ => Nav.toLedgers()))
+      case Some(ledger) => renderPage(outAccountId, inAccountId, id, ledger, onClose)
 
   private def renderPage(
     outAccountId: String,
     inAccountId:  String,
     id:           String,
-    ff:           anseliq.common.model.LedgerPayload,
+    ledger:       anseliq.common.model.LedgerPayload,
     onClose:      () => Unit
   ): HtmlElement =
-    val ffId      = ff.id.getOrElse("")
+    val ledgerId  = ledger.id.getOrElse("")
     val blank     = MovementSpecPayload(outAccountId = outAccountId, inAccountId = inAccountId)
     val loadState = Var[LoadState](if id == "new" then LoadState.Ready(blank) else LoadState.Loading)
 
@@ -45,18 +45,18 @@ object MaintainMovementSpecPage:
       (if id != "new" then EventStream.fromValue(()) else EventStream.empty)
         .flatMapSwitch(_ =>
           ApiClient.get[Seq[MovementSpecPayload]](
-            HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
+            s"${HttpPath.ledgers}/$ledgerId/movement-specs",
             SessionStore.token
           )
         )
         .apiBind(specs => loadState.set(LoadState.Ready(specs.find(_.id.contains(id)).getOrElse(blank)))),
       child <-- loadState.signal.map {
         case LoadState.Loading        => div(cls := "text-md-on-surface-variant", "Loading...")
-        case LoadState.Ready(initial) => renderForm(ffId, initial, onClose)
+        case LoadState.Ready(initial) => renderForm(ledgerId, initial, onClose)
       }
     )
 
-  private def renderForm(ffId: String, initial: MovementSpecPayload, onClose: () => Unit): HtmlElement =
+  private def renderForm(ledgerId: String, initial: MovementSpecPayload, onClose: () => Unit): HtmlElement =
     val spec      = Var(initial)
     val accounts  = Var(Seq.empty[AccountPayload])
     val fileFeeds = Var(Seq.empty[FileFeedPayload])
@@ -74,7 +74,7 @@ object MaintainMovementSpecPage:
 
     div(
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](s"${HttpPath.ledgers}/$ledgerId/accounts", SessionStore.token)
         .apiBind { accs =>
           val initialInIsRecon =
             accs.find(_.id.contains(initial.inAccountId)).exists(_.accountType == AccountTypePayload.Recon)
@@ -86,7 +86,7 @@ object MaintainMovementSpecPage:
           accounts.set(accs)
         },
       ApiClient
-        .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+        .get[Seq[FileFeedPayload]](HttpPath.fileFeeds, SessionStore.token)
         .apiBind(feeds => fileFeeds.set(feeds)),
       saveBus.events.flatMapSwitch { _ =>
         val s             = spec.now()
@@ -104,13 +104,13 @@ object MaintainMovementSpecPage:
             if finalSpec.id.isDefined
             then
               ApiClient.put[MovementSpecPayload, MovementSpecPayload](
-                HttpPath.url(s"${HttpPath.movementSpec}/${finalSpec.id.get}"),
+                s"${HttpPath.movementSpec}/${finalSpec.id.get}",
                 finalSpec,
                 token
               )
             else
               ApiClient
-                .post[MovementSpecPayload, MovementSpecPayload](HttpPath.url(HttpPath.movementSpec), finalSpec, token)
+                .post[MovementSpecPayload, MovementSpecPayload](HttpPath.movementSpec, finalSpec, token)
           case _ =>
             saveError.set(Some("Please select an Account and a Recon Account"))
             EventStream.empty

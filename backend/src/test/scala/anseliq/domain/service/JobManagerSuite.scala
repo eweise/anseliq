@@ -368,8 +368,7 @@ class JobManagerSuite extends munit.FunSuite:
     transact(transactor):
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
-        val errorMsg    = "processing failed"
-        jobManager.submitAndProcessJob(Reconciliation, referenceID): job =>
+        jobManager.submitAndProcessJob(Reconciliation, referenceID): _ =>
           ReconciliationInfo(
             accountId                   = referenceID.toString,
             accountName                 = "test",
@@ -385,7 +384,7 @@ class JobManagerSuite extends munit.FunSuite:
       testing.rollBackOnly:
         val referenceID = UUID.randomUUID()
         val errorMsg    = "processing failed"
-        jobManager.submitAndProcessJob(Reconciliation, referenceID): job =>
+        jobManager.submitAndProcessJob(Reconciliation, referenceID): _ =>
           throw new RuntimeException(errorMsg)
         val foundJob = jobRepo.findByJobTypeAndReferenceId(Reconciliation, referenceID).head
         assertEquals(foundJob.jobStatus, anseliq.domain.model.JobStatus.Error)

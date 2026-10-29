@@ -18,8 +18,7 @@ class BookkeeperSuite extends munit.FunSuite:
   test("recordMovements updates account balances and keeps reconciled + unreconciled equal to balance"):
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
-        given DataSetup = data
+        val data = DataSetup(app)
         data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(
@@ -52,8 +51,7 @@ class BookkeeperSuite extends munit.FunSuite:
   test("markReconciled moves an amount from unreconciled to reconciled without changing balance"):
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
-        given DataSetup = data
+        val data = DataSetup(app)
         data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
@@ -70,8 +68,7 @@ class BookkeeperSuite extends munit.FunSuite:
   test("markUnreconciled reverses a prior markReconciled by the same amount"):
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
-        given DataSetup = data
+        val data = DataSetup(app)
         data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
@@ -89,8 +86,7 @@ class BookkeeperSuite extends munit.FunSuite:
   test("reconcile links matched movements to a reconciliation and shifts balance from unreconciled to reconciled"):
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
-        given DataSetup = data
+        val data = DataSetup(app)
 
         data.bookkeeper.recordMovements(
           data.journalToRecon,
@@ -114,8 +110,7 @@ class BookkeeperSuite extends munit.FunSuite:
   test("unreconcile clears the reconciliation link and reverses the balance shift"):
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
-        given DataSetup = data
+        val data = DataSetup(app)
 
         data.bookkeeper.recordMovements(
           data.journalToRecon,
@@ -145,8 +140,7 @@ class BookkeeperSuite extends munit.FunSuite:
     // being applied twice unless recordMovements itself excludes already-recorded referenceIds.
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
-        given DataSetup = data
+        val data = DataSetup(app)
         val requests = Seq(
           MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
           MovementRequest(amount = -30, referenceId = createID(), properties = Map())
@@ -177,7 +171,6 @@ class BookkeeperSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data            = DataSetup(app)
-        given DataSetup     = data
         val alreadyRecorded = MovementRequest(amount = 100, referenceId = createID(), properties = Map())
         val brandNew        = MovementRequest(amount = 25, referenceId = createID(), properties = Map())
 
@@ -238,8 +231,7 @@ class BookkeeperSuite extends munit.FunSuite:
   test("recordMovements with a negative amount swaps the in/out accounts"):
     transact(app.transactor):
       rollBackOnly:
-        val data        = DataSetup(app)
-        given DataSetup = data
+        val data = DataSetup(app)
         data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(MovementRequest(amount = -40, referenceId = createID(), properties = Map()))

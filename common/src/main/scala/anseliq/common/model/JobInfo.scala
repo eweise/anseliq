@@ -11,9 +11,6 @@ case class ReconciliationInfo(
   processingTimeSeconds:       Long
 ) extends JobInfo
 
-enum IngestionDataSource derives ReadWriter:
-  case FTP, S3, API, Manual
-
 case class IngestionInfo(
   numberOfRecordsIngested: Int,
   processingTimeSeconds:   Long

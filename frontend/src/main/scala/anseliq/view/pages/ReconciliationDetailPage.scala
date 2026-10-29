@@ -13,7 +13,7 @@ import anseliq.common.model.{
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
-import anseliq.state.{AppState, SessionStore}
+import anseliq.state.SessionStore
 import anseliq.view.ViewHelper
 import anseliq.view.components.{
   Buttons,
@@ -41,7 +41,7 @@ object ReconciliationDetailPage:
     val loadBus = EventBus[Unit]()
 
     def load() =
-      ApiClient.get[ReconciliationDetailPayload](HttpPath.url(s"${HttpPath.reconciliation}/$id"), SessionStore.token)
+      ApiClient.get[ReconciliationDetailPayload](s"${HttpPath.reconciliation}/$id", SessionStore.token)
 
     PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),

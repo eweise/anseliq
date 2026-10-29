@@ -19,7 +19,7 @@ class ActivityRoutes(
   def jobsByType(jobType: String): String =
     val jobTypeInfo =
       try JobTypeInfo.valueOf(jobType)
-      catch case ex: Exception => throw IllegalArgumentError("JobType", jobType)
+      catch case _: Exception => throw IllegalArgumentError("JobType", jobType)
     transact(transactor):
       val jobs = jobRepo.findByJobType(JobType.valueOf(jobTypeInfo.toString))
       write(jobs.map(PayloadMapper.jobPayloadFromDomain))

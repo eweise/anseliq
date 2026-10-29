@@ -30,7 +30,7 @@ object EventsPage:
         )
         .flatMapSwitch { eventType =>
           ApiClient.get[Seq[EventPayload]](
-            HttpPath.url(s"${HttpPath.events}/$eventType"),
+            s"${HttpPath.events}/$eventType",
             SessionStore.token
           )
         }

@@ -13,7 +13,7 @@ import anseliq.common.model.model.Money
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
-import anseliq.state.{AppState, SessionStore}
+import anseliq.state.SessionStore
 import anseliq.view.components.{Buttons, Card, DetailList, Form, MovementLabels, PageHeader, Pill, ReconStatus}
 
 object MovementDetailPage:
@@ -25,7 +25,7 @@ object MovementDetailPage:
     val loadBus = EventBus[Unit]()
 
     def load() =
-      ApiClient.get[MovementDetailPayload](HttpPath.url(s"${HttpPath.movement}/$id"), SessionStore.token)
+      ApiClient.get[MovementDetailPayload](s"${HttpPath.movement}/$id", SessionStore.token)
 
     PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
@@ -56,8 +56,8 @@ object MovementDetailPage:
             reconciliationSection(d),
             if d.openExceptions.isEmpty then emptyNode else exceptionsSection(d.openExceptions),
             movementSection(d),
-            propertiesSection("Properties", d.properties, last = false),
-            propertiesSection("Metadata", d.metaData, last     = true)
+            propertiesSection("Properties", d.properties),
+            propertiesSection("Metadata", d.metaData)
           )
       }
     )
@@ -125,7 +125,7 @@ object MovementDetailPage:
       cls := "flex flex-col gap-3",
       raiseBus.events.flatMapSwitch { _ =>
         ApiClient.post[ExceptionPayload, RaiseExceptionRequest](
-          HttpPath.url(HttpPath.exception),
+          HttpPath.exception,
           RaiseExceptionRequest(
             referenceId = movementId,
             targetType  = ExceptionTargetPayload.Movement,
@@ -189,7 +189,7 @@ object MovementDetailPage:
       )
     )
 
-  private def propertiesSection(title: String, props: Map[String, String], last: Boolean): HtmlElement =
+  private def propertiesSection(title: String, props: Map[String, String]): HtmlElement =
     div(
       cls := s"${Card.cls} p-4",
       h3(cls := "font-medium mb-3 text-md-on-surface dark:text-white", title),

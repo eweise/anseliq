@@ -22,9 +22,9 @@ object UsersPage:
     }
 
     PageHeader.page(
-      ApiClient.get[Seq[UserPayload]](HttpPath.url(HttpPath.users), SessionStore.token).apiBind(users.set),
+      ApiClient.get[Seq[UserPayload]](HttpPath.users, SessionStore.token).apiBind(users.set),
       refreshBus.events.flatMapSwitch { _ =>
-        ApiClient.get[Seq[UserPayload]](HttpPath.url(HttpPath.users), SessionStore.token)
+        ApiClient.get[Seq[UserPayload]](HttpPath.users, SessionStore.token)
       }.apiBind(users.set),
       PageHeader.titleRow(
         cls := "flex justify-between items-center",

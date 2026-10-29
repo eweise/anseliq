@@ -4,7 +4,6 @@ import anseliq.common.model.model.{ID, Money}
 import anseliq.domain.model.*
 import anseliq.domain.port.driven.*
 
-import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 class ReportingService(
@@ -178,18 +177,18 @@ class ReportingService(
     val now   = clock.now
     val today = now.toLocalDate
 
-    val dueLedgers = ledgerRepo.findAll.filter { ff =>
-      val cutoff = today.atStartOfDay.atOffset(now.getOffset).plusHours(ff.dailyCutoffHours)
-      !now.isBefore(cutoff) && !dailySnapshotRepo.existsForDate(ff.id, today)
+    val dueLedgers = ledgerRepo.findAll.filter { ledger =>
+      val cutoff = today.atStartOfDay.atOffset(now.getOffset).plusHours(ledger.dailyCutoffHours)
+      !now.isBefore(cutoff) && !dailySnapshotRepo.existsForDate(ledger.id, today)
     }
 
     dueLedgers.foreach(storeDailySnapshot)
     dueLedgers.size
 
   /** Computes and stores (or replaces) the ledger's snapshot for clock.now's date. */
-  def storeDailySnapshot(ff: Ledger): Txn[Unit] =
+  def storeDailySnapshot(ledger: Ledger): Txn[Unit] =
     val today  = clock.now.toLocalDate
-    val report = summary(Some(ff.id))
+    val report = summary(Some(ledger.id))
     val rated  = report.matchRates.flatMap(m => m.balanceCoveragePercent.map(pct => pct -> m))
     val avgBalanceCoverage =
       if rated.isEmpty then None
@@ -210,7 +209,7 @@ class ReportingService(
 
     dailySnapshotRepo.upsert(
       DailySnapshot(
-        ledgerId     = ff.id,
+        ledgerId     = ledger.id,
         snapshotDate = today,
         matchRatesJson = upickle.write(
           report.matchRates.map(m =>

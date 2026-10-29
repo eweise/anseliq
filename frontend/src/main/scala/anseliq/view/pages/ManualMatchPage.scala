@@ -13,7 +13,6 @@ import anseliq.common.model.{
   ReconciliationSpecPayload
 }
 import anseliq.http.ApiClient
-import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
 import anseliq.state.{AppState, SessionStore}
 import anseliq.view.ViewHelper
@@ -44,7 +43,7 @@ object ManualMatchPage:
     // The ledger's accounts and movement specs, only to name each side after its account.
     val accounts      = Var(Seq.empty[AccountPayload])
     val movementSpecs = Var(Seq.empty[MovementSpecPayload])
-    val ffId          = AppState.activeLedger.now().flatMap(_.id).getOrElse("")
+    val ledgerId      = AppState.activeLedger.now().flatMap(_.id).getOrElse("")
     val primaryName = spec.signal.combineWith(movementSpecs.signal, accounts.signal).map { (sp, specs, accts) =>
       ViewHelper.primarySideName(sp.inMovementSpecId, specs, accts)
     }
@@ -54,19 +53,19 @@ object ManualMatchPage:
 
     def loadReconSpec() =
       ApiClient.get[Seq[ReconciliationSpecPayload]](
-        HttpPath.url(s"${HttpPath.account}/$accountId/recon-specs"),
+        s"${HttpPath.account}/$accountId/recon-specs",
         SessionStore.token
       )
 
     def loadMovements(s: ReconciliationSpecPayload) =
       ApiClient
         .get[Seq[MovementPayload]](
-          HttpPath.url(s"${HttpPath.movements}/${s.inMovementSpecId}/unreconciled"),
+          s"${HttpPath.movements}/${s.inMovementSpecId}/unreconciled",
           SessionStore.token
         )
         .combineWith(
           ApiClient.get[Seq[MovementPayload]](
-            HttpPath.url(s"${HttpPath.movements}/${s.outMovementSpecId}/unreconciled"),
+            s"${HttpPath.movements}/${s.outMovementSpecId}/unreconciled",
             SessionStore.token
           )
         )
@@ -88,7 +87,7 @@ object ManualMatchPage:
       movementsBus.events
         .flatMapSwitch(s =>
           ApiClient.get[Seq[MatchSuggestionPayload]](
-            HttpPath.url(s"${HttpPath.reconSpec}/${s.id.getOrElse("")}/match-suggestions"),
+            s"${HttpPath.reconSpec}/${s.id.getOrElse("")}/match-suggestions",
             SessionStore.token
           )
         )
@@ -96,7 +95,7 @@ object ManualMatchPage:
       acceptBus.events
         .flatMapSwitch(id =>
           ApiClient.postEmpty[ReconciliationPayload](
-            HttpPath.url(s"${HttpPath.matchSuggestion}/$id/accept"),
+            s"${HttpPath.matchSuggestion}/$id/accept",
             SessionStore.token
           )
         )
@@ -105,9 +104,7 @@ object ManualMatchPage:
           movementsBus.emit(spec.now())
         },
       rejectBus.events
-        .flatMapSwitch(id =>
-          ApiClient.postRaw(HttpPath.url(s"${HttpPath.matchSuggestion}/$id/reject"), "", SessionStore.token)
-        )
+        .flatMapSwitch(id => ApiClient.postRaw(s"${HttpPath.matchSuggestion}/$id/reject", "", SessionStore.token))
         .apiBind { _ =>
           state.update(_.copy(message = Some("Suggestion rejected")))
           movementsBus.emit(spec.now())
@@ -115,7 +112,7 @@ object ManualMatchPage:
       matchBus.events.flatMapSwitch { _ =>
         val s = state.now()
         ApiClient.post[ReconciliationPayload, ManualMatchRequest](
-          HttpPath.url(s"${HttpPath.reconSpec}/${spec.now().id.getOrElse("")}/manual-match"),
+          s"${HttpPath.reconSpec}/${spec.now().id.getOrElse("")}/manual-match",
           ManualMatchRequest(
             inMovementIds  = s.selectedIn.toSeq,
             outMovementIds = s.selectedOut.toSeq,
@@ -129,10 +126,10 @@ object ManualMatchPage:
       },
       onMountCallback(_ => loadBus.emit(())),
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](s"${HttpPath.ledgers}/$ledgerId/accounts", SessionStore.token)
         .apiBind(accounts.set),
       ApiClient
-        .get[Seq[MovementSpecPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"), SessionStore.token)
+        .get[Seq[MovementSpecPayload]](s"${HttpPath.ledgers}/$ledgerId/movement-specs", SessionStore.token)
         .apiBind(movementSpecs.set),
       PageHeader.ledgerBreadcrumb(
         AppState.activeLedger.now(),

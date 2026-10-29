@@ -35,7 +35,7 @@ class AccountRoutes(
   // already registers "options" there via HttpCmd.PUT — cask allows only one "options" registration
   // per path, same reasoning as listUsers/createUser in UserRoutes.
   @cask.route(s"${HttpPath.account}/:id", methods = Seq("get"))
-  def getAccount(id: String, request: cask.Request): String =
+  def getAccount(id: String): String =
     transact(transactor):
       write(accountRepo.findById(UUID.fromString(id)).map(PayloadMapper.accountPayloadFromDomain))
 

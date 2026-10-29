@@ -27,12 +27,12 @@ object LedgerPage:
 
   def apply(): HtmlElement =
     AppState.activeLedger.now() match
-      case None     => div(onMountCallback(_ => Nav.toLedgers()))
-      case Some(ff) => renderPage(ff)
+      case None         => div(onMountCallback(_ => Nav.toLedgers()))
+      case Some(ledger) => renderPage(ledger)
 
-  private def renderPage(ff: LedgerPayload): HtmlElement =
-    val ffId        = ff.id.getOrElse("")
-    val ffVar       = Var(ff)
+  private def renderPage(ledger: LedgerPayload): HtmlElement =
+    val ledgerId    = ledger.id.getOrElse("")
+    val ledgerVar   = Var(ledger)
     val state       = Var(State())
     val activeTab   = Var(tabFromUrl())
     val reconStatus = Var(statusFromUrl())
@@ -68,20 +68,20 @@ object LedgerPage:
     PageHeader.page(
       saveLedgerBus.events.flatMapSwitch { _ =>
         ApiClient.put[LedgerPayload, LedgerPayload](
-          HttpPath.url(s"${HttpPath.ledger}/$ffId"),
-          ffVar.now(),
+          s"${HttpPath.ledger}/$ledgerId",
+          ledgerVar.now(),
           SessionStore.token
         )
       }.apiBind { updated =>
-        ffVar.set(updated)
+        ledgerVar.set(updated)
         AppState.activeLedger.set(Some(updated))
       },
       ApiClient
-        .get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
+        .get[Seq[AccountPayload]](s"${HttpPath.ledgers}/$ledgerId/accounts", SessionStore.token)
         .apiBind(accounts => state.update(_.copy(accounts = accounts))),
       ApiClient
         .get[LedgerSummaryViewPayload](
-          HttpPath.url(s"${HttpPath.ledger}/$ffId/summary"),
+          s"${HttpPath.ledger}/$ledgerId/summary",
           SessionStore.token
         )
         .apiBind { summary =>
@@ -90,24 +90,24 @@ object LedgerPage:
         },
       ApiClient
         .get[Seq[MovementSpecPayload]](
-          HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
+          s"${HttpPath.ledgers}/$ledgerId/movement-specs",
           SessionStore.token
         )
         .apiBind(specs => state.update(_.copy(movementSpecs = specs))),
       ApiClient
-        .get[Seq[FileFeedPayload]](HttpPath.url(HttpPath.fileFeeds), SessionStore.token)
+        .get[Seq[FileFeedPayload]](HttpPath.fileFeeds, SessionStore.token)
         .apiBind(feeds => state.update(_.copy(fileFeeds = feeds))),
       refreshBus.events.flatMapSwitch { _ =>
-        ApiClient.get[Seq[AccountPayload]](HttpPath.url(s"${HttpPath.ledgers}/$ffId/accounts"), SessionStore.token)
+        ApiClient.get[Seq[AccountPayload]](s"${HttpPath.ledgers}/$ledgerId/accounts", SessionStore.token)
       }.apiBind(accounts => state.update(_.copy(accounts = accounts))),
       refreshBus.events.flatMapSwitch { _ =>
-        ApiClient.get[LedgerSummaryViewPayload](HttpPath.url(s"${HttpPath.ledger}/$ffId/summary"), SessionStore.token)
+        ApiClient.get[LedgerSummaryViewPayload](s"${HttpPath.ledger}/$ledgerId/summary", SessionStore.token)
       }.apiBind { summary =>
         state.update(_.copy(summaries = summary.accounts.flatMap(a => a.account.id.map(_ -> a)).toMap))
       },
       refreshBus.events.flatMapSwitch { _ =>
         ApiClient.get[Seq[MovementSpecPayload]](
-          HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
+          s"${HttpPath.ledgers}/$ledgerId/movement-specs",
           SessionStore.token
         )
       }.apiBind(specs => state.update(_.copy(movementSpecs = specs))),
@@ -127,7 +127,7 @@ object LedgerPage:
       configureReconBus.events.flatMapSwitch { account =>
         ApiClient
           .get[Seq[ReconciliationSpecPayload]](
-            HttpPath.url(s"${HttpPath.account}/${account.id.get}/recon-specs"),
+            s"${HttpPath.account}/${account.id.get}/recon-specs",
             SessionStore.token
           )
           .map(res => (account, res))
@@ -144,7 +144,7 @@ object LedgerPage:
       manualMatchBus.events.flatMapSwitch { account =>
         ApiClient
           .get[Seq[ReconciliationSpecPayload]](
-            HttpPath.url(s"${HttpPath.account}/${account.id.get}/recon-specs"),
+            s"${HttpPath.account}/${account.id.get}/recon-specs",
             SessionStore.token
           )
           .map(res => (account, res))
@@ -156,11 +156,11 @@ object LedgerPage:
         case (_, Left(e)) => AppState.globalError.set(Some(e))
       },
       deleteSpecBus.events.flatMapSwitch { spec =>
-        ApiClient.delete(HttpPath.url(s"${HttpPath.movementSpec}/${spec.id.get}"), SessionStore.token)
+        ApiClient.delete(s"${HttpPath.movementSpec}/${spec.id.get}", SessionStore.token)
       }.flatMapSwitch {
         case Right(_) =>
           ApiClient.get[Seq[MovementSpecPayload]](
-            HttpPath.url(s"${HttpPath.ledgers}/$ffId/movement-specs"),
+            s"${HttpPath.ledgers}/$ledgerId/movement-specs",
             SessionStore.token
           )
         case Left(e) =>
@@ -174,7 +174,7 @@ object LedgerPage:
         id
       }.flatMapMerge { id =>
         ApiClient
-          .postEmpty[ujson.Value](HttpPath.url(s"${HttpPath.account}/$id/reconcile"), SessionStore.token)
+          .postEmpty[ujson.Value](s"${HttpPath.account}/$id/reconcile", SessionStore.token)
           .map(res => (id, res))
       } --> {
         case (id, Right(_)) =>
@@ -190,8 +190,8 @@ object LedgerPage:
       windowEvents(_.onPopState).map(_ => tabFromUrl()).filter(_ != activeTab.now()) --> activeTab.writer,
       windowEvents(_.onPopState).map(_ => statusFromUrl()).filter(_ != reconStatus.now()) --> reconStatus.writer,
       PageHeader.titleRow(
-        PageHeader.breadcrumb("Ledgers" -> Some(Observer[Unit](_ => Nav.toLedgers())), ff.name -> None),
-        ledgerHeader(ffVar.signal.map(_.name), state, reconcileBus)
+        PageHeader.breadcrumb("Ledgers" -> Some(Observer[Unit](_ => Nav.toLedgers())), ledger.name -> None),
+        ledgerHeader(ledgerVar.signal.map(_.name), state, reconcileBus)
       ),
       div(
         cls := "w-full border-b border-gray-200 dark:border-gray-700 mb-6",
@@ -220,15 +220,15 @@ object LedgerPage:
                     cls := "flex items-center gap-4 flex-wrap",
                     div(
                       cls := "flex-1 max-w-sm",
-                      Form.field("ffName", "Name", ff.name, v => ffVar.update(_.copy(name = v)))
+                      Form.field("ledgerName", "Name", ledger.name, v => ledgerVar.update(_.copy(name = v)))
                     ),
                     Form.numberField(
-                      "ffDailyCutoffHours",
+                      "ledgerDailyCutoffHours",
                       "Cutoff Hour (0-23)",
-                      ff.dailyCutoffHours,
+                      ledger.dailyCutoffHours,
                       0,
                       23,
-                      v => ffVar.update(_.copy(dailyCutoffHours = v))
+                      v => ledgerVar.update(_.copy(dailyCutoffHours = v))
                     ),
                     Buttons.linkButton("Save Ledger", Observer[Unit](_ => saveLedgerBus.emit(())))
                   )
@@ -255,7 +255,7 @@ object LedgerPage:
                 ),
                 child <-- state.signal.map { s =>
                   if s.accounts.isEmpty then div(cls := "text-gray-500 dark:text-gray-400 text-sm", "No accounts")
-                  else renderDiagram(s, ff, configureReconBus, manualMatchBus, deleteSpecBus, state)
+                  else renderDiagram(s, ledger, configureReconBus, manualMatchBus, deleteSpecBus, state)
                 }
               )
             )
@@ -300,7 +300,7 @@ object LedgerPage:
                 reconAccounts => LedgerReconciliationsTab(reconAccounts, reconStatus.signal, selectReconStatus)
               }
             )
-          case "Movements" => searchMovementsTab(ffId, state)
+          case "Movements" => searchMovementsTab(ledgerId, state)
           case _           => div()
         }
       )
@@ -507,7 +507,7 @@ object LedgerPage:
               cls := "flex flex-wrap items-center justify-between gap-3 py-3",
               ApiClient
                 .get[Seq[ReconciliationSpecPayload]](
-                  HttpPath.url(s"${HttpPath.account}/${account.id.getOrElse("")}/recon-specs"),
+                  s"${HttpPath.account}/${account.id.getOrElse("")}/recon-specs",
                   SessionStore.token
                 )
                 .apiBind(ss => specs.set(Some(ss))),
@@ -565,7 +565,7 @@ object LedgerPage:
   // pendingSearch: the Overview tab's Unreconciled tile switches to this tab and stash the account and filter there so it can be consumed once, right here, to
   // seed a pre-filled, auto-run search — that hand-off has to go through the shared State since
   // this tab's own searchVar doesn't exist yet at the moment those links are clicked.
-  private def searchMovementsTab(ffId: String, state: Var[State]): HtmlElement =
+  private def searchMovementsTab(ledgerId: String, state: Var[State]): HtmlElement =
     val prefill = state.now().pendingSearch
     if prefill.isDefined then state.update(_.copy(pendingSearch = None))
     val searchVar = Var(
@@ -580,7 +580,7 @@ object LedgerPage:
       EventStream.merge(autoSearchTrigger, searchBus.events).flatMapSwitch { _ =>
         val s = searchVar.now()
         val req = MovementSearchRequest(
-          ledgerId        = ffId,
+          ledgerId        = ledgerId,
           accountId       = Option(s.accountId).filter(_.nonEmpty),
           amount          = scala.util.Try(BigDecimal(s.amount)).toOption,
           movementSpecId  = Option(s.movementSpecId).filter(_.nonEmpty),
@@ -596,7 +596,7 @@ object LedgerPage:
             else None
         )
         ApiClient.post[Seq[MovementSearchResultPayload], MovementSearchRequest](
-          HttpPath.url(s"${HttpPath.movements}/search"),
+          s"${HttpPath.movements}/search",
           req,
           SessionStore.token
         )
@@ -826,7 +826,7 @@ object LedgerPage:
 
   private def renderDiagram(
     s:                 State,
-    ff:                LedgerPayload,
+    ledger:            LedgerPayload,
     configureReconBus: EventBus[AccountPayload],
     manualMatchBus:    EventBus[AccountPayload],
     deleteSpecBus:     EventBus[MovementSpecPayload],
@@ -877,7 +877,7 @@ object LedgerPage:
     val accountMenu = s.selectedAccount.flatMap { selected =>
       selected.id.flatMap { id =>
         posOf.get(id).map { (x, y) =>
-          renderAccountMenu(s, selected, ff, x, y + boxH + 4, configureReconBus, manualMatchBus, deleteSpecBus, state)
+          renderAccountMenu(s, selected, x, y + boxH + 4, configureReconBus, manualMatchBus, deleteSpecBus, state)
         }
       }
     }.getOrElse(div())
@@ -889,7 +889,7 @@ object LedgerPage:
       } yield {
         val midX = (x1 + boxW + x2) / 2
         val midY = (y1 + boxH / 2 + y2 + boxH / 2) / 2
-        renderMovementSpecMenu(selected, ff, midX, midY + 16, deleteSpecBus, state)
+        renderMovementSpecMenu(selected, midX, midY + 16, deleteSpecBus, state)
       }
     }.getOrElse(div())
 
@@ -907,7 +907,6 @@ object LedgerPage:
   private def renderAccountMenu(
     s:                 State,
     selected:          AccountPayload,
-    ff:                LedgerPayload,
     x:                 Int,
     y:                 Int,
     configureReconBus: EventBus[AccountPayload],
@@ -998,7 +997,6 @@ object LedgerPage:
 
   private def renderMovementSpecMenu(
     spec:          MovementSpecPayload,
-    ff:            LedgerPayload,
     x:             Int,
     y:             Int,
     deleteSpecBus: EventBus[MovementSpecPayload],

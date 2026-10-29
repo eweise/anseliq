@@ -14,7 +14,7 @@ import anseliq.common.model.{
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
-import anseliq.state.{AppState, SessionStore}
+import anseliq.state.SessionStore
 import anseliq.view.ViewHelper
 import anseliq.view.components.{Buttons, Card, DetailList, Form, PageHeader, Pill, ReconStatus, ReconciliationActions}
 import upickle.default.*
@@ -60,16 +60,16 @@ object ExceptionDetailPage:
     val validationError = Var(Option.empty[String])
 
     def load() =
-      ApiClient.get[ExceptionDetailPayload](HttpPath.url(s"${HttpPath.exception}/$id"), SessionStore.token)
+      ApiClient.get[ExceptionDetailPayload](s"${HttpPath.exception}/$id", SessionStore.token)
 
     PageHeader.detailPage(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(d => state.update(_.copy(detail = Some(d)))),
       ApiClient
-        .get[Seq[UserPayload]](HttpPath.url(HttpPath.assignableUsers), SessionStore.token)
+        .get[Seq[UserPayload]](HttpPath.assignableUsers, SessionStore.token)
         .apiBind(users => state.update(_.copy(assignableUsers = users))),
       submitBus.events.flatMapSwitch { (newStatus, newAssignee, body) =>
         ApiClient.post[ExceptionDetailPayload, AddExceptionCommentRequest](
-          HttpPath.url(s"${HttpPath.exception}/$id/comments"),
+          s"${HttpPath.exception}/$id/comments",
           AddExceptionCommentRequest(body, newStatus, newAssignee),
           SessionStore.token
         )
@@ -83,7 +83,7 @@ object ExceptionDetailPage:
       assignBus.events
         .flatMapSwitch(_ =>
           ApiClient
-            .postEmpty[ExceptionDetailPayload](HttpPath.url(s"${HttpPath.exception}/$id/assign"), SessionStore.token)
+            .postEmpty[ExceptionDetailPayload](s"${HttpPath.exception}/$id/assign", SessionStore.token)
         )
         .apiBind(d => state.update(_.copy(detail = Some(d)))),
       onMountCallback(_ => loadBus.emit(())),

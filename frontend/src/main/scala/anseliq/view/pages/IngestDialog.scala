@@ -29,7 +29,7 @@ object IngestDialog:
       fileReadBus.events.flatMapSwitch { (specId, content) =>
         statuses.update(_.updated(specId, UploadStatus.Uploading))
         ApiClient
-          .postRaw(HttpPath.url(s"${HttpPath.movementSpec}/$specId/ingest"), content, SessionStore.token)
+          .postRaw(s"${HttpPath.movementSpec}/$specId/ingest", content, SessionStore.token)
           .map(result => (specId, result))
       } --> {
         case (specId, Right(_)) => statuses.update(_.updated(specId, UploadStatus.Done))

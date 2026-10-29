@@ -17,9 +17,9 @@ object LedgersPage:
     val ledgers = Var(Seq.empty[LedgerPayload])
 
     PageHeader.page(
-      ApiClient.get[Seq[LedgerPayload]](HttpPath.url(HttpPath.ledgers), SessionStore.token).apiBind { ffs =>
-        ledgers.set(ffs)
-        AppState.ledgers.set(ffs)
+      ApiClient.get[Seq[LedgerPayload]](HttpPath.ledgers, SessionStore.token).apiBind { loaded =>
+        ledgers.set(loaded)
+        AppState.ledgers.set(loaded)
       },
       PageHeader.titleRow(
         cls := "flex justify-between items-center",
@@ -36,7 +36,7 @@ object LedgersPage:
       ),
       div(
         cls := "w-full px-8",
-        child <-- ledgers.signal.map { ffs =>
+        child <-- ledgers.signal.map { ledgers =>
           // Every cell (not just Name) carries its own click-to-navigate handler, so the whole row
           // is clickable — Table is a shared component with no row-level click plumbing, and adding
           // it there would need to survive this page's own sort-by-column reordering, whereas
@@ -44,24 +44,24 @@ object LedgersPage:
           // with that cell when Table re-sorts the display order. The hover *highlight* is still
           // driven by Table itself (hoverableRows), so the whole row lights up as one bar rather
           // than three separately-hovering cells.
-          def cell(content: String, ff: LedgerPayload): HtmlElement =
+          def cell(content: String, ledger: LedgerPayload): HtmlElement =
             a(
               href := "/components/ledger",
               cls  := "block px-4 py-2 text-sm text-gray-600 dark:text-gray-300",
               onClick --> { e =>
                 e.preventDefault()
-                Nav.toLedger(ff)
+                Nav.toLedger(ledger)
               },
               content
             )
 
           Table.create(
             Seq("Name", "Created At", "Updated At", "", ""),
-            ffs.sortBy(_.name).map { ff =>
+            ledgers.sortBy(_.name).map { ledger =>
               Seq(
-                cell(ff.name, ff),
-                cell(ff.createdAt.map(ViewHelper.formatDateTime).getOrElse(""), ff),
-                cell(ff.updatedAt.map(ViewHelper.formatDateTime).getOrElse(""), ff)
+                cell(ledger.name, ledger),
+                cell(ledger.createdAt.map(ViewHelper.formatDateTime).getOrElse(""), ledger),
+                cell(ledger.updatedAt.map(ViewHelper.formatDateTime).getOrElse(""), ledger)
               )
             },
             hoverableRows = true

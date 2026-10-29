@@ -12,8 +12,8 @@ object Nav:
 
   def toLedgers(): Unit = push("/components/ledgers")
 
-  def toLedger(ff: LedgerPayload): Unit =
-    AppState.activeLedger.set(Some(ff))
+  def toLedger(ledger: LedgerPayload): Unit =
+    AppState.activeLedger.set(Some(ledger))
     push("/components/ledger")
 
   // Same page as toLedger — the tab lives in the query string so switching tabs adds a history
@@ -22,8 +22,8 @@ object Nav:
 
   // Opens a ledger straight onto one tab — e.g. a reconciliation's breadcrumb going back to that
   // ledger's Reconciliations tab. `status` pre-filters the Reconciliations tab.
-  def toLedger(ff: LedgerPayload, tab: String, status: Option[String]): Unit =
-    AppState.activeLedger.set(Some(ff))
+  def toLedger(ledger: LedgerPayload, tab: String, status: Option[String]): Unit =
+    AppState.activeLedger.set(Some(ledger))
     push(ledgerTabUrl(tab, status))
 
   def ledgerTabUrl(tab: String, status: Option[String] = None): String =
@@ -32,23 +32,11 @@ object Nav:
   def toMaintainLedger(): Unit =
     push("/components/maintain-ledger")
 
-  def toMaintainAccount(accountId: Option[String] = None): Unit =
-    accountId match
-      case Some(id) => push(s"/components/accounts/$id/maintain")
-      case None     => push("/components/accounts/new/maintain")
-
   def toManualMatch(accountId: String, reconSpecId: String): Unit =
     push(s"/components/accounts/$accountId/manual-match/$reconSpecId")
 
-  def toMaintainMovementSpec(outAccountId: String, inAccountId: String, id: String = "new"): Unit =
-    push(s"/components/maintain-movement-spec/$outAccountId/$inAccountId/$id")
-
-  def toFileFeeds(): Unit = push("/components/file-feeds")
-
   def toMaintainFileFeed(id: String = "new"): Unit =
     push(s"/components/maintain-file-feed/$id")
-
-  def toJobs(): Unit = push("/components/jobs")
 
   def toAllUnreconciledMovements(): Unit = push("/components/unreconciled-movements")
 
@@ -60,11 +48,6 @@ object Nav:
 
   def toTestParser(fileFeedId: String): Unit =
     push(s"/components/file-feeds/$fileFeedId/test-parse")
-
-  def toUsers(): Unit = push("/components/users")
-
-  def toMaintainUser(userId: String = "new"): Unit =
-    push(s"/components/maintain-user/$userId")
 
   // Opened from a File Inventory row with that file's name filled in (and previewed).
   def toFixBadFile(fileName: String): Unit =

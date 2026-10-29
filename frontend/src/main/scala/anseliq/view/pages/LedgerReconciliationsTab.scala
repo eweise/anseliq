@@ -37,7 +37,7 @@ object LedgerReconciliationsTab:
         accountVar.signal
           .flatMapSwitch(id =>
             ApiClient.get[Map[String, Int]](
-              HttpPath.url(s"${HttpPath.account}/$id/reconciliation-counts"),
+              s"${HttpPath.account}/$id/reconciliation-counts",
               SessionStore.token
             )
           )
@@ -47,7 +47,7 @@ object LedgerReconciliationsTab:
           .flatMapSwitch { (id, st) =>
             val statusParam = if st.isEmpty then "" else s"&status=$st"
             ApiClient.get[Seq[ReconciliationPayload]](
-              HttpPath.url(s"${HttpPath.account}/$id/reconciliations?limit=$rowLimit$statusParam"),
+              s"${HttpPath.account}/$id/reconciliations?limit=$rowLimit$statusParam",
               SessionStore.token
             )
           }

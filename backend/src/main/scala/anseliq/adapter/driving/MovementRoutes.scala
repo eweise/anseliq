@@ -65,19 +65,4 @@ class MovementRoutes(
     val result  = manualReconciler.fixBadFile(payload.fileSourceEntry)
     write(PayloadMapper.fixBadFileResultPayloadFromDomain(result))
 
-  @cask.get("/account/:id/movements")
-  def movements(ledgerName: String, accountIdStr: String): String =
-    val accountID = Try {
-      UUID.fromString(accountIdStr)
-    }.getOrElse(
-      throw new Exception("bad uuid")
-    )
-
-    transact(transactor):
-      val adapterMovements = movementRepo
-        .findByAccount(accountID)
-        .map(PayloadMapper.movementfromDomainModel)
-
-      write(adapterMovements.toSeq)
-
   initialize()

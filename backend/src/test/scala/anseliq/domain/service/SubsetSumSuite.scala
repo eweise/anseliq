@@ -1,7 +1,5 @@
 package anseliq.domain.service
 
-import scala.util.Random
-
 class SubsetSumSuite extends munit.FunSuite:
   val subsetSum = SubsetSum()
 
@@ -73,8 +71,7 @@ class SubsetSumSuite extends munit.FunSuite:
   // findAllSubsets tests
 
   test("findAllSubsets returns all valid subsets"):
-    val result   = subsetSum.findAllSubsets(Array(1, 2, 3, 4, 5), 5)
-    val expected = Set(List(1, 4), List(2, 3), List(5), List(1, 2, 3) /* missing combo? */ ).filter(_.sum == 5)
+    val result = subsetSum.findAllSubsets(Array(1, 2, 3, 4, 5), 5)
     // Verify every returned subset sums to target
     assert(result.forall(_.sum == 5))
     // {5}, {2,3}, {1,4}, and we don't expect {1,2,3} since 1+2+3=6

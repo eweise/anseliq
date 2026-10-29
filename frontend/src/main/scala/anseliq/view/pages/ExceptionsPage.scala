@@ -6,7 +6,7 @@ import anseliq.common.model.{ExceptionPayload, ExceptionStatusPayload, Exception
 import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
-import anseliq.state.{AppState, SessionStore}
+import anseliq.state.SessionStore
 import anseliq.view.components.{PageHeader, Pill, Table}
 import upickle.default.*
 
@@ -19,7 +19,7 @@ object ExceptionsPage:
     val loadBus = EventBus[Unit]()
 
     def load() =
-      ApiClient.get[Seq[ExceptionPayload]](HttpPath.url(HttpPath.exceptions), SessionStore.token)
+      ApiClient.get[Seq[ExceptionPayload]](HttpPath.exceptions, SessionStore.token)
 
     PageHeader.page(
       loadBus.events.flatMapSwitch(_ => load()).apiBind(ds => state.update(_.copy(exceptions = ds))),

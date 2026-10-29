@@ -104,7 +104,6 @@ class ExceptionServiceSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data             = DataSetup(app)
-        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         intercept[NotFoundError]:
@@ -119,7 +118,6 @@ class ExceptionServiceSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data             = DataSetup(app)
-        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         intercept[NotFoundError]:
@@ -350,7 +348,6 @@ class ExceptionServiceSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data             = DataSetup(app)
-        given DataSetup      = data
         val exceptionService = app.exceptionService
 
         val user = testUser()

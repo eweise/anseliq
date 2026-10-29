@@ -5,7 +5,7 @@ import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.Account
 import anseliq.domain.port.driven.{AccountRepo, Txn}
-import com.augustnagro.magnum.{DbCon, Repo, sql}
+import com.augustnagro.magnum.{DbCon, sql}
 
 import java.util.UUID
 

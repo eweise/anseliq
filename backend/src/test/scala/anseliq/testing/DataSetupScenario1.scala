@@ -70,7 +70,7 @@ class DataSetupScenario1 extends munit.FunSuite:
                 amountField       = Some(1)
               ),
               connectionConfig = S3ConnectionConfig(
-                s3Bucket = "onparity",
+                s3Bucket = "scenario1",
                 filePath = "internal"
               )
             )
@@ -99,7 +99,7 @@ class DataSetupScenario1 extends munit.FunSuite:
                 amountField       = Some(1)
               ),
               connectionConfig = S3ConnectionConfig(
-                s3Bucket = "onparity",
+                s3Bucket = "scenario1",
                 filePath = "bank"
               )
             )
@@ -115,7 +115,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
       )
 
-      val reconSpec = createReconSpec(
+      createReconSpec(
         ReconciliationSpecPayload(
           accountId         = reconAccount.id,
           inMovementSpecId  = journalToRecon.id.get,
@@ -159,7 +159,7 @@ class DataSetupScenario1 extends munit.FunSuite:
           dataSourceConfig = Some(
             DataSourceConfig(
               parserConfig     = BaiParserConfig(),
-              connectionConfig = S3ConnectionConfig(s3Bucket = "onparity", filePath = "bai")
+              connectionConfig = S3ConnectionConfig(s3Bucket = "scenario1", filePath = "bai")
             )
           )
         )
@@ -187,7 +187,7 @@ class DataSetupScenario1 extends munit.FunSuite:
                 amountField       = Some(1)
               ),
               connectionConfig = S3ConnectionConfig(
-                s3Bucket = "onparity",
+                s3Bucket = "scenario1",
                 filePath = "bank"
               )
             )
@@ -203,7 +203,7 @@ class DataSetupScenario1 extends munit.FunSuite:
         )
       )
 
-      val reconSpec = createReconSpec(
+      createReconSpec(
         ReconciliationSpecPayload(
           accountId         = reconAccount.id,
           inMovementSpecId  = journalToRecon.id.get,

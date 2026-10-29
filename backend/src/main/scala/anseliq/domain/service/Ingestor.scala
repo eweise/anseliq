@@ -407,10 +407,3 @@ class Ingestor(
       ExceptionCategory.FileMissing,
       s"Auto-resolved: a new file was detected for '${fileFeed.name}'."
     )
-
-  def markComplete(fileInventoryID: ID): Txn[Unit] = fileInventoryRepo.update(
-    fileInventoryRepo
-      .findById(fileInventoryID)
-      .ErrIfNotFound("FileInventory", fileInventoryID)
-      .copy(status = COMPLETED)
-  )

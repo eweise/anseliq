@@ -4,7 +4,7 @@ import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model
 import anseliq.domain.model.{Reconciliation, ReconciliationStatus}
-import com.augustnagro.magnum.{Repo, sql}
+import com.augustnagro.magnum.sql
 // Repo's generated update binds each column with a codec summoned here, not via Reconciliation's
 // derived codec, and silently falls back to setObject (which Postgres rejects) when none is in
 // scope — so the jsonb AppliedRules codec in Reconciliation's companion has to be imported.

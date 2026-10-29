@@ -21,7 +21,7 @@ object AllUnreconciledMovementsPage:
     PageHeader.page(
       ApiClient
         .get[Seq[UnreconciledMovementPayload]](
-          HttpPath.url(s"${HttpPath.reports}/unreconciled-movements"),
+          s"${HttpPath.reports}/unreconciled-movements",
           SessionStore.token
         )
         .apiBind(ms => movements.set(ms)),

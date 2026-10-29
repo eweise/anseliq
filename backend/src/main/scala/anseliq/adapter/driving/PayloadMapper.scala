@@ -44,13 +44,13 @@ object PayloadMapper:
       dailyCutoffHours = payload.dailyCutoffHours
     )
 
-  def ledgerPayloadFromDomain(ff: Ledger): LedgerPayload =
+  def ledgerPayloadFromDomain(ledger: Ledger): LedgerPayload =
     LedgerPayload(
-      id               = Some(ff.id.toString),
-      name             = ff.name,
-      createdAt        = ff.createdAt,
-      updatedAt        = ff.updatedAt,
-      dailyCutoffHours = ff.dailyCutoffHours
+      id               = Some(ledger.id.toString),
+      name             = ledger.name,
+      createdAt        = ledger.createdAt,
+      updatedAt        = ledger.updatedAt,
+      dailyCutoffHours = ledger.dailyCutoffHours
     )
 
   def accountPayloadToDomain(payload: AccountPayload): Account =

@@ -1,8 +1,6 @@
 package anseliq.adapter.driven
 
-import anseliq.domain.DataSetup
 import anseliq.domain.model.*
-import anseliq.domain.service.LedgerCache
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
 
@@ -11,26 +9,18 @@ import java.util.UUID
 class LedgerRepoLiveSuite extends munit.FunSuite:
   private val app = TestAppContainer()
 
-  test("Create Ledger"):
-    transact(app.transactor):
-      rollBackOnly:
-        val ledgerRepo = app.ledgerRepo
-        val data       = DataSetup(app)
-        val cache      = LedgerCache(ledgerRepo)
-        cache.init()
-
-  test("findById returns inserted ledger config"):
+  test("findById returns an inserted ledger"):
     val ledgerRepo = app.ledgerRepo
     transact(app.transactor):
       rollBackOnly:
-        val config = Ledger(
+        val ledger = Ledger(
           name = UUID.randomUUID().toString
         )
-        ledgerRepo.insert(config)
+        ledgerRepo.insert(ledger)
 
-        val found = ledgerRepo.findById(config.id)
+        val found = ledgerRepo.findById(ledger.id)
         assert(found.isDefined)
-        assertEquals(found.get.name, config.name)
+        assertEquals(found.get.name, ledger.name)
 
   test("findById returns None for non-existent id"):
     val ledgerRepo = app.ledgerRepo
@@ -39,36 +29,36 @@ class LedgerRepoLiveSuite extends munit.FunSuite:
         val found = ledgerRepo.findById(UUID.randomUUID())
         assert(found.isEmpty)
 
-  test("update modifies ledger config"):
+  test("update modifies a ledger"):
     val ledgerRepo = app.ledgerRepo
     transact(app.transactor):
       rollBackOnly:
-        val config = Ledger(
+        val ledger = Ledger(
           name = "original-name"
         )
-        ledgerRepo.insert(config)
+        ledgerRepo.insert(ledger)
 
-        val updatedConfig = config.copy(name = "updated-name")
-        ledgerRepo.update(updatedConfig)
+        val updated = ledger.copy(name = "updated-name")
+        ledgerRepo.update(updated)
 
-        val found = ledgerRepo.findById(config.id)
+        val found = ledgerRepo.findById(ledger.id)
         assertEquals(found.get.name, "updated-name")
 
-  test("delete removes ledger config"):
+  test("delete removes a ledger"):
     val ledgerRepo = app.ledgerRepo
     transact(app.transactor):
       rollBackOnly:
-        val config = Ledger(
+        val ledger = Ledger(
           name = UUID.randomUUID().toString
         )
-        ledgerRepo.insert(config)
+        ledgerRepo.insert(ledger)
 
-        ledgerRepo.delete(config)
+        ledgerRepo.delete(ledger)
 
-        val found = ledgerRepo.findById(config.id)
+        val found = ledgerRepo.findById(ledger.id)
         assert(found.isEmpty)
 
-  test("findAll returns all ledger configs"):
+  test("findAll returns every ledger"):
     val ledgerRepo = app.ledgerRepo
     transact(app.transactor):
       rollBackOnly:
@@ -85,5 +75,5 @@ class LedgerRepoLiveSuite extends munit.FunSuite:
           )
         )
 
-        val allConfigs = ledgerRepo.findAll
-        assertEquals(allConfigs.size, initialCount + 2)
+        val allLedgers = ledgerRepo.findAll
+        assertEquals(allLedgers.size, initialCount + 2)

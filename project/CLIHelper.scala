@@ -30,7 +30,7 @@ object CLIHelper {
     }
   }
 
-  def buildFrontend(prefix: String = "", backendUrl: Option[String] = None): Unit = {
+  def buildFrontend(prefix: String = ""): Unit = {
     installNpmPackages(prefix)
     val distPrefix = if (prefix.isEmpty) "" else s"$prefix/"
     removeDistFolderIfAny(distPrefix)
@@ -38,24 +38,17 @@ object CLIHelper {
     val buildCommand = Seq("npm", "run", "build") ++ (if (prefix.nonEmpty) Seq("--prefix", prefix) else Seq.empty)
     val pattern      = ".built in.".r
 
-    val messages = Seq(
-      s"Web app is available at directory '${distPrefix}dist'"
-    ) ++ backendUrl.map(url => s"Backend URL of this build: $url") ++
-      backendUrl.map(_ => "Tip: Change backend URL: BACKEND_BASE_URL=http://myserver.com sbt")
-
-    val successMessage = boxedSuccess(messages*)
+    val successMessage = boxedSuccess(s"Web app is available at directory '${distPrefix}dist'")
     CommandWatcher.watch(buildCommand, pattern, successMessage)
   }
 
   def startDevEnvironment(
-    scalaVersion:      String,
     sourceDirectories: Seq[File],
     compilationRunner: () => Boolean,
-    prefix:            String         = "",
-    backendUrl:        Option[String] = None
+    prefix:            String = ""
   ): Unit = {
     installNpmPackages(prefix)
-    printStartupMessage(backendUrl)
+    printStartupMessage()
 
     val viteServerStarter = () => {
       var viteReadyCalled = false
@@ -63,15 +56,12 @@ object CLIHelper {
         line => {
           if (line.contains("ready in") && !viteReadyCalled) {
             viteReadyCalled = true
-            val messages = Seq(
+            logSuccess(
               "Development environment ready!",
-              s"Web app now available on $DevServerUrl"
-            ) ++ backendUrl.map(url => s"Backend URL: $url") ++ Seq(
+              s"Web app now available on $DevServerUrl",
               "",
               "Press Ctrl+C to stop"
-            ) ++ backendUrl.map(_ => "Tip: Change backend URL: BACKEND_BASE_URL=http://myserver.com sbt")
-
-            logSuccess(messages*)
+            )
           }
           println(s"[Vite] $line")
         },
@@ -93,14 +83,12 @@ object CLIHelper {
     ).start()
   }
 
-  private def printStartupMessage(backendUrl: Option[String]): Unit = {
-    val configs = Seq(
-      "Starting development environment" -> ""
-    ) ++ backendUrl.map(url => "Backend URL" -> url) ++ Seq(
-      "Scala.js compiler" -> "Starting in watch mode...",
-      "Vite dev server"   -> "Starting..."
+  private def printStartupMessage(): Unit =
+    println(
+      boxedConfigs(
+        "Starting development environment" -> "",
+        "Scala.js compiler"                -> "Starting in watch mode...",
+        "Vite dev server"                  -> "Starting..."
+      )
     )
-
-    println(boxedConfigs(configs*))
-  }
 }

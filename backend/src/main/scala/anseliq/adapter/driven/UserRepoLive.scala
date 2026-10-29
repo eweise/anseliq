@@ -4,7 +4,7 @@ import anseliq.domain.service.ClockService
 import anseliq.common.model.model.ID
 import anseliq.domain.model.User
 import anseliq.domain.port.driven.{Txn, UserRepo}
-import com.augustnagro.magnum.{DbCon, Repo, sql}
+import com.augustnagro.magnum.{DbCon, sql}
 
 import java.util.UUID
 

@@ -88,7 +88,7 @@ object ReconciliationActions:
       cls := "flex flex-col gap-3",
       writeOffBus.events.flatMapSwitch { (movementId, reason) =>
         ApiClient.postRaw(
-          HttpPath.url(s"${HttpPath.reconciliation}/${r.id}/write-off"),
+          s"${HttpPath.reconciliation}/${r.id}/write-off",
           write(WriteOffRequest(reason = reason, movementId = movementId)),
           SessionStore.token
         )
@@ -98,7 +98,7 @@ object ReconciliationActions:
       },
       reverseBus.events.flatMapSwitch { reason =>
         ApiClient.postRaw(
-          HttpPath.url(s"${HttpPath.reconciliation}/${r.id}/reverse-write-off"),
+          s"${HttpPath.reconciliation}/${r.id}/reverse-write-off",
           write(ReverseWriteOffRequest(reason = reason)),
           SessionStore.token
         )
@@ -107,7 +107,7 @@ object ReconciliationActions:
         onChanged.onNext(())
       },
       unmatchBus.events.flatMapSwitch { _ =>
-        ApiClient.postRaw(HttpPath.url(s"${HttpPath.reconciliation}/${r.id}/unmatch"), "", SessionStore.token)
+        ApiClient.postRaw(s"${HttpPath.reconciliation}/${r.id}/unmatch", "", SessionStore.token)
       }.apiBind { _ =>
         panel.set(Panel.Closed)
         onChanged.onNext(())

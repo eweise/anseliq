@@ -25,7 +25,7 @@ class LedgerRoutes(
   def getLedgers() =
     transact(transactor):
       val ledgers  = ledgerRepo.findAll
-      val payloads = ledgers.map(ff => PayloadMapper.ledgerPayloadFromDomain(ff))
+      val payloads = ledgers.map(ledger => PayloadMapper.ledgerPayloadFromDomain(ledger))
       write(payloads)
 
   @cask.route(s"${HttpPath.ledger}/:id/summary", methods = HttpCmd.GET)
@@ -71,9 +71,8 @@ class LedgerRoutes(
   @cask.route(s"${HttpPath.ledger}/:id", methods = HttpCmd.PUT)
   def updateLedger(id: String, request: cask.Request): String =
     val payload = read[LedgerPayload](request.text())
-    val ffID    = UUID.fromString(payload.id.get)
     transact(transactor):
-      val updated = ledgerService.updateLedger(ffID, payload.name, payload.dailyCutoffHours)
+      val updated = ledgerService.updateLedger(UUID.fromString(id), payload.name, payload.dailyCutoffHours)
       write(PayloadMapper.ledgerPayloadFromDomain(updated))
 
   initialize()

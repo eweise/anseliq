@@ -27,7 +27,7 @@ object LoginPage:
       loginBus.events.flatMapSwitch { _ =>
         val s = state.now()
         ApiClient.post[LoginSuccess, LoginRequest](
-          HttpPath.url(HttpPath.login),
+          HttpPath.login,
           LoginRequest(s.email, s.password),
           token = ""
         )

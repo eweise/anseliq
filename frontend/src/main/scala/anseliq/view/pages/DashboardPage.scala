@@ -51,15 +51,13 @@ object DashboardPage:
 
     PageHeader.page(
       loadBus.events
-        .flatMapSwitch(_ => ApiClient.get[Seq[ExceptionPayload]](HttpPath.url(HttpPath.exceptions), SessionStore.token))
+        .flatMapSwitch(_ => ApiClient.get[Seq[ExceptionPayload]](HttpPath.exceptions, SessionStore.token))
         .apiBind(ds => state.update(_.copy(exceptions = ds))),
       // No ledgerId query param -> aggregated across every ledger, same as ReportsPage's
       // default "All ledgers" view. A per-ledger filter isn't needed here; that's what the
       // Reports page is for.
       loadSummaryBus.events
-        .flatMapSwitch(_ =>
-          ApiClient.get[ReportsSummaryPayload](HttpPath.url(s"${HttpPath.reports}/summary"), SessionStore.token)
-        )
+        .flatMapSwitch(_ => ApiClient.get[ReportsSummaryPayload](s"${HttpPath.reports}/summary", SessionStore.token))
         .apiBind(s => state.update(_.copy(summary = Some(s)))),
       onMountCallback { _ =>
         loadBus.emit(())

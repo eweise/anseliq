@@ -71,9 +71,6 @@ lazy val frontend = project
   .settings(
     devServer := Def.uncached {
       val sourceDirs = (Compile / sourceDirectories).value
-      val watchSrcs  = (Compile / watchSources).value
-      val scalaVer   = scalaVersion.value
-      val backendUrl = Environtments.backendBaseUrl()
       val projectRef = thisProjectRef.value
       val taskKey    = projectRef / Compile / fastOptJS
       val sbtState   = state.value
@@ -89,18 +86,12 @@ lazy val frontend = project
             false
         }
 
-      CLIHelper.startDevEnvironment(
-        scalaVer,
-        sourceDirs,
-        compilationRunner,
-        prefix     = "frontend",
-        backendUrl = Some(backendUrl)
-      )
+      CLIHelper.startDevEnvironment(sourceDirs, compilationRunner, prefix = "frontend")
     },
     // Uncached (sbt 2 caches tasks by default): both run npm and Vite for their side effects.
     publishDist := Def.uncached {
       (Compile / fullLinkJS).value
-      CLIHelper.buildFrontend(prefix = "frontend", backendUrl = Some(Environtments.backendBaseUrl()))
+      CLIHelper.buildFrontend(prefix = "frontend")
     }
   )
   .dependsOn(common.js)
@@ -111,7 +102,6 @@ lazy val frontend = project
 // Backend suites left out of a full test run, to be run on their own with testOnly (see below).
 lazy val explicitOnlySuites = Set(
   "anseliq.testing.DataSetupScenario1",
-  "anseliq.domain.service.LargeFileIngestionReconciliationSuite",
   "anseliq.testing.SeedHappyPathDemo",
   "anseliq.testing.PopulateS3Buckets"
 )
@@ -147,7 +137,6 @@ lazy val backend = project
       "com.jayway.jsonpath"    % "json-path" % "2.9.0",
       "at.favre.lib"           % "bcrypt"    % "0.10.2"
     ),
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     // Most tests isolate themselves with rollBackOnly, but a few (e.g. IngestResumableSuite) commit
     // real data for real, briefly, before their own teardown deletes it — because they exercise
     // Ingestor.ingestResumable's batched commits, which by design commit on their own connection
@@ -159,10 +148,7 @@ lazy val backend = project
     Test / parallelExecution := false,
     // DataSetupScenario1 seeds real, committed data into the local dev DB (no rollBackOnly) and is meant
     // to be run explicitly (sbt "testOnly anseliq.testing.DataSetupScenario1"), not as part of the
-    // regular suite where it would pollute state for every other test. LargeFileIngestionReconciliationSuite
-    // ingests and reconciles two 5,000,000-row files, which takes on the order of hours given Reconciler's
-    // current per-row matching loop, and is likewise meant to be run explicitly
-    // (sbt "testOnly anseliq.domain.service.LargeFileIngestionReconciliationSuite"). These are scoped to
+    // regular suite where it would pollute state for every other test. These filters are scoped to
     // the tasks that run the whole suite, not `testOnly`, so explicit invocation still works: in sbt 2,
     // `test` runs testQuick, with testQuick's own options, and testFull runs with `test`'s.
     // SeedHappyPathDemo likewise commits demo data on purpose
@@ -188,7 +174,6 @@ lazy val backend = project
 lazy val common = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
   .in(file("common"))
-  .enablePlugins(BuildInfoPlugin)
   .settings(
     scalaVersion := scala3Version,
     scalacOptions ++= Seq(
@@ -196,16 +181,8 @@ lazy val common = crossProject(JVMPlatform, JSPlatform)
       "64"
     ), // see [[https://docs.scala-lang.org/scala3/guides/migration/options-new.html]]
     libraryDependencies ++= Seq(
-      "dev.zio"              %% "zio-json"        % Dependencies.ZioJson,
-      "dev.zio"              %% "zio-http"        % Dependencies.ZioHttp,
       "com.github.jwt-scala" %% "jwt-json-common" % Dependencies.JwtScala,
       "com.lihaoyi"          %% "upickle"         % upickleVersion,
       "org.scalatest"        %% "scalatest"       % Dependencies.Scalatest % Test
-    ),
-    buildInfoKeys := Seq[BuildInfoKey](
-      BuildInfoKey.action("backendBaseUrl") {
-        Environtments.backendBaseUrl()
-      }
-    ),
-    buildInfoPackage := "anseliq.common"
+    )
   )
