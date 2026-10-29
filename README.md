@@ -26,7 +26,7 @@ You need JDK 26, [sbt](https://www.scala-sbt.org/download.html), Node.js 22, Pos
 [LocalStack](https://www.localstack.cloud) (for S3).
 
 ```bash
-eval "$(scripts/dev-env.sh)"   # .env with a JWT secret, the first Admin, LocalStack and (on a Mac) JAVA_HOME
+eval "$(scripts/dev-env.sh)"   # creates .env: a JWT secret, the first Admin, LocalStack and (on a Mac) JAVA_HOME
 localstack start -d
 make create-db                 # an empty recon_db, migrated
 sbt                            # then `up`: the backend in the background, then the web app
@@ -44,9 +44,11 @@ For IntelliJ, point the backend run configuration's environment variables at the
 
 - `sbt test` only reruns the tests that failed or whose code changed since the last run;
   `sbt testFull` runs them all.
-- Every `sbt` in this folder connects to one background server, which runs the app and the tests
-  with the environment it started with. After changing an environment variable (e.g. reloading
-  `.env`), run `sbt shutdown` so the next command starts a server that sees it.
+- The backend run from sbt (`bgRun`, `run`, `runMain`) reads `.env` itself each time it starts, so
+  an edited `.env` only needs a backend restart. A variable set in the shell that started sbt wins.
+- Every `sbt` in this folder connects to one background server, which runs the tests with the
+  environment it started with. After changing an environment variable, run `sbt shutdown` so the
+  next command starts a server that sees it.
 - The server runs one command at a time, so a running `frontend/devServer` holds up everything else
   until Ctrl+C. Start the backend first with `backend/bgRun` (or `up`, which does both).
 - The welcome menu prints only when the server starts; `welcome` prints it again.

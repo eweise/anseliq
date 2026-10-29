@@ -112,6 +112,8 @@ lazy val backend = project
     name := "backend",
     // In its own JVM, so bgStop can stop it: run inside sbt's, the HTTP server outlives the job.
     run / fork := true,
+    // Read when the backend starts, so an edited .env applies without restarting sbt.
+    run / envVars := Def.uncached(DotEnv.load((ThisBuild / baseDirectory).value / ".env")),
     libraryDependencies ++= Seq(
       "ch.qos.logback"              % "logback-classic"            % Dependencies.LogbackClassic,
       "net.logstash.logback"        % "logstash-logback-encoder"   % Dependencies.LogstashEncoder,

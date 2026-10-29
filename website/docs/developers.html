@@ -158,9 +158,10 @@ sbt "backend/bgRun; frontend/devServer"</code></pre>
           from a local Ollama.
         </p>
         <div class="note">
-          Every <code>sbt</code> in the project connects to one server, which keeps running between
-          commands with the environment it started with. After changing an environment variable, run
-          <code>sbt shutdown</code> so the next command starts a server that sees it. The server also
+          The backend run from sbt reads <code>.env</code> itself each time it starts, so an edited
+          <code>.env</code> only needs a backend restart. Every <code>sbt</code> in the project connects
+          to one server, which keeps running between commands with the environment it started with;
+          after changing a variable the tests read, run <code>sbt shutdown</code>. The server also
           runs one command at a time, so while the web app's dev server runs, other sbt commands
           wait; that's why the API starts in the background first.
         </div>
