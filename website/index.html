@@ -36,9 +36,9 @@
           <a href="#features" class="hover:text-paper-100">Capabilities</a>
           <a href="#ai" class="hover:text-paper-100">AI matching</a>
           <a href="/docs/" class="hover:text-paper-100">Docs</a>
-          <a href="#early-access" class="hover:text-paper-100">Early access</a>
+          <a href="#get-started" class="hover:text-paper-100">Get started</a>
         </div>
-        <a href="#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
+        <a href="https://github.com/eweise/anseliq" class="btn-primary !px-4 !py-2">View on GitHub</a>
       </nav>
     </header>
 
@@ -58,10 +58,10 @@
               fix, with every step recorded.
             </p>
             <div class="flex flex-wrap items-center gap-3">
-              <a href="#early-access" class="btn-primary">Request early access</a>
+              <a href="#get-started" class="btn-primary">Get started</a>
               <a href="#how" class="btn-ghost border-ink-600 text-paper-100 hover:border-ink-400">See how it works</a>
             </div>
-            <p class="text-sm text-ink-300">Now onboarding a small group of design partners.</p>
+            <p class="text-sm text-ink-300">Open source under the Apache 2.0 license. Run it on your own infrastructure.</p>
           </div>
 
           <!-- Product recreation: the balance breakdown -->
@@ -331,37 +331,41 @@
         </div>
       </section>
 
-      <!-- Early access -->
-      <section id="early-access" class="bg-ink text-paper-100 scroll-mt-16">
+      <!-- Get started -->
+      <section id="get-started" class="bg-ink text-paper-100 scroll-mt-16">
         <div class="container-page grid gap-14 py-24 lg:grid-cols-[1fr_1.15fr]">
           <div class="flex flex-col gap-5">
-            <p class="eyebrow text-safelight">Early access</p>
-            <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Become a design partner.</h2>
+            <p class="eyebrow text-safelight">Open source</p>
+            <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">Free to run. Help if you want it.</h2>
             <p class="max-w-prose leading-relaxed text-ink-200">
-              We're onboarding a small number of payments teams to shape AnselIQ with us. Design partners
-              get hands-on onboarding, a direct line to the people building it, and a say in what comes
-              next.
+              AnselIQ is open source under the Apache License 2.0. Use it, change it and run it in your
+              own environment, with no license fees. If you'd like a hand designing your feeds and
+              matching rules, deploying it, or adapting it to your data, consulting is available.
             </p>
+            <div class="flex flex-wrap items-center gap-3">
+              <a href="https://github.com/eweise/anseliq" class="btn-primary">View on GitHub</a>
+              <a href="/docs/install.html" class="btn-ghost border-ink-600 text-paper-100 hover:border-ink-400">Installation guide</a>
+            </div>
             <ul class="mt-2 flex flex-col gap-3 text-sm text-ink-200">
-              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">1<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>Tell us what you reconcile and where it hurts.</li>
-              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">2<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>We walk through AnselIQ against a sample of your files.</li>
-              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">3<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>If it's a fit, we set up your feeds and rules together.</li>
+              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">1<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>Clone the repository and build the images.</li>
+              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">2<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>Install it on Kubernetes with the installation guide.</li>
+              <li class="flex items-center gap-3"><span class="figure relative inline-flex h-7 w-8 shrink-0 items-center justify-center text-safelight">3<svg class="mark pencil-amber inset-0 h-full w-full [stroke-width:5.5]" viewBox="0 0 120 60" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M66 5.5C34 3 6.5 13 6 30.5c-.5 18 30 25.5 62 24.5 30-1 48.5-11.5 46.5-27C112.5 12 86 3.5 50 8" /></svg></span>Want help? Tell us about your setup using the form.</li>
             </ul>
           </div>
 
-          <form id="early-access-form" class="flex flex-col gap-5 rounded-2xl bg-paper-100 p-6 text-ink sm:p-8" novalidate>
+          <form id="consulting-form" aria-label="Ask about consulting" class="flex flex-col gap-5 rounded-2xl bg-paper-100 p-6 text-ink sm:p-8" novalidate>
             <div class="grid gap-5 sm:grid-cols-2">
               <div>
                 <label for="name" class="field-label">Name</label>
                 <input id="name" name="name" type="text" autocomplete="name" required class="field-input" />
               </div>
               <div>
-                <label for="email" class="field-label">Work email</label>
+                <label for="email" class="field-label">Email</label>
                 <input id="email" name="email" type="email" autocomplete="email" required class="field-input" />
               </div>
               <div>
                 <label for="company" class="field-label">Company</label>
-                <input id="company" name="company" type="text" autocomplete="organization" required class="field-input" />
+                <input id="company" name="company" type="text" autocomplete="organization" class="field-input" />
               </div>
               <div>
                 <label for="volume" class="field-label">Monthly transaction volume</label>
@@ -384,13 +388,13 @@
               </div>
             </fieldset>
             <div>
-              <label for="pain" class="field-label">What's hardest about reconciliation today?</label>
-              <textarea id="pain" name="biggest_pain" rows="3" class="field-input" placeholder="e.g. Payout fees make our clearing account drift and we chase it every month-end."></textarea>
+              <label for="help" class="field-label">What would you like help with?</label>
+              <textarea id="help" name="help_wanted" rows="3" class="field-input" placeholder="e.g. Setting up feeds for our processor and bank files, and deploying on our EKS cluster."></textarea>
             </div>
             <!-- Formspree's spam honeypot: real people never fill this in. -->
             <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
             <div class="flex flex-wrap items-center gap-4">
-              <button type="submit" class="btn-primary disabled:opacity-60">Request early access</button>
+              <button type="submit" class="btn-primary disabled:opacity-60">Ask about consulting</button>
               <p id="form-status" class="text-sm" role="status" aria-live="polite"></p>
             </div>
           </form>
@@ -403,6 +407,8 @@
         <span class="font-display font-bold text-paper-100">Ansel<span class="text-safelight">IQ</span></span>
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
           <a href="/docs/" class="hover:text-paper-100">Documentation</a>
+          <a href="https://github.com/eweise/anseliq" class="hover:text-paper-100">GitHub</a>
+          <a href="https://github.com/eweise/anseliq/blob/main/LICENSE" class="hover:text-paper-100">Apache 2.0 license</a>
           <p>© <span id="year">2026</span> AnselIQ. Reconciliation at scale.</p>
         </div>
       </div>

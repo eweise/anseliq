@@ -1,11 +1,11 @@
 import './styles.css'
 
-// The Formspree form that receives early-access requests, set at build time (see .env.example).
+// The Formspree form that receives consulting enquiries, set at build time (see .env.example).
 const FORMSPREE_FORM_ID = import.meta.env.VITE_FORMSPREE_FORM_ID
 
 document.getElementById('year').textContent = String(new Date().getFullYear())
 
-const form = document.getElementById('early-access-form')
+const form = document.getElementById('consulting-form')
 const status = document.getElementById('form-status')
 const submitButton = form.querySelector('button[type="submit"]')
 

@@ -1,6 +1,6 @@
 import './styles.css'
 
-// The docs pages share the site's styles but none of the landing page's behaviour (the early-access
+// The docs pages share the site's styles but none of the landing page's behaviour (the consulting
 // form, the tick-and-tie mark animation), so they load this instead of main.js.
 document.getElementById('year').textContent = String(new Date().getFullYear())
 

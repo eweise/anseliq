@@ -35,7 +35,7 @@
           <a href="/" class="hover:text-paper-100">Product</a>
           <a href="/docs/" class="text-paper-100">Documentation</a>
         </div>
-        <a href="/#early-access" class="btn-primary !px-4 !py-2">Request early access</a>
+        <a href="https://github.com/eweise/anseliq" class="btn-primary !px-4 !py-2">View on GitHub</a>
       </nav>
     </header>
 
@@ -51,6 +51,7 @@
               <ul class="docs-toc mt-0.5 hidden space-y-0.5 lg:block">
                 <li><a href="#architecture">Architecture</a></li>
                 <li><a href="#requirements">Requirements</a></li>
+                <li><a href="#building">Building the images</a></li>
                 <li><a href="#aws">Preparing AWS</a></li>
                 <li><a href="#install">Installing</a></li>
                 <li><a href="#configuration">Configuration reference</a></li>
@@ -101,7 +102,7 @@
           <li><strong>PostgreSQL</strong>: RDS or Aurora PostgreSQL, reachable from the cluster, allowing about 100 connections. AnselIQ is tested on PostgreSQL 18.</li>
           <li><strong>S3</strong>: the buckets your file feeds read, in one region.</li>
           <li><strong>TLS</strong>: an ACM certificate for the hostname users will open AnselIQ at.</li>
-          <li><strong>Images</strong>: access to the <code>anseliq-backend</code> and <code>anseliq-frontend</code> release images, which your AnselIQ contact provides. You can pull them directly or copy them to your own registry such as ECR.</li>
+          <li><strong>Images</strong>: the <code>anseliq-backend</code> and <code>anseliq-frontend</code> images, which you <a href="#building">build from source</a> and push to a registry the cluster can pull from, such as ECR.</li>
           <li><strong>Optional</strong>: <a href="https://keda.sh">KEDA</a>, to scale workers on queue depth, and a GPU or large-CPU node for <a href="#ai">AI matching</a>.</li>
         </ul>
         <p>Default resource requests per pod:</p>
@@ -115,6 +116,35 @@
           </table>
         </div>
         <p>Workers need more memory because reconciliation holds each pass's matching groups in memory.</p>
+
+        <h2 id="building">Building the images</h2>
+        <p>
+          AnselIQ is distributed as source code, so you build its two images yourself and push them to
+          your own registry. You need:
+        </p>
+        <ul>
+          <li><a href="https://jdk.java.net/26/">JDK 26</a> and <a href="https://www.scala-sbt.org/download.html">sbt</a></li>
+          <li><a href="https://nodejs.org/">Node.js</a> 22, for the web app's build</li>
+          <li>Docker, with <code>buildx</code> if you build on a machine that isn't x86-64 (an Apple Silicon Mac, say)</li>
+        </ul>
+        <p>
+          In ECR, create two repositories named <code>anseliq-backend</code> and
+          <code>anseliq-frontend</code>, and sign Docker in to the registry. Then build and push a
+          release:
+        </p>
+        <pre><code>git clone https://github.com/eweise/anseliq.git
+cd anseliq
+git checkout v0.1.2                  # the release to build
+
+export DOCKER_REGISTRY=&lt;account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com
+export DOCKER_PLATFORM=linux/amd64   # match your cluster's nodes
+sbt -java-home "$JAVA_HOME" "backend/Docker/publish; frontend/Docker/publish"</code></pre>
+        <p>
+          This pushes <code>anseliq-backend:0.1.2</code> and <code>anseliq-frontend:0.1.2</code>. The
+          tag is the release version, read from the git tag you checked out. A build from any other
+          commit gets a version like <code>0.1.2-4-abcd1234</code>. <code>JAVA_HOME</code> must point at
+          JDK 26.
+        </p>
 
         <h2 id="aws">Preparing AWS</h2>
         <h3 id="database">Database</h3>
@@ -160,8 +190,8 @@ CREATE DATABASE recon_db OWNER anseliq;</code></pre>
           <table>
             <thead><tr><th>Placeholder</th><th>Value</th></tr></thead>
             <tbody>
-              <tr><td><code>REPLACE_ME_REGISTRY</code></td><td>Where the cluster pulls the images from, e.g. <code>&lt;account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com</code>.</td></tr>
-              <tr><td><code>REPLACE_ME_VERSION</code></td><td>The release to install, e.g. <code>1.2.3</code> (without a <code>v</code>).</td></tr>
+              <tr><td><code>REPLACE_ME_REGISTRY</code></td><td>The <code>DOCKER_REGISTRY</code> you <a href="#building">pushed the images to</a>, e.g. <code>&lt;account&gt;.dkr.ecr.&lt;region&gt;.amazonaws.com</code>.</td></tr>
+              <tr><td><code>REPLACE_ME_VERSION</code></td><td>The version you built, e.g. <code>0.1.2</code> (without a <code>v</code>).</td></tr>
               <tr><td><code>REPLACE_ME_RDS_ENDPOINT</code></td><td>The database endpoint.</td></tr>
               <tr><td><code>REPLACE_ME_AWS_REGION</code></td><td>The region of the feed buckets.</td></tr>
               <tr><td><code>REPLACE_ME_AWS_ACCOUNT_ID</code>, <code>REPLACE_ME_S3_READ_ROLE</code></td><td>The S3 read role above.</td></tr>
@@ -286,8 +316,9 @@ patches:
 
         <h2 id="upgrading">Upgrading</h2>
         <p>
-          Change both image <code>newTag</code>s in <code>kustomization.yaml</code> to the new release
-          and run <code>kubectl apply -k .</code> again. Each backend pod applies any pending database
+          <a href="#building">Build and push</a> the new release, change both image
+          <code>newTag</code>s in <code>kustomization.yaml</code> to its version, and run
+          <code>kubectl apply -k .</code> again. Each backend pod applies any pending database
           migrations before it starts, and running jobs drain (or go back to the queue) before old pods
           stop. If you keep your overlay in your own repository, you can reference the base at a
           release tag instead of copying it.
