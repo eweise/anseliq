@@ -20,10 +20,10 @@ class ReconciliationRoutes(
   manualReconciler:     ManualReconciler
 ) extends ApiRoutes:
 
-  @cask.route(s"${HttpPath.reconSpec}/:reconSpecID/reconciliations", methods = HttpCmd.GET)
-  def movementsByReconciliationSpec(reconSpecID: String): String =
+  @cask.route(s"${HttpPath.reconSpec}/:reconSpecId/reconciliations", methods = HttpCmd.GET)
+  def movementsByReconciliationSpec(reconSpecId: String): String =
     transact(transactor):
-      val reconciliations = reconRepo.findByReconSpecID(UUID.fromString(reconSpecID))
+      val reconciliations = reconRepo.findByReconSpecId(UUID.fromString(reconSpecId))
       val payload         = reconciliations.map(PayloadMapper.reconFromDomain)
       write(payload)
 
@@ -35,14 +35,14 @@ class ReconciliationRoutes(
         .getOrElse(throw IllegalArgumentError("status", s"unknown reconciliation status: $s"))
     )
     transact(transactor):
-      val reconciliations = reconRepo.findByAccountID(UUID.fromString(id), limit, statusFilter)
+      val reconciliations = reconRepo.findByAccountId(UUID.fromString(id), limit, statusFilter)
       write(reconciliations.map(PayloadMapper.reconFromDomain))
 
   // Keyed by ReconciliationStatus name ("Mismatched", "InProgress", ...), statuses with none omitted.
   @cask.route(s"${HttpPath.account}/:id/reconciliation-counts", methods = HttpCmd.GET)
   def reconciliationCountsByAccount(id: String): String =
     transact(transactor):
-      write(reconRepo.countByStatusForAccountID(UUID.fromString(id)).map((s, n) => s.toString -> n))
+      write(reconRepo.countByStatusForAccountId(UUID.fromString(id)).map((s, n) => s.toString -> n))
 
   @cask.route(s"${HttpPath.account}/:id/reconcile", methods = HttpCmd.POST)
   def reconcileAccount(id: String): String =

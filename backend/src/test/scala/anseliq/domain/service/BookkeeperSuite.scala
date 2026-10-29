@@ -22,9 +22,9 @@ class BookkeeperSuite extends munit.FunSuite:
         data.bookkeeper.recordMovements(
           data.journalToRecon,
           Seq(
-            MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
-            MovementRequest(amount = -30, referenceId = createID(), properties = Map()),
-            MovementRequest(amount = 50, referenceId  = createID(), properties = Map())
+            MovementRequest(amount = 100, referenceId = createId(), properties = Map()),
+            MovementRequest(amount = -30, referenceId = createId(), properties = Map()),
+            MovementRequest(amount = 50, referenceId  = createId(), properties = Map())
           )
         )
 
@@ -54,7 +54,7 @@ class BookkeeperSuite extends munit.FunSuite:
         val data = DataSetup(app)
         data.bookkeeper.recordMovements(
           data.journalToRecon,
-          Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
+          Seq(MovementRequest(amount = 100, referenceId = createId(), properties = Map()))
         )
 
         data.bookkeeper.markReconciled(data.reconAccount.id, 60)
@@ -71,7 +71,7 @@ class BookkeeperSuite extends munit.FunSuite:
         val data = DataSetup(app)
         data.bookkeeper.recordMovements(
           data.journalToRecon,
-          Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
+          Seq(MovementRequest(amount = 100, referenceId = createId(), properties = Map()))
         )
 
         data.bookkeeper.markReconciled(data.reconAccount.id, 60)
@@ -90,7 +90,7 @@ class BookkeeperSuite extends munit.FunSuite:
 
         data.bookkeeper.recordMovements(
           data.journalToRecon,
-          Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
+          Seq(MovementRequest(amount = 100, referenceId = createId(), properties = Map()))
         )
         val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
         val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
@@ -114,7 +114,7 @@ class BookkeeperSuite extends munit.FunSuite:
 
         data.bookkeeper.recordMovements(
           data.journalToRecon,
-          Seq(MovementRequest(amount = 100, referenceId = createID(), properties = Map()))
+          Seq(MovementRequest(amount = 100, referenceId = createId(), properties = Map()))
         )
         val movement       = data.movementRepo.findByAccount(data.reconAccount.id).head
         val reconciliation = Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual)
@@ -142,8 +142,8 @@ class BookkeeperSuite extends munit.FunSuite:
       rollBackOnly:
         val data = DataSetup(app)
         val requests = Seq(
-          MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
-          MovementRequest(amount = -30, referenceId = createID(), properties = Map())
+          MovementRequest(amount = 100, referenceId = createId(), properties = Map()),
+          MovementRequest(amount = -30, referenceId = createId(), properties = Map())
         )
 
         data.bookkeeper.recordMovements(data.journalToRecon, requests)
@@ -171,8 +171,8 @@ class BookkeeperSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data            = DataSetup(app)
-        val alreadyRecorded = MovementRequest(amount = 100, referenceId = createID(), properties = Map())
-        val brandNew        = MovementRequest(amount = 25, referenceId = createID(), properties = Map())
+        val alreadyRecorded = MovementRequest(amount = 100, referenceId = createId(), properties = Map())
+        val brandNew        = MovementRequest(amount = 25, referenceId = createId(), properties = Map())
 
         data.bookkeeper.recordMovements(data.journalToRecon, Seq(alreadyRecorded))
         data.bookkeeper.recordMovements(data.journalToRecon, Seq(alreadyRecorded, brandNew))
@@ -193,8 +193,8 @@ class BookkeeperSuite extends munit.FunSuite:
     val data = transact(app.transactor)(DataSetup(app))
 
     val requests = Seq(
-      MovementRequest(amount = 100, referenceId = createID(), properties = Map()),
-      MovementRequest(amount = -30, referenceId = createID(), properties = Map())
+      MovementRequest(amount = 100, referenceId = createId(), properties = Map()),
+      MovementRequest(amount = -30, referenceId = createId(), properties = Map())
     )
 
     val barrier = CyclicBarrier(2)
@@ -234,7 +234,7 @@ class BookkeeperSuite extends munit.FunSuite:
         val data = DataSetup(app)
         data.bookkeeper.recordMovements(
           data.journalToRecon,
-          Seq(MovementRequest(amount = -40, referenceId = createID(), properties = Map()))
+          Seq(MovementRequest(amount = -40, referenceId = createId(), properties = Map()))
         )
 
         val reconAccount   = data.accountRepo.findById(data.reconAccount.id).get

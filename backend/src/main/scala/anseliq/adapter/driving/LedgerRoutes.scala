@@ -39,7 +39,7 @@ class LedgerRoutes(
         val isReconAccount    = account.accountType == AccountType.Recon
         val unreconciledCount = if isReconAccount then movementRepo.countUnreconciledByAccount(account.id) else 0
         val openTotals =
-          if isReconAccount then reconRepo.openTotalsByAccountID(account.id).map(t => t.status -> t).toMap
+          if isReconAccount then reconRepo.openTotalsByAccountId(account.id).map(t => t.status -> t).toMap
           else Map.empty
         val inProgress = openTotals.get(ReconciliationStatus.InProgress)
         val mismatched = openTotals.get(ReconciliationStatus.Mismatched)

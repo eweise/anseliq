@@ -17,10 +17,10 @@ class AccountRoutes(
   accountService: AccountService
 ) extends ApiRoutes:
 
-  @cask.route(s"${HttpPath.ledgers}/:ledgerID/accounts", methods = HttpCmd.GET)
-  def accountsByLedgerID(ledgerID: String): String =
+  @cask.route(s"${HttpPath.ledgers}/:ledgerId/accounts", methods = HttpCmd.GET)
+  def accountsByLedgerId(ledgerId: String): String =
     transact(transactor):
-      val accounts = accountRepo.findByLedger(UUID.fromString(ledgerID))
+      val accounts = accountRepo.findByLedger(UUID.fromString(ledgerId))
       val payload  = accounts.map(PayloadMapper.accountPayloadFromDomain)
       write(payload)
 
@@ -53,10 +53,10 @@ class AccountRoutes(
   def updateAccount(id: String, request: cask.Request): String =
     val accountRequest = read[AccountPayload](request.text())
     if id.trim == "" then throw IllegalArgumentException("Account ID is required")
-    val accountID = UUID.fromString(id)
+    val accountId = UUID.fromString(id)
     transact(transactor):
       val updated = accountService.updateAccount(
-        accountID,
+        accountId,
         name        = accountRequest.name,
         accountType = PayloadMapper.accountTypeToDomain(accountRequest.accountType),
         properties  = JSONBProps(accountRequest.properties)

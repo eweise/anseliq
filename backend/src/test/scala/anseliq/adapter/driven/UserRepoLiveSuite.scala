@@ -101,7 +101,7 @@ class UserRepoLiveSuite extends munit.FunSuite:
         val user = newUser()
         userRepo.insert(user)
         intercept[Exception]:
-          userRepo.insert(user.copy(id = createID()))
+          userRepo.insert(user.copy(id = createId()))
 
   // A row written as raw SQL, not through the DbCodec (by a migration, say) is readable —
   // @Table(..., SqlNameMapper.CamelToSnakeCase) on UserRole lowercases enum case names for

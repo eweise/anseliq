@@ -21,7 +21,7 @@ enum UserRole derives DbCodec:
 @SqlName("app_user")
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class User(
-  @Id id:        ID                     = createID(),
+  @Id id:        ID                     = createId(),
   email:         String,
   passwordHash:  String,
   firstName:     String,

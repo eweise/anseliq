@@ -255,7 +255,7 @@ object LedgerPage:
                 ),
                 child <-- state.signal.map { s =>
                   if s.accounts.isEmpty then div(cls := "text-gray-500 dark:text-gray-400 text-sm", "No accounts")
-                  else renderDiagram(s, ledger, configureReconBus, manualMatchBus, deleteSpecBus, state)
+                  else renderDiagram(s, configureReconBus, manualMatchBus, deleteSpecBus, state)
                 }
               )
             )
@@ -826,7 +826,6 @@ object LedgerPage:
 
   private def renderDiagram(
     s:                 State,
-    ledger:            LedgerPayload,
     configureReconBus: EventBus[AccountPayload],
     manualMatchBus:    EventBus[AccountPayload],
     deleteSpecBus:     EventBus[MovementSpecPayload],

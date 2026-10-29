@@ -5,7 +5,7 @@ import anseliq.common.model.model.{Money, Properties}
 import upickle.default.*
 
 import java.time.format.DateTimeFormatter
-import java.time.{Instant, OffsetDateTime}
+import java.time.OffsetDateTime
 
 type ValidationErrors = Map[String, String]
 
@@ -501,7 +501,7 @@ sealed trait EventPayload derives ReadWriter:
 case class MoneyMovementsIngestedPayload(
   id:                   String,
   eventType:            String,
-  movementSpecID:       String,
+  movementSpecId:       String,
   movementSpecName:     String,
   fileName:             String,
   recordCount:          Int,
@@ -513,14 +513,14 @@ case class MoneyMovementsIngestedPayload(
 case class AccountReconciledPayload(
   id:        String,
   eventType: String,
-  accountID: String,
+  accountId: String,
   createdAt: Option[OffsetDateTime]
 ) extends EventPayload
 
 case class NewFileDetectedPayload(
   id:              String,
   eventType:       String,
-  fileInventoryID: String,
+  fileInventoryId: String,
   filePath:        String,
   fileSource:      String,
   createdAt:       Option[OffsetDateTime]

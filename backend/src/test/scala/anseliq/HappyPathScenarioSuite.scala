@@ -54,12 +54,12 @@ class HappyPathScenarioSuite extends munit.FunSuite:
         val expected = expectedByDay(day)
         val clue     = s"day $day"
         transact(app.transactor):
-          val recons = app.reconRepo.findByReconSpecID(s.reconSpec.id)
+          val recons = app.reconRepo.findByReconSpecId(s.reconSpec.id)
           assertEquals(recons.size, expected.reconciliations, clue)
           assert(recons.forall(_.status == ReconciliationStatus.Final), s"$clue: every match should be Final")
 
           val unreconciled = app.movementRepo
-            .findUnReconciledByAccount(s.recon.id)
+            .findUnreconciledByAccount(s.recon.id)
             .map(m => m.props.getOrElse("transaction_id", m.props.getOrElse("txn_id", "?")))
             .toSet
           assertEquals(unreconciled, expected.unreconciled, clue)
@@ -144,5 +144,5 @@ class HappyPathScenarioSuite extends munit.FunSuite:
           app.matchSuggestionRepo.findAll.filter(_.reconSpecId == s.reconSpec.id).map(_.reviewedByUserId).toSet,
           Set[Option[ID]](Some(reviewer.id))
         )
-        assertEquals(app.reconRepo.findByReconSpecID(s.reconSpec.id).size, expectedByDay.last.reconciliations + 1)
+        assertEquals(app.reconRepo.findByReconSpecId(s.reconSpec.id).size, expectedByDay.last.reconciliations + 1)
     finally scenario.teardown(s)

@@ -95,12 +95,12 @@ object EventsPage:
         span(e.recordCount.toString),
         span(e.ingestionTimeSeconds.toString),
         span(e.lastProcessedLine.map(_.toString).getOrElse("-")),
-        span(e.movementSpecID)
+        span(e.movementSpecId)
       )
-    case e: AccountReconciledPayload => Seq(span(e.accountID))
+    case e: AccountReconciledPayload => Seq(span(e.accountId))
     case e: NewFileDetectedPayload =>
       Seq(
-        span(e.fileInventoryID),
+        span(e.fileInventoryId),
         span(e.filePath),
         span(e.fileSource)
       )

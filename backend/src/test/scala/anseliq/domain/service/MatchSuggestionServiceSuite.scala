@@ -11,7 +11,7 @@ import anseliq.common.model.{
 }
 import anseliq.common.model.model.ID
 import anseliq.domain.DataSetup
-import anseliq.domain.model.{MatchSuggestionStatus, ReconciliationSpec, UserRole, createID}
+import anseliq.domain.model.{MatchSuggestionStatus, ReconciliationSpec, UserRole, createId}
 import anseliq.domain.port.driven.{MatchCandidate, MatchRequest, MatchSuggester, ProposedMatch, Txn}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
@@ -45,9 +45,9 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
 
   // journalToRecon moves into the Recon account (the spec's in side), reportToRecon out of it.
   private def postIn(app: TestAppContainer, data: DataSetup, amount: BigDecimal, name: String): Txn[Unit] =
-    app.accountService.postAmount(data.journalToRecon, amount, createID(), Map("name" -> name))
+    app.accountService.postAmount(data.journalToRecon, amount, createId(), Map("name" -> name))
   private def postOut(app: TestAppContainer, data: DataSetup, amount: BigDecimal, name: String): Txn[Unit] =
-    app.accountService.postAmount(data.reportToRecon, amount, createID(), Map("name" -> name))
+    app.accountService.postAmount(data.reportToRecon, amount, createId(), Map("name" -> name))
 
   private def named(candidates: Seq[MatchCandidate]): Seq[String] = candidates.map(_.properties("name"))
 
@@ -100,7 +100,7 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
       postOut(app, data, 30, "outside")
       val (spec, request) = service.findRequests(data.reconAccount.id).head
       val outsideId = app.movementRepo
-        .findUnReconciledByAccount(data.reconAccount.id)
+        .findUnreconciledByAccount(data.reconAccount.id)
         .find(_.props.get("name").contains("outside"))
         .get
         .id
@@ -117,7 +117,7 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
 
   private def newReviewer(app: TestAppContainer): Txn[ID] =
     app.userService
-      .createUser(s"reviewer-${createID()}@example.com", "Rita", "Reviewer", UserRole.Analyst, "a-real-password")
+      .createUser(s"reviewer-${createId()}@example.com", "Rita", "Reviewer", UserRole.Analyst, "a-real-password")
       .id
 
   // Two movements on the in side, both offered the same out-side movement, each with a pending suggestion.
@@ -178,7 +178,7 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
       )
 
   private def unreconciledId(app: TestAppContainer, data: DataSetup, name: String): Txn[ID] =
-    app.movementRepo.findUnReconciledByAccount(data.reconAccount.id).find(_.props.get("name").contains(name)).get.id
+    app.movementRepo.findUnreconciledByAccount(data.reconAccount.id).find(_.props.get("name").contains(name)).get.id
 
   test("a rejected pair isn't offered again, but the movement's other candidates still are"):
     withService: (app, data, service) =>
@@ -242,10 +242,10 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
     app.accountService.postAmount(
       data.journalToRecon,
       1250,
-      createID(),
+      createId(),
       Map("name" -> "anchor", "ref" -> "INV-2026-0042")
     )
-    app.accountService.postAmount(data.reportToRecon, 1250, createID(), Map("name" -> "bank", "ref" -> "inv20260042"))
+    app.accountService.postAmount(data.reportToRecon, 1250, createId(), Map("name" -> "bank", "ref" -> "inv20260042"))
     service(app).findRequests(data.reconAccount.id).head
 
   private def service(app: TestAppContainer) = MatchSuggestionService(
@@ -342,13 +342,13 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
       app.accountService.postAmount(
         data.journalToRecon,
         1000 + i,
-        createID(),
+        createId(),
         Map("name" -> s"in-$i", "ref" -> s"INV-00$i")
       )
       app.accountService.postAmount(
         data.reportToRecon,
         1000 + i,
-        createID(),
+        createId(),
         Map("name" -> s"out-$i", "ref" -> s"inv00$i")
       )
     service
@@ -366,9 +366,9 @@ class MatchSuggestionServiceSuite extends munit.FunSuite:
     withService: (app, data, service) =>
       acceptExplainedSuggestions(app, data, service, 3)
       // Still unmatched: one pair the learned rule would match, and a movement it wouldn't.
-      app.accountService.postAmount(data.journalToRecon, 77, createID(), Map("name" -> "later-in", "ref" -> "AB-9"))
-      app.accountService.postAmount(data.reportToRecon, 77, createID(), Map("name" -> "later-out", "ref" -> "ab9"))
-      app.accountService.postAmount(data.journalToRecon, 55, createID(), Map("name" -> "alone", "ref" -> "ZZ-1"))
+      app.accountService.postAmount(data.journalToRecon, 77, createId(), Map("name" -> "later-in", "ref" -> "AB-9"))
+      app.accountService.postAmount(data.reportToRecon, 77, createId(), Map("name" -> "later-out", "ref" -> "ab9"))
+      app.accountService.postAmount(data.journalToRecon, 55, createId(), Map("name" -> "alone", "ref" -> "ZZ-1"))
 
       assertEquals(
         service.ruleProposals(data.reconSpec.id),

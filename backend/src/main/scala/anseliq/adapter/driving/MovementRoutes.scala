@@ -9,7 +9,6 @@ import com.augustnagro.magnum.*
 import upickle.default.*
 
 import java.util.UUID
-import scala.util.Try
 
 class MovementRoutes(
   transactor:       Transactor,
@@ -18,12 +17,12 @@ class MovementRoutes(
   manualReconciler: ManualReconciler
 ) extends ApiRoutes:
 
-  @cask.route(s"${HttpPath.movements}/:movementSpecID/unreconciled", methods = HttpCmd.GET)
-  def movementsBySpecID(movementSpecID: String): String =
-    val specID = UUID.fromString(movementSpecID)
+  @cask.route(s"${HttpPath.movements}/:movementSpecId/unreconciled", methods = HttpCmd.GET)
+  def movementsBySpecId(movementSpecId: String): String =
+    val specId = UUID.fromString(movementSpecId)
     transact(transactor):
-      val movements = movementRepo.findUnReconciledByMovementSpec(specID)
-      val payload   = movements.map(PayloadMapper.movementfromDomainModel)
+      val movements = movementRepo.findUnreconciledByMovementSpec(specId)
+      val payload   = movements.map(PayloadMapper.movementPayloadFromDomain)
       write(payload)
 
   @cask.route(s"${HttpPath.movements}/search", methods = HttpCmd.POST)

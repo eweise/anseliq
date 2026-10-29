@@ -15,7 +15,7 @@ enum MatchSuggestionStatus derives DbCodec:
 // the recon spec's rule left unmatched. Only ever a suggestion: a person accepts or rejects it.
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class MatchSuggestion(
-  @Id id:                   ID = createID(),
+  @Id id:                   ID = createId(),
   reconSpecId:              ID,
   movementId:               ID,
   suggestedMovementIdsJson: String,

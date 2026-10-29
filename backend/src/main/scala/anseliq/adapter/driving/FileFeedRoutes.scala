@@ -41,10 +41,10 @@ class FileFeedRoutes(
   def updateFileFeed(id: String, request: cask.Request): String =
     val payload = read[FileFeedPayload](request.text())
     validateDataSourceConfig(payload)
-    val feedID = UUID.fromString(id)
+    val feedId = UUID.fromString(id)
     transact(transactor):
       val updated = fileFeedService.updateFileFeed(
-        feedID,
+        feedId,
         name                 = payload.name,
         dataSourceJson       = PayloadMapper.dataSourceJson(payload),
         expectedCadenceHours = payload.expectedCadenceHours

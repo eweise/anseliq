@@ -39,54 +39,54 @@ class MovementRepoLive(clock: ClockService) extends AuditedRepo[Movement, UUID](
       ORDER BY created_at
     """.query[Movement].run()
 
-  def findUnReconciledByAccount(accountID: ID): Txn[Vector[Movement]] =
+  def findUnreconciledByAccount(accountId: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
       FROM $m AS a
       WHERE reconciliation_id IS NULL
-      AND (in_account_id = $accountID OR out_account_id = $accountID)
+      AND (in_account_id = $accountId OR out_account_id = $accountId)
       ORDER BY created_at
     """.query[Movement].run()
 
-  def findByReconciliationID(reconciliationID: ID): Txn[Vector[Movement]] =
+  def findByReconciliationId(reconciliationId: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
       FROM $m AS a
       WHERE 1 = 1
-      AND reconciliation_id = $reconciliationID
+      AND reconciliation_id = $reconciliationId
       ORDER BY created_at
     """.query[Movement].run()
 
-  def findUnReconciledByMovementSpec(movementSpecID: ID): Txn[Vector[Movement]] =
+  def findUnreconciledByMovementSpec(movementSpecId: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
       FROM $m AS a
       WHERE reconciliation_id IS NULL
-      AND movement_spec_id = $movementSpecID
+      AND movement_spec_id = $movementSpecId
       ORDER BY created_at
     """.query[Movement].run()
 
-  def findByAccount(accountID: ID): Txn[Vector[Movement]] =
+  def findByAccount(accountId: ID): Txn[Vector[Movement]] =
     sql"""
       SELECT ${m.all}
       FROM $m AS a
-      WHERE (in_account_id = $accountID OR out_account_id = $accountID)
+      WHERE (in_account_id = $accountId OR out_account_id = $accountId)
       ORDER BY created_at
     """.query[Movement].run()
 
-  def countUnreconciledByAccount(accountID: ID): Txn[Int] =
+  def countUnreconciledByAccount(accountId: ID): Txn[Int] =
     sql"""
       SELECT count(*)
       FROM $m AS a
-      WHERE (in_account_id = $accountID OR out_account_id = $accountID)
+      WHERE (in_account_id = $accountId OR out_account_id = $accountId)
       AND reconciliation_id IS NULL
     """.query[Int].run().head
 
-  def countByAccount(accountID: ID): Txn[Int] =
+  def countByAccount(accountId: ID): Txn[Int] =
     sql"""
       SELECT count(*)
       FROM $m AS a
-      WHERE (in_account_id = $accountID OR out_account_id = $accountID)
+      WHERE (in_account_id = $accountId OR out_account_id = $accountId)
     """.query[Int].run().head
 
   def findEqualityMatches(

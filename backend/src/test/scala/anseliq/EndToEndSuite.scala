@@ -30,20 +30,20 @@ class EndToEndSuite extends munit.FunSuite {
     reconAccountId: ID
   ): Unit =
     transact(app.transactor):
-      app.reconRepo.findByReconSpecID(reconSpec.id).foreach(r => app.reconRepo.deleteById(r.id))
+      app.reconRepo.findByReconSpecId(reconSpec.id).foreach(r => app.reconRepo.deleteById(r.id))
       app.reconSpecRepo.deleteById(reconSpec.id)
       // .event[T] deserializes the stored JSON payload, which can fail for events published by an
       // older, incompatible version of the case class (e.g. a real event from a long-running server
       // process using different code) — those aren't this test's events, so skip rather than crash.
       app.eventRepo
         .findByEventType("AccountReconciled")
-        .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == reconAccountId).getOrElse(false))
+        .filter(es => scala.util.Try(es.event[AccountReconciled].accountId == reconAccountId).getOrElse(false))
         .foreach(es => app.eventRepo.deleteById(es.id))
       val movementSpecIds = movementSpecs.map(_.id).toSet
       app.eventRepo
         .findByEventType("MoneyMovementsIngested")
         .filter(es =>
-          scala.util.Try(movementSpecIds.contains(es.event[MoneyMovementsIngested].movementSpecID)).getOrElse(false)
+          scala.util.Try(movementSpecIds.contains(es.event[MoneyMovementsIngested].movementSpecId)).getOrElse(false)
         )
         .foreach(es => app.eventRepo.deleteById(es.id))
       app.ledgerRepo.deleteById(ledger.id)
@@ -76,7 +76,7 @@ class EndToEndSuite extends munit.FunSuite {
       reconSpec
     ) =
       transact(app.transactor):
-        val ledger = Ledger(name = createID().toString)
+        val ledger = Ledger(name = createId().toString)
         app.ledgerRepo.insert(ledger)
 
         val reconAccount = Account(name = "recon", ledgerId = ledger.id, accountType = AccountType.Recon)
@@ -180,16 +180,16 @@ class EndToEndSuite extends munit.FunSuite {
       app.reconciler.reconcileAccountResumable(reconAccount.id)
 
       transact(app.transactor):
-        val unreconciledReconAccounts = app.movementRepo.findUnReconciledByAccount(reconAccount.id)
+        val unreconciledReconAccounts = app.movementRepo.findUnreconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
 
-        val unreconciledJournalAccounts = app.movementRepo.findUnReconciledByAccount(journalAccount.id)
+        val unreconciledJournalAccounts = app.movementRepo.findUnreconciledByAccount(journalAccount.id)
         assertEquals(unreconciledJournalAccounts.length, 1)
 
-        val unreconciledReports = app.movementRepo.findUnReconciledByAccount(reportAccount.id)
+        val unreconciledReports = app.movementRepo.findUnreconciledByAccount(reportAccount.id)
         assertEquals(unreconciledReports.length, 0)
 
-        val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
+        val reconciliations = app.reconRepo.findByReconSpecId(reconSpec.id)
         assertEquals(reconciliations.length, 3)
     finally teardown(reconSpec, ledger, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
@@ -221,7 +221,7 @@ class EndToEndSuite extends munit.FunSuite {
       reconSpec
     ) =
       transact(app.transactor):
-        val ledger = Ledger(name = createID().toString)
+        val ledger = Ledger(name = createId().toString)
         app.ledgerRepo.insert(ledger)
 
         val reconAccount = Account(name = "recon", ledgerId = ledger.id, accountType = AccountType.Recon)
@@ -334,16 +334,16 @@ class EndToEndSuite extends munit.FunSuite {
       app.reconciler.reconcileAccountResumable(reconAccount.id)
 
       transact(app.transactor):
-        val unreconciledReconAccounts = app.movementRepo.findUnReconciledByAccount(reconAccount.id)
+        val unreconciledReconAccounts = app.movementRepo.findUnreconciledByAccount(reconAccount.id)
         assertEquals(unreconciledReconAccounts.length, 1)
 
-        val unreconciledJournalAccounts = app.movementRepo.findUnReconciledByAccount(journalAccount.id)
+        val unreconciledJournalAccounts = app.movementRepo.findUnreconciledByAccount(journalAccount.id)
         assertEquals(unreconciledJournalAccounts.length, 1)
 
-        val unreconciledReports = app.movementRepo.findUnReconciledByAccount(reportAccount.id)
+        val unreconciledReports = app.movementRepo.findUnreconciledByAccount(reportAccount.id)
         assertEquals(unreconciledReports.length, 0)
 
-        val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
+        val reconciliations = app.reconRepo.findByReconSpecId(reconSpec.id)
         assertEquals(reconciliations.length, 3)
     finally teardown(reconSpec, ledger, Seq(journalToRecon, reportToRecon), reconAccount.id)
   }
@@ -375,7 +375,7 @@ class EndToEndSuite extends munit.FunSuite {
       reconSpec
     ) =
       transact(app.transactor):
-        val ledger = Ledger(name = createID().toString)
+        val ledger = Ledger(name = createId().toString)
         app.ledgerRepo.insert(ledger)
 
         val reconAccount = Account(name = "recon", ledgerId = ledger.id, accountType = AccountType.Recon)
@@ -492,11 +492,11 @@ class EndToEndSuite extends munit.FunSuite {
         assertEquals(updateReconAccount.balance, BigDecimal(250), "reconAccount.balance 250")
         // Scoped to this test's own reconSpec: app.reconRepo.findAll would pick up every other
         // reconciliation ever committed against this shared dev database.
-        val reconciliations = app.reconRepo.findByReconSpecID(reconSpec.id)
+        val reconciliations = app.reconRepo.findByReconSpecId(reconSpec.id)
         assertEquals(reconciliations.size, 1, "recon size = 1")
 
         // add up movement from reconcilation. See if the amount matches
-        val reconciledMovements = app.movementRepo.findByReconciliationID(reconciliations.head.id)
+        val reconciledMovements = app.movementRepo.findByReconciliationId(reconciliations.head.id)
         assertEquals(reconciledMovements.size, 3)
         // all movement amounts should add up to 0
         val totalAmount = reconciledMovements.foldLeft(BigDecimal(0))((accum, movement) =>
@@ -506,7 +506,7 @@ class EndToEndSuite extends munit.FunSuite {
         )
         assertEquals(totalAmount, BigDecimal(0))
 
-        val unreconciled = app.movementRepo.findUnReconciledByAccount(reconAccount.id);
+        val unreconciled = app.movementRepo.findUnreconciledByAccount(reconAccount.id);
         assertEquals(unreconciled.size, 2)
         val u1 = unreconciled.find(m =>
           m.props.getOrElse("record_date", "") == "2025-03-05"

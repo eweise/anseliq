@@ -75,9 +75,9 @@ class MatchSuggestionService(
    * a rejected pair isn't suggested on every run.
    */
   def findRequests(accountId: ID): Txn[Vector[(ReconciliationSpec, MatchRequest)]] =
-    val unreconciled = movementRepo.findUnReconciledByAccount(accountId)
+    val unreconciled = movementRepo.findUnreconciledByAccount(accountId)
     reconSpecRepo
-      .findByAccountID(accountId)
+      .findByAccountId(accountId)
       .filter(_.relationship == Relationship.OneToOne)
       .flatMap: spec =>
         val alreadySuggested = matchSuggestionRepo.findPendingByReconSpecId(spec.id).map(_.movementId).toSet
@@ -102,7 +102,7 @@ class MatchSuggestionService(
     val pastMatches = reconRepo
       .findRecentManualOrSuggested(spec.id, maxExamples)
       .flatMap: recon =>
-        val movements = movementRepo.findByReconciliationID(recon.id)
+        val movements = movementRepo.findByReconciliationId(recon.id)
         val outSide   = movements.filter(_.movementSpecId == spec.outMovementSpecId).map(toCandidate)
         movements.find(_.movementSpecId == spec.inMovementSpecId).map(m => MatchExample(toCandidate(m), outSide))
     val pastNonMatches = matchSuggestionRepo
@@ -266,7 +266,7 @@ class MatchSuggestionService(
         case _ => None
       )
       .collect { case rule: StringAttributeMatchRule => rule }
-    lazy val unreconciled = movementRepo.findUnReconciledByAccount(spec.accountId)
+    lazy val unreconciled = movementRepo.findUnreconciledByAccount(spec.accountId)
     explained
       .groupBy(identity)
       .collect {

@@ -98,7 +98,7 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
         val allReconciliations = reconRepo.findAll
         assertEquals(allReconciliations.size, initialCount + 2)
 
-  test("findByReconSpecID"):
+  test("findByReconSpecId"):
     val reconRepo = app.reconRepo
     transact(app.transactor):
       rollBackOnly:
@@ -106,10 +106,10 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
         reconRepo.insert(
           Reconciliation(specId = Some(data.reconSpec.id), appliedRules = AppliedRules.Manual, description = "first")
         )
-        val foundRecons = reconRepo.findByReconSpecID(data.reconSpec.id)
+        val foundRecons = reconRepo.findByReconSpecId(data.reconSpec.id)
         assert(foundRecons.nonEmpty)
 
-  test("openTotalsByAccountID totals InProgress and Mismatched reconciliations from the account's side"):
+  test("openTotalsByAccountId totals InProgress and Mismatched reconciliations from the account's side"):
     val reconRepo    = app.reconRepo
     val movementRepo = app.movementRepo
     transact(app.transactor):
@@ -146,14 +146,14 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
           )
         )
 
-        val totals = reconRepo.openTotalsByAccountID(data.reconAccount.id).map(t => t.status -> t).toMap
+        val totals = reconRepo.openTotalsByAccountId(data.reconAccount.id).map(t => t.status -> t).toMap
         assertEquals(totals.keySet, Set(ReconciliationStatus.InProgress, ReconciliationStatus.Mismatched))
         assertEquals(totals(ReconciliationStatus.InProgress).count, 1)
         assertEquals(totals(ReconciliationStatus.InProgress).balance, BigDecimal(31))
         assertEquals(totals(ReconciliationStatus.Mismatched).count, 2)
         assertEquals(totals(ReconciliationStatus.Mismatched).balance, BigDecimal(-36))
 
-  test("findByAccountID filters by status when one is given"):
+  test("findByAccountId filters by status when one is given"):
     val reconRepo = app.reconRepo
     transact(app.transactor):
       rollBackOnly:
@@ -166,17 +166,17 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
         reconRepo.insert(finalRecon)
 
         val accountId = data.reconAccount.id
-        assertEquals(reconRepo.findByAccountID(accountId, 100).map(_.id).toSet, Set(inProgress.id, finalRecon.id))
+        assertEquals(reconRepo.findByAccountId(accountId, 100).map(_.id).toSet, Set(inProgress.id, finalRecon.id))
         assertEquals(
-          reconRepo.findByAccountID(accountId, 100, Some(ReconciliationStatus.InProgress)).map(_.id),
+          reconRepo.findByAccountId(accountId, 100, Some(ReconciliationStatus.InProgress)).map(_.id),
           Vector(inProgress.id)
         )
         assertEquals(
-          reconRepo.findByAccountID(accountId, 100, Some(ReconciliationStatus.Final)).map(_.id),
+          reconRepo.findByAccountId(accountId, 100, Some(ReconciliationStatus.Final)).map(_.id),
           Vector(finalRecon.id)
         )
 
-  test("countByStatusForAccountID counts the account's reconciliations per status"):
+  test("countByStatusForAccountId counts the account's reconciliations per status"):
     val reconRepo = app.reconRepo
     transact(app.transactor):
       rollBackOnly:
@@ -190,7 +190,7 @@ class ReconciliationRepoLiveSuite extends munit.FunSuite:
         recon(ReconciliationStatus.Final)
 
         assertEquals(
-          reconRepo.countByStatusForAccountID(data.reconAccount.id),
+          reconRepo.countByStatusForAccountId(data.reconAccount.id),
           Map(ReconciliationStatus.Mismatched -> 2, ReconciliationStatus.Final -> 1)
         )
-        assertEquals(reconRepo.countByStatusForAccountID(data.journalAccount.id), Map.empty)
+        assertEquals(reconRepo.countByStatusForAccountId(data.journalAccount.id), Map.empty)

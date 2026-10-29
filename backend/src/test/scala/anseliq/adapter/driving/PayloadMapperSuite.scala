@@ -11,7 +11,7 @@ class PayloadMapperSuite extends munit.FunSuite:
   test("eventPayloadFromDomain converts MoneyMovementsIngested"):
     val specId = UUID.randomUUID()
     val event = MoneyMovementsIngested(
-      movementSpecID       = specId,
+      movementSpecId       = specId,
       movementSpecName     = "test",
       fileName             = "test",
       recordCount          = 0,
@@ -24,24 +24,24 @@ class PayloadMapperSuite extends munit.FunSuite:
     val payload = result.asInstanceOf[MoneyMovementsIngestedPayload]
     assertEquals(payload.id, event.id.toString)
     assertEquals(payload.eventType, "MoneyMovementsIngested")
-    assertEquals(payload.movementSpecID, specId.toString)
+    assertEquals(payload.movementSpecId, specId.toString)
     assert(payload.createdAt.isDefined)
 
   test("eventPayloadFromDomain converts AccountReconciled"):
     val accountId = UUID.randomUUID()
-    val event     = AccountReconciled(accountID = accountId)
+    val event     = AccountReconciled(accountId = accountId)
     val state     = EventState.newEventState(event)
     val result    = PayloadMapper.eventPayloadFromDomain(state)
     assert(result.isInstanceOf[AccountReconciledPayload])
     val payload = result.asInstanceOf[AccountReconciledPayload]
     assertEquals(payload.id, event.id.toString)
     assertEquals(payload.eventType, "AccountReconciled")
-    assertEquals(payload.accountID, accountId.toString)
+    assertEquals(payload.accountId, accountId.toString)
 
   test("eventPayloadFromDomain converts NewFileDetected"):
     val fileInventoryId = UUID.randomUUID()
     val event = NewFileDetected(
-      fileInventoryID = fileInventoryId,
+      fileInventoryId = fileInventoryId,
       filePath        = "a",
       source          = "b"
     )
@@ -51,7 +51,7 @@ class PayloadMapperSuite extends munit.FunSuite:
     val payload = result.asInstanceOf[NewFileDetectedPayload]
     assertEquals(payload.id, event.id.toString)
     assertEquals(payload.eventType, "NewFileDetected")
-    assertEquals(payload.fileInventoryID, fileInventoryId.toString)
+    assertEquals(payload.fileInventoryId, fileInventoryId.toString)
 
   test("jobPayloadFromDomain copies every field"):
     val createdAt = OffsetDateTime.parse("2026-10-19T10:00:00Z")

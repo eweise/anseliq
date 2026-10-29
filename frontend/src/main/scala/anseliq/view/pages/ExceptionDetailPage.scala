@@ -16,7 +16,17 @@ import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
 import anseliq.state.SessionStore
 import anseliq.view.ViewHelper
-import anseliq.view.components.{Buttons, Card, DetailList, Form, PageHeader, Pill, ReconStatus, ReconciliationActions}
+import anseliq.view.components.{
+  Buttons,
+  Card,
+  DetailList,
+  ExceptionViews,
+  Form,
+  PageHeader,
+  Pill,
+  ReconStatus,
+  ReconciliationActions
+}
 import upickle.default.*
 
 object ExceptionDetailPage:
@@ -33,12 +43,6 @@ object ExceptionDetailPage:
       ExceptionStatusPayload.Resolved
     ).filterNot(s => s == ExceptionStatusPayload.Resolved && d.exception.automaticResolution.isDefined)
       .map(s => s.toString -> s.toString)
-
-  def statusTone(status: ExceptionStatusPayload): Pill.Tone = status match
-    case ExceptionStatusPayload.New           => Pill.Tone.Accent
-    case ExceptionStatusPayload.Investigating => Pill.Tone.Warning
-    case ExceptionStatusPayload.Escalated     => Pill.Tone.Critical
-    case ExceptionStatusPayload.Resolved      => Pill.Tone.Good
 
   // Mirrors the ExceptionService.addComment rule server-side: a body is required for a plain comment
   // (no status change, no reassignment) and for a Resolved transition, so we can reject a bad
@@ -105,7 +109,7 @@ object ExceptionDetailPage:
               div(
                 cls := "flex flex-wrap items-center gap-3",
                 h2(cls := "text-2xl font-medium text-gray-900 dark:text-white", title),
-                Pill(d.exception.status.toString, statusTone(d.exception.status))
+                Pill(d.exception.status.toString, ExceptionViews.statusTone(d.exception.status))
               ),
               assignmentDetails(d, assignBus)
             ),
@@ -192,7 +196,7 @@ object ExceptionDetailPage:
   private def commentEntry(c: ExceptionCommentPayload): HtmlElement =
     div(
       cls := "border-l-2 border-md-outline pl-3",
-      c.newStatus.map(s => Pill(s"→ ${s.toString}", statusTone(s))).getOrElse(div()),
+      c.newStatus.map(s => Pill(s"→ ${s.toString}", ExceptionViews.statusTone(s))).getOrElse(div()),
       c.newAssignedToName
         .map(name => Pill(s"→ Assigned to $name", Pill.Tone.Accent))
         .getOrElse(div()),

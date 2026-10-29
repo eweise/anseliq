@@ -259,7 +259,7 @@ class ReportingServiceSuite extends munit.FunSuite:
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        ledgerId                  = createID(),
+        ledgerId                  = createId(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(90)),
         ratedAccountCount         = 3,
@@ -271,7 +271,7 @@ class ReportingServiceSuite extends munit.FunSuite:
         totalMovementCount        = 10
       ),
       DailySnapshot(
-        ledgerId                  = createID(),
+        ledgerId                  = createId(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(50)),
         ratedAccountCount         = 1,
@@ -299,12 +299,12 @@ class ReportingServiceSuite extends munit.FunSuite:
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        ledgerId                 = createID(),
+        ledgerId                 = createId(),
         snapshotDate             = date,
         exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 2, "FileMissing" -> 1))
       ),
       DailySnapshot(
-        ledgerId                 = createID(),
+        ledgerId                 = createId(),
         snapshotDate             = date,
         exceptionsByCategoryJson = upickle.write(Map("AmountMismatch" -> 3, "Duplicate" -> 1))
       )
@@ -324,13 +324,13 @@ class ReportingServiceSuite extends munit.FunSuite:
     val date = java.time.LocalDate.of(2026, 1, 15)
     val rows = Vector(
       DailySnapshot(
-        ledgerId                  = createID(),
+        ledgerId                  = createId(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = Some(BigDecimal(80)),
         ratedAccountCount         = 2
       ),
       DailySnapshot(
-        ledgerId                  = createID(),
+        ledgerId                  = createId(),
         snapshotDate              = date,
         avgBalanceCoveragePercent = None,
         ratedAccountCount         = 0

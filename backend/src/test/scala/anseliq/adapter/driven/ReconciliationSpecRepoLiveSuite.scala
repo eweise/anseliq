@@ -11,5 +11,5 @@ class ReconciliationSpecRepoLiveSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data            = DataSetup(app)
-        val foundReconSpecs = data.reconSpecRepo.findByAccountID(data.reconAccount.id)
+        val foundReconSpecs = data.reconSpecRepo.findByAccountId(data.reconAccount.id)
         assert(foundReconSpecs.nonEmpty)

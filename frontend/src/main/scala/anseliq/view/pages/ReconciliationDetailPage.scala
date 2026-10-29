@@ -16,13 +16,12 @@ import anseliq.state.AppState.apiBind
 import anseliq.state.SessionStore
 import anseliq.view.ViewHelper
 import anseliq.view.components.{
-  Buttons,
   Card,
   DetailList,
+  ExceptionViews,
   Form,
   MovementLabels,
   PageHeader,
-  Pill,
   ReconStatus,
   ReconciliationActions,
   Table
@@ -74,7 +73,7 @@ object ReconciliationDetailPage:
               agingLimit = d.spec.map(_.agingLimit)
             ),
             balanceSection(d),
-            if d.openExceptions.isEmpty then emptyNode else exceptionsSection(d),
+            if d.openExceptions.isEmpty then emptyNode else ExceptionViews.openCard(d.openExceptions),
             movementsSection(d.movements),
             detailsSection(d)
           )
@@ -136,21 +135,6 @@ object ReconciliationDetailPage:
         appliedRulesView(d.reconciliation.appliedRules),
         relationshipNote.map(n => p(cls := Form.mutedTextCls, n)).getOrElse(emptyNode)
       )
-    )
-
-  private def exceptionsSection(d: ReconciliationDetailPayload): HtmlElement =
-    div(
-      cls := s"${Card.cls} p-5 flex flex-col gap-3",
-      h3(cls := "font-medium text-md-on-surface dark:text-white", "Open exceptions"),
-      d.openExceptions.map { exception =>
-        div(
-          cls := "flex flex-wrap items-center gap-3 text-sm",
-          span(cls := "font-medium text-md-on-surface dark:text-white", exception.category.toString),
-          Pill(exception.status.toString, ExceptionDetailPage.statusTone(exception.status)),
-          span(cls := Form.mutedTextCls, exception.assignedToName.fold("Unassigned")(n => s"Assigned to $n")),
-          Buttons.textButton("Open thread", Observer[Unit](_ => Nav.toExceptionDetail(exception.id)))
-        )
-      }
     )
 
   // Reference detail nobody needs to act on, collapsed so it doesn't push the movements down.

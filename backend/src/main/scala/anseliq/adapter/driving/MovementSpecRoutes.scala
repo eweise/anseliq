@@ -17,10 +17,10 @@ class MovementSpecRoutes(
 ) extends ApiRoutes:
 
   // MovementSpec
-  @cask.route(s"${HttpPath.ledgers}/:ledgerID/movement-specs", methods = HttpCmd.GET)
-  def movementSpecsByLedgerID(ledgerID: String): String =
+  @cask.route(s"${HttpPath.ledgers}/:ledgerId/movement-specs", methods = HttpCmd.GET)
+  def movementSpecsByLedgerId(ledgerId: String): String =
     transact(transactor):
-      val specs   = movementSpecRepo.findByLedgerId(UUID.fromString(ledgerID))
+      val specs   = movementSpecRepo.findByLedgerId(UUID.fromString(ledgerId))
       val payload = specs.map(PayloadMapper.movementSpecPayloadFromDomain)
       write(payload)
 
@@ -35,10 +35,10 @@ class MovementSpecRoutes(
   @cask.route(s"${HttpPath.movementSpec}/:id", methods = HttpCmd.PUT)
   def updateMovementSpec(id: String, request: cask.Request): String =
     val payload = read[MovementSpecPayload](request.text())
-    val specID  = UUID.fromString(id)
+    val specId  = UUID.fromString(id)
     transact(transactor):
       val updated = movementSpecService.updateMovementSpec(
-        specID,
+        specId,
         name              = payload.name,
         inAccountId       = UUID.fromString(payload.inAccountId),
         outAccountId      = UUID.fromString(payload.outAccountId),

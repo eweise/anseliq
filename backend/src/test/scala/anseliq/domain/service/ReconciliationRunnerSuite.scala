@@ -22,9 +22,9 @@ class ReconciliationRunnerSuite extends munit.FunSuite:
         .foreach(j => app.jobRepo.deleteById(j.id))
       app.eventRepo
         .findByEventType("AccountReconciled")
-        .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == data.reconAccount.id).getOrElse(false))
+        .filter(es => scala.util.Try(es.event[AccountReconciled].accountId == data.reconAccount.id).getOrElse(false))
         .foreach(es => app.eventRepo.deleteById(es.id))
-      data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
+      data.reconRepo.findByReconSpecId(data.reconSpec.id).foreach(r => data.reconRepo.deleteById(r.id))
       data.reconSpecRepo.deleteById(data.reconSpec.id)
       data.ledgerRepo.deleteById(data.ledger.id)
 

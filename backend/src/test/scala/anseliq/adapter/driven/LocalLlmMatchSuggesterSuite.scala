@@ -1,6 +1,6 @@
 package anseliq.adapter.driven
 
-import anseliq.domain.model.createID
+import anseliq.domain.model.createId
 import anseliq.domain.port.driven.{MatchCandidate, MatchContext, MatchExample, MatchRequest}
 import com.sun.net.httpserver.HttpServer
 
@@ -14,14 +14,14 @@ class LocalLlmMatchSuggesterSuite extends munit.FunSuite:
 
   private def candidate(ref: String) =
     MatchCandidate(
-      createID(),
+      createId(),
       BigDecimal("1250.00"),
       OffsetDateTime.parse("2026-10-20T09:00:00Z"),
       Map("txn_id" -> ref)
     )
 
   private val movement = MatchCandidate(
-    createID(),
+    createId(),
     BigDecimal("1250.00"),
     OffsetDateTime.parse("2026-10-20T09:00:00Z"),
     Map("transaction_id" -> "INV-2026-0042")

@@ -9,22 +9,22 @@ import anseliq.domain.model.{Reconciliation, ReconciliationStatus}
 case class StatusTotals(status: ReconciliationStatus, count: Int, balance: Money)
 
 trait ReconciliationRepo extends DomainRepo[Reconciliation, Reconciliation]:
-  def findByReconSpecID(reconSpecID: ID): Txn[Vector[Reconciliation]]
+  def findByReconSpecId(reconSpecId: ID): Txn[Vector[Reconciliation]]
 
   /**
    * The spec's most recent Final reconciliations a person made, by hand (AppliedRules.Manual) or by
    * accepting a suggestion (AppliedRules.Suggested), newest first.
    */
-  def findRecentManualOrSuggested(reconSpecID: ID, limit: Int): Txn[Vector[Reconciliation]]
+  def findRecentManualOrSuggested(reconSpecId: ID, limit: Int): Txn[Vector[Reconciliation]]
 
   /** The spec's Final reconciliations made by accepting a suggestion (AppliedRules.Suggested). */
-  def findSuggested(reconSpecID:    ID): Txn[Vector[Reconciliation]]
+  def findSuggested(reconSpecId:    ID): Txn[Vector[Reconciliation]]
   def findBySpecIdAndStatus(specId: ID, status: ReconciliationStatus): Txn[Vector[Reconciliation]]
 
   // Spans every reconciliation spec belonging to the account (not just one), most recent first —
   // for an account-level "recent activity" view rather than the spec-scoped list. `status`
   // narrows it to one status (e.g. the Overview's "In progress" tile); None returns every status.
-  def findByAccountID(
+  def findByAccountId(
     accountId: ID,
     limit:     Int,
     status:    Option[ReconciliationStatus] = None
@@ -33,8 +33,8 @@ trait ReconciliationRepo extends DomainRepo[Reconciliation, Reconciliation]:
   // Totals for the account's InProgress and Mismatched reconciliations — the ones whose balance
   // hasn't netted to zero, so they still make up part of the account's balance. A status with no
   // reconciliations is simply absent.
-  def openTotalsByAccountID(accountId: ID): Txn[Vector[StatusTotals]]
+  def openTotalsByAccountId(accountId: ID): Txn[Vector[StatusTotals]]
 
   // How many of the account's reconciliations are in each status, for the ledger's status filter
   // chips. A status with none is absent.
-  def countByStatusForAccountID(accountId: ID): Txn[Map[ReconciliationStatus, Int]]
+  def countByStatusForAccountId(accountId: ID): Txn[Map[ReconciliationStatus, Int]]

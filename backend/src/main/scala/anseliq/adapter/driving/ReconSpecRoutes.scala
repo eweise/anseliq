@@ -17,11 +17,11 @@ class ReconSpecRoutes(
 ) extends ApiRoutes:
 
   // ReconSpec
-  @cask.route(s"${HttpPath.account}/:accountID/recon-specs", methods = HttpCmd.GET)
-  def reconSpecsByaccountID(accountID: String): String =
+  @cask.route(s"${HttpPath.account}/:accountId/recon-specs", methods = HttpCmd.GET)
+  def reconSpecsByAccountId(accountId: String): String =
     transact(transactor):
-      val specs = reconSpecRepo.findByAccountID(UUID.fromString(accountID))
-      specs.foreach(s => logger.debug(s"[reconSpecsByaccountID] id=${s.id} ruleJson=${s.ruleJson} rule=${s.rule()}"))
+      val specs = reconSpecRepo.findByAccountId(UUID.fromString(accountId))
+      specs.foreach(s => logger.debug(s"[reconSpecsByAccountId] id=${s.id} ruleJson=${s.ruleJson} rule=${s.rule()}"))
       val payload = specs.map(PayloadMapper.reconSpecPayloadFromDomain)
       write(payload)
 
@@ -38,10 +38,10 @@ class ReconSpecRoutes(
   @cask.route(s"${HttpPath.reconSpec}/:id", methods = HttpCmd.PUT)
   def updateReconSpec(id: String, request: cask.Request): String =
     val payload = read[ReconciliationSpecPayload](request.text())
-    val specID  = UUID.fromString(id)
+    val specId  = UUID.fromString(id)
     transact(transactor):
       val updated = reconSpecService.updateReconSpec(
-        specID,
+        specId,
         agingLimit        = payload.agingLimit,
         relationship      = PayloadMapper.reconRelationshipToDomain(payload.relationship),
         inMovementSpecId  = UUID.fromString(payload.inMovementSpecId),

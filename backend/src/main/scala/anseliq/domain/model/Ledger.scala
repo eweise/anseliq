@@ -8,7 +8,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Ledger(
-  @Id id:        ID                     = createID(),
+  @Id id:        ID                     = createId(),
   name:          String,
   var createdAt: Option[OffsetDateTime] = None,
   var updatedAt: Option[OffsetDateTime] = None,

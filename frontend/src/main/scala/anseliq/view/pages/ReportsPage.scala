@@ -2,12 +2,12 @@ package anseliq.view.pages
 
 import com.raquo.laminar.api.L.*
 import anseliq.common.http.HttpPath
-import anseliq.common.model.{LedgerPayload, ReportsSummaryPayload, TrendReportPayload}
+import anseliq.common.model.{ExceptionStatusPayload, LedgerPayload, ReportsSummaryPayload, TrendReportPayload}
 import anseliq.http.ApiClient
 import anseliq.state.AppState.apiBind
 import anseliq.state.SessionStore
 import anseliq.view.components.ChartCanvas.Series
-import anseliq.view.components.{Card, ChartCanvas, Form, PageHeader, Pill}
+import anseliq.view.components.{Card, ChartCanvas, ExceptionViews, Form, PageHeader, Pill}
 import upickle.default.*
 
 object ReportsPage:
@@ -169,7 +169,8 @@ object ReportsPage:
         "ExcessiveParseErrors"
       )
     val categoryValues = categoryLabels.map(c => summary.exceptions.byCategory.getOrElse(c, 0).toDouble)
-    val statusLabels   = Seq("New", "Investigating", "Escalated")
+    val openStatuses =
+      Seq(ExceptionStatusPayload.New, ExceptionStatusPayload.Investigating, ExceptionStatusPayload.Escalated)
 
     div(
       cls := s"${Card.cls} p-4",
@@ -177,7 +178,9 @@ object ReportsPage:
       ChartCanvas("doughnut", Val(Series(categoryLabels, categoryValues))),
       div(
         cls := "flex gap-2 mt-3 flex-wrap",
-        statusLabels.map(s => Pill(s"$s: ${summary.exceptions.byStatus.getOrElse(s, 0)}", statusTone(s)))
+        openStatuses.map(s =>
+          Pill(s"$s: ${summary.exceptions.byStatus.getOrElse(s.toString, 0)}", ExceptionViews.statusTone(s))
+        )
       ),
       exceptionTrendChart(categoryLabels, trend)
     )
@@ -203,12 +206,6 @@ object ReportsPage:
             ChartCanvas.multiLine(Val(ChartCanvas.MultiSeries(t.points.map(_.date), datasets)))
           )
       case _ => div()
-
-  private def statusTone(status: String): Pill.Tone = status match
-    case "New"           => Pill.Tone.Accent
-    case "Investigating" => Pill.Tone.Warning
-    case "Escalated"     => Pill.Tone.Critical
-    case _               => Pill.Tone.Neutral
 
   private def agingCard(summary: ReportsSummaryPayload, trend: Option[TrendReportPayload]): HtmlElement =
     div(

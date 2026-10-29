@@ -1,6 +1,6 @@
 package anseliq.domain.service
 
-import anseliq.domain.model.{IllegalArgumentError, NotFoundError, UserRole, createID}
+import anseliq.domain.model.{IllegalArgumentError, NotFoundError, UserRole, createId}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.{sql, transact}
 
@@ -62,7 +62,7 @@ class UserServiceSuite extends munit.FunSuite:
       rollBackOnly:
         val userService = app.userService
         intercept[NotFoundError]:
-          userService.updateUser(createID(), "Grace", "Hopper", UserRole.Admin, active = true)
+          userService.updateUser(createId(), "Grace", "Hopper", UserRole.Admin, active = true)
 
   test("resetPassword replaces the password hash, verifiable with the new password only"):
     transact(app.transactor):

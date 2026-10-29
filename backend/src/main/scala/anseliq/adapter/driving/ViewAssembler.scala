@@ -66,7 +66,7 @@ class ViewAssembler(
     recon:          Reconciliation,
     reconAccountId: Option[ID]
   ): Txn[Seq[ReconciliationMovementPayload]] =
-    val movements = movementRepo.findByReconciliationID(recon.id)
+    val movements = movementRepo.findByReconciliationId(recon.id)
     val accountNames = movements
       .flatMap(m => Seq(m.inAccountId, m.outAccountId))
       .distinct
@@ -78,7 +78,7 @@ class ViewAssembler(
     val exceptionPayload = exceptionPayloadWithNames(exception)
     val movementPayload = exception.targetType match
       case ExceptionTarget.Movement =>
-        movementRepo.findById(exception.referenceId).map(PayloadMapper.movementfromDomainModel)
+        movementRepo.findById(exception.referenceId).map(PayloadMapper.movementPayloadFromDomain)
       case ExceptionTarget.Reconciliation => None
       case ExceptionTarget.MovementSpec   => None
       case ExceptionTarget.FileFeed       => None

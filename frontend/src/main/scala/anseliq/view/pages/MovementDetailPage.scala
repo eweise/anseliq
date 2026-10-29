@@ -14,7 +14,17 @@ import anseliq.http.ApiClient
 import anseliq.routing.Nav
 import anseliq.state.AppState.apiBind
 import anseliq.state.SessionStore
-import anseliq.view.components.{Buttons, Card, DetailList, Form, MovementLabels, PageHeader, Pill, ReconStatus}
+import anseliq.view.components.{
+  Buttons,
+  Card,
+  DetailList,
+  ExceptionViews,
+  Form,
+  MovementLabels,
+  PageHeader,
+  Pill,
+  ReconStatus
+}
 
 object MovementDetailPage:
 
@@ -54,7 +64,7 @@ object MovementDetailPage:
             ),
             raiseException(d.id, Observer[Unit](_ => loadBus.emit(()))),
             reconciliationSection(d),
-            if d.openExceptions.isEmpty then emptyNode else exceptionsSection(d.openExceptions),
+            if d.openExceptions.isEmpty then emptyNode else ExceptionViews.openCard(d.openExceptions),
             movementSection(d),
             propertiesSection("Properties", d.properties),
             propertiesSection("Metadata", d.metaData)
@@ -90,21 +100,6 @@ object MovementDetailPage:
               "Not reconciled yet. It's matched on the next reconciliation run, or by hand with Manual match on the ledger page."
             )
           )
-    )
-
-  private def exceptionsSection(exceptions: Seq[ExceptionPayload]): HtmlElement =
-    div(
-      cls := s"${Card.cls} p-5 flex flex-col gap-3",
-      h3(cls := "font-medium text-md-on-surface dark:text-white", "Open exceptions"),
-      exceptions.map { exception =>
-        div(
-          cls := "flex flex-wrap items-center gap-3 text-sm",
-          span(cls := "font-medium text-md-on-surface dark:text-white", exception.category.toString),
-          Pill(exception.status.toString, ExceptionDetailPage.statusTone(exception.status)),
-          span(cls := Form.mutedTextCls, exception.assignedToName.fold("Unassigned")(n => s"Assigned to $n")),
-          Buttons.textButton("Open thread", Observer[Unit](_ => Nav.toExceptionDetail(exception.id)))
-        )
-      }
     )
 
   // The categories a person can raise against a single movement (see ExceptionCategory.validTargets

@@ -228,7 +228,7 @@ class HappyPathScenario(app: HappyPathApp):
       val feedIds      = Set(s.journalFeed.id, s.bankFeed.id)
       val accountIds   = Set(s.journal.id, s.recon.id, s.bank.id)
       val inventoryIds = app.fileInventoryRepo.findAll.filter(fi => feedIds.contains(fi.fileFeedId)).map(_.id).toSet
-      val recons       = app.reconRepo.findByReconSpecID(s.reconSpec.id)
+      val recons       = app.reconRepo.findByReconSpecId(s.reconSpec.id)
       val movementIds  = accountIds.flatMap(app.movementRepo.findByAccount(_).map(_.id))
       val exceptions = app.exceptionRepo.findAll.filter: d =>
         (feedIds ++ recons.map(_.id) ++ movementIds + s.journalSpec.id + s.bankSpec.id).contains(d.referenceId)

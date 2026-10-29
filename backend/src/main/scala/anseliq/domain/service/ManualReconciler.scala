@@ -89,7 +89,7 @@ class ManualReconciler(
         s"Balance mismatch of $balance"
       )
 
-    eventStore.publishEvent(ReconciliationManuallyMatched(reconciliationID = reconciliation.id))
+    eventStore.publishEvent(ReconciliationManuallyMatched(reconciliationId = reconciliation.id))
 
     reconciliation
 
@@ -119,7 +119,7 @@ class ManualReconciler(
 
     val specId    = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
     val reconSpec = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
-    val movements = movementRepo.findByReconciliationID(reconciliationId)
+    val movements = movementRepo.findByReconciliationId(reconciliationId)
 
     bookkeeper.unreconcile(movements, reconSpec.accountId)
 
@@ -137,7 +137,7 @@ class ManualReconciler(
       s"Auto-resolved: reconciliation $reconciliationId was voided."
     )
 
-    eventStore.publishEvent(ReconciliationVoided(reconciliationID = reconciliationId))
+    eventStore.publishEvent(ReconciliationVoided(reconciliationId = reconciliationId))
 
   private def isWrittenOff(r: Reconciliation): Boolean =
     r.status == ReconciliationStatus.Final && r.adjustmentReason.exists(_.nonEmpty)
@@ -159,7 +159,7 @@ class ManualReconciler(
 
     val specId                 = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
     val reconSpec              = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId)
-    val movements              = movementRepo.findByReconciliationID(reconciliationId)
+    val movements              = movementRepo.findByReconciliationId(reconciliationId)
     val (adjustments, matched) = movements.partition(_.movementType.contains(MovementType.ManualAdjustment))
     if adjustments.isEmpty then
       throw IllegalStateError(s"reconciliation $reconciliationId has no write-off adjustment to reverse")
@@ -198,7 +198,7 @@ class ManualReconciler(
       )
     eventStore.publishEvent(
       ReconciliationWriteOffReversed(
-        reconciliationID = reconciliationId,
+        reconciliationId = reconciliationId,
         reason           = reason,
         reversedByUserId = reversedByUserId
       )
@@ -223,7 +223,7 @@ class ManualReconciler(
 
     val specId         = reconciliation.specId.ErrIfNotFound("reconciliation spec id", reconciliationId)
     val reconAccountId = reconSpecRepo.findById(specId).ErrIfNotFound("reconciliation spec", specId).accountId
-    val movements      = movementRepo.findByReconciliationID(reconciliationId)
+    val movements      = movementRepo.findByReconciliationId(reconciliationId)
 
     val against = movements
       .find(_.id == movementId)
@@ -255,7 +255,7 @@ class ManualReconciler(
       // A fresh id per write-off, not one derived from the reconciliation: a reconciliation can be
       // written off again after a reversal, and a repeated id would collide with the first
       // adjustment. Retrying the same write-off is already ruled out by the status check above.
-      referenceId = createID(),
+      referenceId = createId(),
       metaData = Map(
         "write_off_of_reconciliation_id" -> reconciliationId.toString,
         "write_off_against_movement_id"  -> movementId.toString
@@ -276,7 +276,7 @@ class ManualReconciler(
       s"Auto-resolved: reconciliation $reconciliationId was written off ($reason)."
     )
 
-    eventStore.publishEvent(ReconciliationWrittenOff(reconciliationID = reconciliationId, reason = reason))
+    eventStore.publishEvent(ReconciliationWrittenOff(reconciliationId = reconciliationId, reason = reason))
     adjustment
 
   /**

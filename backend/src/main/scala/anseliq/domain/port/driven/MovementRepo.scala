@@ -20,12 +20,12 @@ trait UnreconciledCursor:
   def fetchPage(): Vector[Movement]
 
 trait MovementRepo extends DomainRepo[Movement, Movement]:
-  def findUnReconciledByAccount(accountID:           ID): Txn[Vector[Movement]]
-  def countUnreconciledByAccount(accountID:          ID): Txn[Int]
-  def countByAccount(accountID:                      ID): Txn[Int]
-  def findUnReconciledByMovementSpec(movementSpecID: ID): Txn[Vector[Movement]]
-  def findByAccount(accountID:                       ID): Txn[Vector[Movement]]
-  def findByReconciliationID(reconciliationID:       ID): Txn[Vector[Movement]]
+  def findUnreconciledByAccount(accountId:           ID): Txn[Vector[Movement]]
+  def countUnreconciledByAccount(accountId:          ID): Txn[Int]
+  def countByAccount(accountId:                      ID): Txn[Int]
+  def findUnreconciledByMovementSpec(movementSpecId: ID): Txn[Vector[Movement]]
+  def findByAccount(accountId:                       ID): Txn[Vector[Movement]]
+  def findByReconciliationId(reconciliationId:       ID): Txn[Vector[Movement]]
   def findEqualityMatches(
     sqlCriteria:       String,
     inMovementSpecId:  ID,

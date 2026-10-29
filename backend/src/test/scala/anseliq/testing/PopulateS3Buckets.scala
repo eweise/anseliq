@@ -21,9 +21,9 @@ class PopulateS3Buckets extends munit.FunSuite:
       var bankContents     = ""
       var internalContents = ""
       for (x <- 1 until 5) {
-        val transactionID = UUID.randomUUID()
-        bankContents += s"""$transactionID,${x * 10}\n"""
-        internalContents += s"""$transactionID,${x * 10 + (if x == 3 then 1 else 0)},${OffsetDateTime.now()}\n"""
+        val transactionId = UUID.randomUUID()
+        bankContents += s"""$transactionId,${x * 10}\n"""
+        internalContents += s"""$transactionId,${x * 10 + (if x == 3 then 1 else 0)},${OffsetDateTime.now()}\n"""
       }
       s3Client.putObject(
         PutObjectRequest
@@ -50,9 +50,9 @@ class PopulateS3Buckets extends munit.FunSuite:
     var bankContents     = ""
     var internalContents = ""
     for (x <- 1 until 2) {
-      val transactionID = UUID.randomUUID()
-      bankContents += s"""$transactionID,${x * 10}\n"""
-      internalContents += s"""${transactionID}_B,${x * 10},${OffsetDateTime.now()}\n"""
+      val transactionId = UUID.randomUUID()
+      bankContents += s"""$transactionId,${x * 10}\n"""
+      internalContents += s"""${transactionId}_B,${x * 10},${OffsetDateTime.now()}\n"""
     }
     s3Client.putObject(
       PutObjectRequest
@@ -98,14 +98,14 @@ class PopulateS3Buckets extends munit.FunSuite:
       var bankContents     = ""
       var internalContents = ""
       for (x <- 1 until 2) {
-        val transactionID = UUID.randomUUID()
+        val transactionId = UUID.randomUUID()
         val amount        = x * 10
-        bankContents += s"""$transactionID,${amount + 1}\n"""
+        bankContents += s"""$transactionId,${amount + 1}\n"""
 
         val amount1 = amount / 2
         val amount2 = amount - amount1
-        internalContents += s"""$transactionID,$amount1,${OffsetDateTime.now()}\n"""
-        internalContents += s"""$transactionID,$amount2,${OffsetDateTime.now()}\n"""
+        internalContents += s"""$transactionId,$amount1,${OffsetDateTime.now()}\n"""
+        internalContents += s"""$transactionId,$amount2,${OffsetDateTime.now()}\n"""
       }
       s3Client.putObject(
         PutObjectRequest

@@ -5,7 +5,7 @@ import java.util.UUID
 class EventSuite extends munit.FunSuite:
   test("classname shows class of case class"):
     val eventType = MoneyMovementsIngested(
-      movementSpecID       = UUID.randomUUID(),
+      movementSpecId       = UUID.randomUUID(),
       movementSpecName     = "test",
       fileName             = "test",
       recordCount          = 0,

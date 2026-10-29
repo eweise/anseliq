@@ -2,7 +2,6 @@ package anseliq.domain.service
 
 import anseliq.common.model.model.ID
 import anseliq.domain.model.*
-import anseliq.domain.model.FileInventoryStatus.COMPLETED
 import anseliq.domain.port.driven.*
 import anseliq.domain.service.parser.{Parser, ParserError}
 import com.augustnagro.magnum.{DbTx, Transactor, transact}
@@ -53,15 +52,15 @@ class Ingestor(
 ):
 
   def ingestFileFromInventory(
-    fileInventoryID: ID,
+    fileInventoryId: ID,
     batchSize:       Int                            = 1000,
     onBatchComplete: BatchProgress => BatchDecision = _ => BatchDecision.Commit
   ): IngestionResult =
     val (fileInventory, fileFeed, movementSpecs) = transact(transactor):
 
       val fileInventory = fileInventoryRepo
-        .findById(fileInventoryID)
-        .ErrIfNotFound("FileInventory", fileInventoryID)
+        .findById(fileInventoryId)
+        .ErrIfNotFound("FileInventory", fileInventoryId)
 
       val fileFeed = fileFeedRepo
         .findById(fileInventory.fileFeedId)
@@ -85,7 +84,7 @@ class Ingestor(
       is              = inputStream,
       startingLine    = startingLine,
       batchSize       = batchSize,
-      fileInventoryID = Some(fileInventory.id),
+      fileInventoryId = Some(fileInventory.id),
       onBatchComplete = onBatchComplete
     )
 
@@ -107,7 +106,7 @@ class Ingestor(
     is:              InputStream,
     startingLine:    Long                           = 0,
     batchSize:       Int                            = 10000,
-    fileInventoryID: Option[ID]                     = None,
+    fileInventoryId: Option[ID]                     = None,
     onBatchComplete: BatchProgress => BatchDecision = _ => BatchDecision.Commit
   ): IngestionResult =
     val logger    = Logger(getClass.getName)
@@ -176,7 +175,7 @@ class Ingestor(
                 bookkeeper.recordMovements(movementSpec = spec, movementRequests = requests)
               case (None, _) => () // unrouted rows aren't recorded as movements
 
-            fileInventoryID.foreach: id =>
+            fileInventoryId.foreach: id =>
               val fileInventory = fileInventoryRepo.findById(id).ErrIfNotFound("FileInventory", id)
               fileInventoryRepo.update(
                 fileInventory.copy(
@@ -213,7 +212,7 @@ class Ingestor(
           val spec = movementSpecs.find(_.id == specId).get
           eventStore.publishEvent(
             MoneyMovementsIngested(
-              movementSpecID       = spec.id,
+              movementSpecId       = spec.id,
               movementSpecName     = spec.name,
               fileName             = fileSourceEntry.name,
               ingestionTimeSeconds = now().getEpochSecond - beginTime.getEpochSecond,
@@ -329,7 +328,7 @@ class Ingestor(
 
     ParseTestResult(rows.toSeq, errors.toSeq, lines.size, truncated)
 
-  def detectAndQueue(fileFeedID: ID, source: FileSource): Txn[Vector[FileInventory]] =
+  def detectAndQueue(fileFeedId: ID, source: FileSource): Txn[Vector[FileInventory]] =
     val inventories = fileInventoryRepo
       .findBySourceSystem(source.sourceSystem)
 
@@ -340,11 +339,11 @@ class Ingestor(
     val newFiles    = sourceFiles.filterNot(f => existingFileSourceEntries.contains(f))
 
     newFiles.map: newFile =>
-      val fileInventory: FileInventory = createFileInventory(fileFeedID, source, newFile)
+      val fileInventory: FileInventory = createFileInventory(fileFeedId, source, newFile)
       fileInventoryRepo.insert(fileInventory)
       eventStore.publishEvent(
         NewFileDetected(
-          fileInventoryID = fileInventory.id,
+          fileInventoryId = fileInventory.id,
           filePath        = newFile.name,
           source          = newFile.getClass.getSimpleName
         )
@@ -352,11 +351,11 @@ class Ingestor(
       fileInventory
 
   // separated out method so it could be overridden in tests
-  protected def createFileInventory(fileFeedID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory = {
+  protected def createFileInventory(fileFeedId: ID, source: FileSource, newFile: FileSourceEntry): FileInventory = {
     val fileSourceEntryJson = upickle.write(newFile)
     val now                 = clock.now
     val fileInventory = FileInventory(
-      fileFeedId          = fileFeedID,
+      fileFeedId          = fileFeedId,
       sourceSystem        = source.sourceSystem,
       fileSourceEntryJson = fileSourceEntryJson,
       fileSizeBytes       = newFile.fileSizeBytes,

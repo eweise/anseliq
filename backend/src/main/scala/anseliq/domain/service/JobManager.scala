@@ -20,7 +20,7 @@ import scala.util.control.NonFatal
 
 // A claimed (InProgress) job holds a lease that withLease's heartbeat keeps renewing while the work
 // runs. If the worker dies, the lease lapses and the next poll for that job type requeues the job,
-// rather than leaving it InProgress for good and blocking that (jobType, referenceID) forever.
+// rather than leaving it InProgress for good and blocking that (jobType, referenceId) forever.
 //
 // A failed attempt, or an abandoned one, is retried after a backoff (retryBaseDelay, doubling each
 // attempt) until maxAttempts, then the job is marked Error.
@@ -47,8 +47,8 @@ class JobManager(
   // Set while abandonRunningJobs interrupts the workers, so an interrupted job isn't counted as failed.
   private val abandoning = AtomicBoolean(false)
 
-  def submitAndProcessJob(jobType: JobType, referenceID: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
-    val jobId = submitJob(jobType, referenceID)
+  def submitAndProcessJob(jobType: JobType, referenceId: ID)(processFn: (job: Job) => JobInfo): Txn[Unit] =
+    val jobId = submitJob(jobType, referenceId)
     claimJob(jobId)
     val processedJob = jobRepo
       .findById(jobId)
@@ -62,7 +62,7 @@ class JobManager(
         ex.printStackTrace() // todo I think the txn is rolled back at this point :(
         markJobInError(processedJob.id, ex)
 
-  // Idempotent: if a job is already queued (Submitted) for this (jobType, referenceID), return its
+  // Idempotent: if a job is already queued (Submitted) for this (jobType, referenceId), return its
   // id instead of creating a duplicate — covers the common, non-concurrent causes of
   // double-submission (event redelivery, a periodic submitter racing a slow poller, a manual
   // retrigger). A job that's already InProgress doesn't count: it may have read its inputs before
@@ -77,17 +77,17 @@ class JobManager(
   // unique-violation we roll back to it (undoing just the failed insert, not the whole transaction)
   // and re-look-up the winner, so a racing caller gets the same "return the existing job" result as
   // the non-racing path instead of a raw constraint-violation exception.
-  def submitJob(jobType: JobType, referenceID: ID): Txn[ID] =
-    findQueuedJob(jobType, referenceID) match
+  def submitJob(jobType: JobType, referenceId: ID): Txn[ID] =
+    findQueuedJob(jobType, referenceId) match
       case Some(existing) =>
         logger.debug(
-          s"submitJob: active $jobType job already exists for referenceID=$referenceID, skipping duplicate submission (existing job ${existing.id})"
+          s"submitJob: active $jobType job already exists for referenceId=$referenceId, skipping duplicate submission (existing job ${existing.id})"
         )
         existing.id
       case None =>
         val submittedJob = Job(
           jobType     = jobType,
-          referenceId = referenceID,
+          referenceId = referenceId,
           jobStatus   = Submitted
         )
         val connection = summon[DbCon].connection
@@ -102,26 +102,26 @@ class JobManager(
           case ex: Exception if isUniqueViolation(ex) =>
             connection.rollback(savepoint)
             logger.debug(
-              s"submitJob: lost the race inserting $jobType job for referenceID=$referenceID, using the winner's job instead"
+              s"submitJob: lost the race inserting $jobType job for referenceId=$referenceId, using the winner's job instead"
             )
-            findQueuedJob(jobType, referenceID)
+            findQueuedJob(jobType, referenceId)
               .map(_.id)
               .getOrElse(throw ex)
 
-  private def findQueuedJob(jobType: JobType, referenceID: ID): Txn[Option[Job]] =
+  private def findQueuedJob(jobType: JobType, referenceId: ID): Txn[Option[Job]] =
     jobRepo
-      .findByJobTypeAndReferenceId(jobType, referenceID)
+      .findByJobTypeAndReferenceId(jobType, referenceId)
       .find(_.jobStatus == JobStatus.Submitted)
 
   /**
    * Claims a Submitted job for the caller to run now. An IllegalStateError if another worker
-   * already claimed it, or another job for the same (jobType, referenceID) is running.
+   * already claimed it, or another job for the same (jobType, referenceId) is running.
    */
   def claimJob(jobId: ID): Txn[Unit] =
     val claimed =
       try jobRepo.claim(jobId, leaseSeconds, clock.now)
       catch
-        // job_in_progress_unique: another job for the same (jobType, referenceID) is running.
+        // job_in_progress_unique: another job for the same (jobType, referenceId) is running.
         case ex: Exception if isUniqueViolation(ex) => false
     if !claimed then throw IllegalStateError(s"job $jobId is already running, or another job for the same target is")
 
@@ -139,7 +139,7 @@ class JobManager(
       .map(job =>
         if job.jobStatus != InProgress then
           throw IllegalStateError(
-            s" cannot move job with referenceID: $jobId to status ${JobStatus.Complete}. Job currently in status ${job.jobStatus}"
+            s" cannot move job with referenceId: $jobId to status ${JobStatus.Complete}. Job currently in status ${job.jobStatus}"
           )
 
         job.jobType match
@@ -172,7 +172,7 @@ class JobManager(
           )
         )
       ) match
-      case None => throw NotFoundError(s"Could not find job with jobID: $jobId")
+      case None => throw NotFoundError(s"Could not find job with jobId: $jobId")
       case _    => ()
 
   def markJobInError(jobId: ID, ex: Exception): Txn[Unit] =
@@ -181,7 +181,7 @@ class JobManager(
       .map(job =>
         if job.jobStatus != InProgress then
           throw IllegalStateError(
-            s" cannot move job with jobID: $jobId to status ${JobStatus.Error}. Job currently in status ${job.jobStatus}"
+            s" cannot move job with jobId: $jobId to status ${JobStatus.Error}. Job currently in status ${job.jobStatus}"
           )
         jobRepo.update(
           job.copy(
@@ -214,14 +214,14 @@ class JobManager(
             transact(transactor)(retryOrFail(job.id, ex))
 
   /**
-   * Submits a singleton job (one fixed referenceID) every `interval`; submitJob keeps at most one
+   * Submits a singleton job (one fixed referenceId) every `interval`; submitJob keeps at most one
    * queued.
    */
-  def submitEvery(jobType: JobType, referenceID: ID, interval: FiniteDuration): Unit =
+  def submitEvery(jobType: JobType, referenceId: ID, interval: FiniteDuration): Unit =
     val transactor = Transactor(dataSource)
     repeat(Schedule.fixedInterval(interval)) {
       try
-        transact(transactor)(submitJob(jobType, referenceID))
+        transact(transactor)(submitJob(jobType, referenceId))
         ()
       catch
         case ex: Exception =>
@@ -330,10 +330,10 @@ class JobManager(
    * already queued (see requeueOrFail).
    */
   def retryOrFail(jobId: ID, ex: Exception): Txn[Unit] =
-    val job = jobRepo.findById(jobId).getOrElse(throw NotFoundError(s"Could not find job with jobID: $jobId"))
+    val job = jobRepo.findById(jobId).getOrElse(throw NotFoundError(s"Could not find job with jobId: $jobId"))
     if job.jobStatus != InProgress then
       throw IllegalStateError(
-        s" cannot fail an attempt of job with jobID: $jobId. Job currently in status ${job.jobStatus}"
+        s" cannot fail an attempt of job with jobId: $jobId. Job currently in status ${job.jobStatus}"
       )
     ex match
       case _: NonRetryableError => markJobInError(jobId, ex)

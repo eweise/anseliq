@@ -4,7 +4,7 @@ import anseliq.common.model.model.ID
 import anseliq.common.model.{AndRule, AppliedRules, StringAttribute, StringAttributeMatchRule}
 import anseliq.domain.DataSetup
 import anseliq.domain.model.helper.JSONBProps
-import anseliq.domain.model.{DBError, Movement, Reconciliation, createID}
+import anseliq.domain.model.{DBError, Movement, Reconciliation, createId}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
 
@@ -16,13 +16,13 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data        = DataSetup(app)
-        val referenceID = createID()
+        val referenceId = createId()
         val props       = Map("id" -> "1")
         val movement = Movement(
           inAccountId    = data.journalAccount.id,
           outAccountId   = data.reconAccount.id,
           movementSpecId = data.journalToRecon.id,
-          referenceId    = referenceID,
+          referenceId    = referenceId,
           properties     = JSONBProps(props),
           amount         = 100
         )
@@ -36,13 +36,13 @@ class MovementRepoLiveSuite extends munit.FunSuite:
     transact(app.transactor):
       rollBackOnly:
         val data        = DataSetup(app)
-        val referenceID = createID()
+        val referenceId = createId()
         val props       = Map("id" -> "1")
         val movement = Movement(
           inAccountId    = data.journalAccount.id,
           outAccountId   = data.reconAccount.id,
           movementSpecId = data.journalToRecon.id,
-          referenceId    = referenceID,
+          referenceId    = referenceId,
           properties     = JSONBProps(props),
           amount         = 100
         )
@@ -50,7 +50,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
           inAccountId    = data.journalAccount.id,
           outAccountId   = data.reconAccount.id,
           movementSpecId = data.journalToRecon.id,
-          referenceId    = referenceID,
+          referenceId    = referenceId,
           properties     = JSONBProps(props),
           amount         = 100
         )
@@ -77,7 +77,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
         data.movementRepo.insert(outReconMovement)
 
-        val foundMovement = movementRepo.findUnReconciledByAccount(data.reconAccount.id)
+        val foundMovement = movementRepo.findUnreconciledByAccount(data.reconAccount.id)
         assertEquals(foundMovement.head.id, outReconMovement.id)
 
         val inReconMovement = Movement(
@@ -90,10 +90,10 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
         data.movementRepo.insert(inReconMovement)
 
-        assertEquals(movementRepo.findUnReconciledByAccount(data.reconAccount.id).size, 1)
+        assertEquals(movementRepo.findUnreconciledByAccount(data.reconAccount.id).size, 1)
         assertEquals(movementRepo.countUnreconciledByAccount(data.reconAccount.id), 1)
 
-  test("findUnreconciledByMovementSpecID"):
+  test("findUnreconciledByMovementSpecId"):
     val movementRepo = MovementRepoLive(app.clock)
     val reconRepo    = app.reconRepo
 
@@ -112,7 +112,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
         data.movementRepo.insert(outReconMovement)
 
-        val foundOutMovements = movementRepo.findUnReconciledByMovementSpec(data.journalToRecon.id)
+        val foundOutMovements = movementRepo.findUnreconciledByMovementSpec(data.journalToRecon.id)
         assertEquals(foundOutMovements.head.id, outReconMovement.id)
 
         val inReconMovement = Movement(
@@ -125,7 +125,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 
         data.movementRepo.insert(inReconMovement)
 
-        val foundInMovements = movementRepo.findUnReconciledByAccount(data.reportToRecon.id)
+        val foundInMovements = movementRepo.findUnreconciledByAccount(data.reportToRecon.id)
         assertEquals(foundInMovements.size, 0)
 
   //  test("generateLotsOfData"):
@@ -141,7 +141,7 @@ class MovementRepoLiveSuite extends munit.FunSuite:
 //      reconRepo.insert(reconciliation)
 //
 //      for (i <- 1 to 5000)
-//        val value = createID().toString
+//        val value = createId().toString
 //        val outReconMovement = Movement(
 //          inAccountId    = data.journalAccount.id,
 //          outAccountId   = data.reconAccount.id,

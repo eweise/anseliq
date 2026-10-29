@@ -111,8 +111,8 @@ class ReportingService(
     var overdue = 0
 
     reconAccounts.foreach { account =>
-      val agingLimit = reconSpecRepo.findByAccountID(account.id).headOption.map(_.agingLimit)
-      movementRepo.findUnReconciledByAccount(account.id).foreach { m =>
+      val agingLimit = reconSpecRepo.findByAccountId(account.id).headOption.map(_.agingLimit)
+      movementRepo.findUnreconciledByAccount(account.id).foreach { m =>
         val ageDays = ChronoUnit.DAYS.between(m.createdAt.get, clock.now)
         counts(agingBucketFor(ageDays)) += 1
         agingLimit.foreach(limit => if ageDays > limit then overdue += 1)
@@ -133,7 +133,7 @@ class ReportingService(
     val reconAccounts = accounts.filter(_.accountType == AccountType.Recon)
 
     reconAccounts.flatMap { account =>
-      movementRepo.findUnReconciledByAccount(account.id).map { m =>
+      movementRepo.findUnreconciledByAccount(account.id).map { m =>
         val ageDays = ChronoUnit.DAYS.between(m.createdAt.get, clock.now)
         UnreconciledMovementDetail(
           movementId  = m.id,

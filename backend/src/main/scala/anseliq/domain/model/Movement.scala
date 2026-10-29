@@ -23,8 +23,8 @@ enum AdjustmentType derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Movement(
-  @Id id:               ID         = createID(),
-  referenceId:          ID         = createID(), // serves as the idempotency id //todo remove default
+  @Id id:               ID         = createId(),
+  referenceId:          ID         = createId(), // serves as the idempotency id //todo remove default
   outAccountId:         ID,
   outAccountBalance:    Money      = 0,
   inAccountId:          ID,
@@ -52,8 +52,8 @@ case class Movement(
 
   def props = this.properties.props
 
-  def signedAmountFor(accountID: ID): Money =
-    if inAccountId == accountID then amount else -amount
+  def signedAmountFor(accountId: ID): Money =
+    if inAccountId == accountId then amount else -amount
 
 object Movement:
   val Table = TableInfo[Movement, Movement, UUID]

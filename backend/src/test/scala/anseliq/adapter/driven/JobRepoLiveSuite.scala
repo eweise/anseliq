@@ -10,7 +10,7 @@ import java.util.UUID
 class JobRepoLiveSuite extends munit.FunSuite:
   private val app = TestAppContainer()
 
-  test("insertAndfindByID"):
+  test("insert and findById"):
     val jobRepo = app.jobRepo
     transact(app.transactor):
       rollBackOnly:

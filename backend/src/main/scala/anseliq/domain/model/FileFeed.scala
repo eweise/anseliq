@@ -12,7 +12,7 @@ import java.util.UUID
 // the same feed, each claiming the rows belonging to one account (via routingFilter).
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class FileFeed(
-  @Id id:               ID          = createID(),
+  @Id id:               ID          = createId(),
   name:                 String      = "",
   dataSourceJson:       String      = "",
   expectedCadenceHours: Option[Int] = None,

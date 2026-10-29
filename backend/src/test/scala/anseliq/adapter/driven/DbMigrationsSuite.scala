@@ -34,7 +34,7 @@ class DbMigrationsSuite extends munit.FunSuite:
     ): rs =>
       (rs.getString(1), rs.getString(2))
 
-  private val allMigrations = Vector("1" -> "SQL", "2" -> "SQL")
+  private val allMigrations = Vector("1" -> "SQL", "2" -> "SQL", "3" -> "SQL")
 
   test("an empty database gets every migration, and no users"):
     withScratchDatabase: database =>

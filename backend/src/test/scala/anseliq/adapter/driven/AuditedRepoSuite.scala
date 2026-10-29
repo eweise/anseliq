@@ -1,7 +1,7 @@
 package anseliq.adapter.driven
 
 import anseliq.domain.DataSetup
-import anseliq.domain.model.{Movement, createID}
+import anseliq.domain.model.{Movement, createId}
 import anseliq.testing.{TestAppContainer, rollBackOnly}
 import com.augustnagro.magnum.transact
 
@@ -45,7 +45,7 @@ class AuditedRepoSuite extends munit.FunSuite:
           inAccountId    = data.journalAccount.id,
           outAccountId   = data.reconAccount.id,
           movementSpecId = data.journalToRecon.id,
-          referenceId    = createID(),
+          referenceId    = createId(),
           amount         = 100
         )
         val single = newMovement()

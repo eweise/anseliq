@@ -24,7 +24,7 @@ class ExceptionRepoLiveSuite extends munit.FunSuite:
     val exceptionRepo = app.exceptionRepo
     transact(app.transactor):
       rollBackOnly:
-        val referenceId = createID()
+        val referenceId = createId()
 
         val first = exceptionRepo.insertIfNoOpenException(amountMismatch(referenceId))
         assert(first.isDefined, "first insert for a fresh (referenceId, category) pair should succeed")
@@ -38,7 +38,7 @@ class ExceptionRepoLiveSuite extends munit.FunSuite:
     val exceptionRepo = app.exceptionRepo
     transact(app.transactor):
       rollBackOnly:
-        val referenceId = createID()
+        val referenceId = createId()
 
         val first = exceptionRepo.insertIfNoOpenException(amountMismatch(referenceId)).get
         exceptionRepo.update(first.copy(status = ExceptionStatus.Resolved))
@@ -52,7 +52,7 @@ class ExceptionRepoLiveSuite extends munit.FunSuite:
     val exceptionRepo = app.exceptionRepo
     transact(app.transactor):
       rollBackOnly:
-        val referenceId = createID()
+        val referenceId = createId()
 
         val amountMismatchException = exceptionRepo.insertIfNoOpenException(amountMismatch(referenceId))
         val dataQualityException = exceptionRepo.insertIfNoOpenException(
@@ -66,7 +66,7 @@ class ExceptionRepoLiveSuite extends munit.FunSuite:
     val exceptionRepo = app.exceptionRepo
     transact(app.transactor):
       rollBackOnly:
-        val referenceId = createID()
+        val referenceId = createId()
 
         val mismatch = exceptionRepo.insertIfNoOpenException(amountMismatch(referenceId)).get
         val dataQuality = exceptionRepo
@@ -76,6 +76,6 @@ class ExceptionRepoLiveSuite extends munit.FunSuite:
         val duplicate = exceptionRepo
           .insertIfNoOpenException(amountMismatch(referenceId).copy(category = ExceptionCategory.Duplicate))
           .get
-        exceptionRepo.insertIfNoOpenException(amountMismatch(createID())) // another target entirely
+        exceptionRepo.insertIfNoOpenException(amountMismatch(createId())) // another target entirely
 
         assertEquals(exceptionRepo.findOpenByReferenceId(referenceId).map(_.id).toSet, Set(mismatch.id, duplicate.id))

@@ -22,7 +22,7 @@ class IngestorSuite extends munit.FunSuite:
   // A listed file counts as already in the inventory only if its entry, lastModifiedAt included, is
   // equal — so a test matching a listing against this entry passes both the same lastModifiedAt
   // rather than calling clock.now twice (it moves between calls).
-  private def createExistingFileInventory(fileFeedID: UUID, lastModifiedAt: OffsetDateTime = app.clock.now) =
+  private def createExistingFileInventory(fileFeedId: UUID, lastModifiedAt: OffsetDateTime = app.clock.now) =
     val s3Entry = S3FileSourceEntry(
       bucket         = "bucket",
       key            = "existing",
@@ -31,7 +31,7 @@ class IngestorSuite extends munit.FunSuite:
     )
     FileInventory(
       sourceSystem        = "S3",
-      fileFeedId          = fileFeedID,
+      fileFeedId          = fileFeedId,
       fileSourceEntryJson = upickle.write(s3Entry),
       fileSizeBytes       = 512L,
       lastModifiedAt      = lastModifiedAt,
@@ -55,16 +55,16 @@ class IngestorSuite extends munit.FunSuite:
   test("detectAndQueue skips files already in the inventory"):
     transact(app.transactor):
       rollBackOnly:
-        val fileFeedID = UUID.randomUUID()
+        val fileFeedId = UUID.randomUUID()
         val ingestor   = app.ingestor
         val fileTime   = app.clock.now
-        val existing   = createExistingFileInventory(fileFeedID, fileTime)
+        val existing   = createExistingFileInventory(fileFeedId, fileTime)
         app.fileInventoryRepo.insert(existing)
         val entries = Vector(
           S3FileSourceEntry(bucket = "bucket", key = "existing", 512L, fileTime),
           S3FileSourceEntry(bucket = "bucket", key = "new", 1024L, app.clock.now)
         )
-        val result = ingestor.detectAndQueue(fileFeedID, stubSource(entries))
+        val result = ingestor.detectAndQueue(fileFeedId, stubSource(entries))
         assertEquals(result.size, 1)
         val foundKey = result.head.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key
         assertEquals(foundKey, "new")
@@ -72,12 +72,12 @@ class IngestorSuite extends munit.FunSuite:
   test("detectAndQueue returns empty when all source files are already in inventory"):
     transact(app.transactor):
       rollBackOnly:
-        val fileFeedID = UUID.randomUUID()
+        val fileFeedId = UUID.randomUUID()
         val ingestor   = app.ingestor
         val fileTime   = app.clock.now
-        app.fileInventoryRepo.insert(createExistingFileInventory(fileFeedID, fileTime))
+        app.fileInventoryRepo.insert(createExistingFileInventory(fileFeedId, fileTime))
         val result = ingestor.detectAndQueue(
-          fileFeedID,
+          fileFeedId,
           stubSource(Vector(S3FileSourceEntry("bucket", "existing", 512L, fileTime)))
         )
         assert(result.isEmpty)

@@ -22,7 +22,7 @@ class ControlTimeIngestor(app: AppContainer)
       transactor        = app.transactor
     ):
 
-  override def createFileInventory(fileFeedID: ID, source: FileSource, newFile: FileSourceEntry): FileInventory =
-    val fi      = super.createFileInventory(fileFeedID, source, newFile)
+  override def createFileInventory(fileFeedId: ID, source: FileSource, newFile: FileSourceEntry): FileInventory =
+    val fi      = super.createFileInventory(fileFeedId, source, newFile)
     val updated = fi.copy(lastModifiedAt = clock.now)
     updated

@@ -18,7 +18,7 @@ class AccountServiceSuite extends munit.FunSuite:
         app.accountService.postAmount(
           movementSpec = dataSetup.journalToRecon,
           amount       = 100,
-          referenceID  = createID(),
+          referenceId  = createId(),
           properties   = properties
         )
 
@@ -30,7 +30,7 @@ class AccountServiceSuite extends munit.FunSuite:
         app.accountService.postAmount(
           movementSpec = dataSetup.reportToRecon,
           amount       = 100,
-          referenceID  = createID(),
+          referenceId  = createId(),
           properties   = properties
         )
 

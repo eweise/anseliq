@@ -12,11 +12,11 @@ import java.util.UUID
 class JobRepoLive(clock: ClockService) extends AuditedRepo[Job, UUID](clock) with JobRepo:
   val j = Job.Table
 
-  override def findByJobTypeAndReferenceId(jobtype: JobType, referenceID: ID): Txn[Vector[Job]] =
+  override def findByJobTypeAndReferenceId(jobtype: JobType, referenceId: ID): Txn[Vector[Job]] =
     sql"""
         SELECT ${j.all}
         FROM $j AS j
-        WHERE j.reference_id = $referenceID
+        WHERE j.reference_id = $referenceId
         AND j.job_type = $jobtype
       """.query[Job].run()
 

@@ -9,7 +9,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class MovementSpec(
-  @Id id:       ID     = createID(),
+  @Id id:       ID     = createId(),
   name:         String = "",
   inAccountId:  ID,
   outAccountId: ID,

@@ -8,7 +8,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class EventState(
-  @Id id:    ID             = createID(),
+  @Id id:    ID             = createId(),
   eventType: String,
   payload:   String,
   createdAt: OffsetDateTime = OffsetDateTime.now()

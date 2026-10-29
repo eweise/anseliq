@@ -14,7 +14,7 @@ enum Relationship derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class ReconciliationSpec(
-  @Id id:            ID                     = createID(),
+  @Id id:            ID                     = createId(),
   @Id accountId:     ID,
   agingLimit:        Int                    = 0,
   relationship:      Relationship           = OneToOne,

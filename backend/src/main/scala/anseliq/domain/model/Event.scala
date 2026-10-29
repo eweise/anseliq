@@ -12,7 +12,7 @@ sealed trait Event derives ReadWriter {
 
 case class MoneyMovementsIngested(
   id:                   ID = UUID.randomUUID(),
-  movementSpecID:       ID,
+  movementSpecId:       ID,
   movementSpecName:     String,
   fileName:             String,
   recordCount:          Int,
@@ -20,30 +20,30 @@ case class MoneyMovementsIngested(
   lastProcessedLine:    Option[Long]
 ) extends Event
 
-case class AccountReconciled(id: ID = UUID.randomUUID(), accountID: ID) extends Event
+case class AccountReconciled(id: ID = UUID.randomUUID(), accountId: ID) extends Event
 
 case class NewFileDetected(
   id:              ID = UUID.randomUUID(),
-  fileInventoryID: ID,
+  fileInventoryId: ID,
   filePath:        String,
   source:          String
 ) extends Event
 
-case class ReconciliationManuallyMatched(id: ID = UUID.randomUUID(), reconciliationID: ID) extends Event
+case class ReconciliationManuallyMatched(id: ID = UUID.randomUUID(), reconciliationId: ID) extends Event
 
-case class ReconciliationVoided(id: ID = UUID.randomUUID(), reconciliationID: ID) extends Event
+case class ReconciliationVoided(id: ID = UUID.randomUUID(), reconciliationId: ID) extends Event
 
-case class ReconciliationWrittenOff(id: ID = UUID.randomUUID(), reconciliationID: ID, reason: String) extends Event
+case class ReconciliationWrittenOff(id: ID = UUID.randomUUID(), reconciliationId: ID, reason: String) extends Event
 
 case class ReconciliationWriteOffReversed(
   id:               ID         = UUID.randomUUID(),
-  reconciliationID: ID,
+  reconciliationId: ID,
   reason:           String,
   reversedByUserId: Option[ID] = None
 ) extends Event
 
-case class ExceptionRaised(id: ID = UUID.randomUUID(), exceptionID: ID) extends Event
+case class ExceptionRaised(id: ID = UUID.randomUUID(), exceptionId: ID) extends Event
 
-case class ExceptionStatusChanged(id: ID = UUID.randomUUID(), exceptionID: ID, newStatus: String) extends Event
+case class ExceptionStatusChanged(id: ID = UUID.randomUUID(), exceptionId: ID, newStatus: String) extends Event
 
-case class ExceptionCommentAdded(id: ID = UUID.randomUUID(), exceptionID: ID, commentID: ID) extends Event
+case class ExceptionCommentAdded(id: ID = UUID.randomUUID(), exceptionId: ID, commentId: ID) extends Event

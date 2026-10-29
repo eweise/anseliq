@@ -38,7 +38,7 @@ class IngestResumableSuite extends munit.FunSuite:
       val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
       app.eventRepo
         .findByEventType("MoneyMovementsIngested")
-        .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
+        .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecId))
         .foreach(es => app.eventRepo.deleteById(es.id))
       data.reconSpecRepo.deleteById(data.reconSpec.id)
       data.ledgerRepo.deleteById(data.ledger.id)
@@ -215,7 +215,7 @@ class IngestResumableSuite extends munit.FunSuite:
         val specIds = Set(specA.id, specB.id)
         app.eventRepo
           .findByEventType("MoneyMovementsIngested")
-          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
+          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecId))
           .foreach(es => app.eventRepo.deleteById(es.id))
         app.exceptionRepo.findAll
           .filter(d => d.referenceId == feed.id && d.category == ExceptionCategory.UnroutedRecord)

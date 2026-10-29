@@ -233,7 +233,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
         assertEquals(closed.status, ReconciliationStatus.Final)
         assertEquals(closed.adjustmentReason, Some("bank fee"))
         assertEquals(closed.balance, BigDecimal(0))
-        val linked = data.movementRepo.findByReconciliationID(recon.id)
+        val linked = data.movementRepo.findByReconciliationId(recon.id)
         assert(linked.exists(_.id == adjustment.id), "adjustment is linked into the reconciliation")
         assertEquals(linked.map(_.signedAmountFor(data.reconAccount.id)).sum, BigDecimal(0))
 
@@ -371,7 +371,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
         val second = manualReconciler.writeOff(recon.id, outMovement.id, "bank fee after all")
 
         assert(data.movementRepo.findById(second.id).isDefined, "the second write-off's adjustment must be stored")
-        assert(data.movementRepo.findByReconciliationID(recon.id).exists(_.id == second.id))
+        assert(data.movementRepo.findByReconciliationId(recon.id).exists(_.id == second.id))
 
         manualReconciler.reverseWriteOff(recon.id, "refunded again")
 
@@ -459,12 +459,12 @@ class ManualReconcilerSuite extends munit.FunSuite:
       transact(app.transactor):
         app.eventRepo
           .findByEventType("AccountReconciled")
-          .filter(es => scala.util.Try(es.event[AccountReconciled].accountID == data.reconAccount.id).getOrElse(false))
+          .filter(es => scala.util.Try(es.event[AccountReconciled].accountId == data.reconAccount.id).getOrElse(false))
           .foreach(es => app.eventRepo.deleteById(es.id))
         // matchMovements raises an AmountMismatch exception for the unbalanced match (writeOff then
         // resolves it), so it has to go too — otherwise it's left committed, pointing at a
         // reconciliation that no longer exists, and the Exceptions page 404s looking it up.
-        data.reconRepo.findByReconSpecID(data.reconSpec.id).foreach { r =>
+        data.reconRepo.findByReconSpecId(data.reconSpec.id).foreach { r =>
           data.exceptionRepo.findAll.filter(_.referenceId == r.id).foreach(d => data.exceptionRepo.deleteById(d.id))
           data.reconRepo.deleteById(r.id)
         }
@@ -511,7 +511,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
       assertEquals(result.reconciliationsVoided, 1)
 
       val (recons, movements, exception, account) = transact(app.transactor):
-        val recons   = data.reconRepo.findByReconSpecID(data.reconSpec.id)
+        val recons   = data.reconRepo.findByReconSpecId(data.reconSpec.id)
         val reconIds = recons.map(_.id).toSet
         (
           recons,
@@ -535,7 +535,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
       assertEquals(account.reconciledBalance, BigDecimal(0), "the +10 residual should be reversed back out")
     finally
       transact(app.transactor):
-        val recons       = data.reconRepo.findByReconSpecID(data.reconSpec.id)
+        val recons       = data.reconRepo.findByReconSpecId(data.reconSpec.id)
         val reconIds     = recons.map(_.id).toSet
         val exceptions   = data.exceptionRepo.findAll.filter(d => reconIds.contains(d.referenceId))
         val exceptionIds = exceptions.map(_.id).toSet
@@ -543,19 +543,19 @@ class ManualReconcilerSuite extends munit.FunSuite:
         app.eventRepo
           .findByEventType("ReconciliationVoided")
           .filter(es =>
-            scala.util.Try(reconIds.contains(es.event[ReconciliationVoided].reconciliationID)).getOrElse(false)
+            scala.util.Try(reconIds.contains(es.event[ReconciliationVoided].reconciliationId)).getOrElse(false)
           )
           .foreach(es => app.eventRepo.deleteById(es.id))
         app.eventRepo
           .findByEventType("ExceptionStatusChanged")
           .filter(es =>
-            scala.util.Try(exceptionIds.contains(es.event[ExceptionStatusChanged].exceptionID)).getOrElse(false)
+            scala.util.Try(exceptionIds.contains(es.event[ExceptionStatusChanged].exceptionId)).getOrElse(false)
           )
           .foreach(es => app.eventRepo.deleteById(es.id))
         app.eventRepo
           .findByEventType("ExceptionCommentAdded")
           .filter(es =>
-            scala.util.Try(exceptionIds.contains(es.event[ExceptionCommentAdded].exceptionID)).getOrElse(false)
+            scala.util.Try(exceptionIds.contains(es.event[ExceptionCommentAdded].exceptionId)).getOrElse(false)
           )
           .foreach(es => app.eventRepo.deleteById(es.id))
 
@@ -606,7 +606,7 @@ class ManualReconcilerSuite extends munit.FunSuite:
           Seq(
             MovementRequest(
               amount      = 100,
-              referenceId = createID(),
+              referenceId = createId(),
               properties  = Map.empty,
               metaData    = Map("file_source_entry" -> fileSourceEntry)
             )

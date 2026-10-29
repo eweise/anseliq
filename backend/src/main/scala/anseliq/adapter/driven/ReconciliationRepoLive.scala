@@ -18,32 +18,32 @@ class ReconciliationRepoLive(clock: ClockService)
     with ReconciliationRepo:
   val r = Reconciliation.Table
 
-  def findByReconSpecID(reconSpecID: ID): Txn[Vector[Reconciliation]] =
+  def findByReconSpecId(reconSpecId: ID): Txn[Vector[Reconciliation]] =
     sql"""
       SELECT ${r.all}
       FROM $r AS a
-      WHERE spec_id = $reconSpecID
+      WHERE spec_id = $reconSpecId
       ORDER BY created_at
     """.query[Reconciliation].run()
 
   // AppliedRules.Manual has no fields, so it's matched however upickle wrote it: a bare string or
   // a {"$$type": ...} object. Suggested has fields, so it's always an object.
-  def findRecentManualOrSuggested(reconSpecID: ID, limit: Int): Txn[Vector[Reconciliation]] =
+  def findRecentManualOrSuggested(reconSpecId: ID, limit: Int): Txn[Vector[Reconciliation]] =
     sql"""
       SELECT ${r.all}
       FROM $r AS a
-      WHERE spec_id = $reconSpecID
+      WHERE spec_id = $reconSpecId
       AND status = ${ReconciliationStatus.Final}
       AND (applied_rules = '"Manual"'::jsonb OR applied_rules ->> '$$type' IN ('Manual', 'Suggested'))
       ORDER BY created_at DESC
       LIMIT $limit
     """.query[Reconciliation].run()
 
-  def findSuggested(reconSpecID: ID): Txn[Vector[Reconciliation]] =
+  def findSuggested(reconSpecId: ID): Txn[Vector[Reconciliation]] =
     sql"""
       SELECT ${r.all}
       FROM $r AS a
-      WHERE spec_id = $reconSpecID
+      WHERE spec_id = $reconSpecId
       AND status = ${ReconciliationStatus.Final}
       AND applied_rules ->> '$$type' = 'Suggested'
     """.query[Reconciliation].run()
@@ -57,7 +57,7 @@ class ReconciliationRepoLive(clock: ClockService)
       ORDER BY created_at
     """.query[Reconciliation].run()
 
-  def findByAccountID(
+  def findByAccountId(
     accountId: ID,
     limit:     Int,
     status:    Option[ReconciliationStatus] = None
@@ -72,7 +72,7 @@ class ReconciliationRepoLive(clock: ClockService)
       LIMIT $limit
     """.query[Reconciliation].run()
 
-  def countByStatusForAccountID(accountId: ID): Txn[Map[ReconciliationStatus, Int]] =
+  def countByStatusForAccountId(accountId: ID): Txn[Map[ReconciliationStatus, Int]] =
     sql"""
       SELECT a.status, count(*)::int
       FROM $r AS a
@@ -84,7 +84,7 @@ class ReconciliationRepoLive(clock: ClockService)
   // Joins through the movements rather than summing reconciliation.balance: that column is
   // (in-spec amounts − out-spec amounts) for the group, which isn't necessarily signed the way the
   // account's own balance is; the movements' in/out accounts give the account's view directly.
-  def openTotalsByAccountID(accountId: ID): Txn[Vector[StatusTotals]] =
+  def openTotalsByAccountId(accountId: ID): Txn[Vector[StatusTotals]] =
     val inProgress = ReconciliationStatus.InProgress
     val mismatched = ReconciliationStatus.Mismatched
     sql"""

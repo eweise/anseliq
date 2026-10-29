@@ -56,11 +56,11 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     put("reports/mar.csv")
     transact(app.transactor):
       rollBackOnly:
-        val movementSpecID = UUID.randomUUID()
+        val movementSpecId = UUID.randomUUID()
         val ingestor       = app.ingestor
         val source         = S3FileSource(S3ConnectionConfig(bucket, "reports/"), s3Client)
-        val result         = ingestor.detectAndQueue(movementSpecID, source)
-        assertEquals(result.size, 3, s"results from movementSpecID ${movementSpecID}")
+        val result         = ingestor.detectAndQueue(movementSpecId, source)
+        assertEquals(result.size, 3, s"results from movementSpecId ${movementSpecId}")
         assert(result.forall(_.status == FileInventoryStatus.QUEUED))
         assert(result.forall(_.sourceSystem == "S3"))
         assertEquals(
@@ -89,13 +89,13 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
     put("incremental/existing.csv")
     transact(app.transactor):
       rollBackOnly:
-        val movementSpecID = UUID.randomUUID()
+        val movementSpecId = UUID.randomUUID()
         val ingestor       = app.ingestor
         val source         = S3FileSource(S3ConnectionConfig(bucket, "incremental/"), s3Client)
-        val first          = ingestor.detectAndQueue(movementSpecID, source)
+        val first          = ingestor.detectAndQueue(movementSpecId, source)
         assertEquals(first.size, 1)
         put("incremental/new.csv")
-        val second = ingestor.detectAndQueue(movementSpecID, source)
+        val second = ingestor.detectAndQueue(movementSpecId, source)
         assertEquals(second.size, 1)
         assertEquals(second.head.fileSourceEntry().asInstanceOf[S3FileSourceEntry].key, s"incremental/new.csv")
 
@@ -176,7 +176,7 @@ class CreateFileInventoryTrackerS3Suite extends munit.FunSuite:
         val specIds = Set(data.journalToRecon.id, data.reportToRecon.id)
         app.eventRepo
           .findByEventType("MoneyMovementsIngested")
-          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecID))
+          .filter(es => specIds.contains(es.event[MoneyMovementsIngested].movementSpecId))
           .foreach(es => app.eventRepo.deleteById(es.id))
         app.fileInventoryRepo.deleteById(fileInventory.id)
         data.reconSpecRepo.deleteById(data.reconSpec.id)

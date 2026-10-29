@@ -69,7 +69,7 @@ enum ExceptionStatus derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class ExceptionCase(
-  @Id id:      ID             = createID(),
+  @Id id:      ID             = createId(),
   referenceId: ID,
   targetType:  ExceptionTarget,
   category:    ExceptionCategory,
@@ -89,7 +89,7 @@ object ExceptionCase:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class ExceptionComment(
-  @Id id:              ID                      = createID(),
+  @Id id:              ID                      = createId(),
   exceptionId:         ID,
   body:                Option[String]          = None,
   newStatus:           Option[ExceptionStatus] = None,

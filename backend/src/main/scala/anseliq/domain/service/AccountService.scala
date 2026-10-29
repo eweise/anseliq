@@ -20,7 +20,7 @@ class AccountService(accountRepo: AccountRepo, movementRepo: MovementRepo):
   def postAmount(
     movementSpec: MovementSpec,
     amount:       Money,
-    referenceID:  ID,
+    referenceId:  ID,
     properties:   Properties = Map[String, String]()
   ): Txn[Unit] =
     val inAccount = accountRepo
@@ -42,7 +42,7 @@ class AccountService(accountRepo: AccountRepo, movementRepo: MovementRepo):
     accountRepo.update(outAccount)
 
     val movement = Movement(
-      referenceId       = referenceID,
+      referenceId       = referenceId,
       amount            = amount,
       movementSpecId    = movementSpec.id,
       properties        = JSONBProps(properties),

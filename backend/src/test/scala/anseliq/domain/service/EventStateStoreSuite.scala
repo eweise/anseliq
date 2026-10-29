@@ -16,7 +16,7 @@ class EventStateStoreSuite extends munit.FunSuite:
     transact(transactor):
       rollBackOnly:
         val event = MoneyMovementsIngested(
-          movementSpecID       = UUID.randomUUID(),
+          movementSpecId       = UUID.randomUUID(),
           movementSpecName     = "test",
           fileName             = "test",
           recordCount          = 0,

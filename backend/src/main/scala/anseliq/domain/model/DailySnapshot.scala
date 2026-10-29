@@ -8,7 +8,7 @@ import java.util.UUID
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class DailySnapshot(
-  @Id id:         ID     = createID(),
+  @Id id:         ID     = createId(),
   ledgerId:       ID,
   snapshotDate:   LocalDate,
   matchRatesJson: String = "[]",

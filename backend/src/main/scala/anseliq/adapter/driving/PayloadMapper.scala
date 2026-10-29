@@ -237,7 +237,7 @@ object PayloadMapper:
         MoneyMovementsIngestedPayload(
           id                   = state.id.toString,
           eventType            = state.eventType,
-          movementSpecID       = e.movementSpecID.toString,
+          movementSpecId       = e.movementSpecId.toString,
           movementSpecName     = e.movementSpecName,
           fileName             = e.fileName,
           recordCount          = e.recordCount,
@@ -249,20 +249,20 @@ object PayloadMapper:
         AccountReconciledPayload(
           id        = state.id.toString,
           eventType = state.eventType,
-          accountID = e.accountID.toString,
+          accountId = e.accountId.toString,
           createdAt = Some(state.createdAt)
         )
       case e: NewFileDetected =>
         NewFileDetectedPayload(
           id              = state.id.toString,
           eventType       = state.eventType,
-          fileInventoryID = e.fileInventoryID.toString,
+          fileInventoryId = e.fileInventoryId.toString,
           filePath        = e.filePath,
           fileSource      = e.source,
           createdAt       = Some(state.createdAt)
         )
 
-  def movementfromDomainModel(dmMovement: Movement): MovementPayload =
+  def movementPayloadFromDomain(dmMovement: Movement): MovementPayload =
     MovementPayload(
       id               = dmMovement.id.toString,
       referenceId      = dmMovement.referenceId.toString,

@@ -51,7 +51,7 @@ class ExceptionService(
       updatedAt      = Some(now)
     )
     exceptionRepo.insert(exception)
-    eventStore.publishEvent(ExceptionRaised(exceptionID = exception.id))
+    eventStore.publishEvent(ExceptionRaised(exceptionId = exception.id))
     exception
 
   /**
@@ -81,7 +81,7 @@ class ExceptionService(
         updatedAt      = Some(now)
       )
     )
-    raised.foreach(exception => eventStore.publishEvent(ExceptionRaised(exceptionID = exception.id)))
+    raised.foreach(exception => eventStore.publishEvent(ExceptionRaised(exceptionId = exception.id)))
     raised
 
   /**
@@ -99,7 +99,7 @@ class ExceptionService(
         exception.updatedAt = Some(clock.now)
         exceptionRepo.update(exception)
         eventStore.publishEvent(
-          ExceptionStatusChanged(exceptionID = exception.id, newStatus = ExceptionStatus.Resolved.toString)
+          ExceptionStatusChanged(exceptionId = exception.id, newStatus = ExceptionStatus.Resolved.toString)
         )
 
         // insert, not insertReturning: the same pgjdbc nullable-uuid readback quirk as raise above
@@ -111,7 +111,7 @@ class ExceptionService(
           createdAt   = Some(clock.now)
         )
         commentRepo.insert(comment)
-        eventStore.publishEvent(ExceptionCommentAdded(exceptionID = exception.id, commentID = comment.id))
+        eventStore.publishEvent(ExceptionCommentAdded(exceptionId = exception.id, commentId = comment.id))
 
   // The most recently created resolved exception of this category on a target, e.g. the one a
   // write-off resolved, so a later re-raise can link back to it.
@@ -135,7 +135,7 @@ class ExceptionService(
         createdAt          = Some(clock.now)
       )
       commentRepo.insert(comment)
-      eventStore.publishEvent(ExceptionCommentAdded(exceptionID = onException.id, commentID = comment.id))
+      eventStore.publishEvent(ExceptionCommentAdded(exceptionId = onException.id, commentId = comment.id))
     }
 
   // "First Last" for a user, for system-written notes that name who did something.
@@ -198,7 +198,7 @@ class ExceptionService(
       exception.status    = s
       exception.updatedAt = Some(clock.now)
       exceptionRepo.update(exception)
-      eventStore.publishEvent(ExceptionStatusChanged(exceptionID = exception.id, newStatus = s.toString))
+      eventStore.publishEvent(ExceptionStatusChanged(exceptionId = exception.id, newStatus = s.toString))
     }
 
     // insert, not insertReturning: same pgjdbc nullable-uuid readback quirk documented on
@@ -213,5 +213,5 @@ class ExceptionService(
       createdAt           = Some(clock.now)
     )
     commentRepo.insert(comment)
-    eventStore.publishEvent(ExceptionCommentAdded(exceptionID = exceptionId, commentID = comment.id))
+    eventStore.publishEvent(ExceptionCommentAdded(exceptionId = exceptionId, commentId = comment.id))
     comment

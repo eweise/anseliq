@@ -115,7 +115,7 @@ class InMemoryReconciler(
           .map(upickle.read[Map[ID, ReconciliationCheckpoint]](_))
           .getOrElse(Map.empty)
 
-      val reconSpecs = transact(transactor)(reconSpecRepo.findByAccountID(accountId))
+      val reconSpecs = transact(transactor)(reconSpecRepo.findByAccountId(accountId))
 
       var specCounts  = Map.empty[ID, Int]
       var checkpoints = startingCheckpoints
@@ -178,7 +178,7 @@ class InMemoryReconciler(
       // end boundary
 
       if specCounts.values.sum > 0 then
-        transact(transactor)(eventStore.publishEvent(AccountReconciled(accountID = accountId)))
+        transact(transactor)(eventStore.publishEvent(AccountReconciled(accountId = accountId)))
 
       ReconciliationResumableResult(
         reconciliationSpecInsertCount = specCounts,
@@ -292,6 +292,23 @@ class InMemoryReconciler(
    * OneToMany to collect the full run of same-key rows on one side before deciding which side is
    * the "one" and which is the "many".
    */
+  // A reconciliation for a newly matched group: Final when it balances, and otherwise `unbalanced`,
+  // which is Mismatched for OneToOne and InProgress for OneToMany (later movements may complete it).
+  private def newReconciliation(reconSpec: ReconciliationSpec, rule: Rule, unbalanced: ReconciliationStatus)(
+    inGroup:  Vector[Movement],
+    outGroup: Vector[Movement],
+    now:      OffsetDateTime
+  ): Reconciliation =
+    val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
+    Reconciliation(
+      specId       = Some(reconSpec.id),
+      appliedRules = appliedRules(rule, inGroup),
+      status       = if balance == Zero then ReconciliationStatus.Final else unbalanced,
+      balance      = balance,
+      createdAt    = Some(now),
+      updatedAt    = Some(now)
+    )
+
   private def gatherRun(cursor: MergeCursor): Vector[Movement] =
     val matchedKey = cursor.key
     val buf        = ListBuffer(cursor.current)
@@ -494,17 +511,7 @@ class InMemoryReconciler(
         outCursor.advance()
         Some(group)
       ,
-      toReconciliation = (inGroup, outGroup, now) =>
-        val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
-        val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.Mismatched
-        Reconciliation(
-          specId       = Some(reconSpec.id),
-          appliedRules = appliedRules(rule, inGroup),
-          status       = status,
-          balance      = balance,
-          createdAt    = Some(now),
-          updatedAt    = Some(now)
-        )
+      toReconciliation = newReconciliation(reconSpec, rule, ReconciliationStatus.Mismatched)
     )
 
   /**
@@ -527,7 +534,7 @@ class InMemoryReconciler(
         reconRepo.findBySpecIdAndStatus(reconSpec.id, ReconciliationStatus.Mismatched)
     for recon <- openRecons do
       transact(transactor):
-        val reconMovements = movementRepo.findByReconciliationID(recon.id)
+        val reconMovements = movementRepo.findByReconciliationId(recon.id)
         val inAnchors      = reconMovements.filter(_.movementSpecId == reconSpec.inMovementSpecId)
         val outAnchors     = reconMovements.filter(_.movementSpecId == reconSpec.outMovementSpecId)
 
@@ -606,17 +613,7 @@ class InMemoryReconciler(
           )
           None
       ,
-      toReconciliation = (inGroup, outGroup, now) =>
-        val balance = inGroup.map(_.amount).sum - outGroup.map(_.amount).sum
-        val status  = if balance == Zero then ReconciliationStatus.Final else ReconciliationStatus.InProgress
-        Reconciliation(
-          specId       = Some(reconSpec.id),
-          appliedRules = appliedRules(rule, inGroup),
-          status       = status,
-          balance      = balance,
-          createdAt    = Some(now),
-          updatedAt    = Some(now)
-        )
+      toReconciliation = newReconciliation(reconSpec, rule, ReconciliationStatus.InProgress)
     )
 
   /**

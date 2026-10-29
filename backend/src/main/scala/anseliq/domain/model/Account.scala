@@ -13,7 +13,7 @@ enum AccountType derives DbCodec:
 
 @Table(PostgresDbType, SqlNameMapper.CamelToSnakeCase)
 case class Account(
-  @Id id:                  ID                     = createID(),
+  @Id id:                  ID                     = createId(),
   name:                    String,
   ledgerId:                ID,
   accountType:             AccountType,
